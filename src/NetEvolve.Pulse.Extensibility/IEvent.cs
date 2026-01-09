@@ -34,6 +34,11 @@
 public interface IEvent
 {
     /// <summary>
+    /// Gets or sets the correlation identifier for tracing related operations.
+    /// </summary>
+    string? CorrelationId { get; set; }
+
+    /// <summary>
     /// Gets the unique identifier for this event instance.
     /// </summary>
     string Id { get; }

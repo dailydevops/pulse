@@ -47,6 +47,9 @@ internal static class Defaults
         internal const string ExceptionType = "pulse.exception.type";
 
         // Event-related tags
+        /// <summary>Tag name for event correlation ID.</summary>
+        internal const string EventCorrelationId = "pulse.event.correlation_id";
+
         /// <summary>Tag name for event name (type name).</summary>
         internal const string EventName = "pulse.event.name";
 
@@ -60,6 +63,9 @@ internal static class Defaults
         internal const string EventCompletionTimestamp = "pulse.event.completion.timestamp";
 
         // Request-related tags
+        /// <summary>Tag name for request correlation ID.</summary>
+        internal const string RequestCorrelationId = "pulse.request.correlation_id";
+
         /// <summary>Tag name for request name (type name).</summary>
         internal const string RequestName = "pulse.request.name";
 

@@ -387,7 +387,10 @@ public class PulseMediatorTests
             throw new InvalidOperationException("Test exception");
     }
 
-    private sealed class TestCommand : ICommand<string> { }
+    private sealed class TestCommand : ICommand<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
 
     private sealed class TestCommandHandler : ICommandHandler<TestCommand, string>
     {
@@ -403,7 +406,10 @@ public class PulseMediatorTests
         }
     }
 
-    private sealed class TestQuery : IQuery<string> { }
+    private sealed class TestQuery : IQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
 
     private sealed class TestQueryHandler : IQueryHandler<TestQuery, string>
     {

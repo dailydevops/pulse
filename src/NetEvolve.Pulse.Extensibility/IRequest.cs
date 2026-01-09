@@ -62,4 +62,10 @@ using System.Diagnostics.CodeAnalysis;
 /// <seealso cref="IQuery{TResponse}" />
 /// <seealso cref="IRequestInterceptor{TRequest, TResponse}" />
 [SuppressMessage("Major Code Smell", "S2326:Unused type parameters should be removed", Justification = "As designed.")]
-public interface IRequest<TResponse>;
+public interface IRequest<TResponse>
+{
+    /// <summary>
+    /// An optional correlation identifier to link related requests and operations across system boundaries.
+    /// </summary>
+    string? CorrelationId { get; set; }
+}

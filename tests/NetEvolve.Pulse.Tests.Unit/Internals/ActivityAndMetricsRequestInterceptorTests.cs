@@ -221,9 +221,18 @@ public class ActivityAndMetricsRequestInterceptorTests
         _ = await Assert.That(receivedCommand).IsSameReferenceAs(command);
     }
 
-    private sealed class TestCommand : ICommand<string> { }
+    private sealed class TestCommand : ICommand<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
 
-    private sealed class TestQuery : IQuery<int> { }
+    private sealed class TestQuery : IQuery<int>
+    {
+        public string? CorrelationId { get; set; }
+    }
 
-    private sealed class TestRequest : IRequest<bool> { }
+    private sealed class TestRequest : IRequest<bool>
+    {
+        public string? CorrelationId { get; set; }
+    }
 }

@@ -100,8 +100,10 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
 
         var startTime = _timeProvider.GetUtcNow();
 
-        // TODO: Add correlation ID for cross-service request tracking
-        _ = activity?.SetStartTime(startTime.UtcDateTime).SetTag(RequestTimestamp, startTime);
+        _ = activity
+            ?.SetStartTime(startTime.UtcDateTime)
+            .SetTag(RequestCorrelationId, request.CorrelationId)
+            .SetTag(RequestTimestamp, startTime);
         _requestCounter.Add(1, tags);
 
         try
