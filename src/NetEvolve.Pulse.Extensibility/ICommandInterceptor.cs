@@ -2,10 +2,15 @@
 
 /// <summary>
 /// Defines an interceptor for commands of type <typeparamref name="TCommand"/> that produce responses of type <typeparamref name="TResponse"/>.
-/// Command interceptors allow cross-cutting concerns such as logging, validation, or metrics to be applied to command execution.
-/// Multiple interceptors can be chained together to form a pipeline.
+/// Enables cross-cutting concerns like logging, validation, or transaction management for commands.
 /// </summary>
-/// <typeparam name="TCommand">The type of command to intercept, which must implement <see cref="ICommand{TResponse}"/>.</typeparam>
+/// <typeparam name="TCommand">The type of command to intercept.</typeparam>
 /// <typeparam name="TResponse">The type of response produced by the command.</typeparam>
+/// <remarks>
+/// This interface extends <see cref="IRequestInterceptor{TRequest, TResponse}"/>.
+/// See <see cref="IRequestInterceptor{TRequest, TResponse}"/> for implementation details.
+/// </remarks>
+/// <seealso cref="ICommand{TResponse}" />
+/// <seealso cref="IRequestInterceptor{TRequest, TResponse}" />
 public interface ICommandInterceptor<TCommand, TResponse> : IRequestInterceptor<TCommand, TResponse>
     where TCommand : ICommand<TResponse>;

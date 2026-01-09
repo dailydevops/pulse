@@ -2,11 +2,33 @@
 
 /// <summary>
 /// Defines a handler for processing queries of type <typeparamref name="TQuery"/> and producing responses of type <typeparamref name="TResponse"/>.
-/// Implementations contain the business logic for executing specific query types.
 /// Query handlers should be side-effect free and idempotent.
 /// </summary>
-/// <typeparam name="TQuery">The type of query to handle, which must implement <see cref="IQuery{TResponse}"/>.</typeparam>
-/// <typeparam name="TResponse">The type of data returned by the query handler.</typeparam>
+/// <typeparam name="TQuery">The type of query to handle.</typeparam>
+/// <typeparam name="TResponse">The type of data returned by the handler.</typeparam>
+/// <remarks>
+/// ⚠️ Query handlers must be side-effect free. Each query type must have exactly one registered handler.
+/// </remarks>
+/// <example>
+/// <code>
+/// public record GetUserProfileQuery(string UserId) : IQuery&lt;UserProfileDto&gt;;
+///
+/// public class GetUserProfileQueryHandler
+///     : IQueryHandler&lt;GetUserProfileQuery, UserProfileDto&gt;
+/// {
+///     private readonly IUserRepository _repository;
+///
+///     public async Task&lt;UserProfileDto&gt; HandleAsync(
+///         GetUserProfileQuery request, CancellationToken cancellationToken)
+///     {
+///         var user = await _repository.GetByIdAsync(request.UserId, cancellationToken);
+///         return new UserProfileDto(user.Id, user.Name, user.Email);
+///     }
+/// }
+/// </code>
+/// </example>
+/// <seealso cref="IQuery{TResponse}" />
+/// <seealso cref="IMediator.QueryAsync{TQuery, TResponse}" />
 public interface IQueryHandler<in TQuery, TResponse>
     where TQuery : IQuery<TResponse>
 {

@@ -3,46 +3,76 @@
 using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
-/// Defines the mediator pattern implementation for decoupling request/response and event publishing in the application.
-/// The mediator provides a central point for dispatching commands, queries, and events to their respective handlers.
-/// This promotes loose coupling and enables cross-cutting concerns through interceptors.
+/// Defines the mediator pattern implementation for decoupling request/response and event publishing.
+/// Provides a central point for dispatching commands, queries, and events to their handlers.
 /// </summary>
+/// <remarks>
+/// ⚠️ Commands and queries require exactly one handler. Events can have zero or more handlers.
+/// Thread-safe when registered as scoped service.
+/// </remarks>
+/// <example>
+/// <code>
+/// public class OrderService
+/// {
+///     private readonly IMediator _mediator;
+///
+///     public async Task&lt;OrderResult&gt; CreateOrder(CreateOrderRequest request)
+///     {
+///         var command = new CreateOrderCommand(request.Items, request.CustomerId);
+///         var result = await _mediator.SendAsync&lt;CreateOrderCommand, OrderResult&gt;(command);
+///         await _mediator.PublishAsync(new OrderCreatedEvent { OrderId = result.OrderId });
+///         return result;
+///     }
+/// }
+/// </code>
+/// </example>
+/// <seealso cref="ICommand{TResponse}"/>
+/// <seealso cref="IQuery{TResponse}"/>
+/// <seealso cref="IEvent"/>
 public interface IMediator
 {
     /// <summary>
-    /// Asynchronously publishes an event to all registered handlers of type <see cref="IEventHandler{TEvent}"/>.
-    /// All handlers are executed in parallel, and exceptions in individual handlers are logged but don't prevent other handlers from executing.
+    /// Asynchronously publishes an event to all registered handlers.
+    /// All handlers execute in parallel, and exceptions in individual handlers don't prevent others from executing.
     /// </summary>
-    /// <typeparam name="TEvent">The type of event to publish, which must implement <see cref="IEvent"/>.</typeparam>
-    /// <param name="message">The event to publish. Cannot be null.</param>
+    /// <typeparam name="TEvent">The type of event to publish.</typeparam>
+    /// <param name="message">The event to publish.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous publish operation.</returns>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// ⚠️ Event handlers should be idempotent. The mediator automatically sets <see cref="IEvent.PublishedAt"/>.
+    /// </remarks>
     Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent;
 
     /// <summary>
-    /// Asynchronously executes a query and returns the result.
-    /// Queries are intended for read-only operations that don't modify state.
+    /// Asynchronously executes a query and returns the result. Queries are read-only operations.
     /// </summary>
-    /// <typeparam name="TQuery">The type of query to execute, which must implement <see cref="IQuery{TResponse}"/>.</typeparam>
+    /// <typeparam name="TQuery">The type of query to execute.</typeparam>
     /// <typeparam name="TResponse">The type of response returned by the query.</typeparam>
-    /// <param name="query">The query to execute. Cannot be null.</param>
+    /// <param name="query">The query to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation, containing the query result.</returns>
+    /// <returns>The query result.</returns>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the query type.</exception>
+    /// <remarks>
+    /// ⚠️ Exactly one handler must be registered for each query type.
+    /// </remarks>
     Task<TResponse> QueryAsync<TQuery, TResponse>([NotNull] TQuery query, CancellationToken cancellationToken = default)
         where TQuery : IQuery<TResponse>;
 
     /// <summary>
     /// Asynchronously sends a command for execution and returns the result.
-    /// Commands are intended for operations that change state or trigger side effects.
+    /// Commands are operations that change state or trigger side effects.
     /// </summary>
-    /// <typeparam name="TCommand">The type of command to execute, which must implement <see cref="ICommand{TResponse}"/>.</typeparam>
+    /// <typeparam name="TCommand">The type of command to execute.</typeparam>
     /// <typeparam name="TResponse">The type of response returned by the command.</typeparam>
-    /// <param name="command">The command to execute. Cannot be null.</param>
+    /// <param name="command">The command to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation, containing the command result.</returns>
+    /// <returns>The command result.</returns>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the command type.</exception>
+    /// <remarks>
+    /// ⚠️ Exactly one handler must be registered for each command type.
+    /// </remarks>
     Task<TResponse> SendAsync<TCommand, TResponse>(
         [NotNull] TCommand command,
         CancellationToken cancellationToken = default
@@ -50,11 +80,11 @@ public interface IMediator
         where TCommand : ICommand<TResponse>;
 
     /// <summary>
-    /// Asynchronously sends a command for execution without expecting a meaningful return value.
-    /// This is a convenience method for commands that return <see cref="Void"/>.
+    /// Asynchronously sends a command for execution without a return value.
+    /// Convenience method for commands that return <see cref="Void"/>.
     /// </summary>
-    /// <typeparam name="TCommand">The type of command to execute, which must implement <see cref="ICommand"/>.</typeparam>
-    /// <param name="command">The command to execute. Cannot be null.</param>
+    /// <typeparam name="TCommand">The type of command to execute.</typeparam>
+    /// <param name="command">The command to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the command type.</exception>

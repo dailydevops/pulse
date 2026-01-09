@@ -2,16 +2,41 @@
 
 /// <summary>
 /// Defines a handler for processing events of type <typeparamref name="TEvent"/>.
-/// Multiple handlers can be registered for the same event type, and all will be executed in parallel when the event is published.
-/// Event handlers should be idempotent and handle failures gracefully as exceptions in one handler won't affect others.
+/// Multiple handlers can be registered for the same event type and all execute in parallel.
 /// </summary>
-/// <typeparam name="TEvent">The type of event to handle, which must implement <see cref="IEvent"/>.</typeparam>
+/// <typeparam name="TEvent">The type of event to handle.</typeparam>
+/// <remarks>
+/// ⚠️ Event handlers should be idempotent and handle failures gracefully.
+/// Exceptions in one handler don't affect others.
+/// </remarks>
+/// <example>
+/// <code>
+/// public record UserRegisteredEvent : IEvent
+/// {
+///     public string Id { get; init; } = Guid.NewGuid().ToString();
+///     public DateTimeOffset? PublishedAt { get; set; }
+///     public string UserId { get; init; }
+///     public string Email { get; init; }
+/// }
+///
+/// public class UserRegisteredEmailHandler : IEventHandler&lt;UserRegisteredEvent&gt;
+/// {
+///     private readonly IEmailService _emailService;
+///
+///     public async Task HandleAsync(UserRegisteredEvent message, CancellationToken cancellationToken)
+///     {
+///         await _emailService.SendWelcomeEmailAsync(message.Email, cancellationToken);
+///     }
+/// }
+/// </code>
+/// </example>
+/// <seealso cref="IEvent" />
+/// <seealso cref="IMediator.PublishAsync{TEvent}" />
 public interface IEventHandler<in TEvent>
     where TEvent : IEvent
 {
     /// <summary>
     /// Asynchronously handles the specified event.
-    /// This method is invoked when an event of type <typeparamref name="TEvent"/> is published through the mediator.
     /// </summary>
     /// <param name="message">The event to handle.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>

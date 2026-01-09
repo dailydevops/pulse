@@ -49,7 +49,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <inheritdoc />
     /// <remarks>
-    /// This method executes all registered event handlers in parallel using <see cref="Parallel.ForEachAsync"/>.
+    /// This method executes all registered event handlers in parallel.
     /// The event's <see cref="IEvent.PublishedAt"/> property is automatically set before handlers execute.
     /// If any handler throws an exception, it is logged but does not prevent other handlers from executing.
     /// Event interceptors are applied in reverse registration order, allowing pre- and post-processing.

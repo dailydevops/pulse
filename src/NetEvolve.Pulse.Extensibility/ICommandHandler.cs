@@ -2,10 +2,36 @@
 
 /// <summary>
 /// Defines a handler for processing commands of type <typeparamref name="TCommand"/> and producing responses of type <typeparamref name="TResponse"/>.
-/// Implementations contain the business logic for executing specific command types.
 /// </summary>
-/// <typeparam name="TCommand">The type of command to handle, which must implement <see cref="ICommand{TResponse}"/>.</typeparam>
-/// <typeparam name="TResponse">The type of response produced by the command handler.</typeparam>
+/// <typeparam name="TCommand">The type of command to handle.</typeparam>
+/// <typeparam name="TResponse">The type of response produced by the handler.</typeparam>
+/// <remarks>
+/// ⚠️ Each command type must have exactly one handler registered as a scoped service.
+/// Handlers should manage their own transactions.
+/// </remarks>
+/// <example>
+/// <code>
+/// public record UpdateProductPriceCommand(string ProductId, decimal NewPrice)
+///     : ICommand&lt;PriceUpdateResult&gt;;
+///
+/// public class UpdateProductPriceCommandHandler
+///     : ICommandHandler&lt;UpdateProductPriceCommand, PriceUpdateResult&gt;
+/// {
+///     private readonly IProductRepository _repository;
+///
+///     public async Task&lt;PriceUpdateResult&gt; HandleAsync(
+///         UpdateProductPriceCommand command, CancellationToken cancellationToken)
+///     {
+///         var product = await _repository.GetByIdAsync(command.ProductId, cancellationToken);
+///         product.Price = command.NewPrice;
+///         await _repository.UpdateAsync(product, cancellationToken);
+///         return new PriceUpdateResult(product.Id, product.Price);
+///     }
+/// }
+/// </code>
+/// </example>
+/// <seealso cref="ICommand{TResponse}" />
+/// <seealso cref="IMediator.SendAsync{TCommand, TResponse}" />
 public interface ICommandHandler<TCommand, TResponse>
     where TCommand : ICommand<TResponse>
 {
