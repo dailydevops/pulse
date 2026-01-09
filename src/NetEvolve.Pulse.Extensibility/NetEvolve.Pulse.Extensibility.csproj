@@ -3,5 +3,9 @@
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
     <Description></Description>
     <PackageTags>$(PackageTags);extensibility;</PackageTags>
+    <NoWarn>$(NoWarn);CA1040;CA1711</NoWarn>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="NetEvolve.Pulse" />
+  </ItemGroup>
 </Project>
