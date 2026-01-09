@@ -59,22 +59,31 @@ internal sealed class ActivityAndMetricsInterceptor<TRequest, TResponse> : IRequ
     // Tag name constants for consistent telemetry labeling
     /// <summary>Tag name for exception message.</summary>
     private const string PulseExceptionMessage = "pulse.exception.message";
+
     /// <summary>Tag name for exception stack trace.</summary>
     private const string PulseExceptionStackTrace = "pulse.exception.stacktrace";
+
     /// <summary>Tag name for exception occurrence timestamp.</summary>
     private const string PulseExceptionTimestamp = "pulse.exception.timestamp";
+
     /// <summary>Tag name for exception type.</summary>
     private const string PulseExceptionType = "pulse.exception.type";
+
     /// <summary>Tag name for request name (type name).</summary>
     private const string PulseRequestName = "pulse.request.name";
+
     /// <summary>Tag name for request start timestamp.</summary>
     private const string PulseRequestTimestamp = "pulse.request.timestamp";
+
     /// <summary>Tag name for request type (Command/Query/Request).</summary>
     private const string PulseRequestType = "pulse.request.type";
+
     /// <summary>Tag name for response completion timestamp.</summary>
     private const string PulseResponseTimestamp = "pulse.response.timestamp";
+
     /// <summary>Tag name for response type name.</summary>
     private const string PulseResponseType = "pulse.response.type";
+
     /// <summary>Tag name for success/failure indicator.</summary>
     private const string PulseSuccess = "pulse.success";
 
