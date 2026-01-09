@@ -1,5 +1,8 @@
 ﻿namespace NetEvolve.Pulse.Extensibility;
 
+using System;
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Represents a base request that produces a response of type <typeparamref name="TResponse"/>.
 /// This is the root interface for both commands and queries in the mediator pattern.
@@ -58,4 +61,5 @@
 /// <seealso cref="ICommand{TResponse}" />
 /// <seealso cref="IQuery{TResponse}" />
 /// <seealso cref="IRequestInterceptor{TRequest, TResponse}" />
+[SuppressMessage("Major Code Smell", "S2326:Unused type parameters should be removed", Justification = "As designed.")]
 public interface IRequest<TResponse>;

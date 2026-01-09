@@ -45,7 +45,6 @@
 /// });
 /// </code>
 /// </example>
-/// <seealso cref="NetEvolve.Pulse.ServiceCollectionExtensions.AddPulse"/>
 public interface IMediatorConfigurator
 {
     /// <summary>
