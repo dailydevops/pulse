@@ -110,6 +110,7 @@ public class ActivityAndMetricsRequestInterceptorTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk()
     {
         using var listener = new ActivityListener
@@ -137,6 +138,7 @@ public class ActivityAndMetricsRequestInterceptorTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError()
     {
         using var listener = new ActivityListener

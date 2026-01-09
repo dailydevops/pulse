@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 
@@ -88,6 +89,9 @@ public static class ServiceCollectionExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        // Register TimeProvider if not already registered
+        services.TryAddSingleton(TimeProvider.System);
 
         if (builder is not null)
         {

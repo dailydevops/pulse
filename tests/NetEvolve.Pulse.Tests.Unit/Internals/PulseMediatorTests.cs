@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
-using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Extensibility;

@@ -26,10 +26,9 @@ public class ServiceCollectionExtensionsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(result).IsSameReferenceAs(services);
-            _ = await Assert.That(services).HasSingleItem();
 
-            var descriptor = services[0];
-            _ = await Assert.That(descriptor.ServiceType).IsEqualTo(typeof(IMediator));
+            var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IMediator));
+            _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(PulseMediator));
             _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
         }

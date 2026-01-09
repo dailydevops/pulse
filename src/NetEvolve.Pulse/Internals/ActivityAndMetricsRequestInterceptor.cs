@@ -62,7 +62,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// Initializes a new instance of the <see cref="ActivityAndMetricsRequestInterceptor{TRequest, TResponse}"/> class.
     /// </summary>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    internal ActivityAndMetricsRequestInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    public ActivityAndMetricsRequestInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
 
     /// <inheritdoc />
     /// <remarks>

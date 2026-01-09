@@ -60,7 +60,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// Initializes a new instance of the <see cref="ActivityAndMetricsEventInterceptor{TEvent}"/> class.
     /// </summary>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    internal ActivityAndMetricsEventInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    public ActivityAndMetricsEventInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
 
     /// <inheritdoc />
     /// <remarks>
