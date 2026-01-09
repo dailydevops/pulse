@@ -42,5 +42,5 @@ public interface IEvent
     /// Gets or sets the timestamp when this event was published.
     /// Automatically set by the mediator.
     /// </summary>
-    DateTimeOffset? PublishedAt { get; internal set; }
+    DateTimeOffset? PublishedAt { get; set; }
 }

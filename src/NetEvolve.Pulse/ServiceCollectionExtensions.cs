@@ -42,7 +42,7 @@ public static class ServiceCollectionExtensions
     /// <para><strong>Basic registration:</strong></para>
     /// <code>
     /// // In Program.cs or Startup.cs
-    /// services.AddPulseMediator();
+    /// services.AddPulse();
     ///
     /// // Register handlers
     /// services.AddScoped&lt;ICommandHandler&lt;CreateOrderCommand, OrderResult&gt;, CreateOrderCommandHandler&gt;();
@@ -51,7 +51,7 @@ public static class ServiceCollectionExtensions
     /// </code>
     /// <para><strong>Advanced registration with configuration:</strong></para>
     /// <code>
-    /// services.AddPulseMediator(config =>
+    /// services.AddPulse(config =>
     /// {
     ///     // Add OpenTelemetry tracing and Prometheus metrics
     ///     config.AddActivityAndMetrics();
@@ -82,7 +82,7 @@ public static class ServiceCollectionExtensions
     /// <seealso cref="ICommandHandler{TCommand, TResponse}"/>
     /// <seealso cref="IQueryHandler{TQuery, TResponse}"/>
     /// <seealso cref="IEventHandler{TEvent}"/>
-    public static IServiceCollection AddPulseMediator(
+    public static IServiceCollection AddPulse(
         this IServiceCollection services,
         Action<IMediatorConfigurator>? builder = null
     )

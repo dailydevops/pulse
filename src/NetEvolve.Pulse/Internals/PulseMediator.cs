@@ -59,6 +59,9 @@ internal sealed partial class PulseMediator : IMediator
     {
         ArgumentNullException.ThrowIfNull(message);
 
+        // Set the publication timestamp for tracking purposes
+        message.PublishedAt = _timeProvider.GetUtcNow();
+
         // Retrieve all handlers for the event type
         var handlers = _serviceProvider.GetServices<IEventHandler<TEvent>>();
 
@@ -67,9 +70,6 @@ internal sealed partial class PulseMediator : IMediator
         {
             return Task.CompletedTask;
         }
-
-        // Set the publication timestamp for tracking purposes
-        message.PublishedAt = _timeProvider.GetUtcNow();
 
         // Execute handlers through the interceptor pipeline
         return ExecuteAsync(

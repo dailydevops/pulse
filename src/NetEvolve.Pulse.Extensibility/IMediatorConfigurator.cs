@@ -6,7 +6,7 @@
 /// </summary>
 /// <remarks>
 /// <para><strong>Usage:</strong></para>
-/// The configurator is passed as a delegate parameter to the <c>AddPulseMediator</c> extension method,
+/// The configurator is passed as a delegate parameter to the <c>AddPulse</c> extension method,
 /// allowing for fluent configuration of mediator features during service registration.
 /// <para><strong>Extension Pattern:</strong></para>
 /// This interface follows the builder/configurator pattern and can be extended with additional methods
@@ -21,7 +21,7 @@
 /// <example>
 /// <code>
 /// // Basic configuration
-/// services.AddPulseMediator(config =>
+/// services.AddPulse(config =>
 /// {
 ///     config.AddActivityAndMetrics();
 /// });
@@ -37,7 +37,7 @@
 /// }
 ///
 /// // Using custom extensions
-/// services.AddPulseMediator(config =>
+/// services.AddPulse(config =>
 /// {
 ///     config
 ///         .AddActivityAndMetrics()
@@ -45,7 +45,7 @@
 /// });
 /// </code>
 /// </example>
-/// <seealso cref="NetEvolve.Pulse.ServiceCollectionExtensions.AddPulseMediator"/>
+/// <seealso cref="NetEvolve.Pulse.ServiceCollectionExtensions.AddPulse"/>
 public interface IMediatorConfigurator
 {
     /// <summary>
@@ -95,7 +95,7 @@ public interface IMediatorConfigurator
     ///     });
     ///
     /// // Enable Pulse metrics and tracing
-    /// services.AddPulseMediator(config =>
+    /// services.AddPulse(config =>
     /// {
     ///     config.AddActivityAndMetrics();
     /// });
