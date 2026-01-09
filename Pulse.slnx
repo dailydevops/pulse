@@ -1,0 +1,33 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".commitlintrc" />
+    <File Path=".csharpierignore" />
+    <File Path=".editorconfig" />
+    <File Path=".filenesting.json" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path=".mcp.json" />
+    <File Path="AGENTS.md" />
+    <File Path="CODE_OF_CONDUCT.md" />
+    <File Path="CONTRIBUTING.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="Directory.Solution.props" />
+    <File Path="GitVersion.yml" />
+    <File Path="global.json" />
+    <File Path="LICENSE" />
+    <File Path="logo.png" />
+    <File Path="nuget.config" />
+    <File Path="README.md" />
+    <File Path="renovate.json" />
+    <File Path="testEnvironments.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/NetEvolve.Pulse.Extensibility/NetEvolve.Pulse.Extensibility.csproj" Id="3445330b-9648-432a-9333-e934ac0dd7dd" />
+    <Project Path="src/NetEvolve.Pulse/NetEvolve.Pulse.csproj" Id="0f9212e3-a314-47c5-842d-5702891b6d5a" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj" Id="99a08ce6-c633-4411-b2b2-edd5c5defeeb" />
+    <Project Path="tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj" Id="cb20c880-dd1e-44c9-828e-cb3f208f1032" />
+  </Folder>
+</Solution>

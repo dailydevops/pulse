@@ -42,8 +42,9 @@ indent_size = 4
 generated_code = true
 
 # XML project files
-[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj,nativeproj,locproj}]
+[*.{slnx,csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj,nativeproj,locproj}]
 indent_size = 2
+max_line_length = 160
 
 # Xml build files
 [*.builds]
