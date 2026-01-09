@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using NetEvolve.Pulse.Extensibility;
+using static Defaults.Tags;
 
 /// <summary>
 /// Internal interceptor that adds OpenTelemetry activity tracing and metrics collection for all requests.
@@ -11,7 +12,8 @@ using NetEvolve.Pulse.Extensibility;
 /// </summary>
 /// <typeparam name="TRequest">The type of request being intercepted.</typeparam>
 /// <typeparam name="TResponse">The type of response produced by the request.</typeparam>
-internal sealed class ActivityAndMetricsInterceptor<TRequest, TResponse> : IRequestInterceptor<TRequest, TResponse>
+internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
+    : IRequestInterceptor<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     /// <summary>
@@ -56,42 +58,11 @@ internal sealed class ActivityAndMetricsInterceptor<TRequest, TResponse> : IRequ
     /// </summary>
     private readonly TimeProvider _timeProvider;
 
-    // Tag name constants for consistent telemetry labeling
-    /// <summary>Tag name for exception message.</summary>
-    private const string PulseExceptionMessage = "pulse.exception.message";
-
-    /// <summary>Tag name for exception stack trace.</summary>
-    private const string PulseExceptionStackTrace = "pulse.exception.stacktrace";
-
-    /// <summary>Tag name for exception occurrence timestamp.</summary>
-    private const string PulseExceptionTimestamp = "pulse.exception.timestamp";
-
-    /// <summary>Tag name for exception type.</summary>
-    private const string PulseExceptionType = "pulse.exception.type";
-
-    /// <summary>Tag name for request name (type name).</summary>
-    private const string PulseRequestName = "pulse.request.name";
-
-    /// <summary>Tag name for request start timestamp.</summary>
-    private const string PulseRequestTimestamp = "pulse.request.timestamp";
-
-    /// <summary>Tag name for request type (Command/Query/Request).</summary>
-    private const string PulseRequestType = "pulse.request.type";
-
-    /// <summary>Tag name for response completion timestamp.</summary>
-    private const string PulseResponseTimestamp = "pulse.response.timestamp";
-
-    /// <summary>Tag name for response type name.</summary>
-    private const string PulseResponseType = "pulse.response.type";
-
-    /// <summary>Tag name for success/failure indicator.</summary>
-    private const string PulseSuccess = "pulse.success";
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="ActivityAndMetricsInterceptor{TRequest, TResponse}"/> class.
+    /// Initializes a new instance of the <see cref="ActivityAndMetricsRequestInterceptor{TRequest, TResponse}"/> class.
     /// </summary>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    internal ActivityAndMetricsInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    internal ActivityAndMetricsRequestInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
 
     /// <inheritdoc />
     /// <remarks>
@@ -111,26 +82,26 @@ internal sealed class ActivityAndMetricsInterceptor<TRequest, TResponse> : IRequ
         var requestType = GetRequestType(request);
         var requestName = typeof(TRequest).Name;
         var responseType = typeof(TResponse).Name;
-        var activityName = $"{requestType}.{requestName}";
 
         // Prepare tags for consistent labeling across activity and metrics
         var tags = new TagList
         {
-            { PulseRequestType, requestType },
-            { PulseRequestName, requestName },
-            { PulseResponseType, responseType },
+            { RequestType, requestType },
+            { RequestName, requestName },
+            { ResponseType, responseType },
         };
 
-        using var activity = _activitySource.StartActivity(activityName, ActivityKind.Internal, null, tags: tags);
+        using var activity = _activitySource.StartActivity(
+            $"{requestType}.{requestName}",
+            ActivityKind.Internal,
+            null,
+            tags: tags
+        );
 
         var startTime = _timeProvider.GetUtcNow();
 
         // TODO: Add correlation ID for cross-service request tracking
-        _ = activity
-            ?.SetStartTime(startTime.UtcDateTime)
-            .SetTag(PulseRequestType, requestType)
-            .SetTag(PulseRequestTimestamp, startTime)
-            .SetTag(PulseResponseType, responseType);
+        _ = activity?.SetStartTime(startTime.UtcDateTime).SetTag(RequestTimestamp, startTime);
         _requestCounter.Add(1, tags);
 
         try
@@ -144,14 +115,11 @@ internal sealed class ActivityAndMetricsInterceptor<TRequest, TResponse> : IRequ
             _ = activity
                 ?.SetStatus(ActivityStatusCode.Ok)
                 .SetEndTime(endTime.UtcDateTime)
-                .SetTag(PulseResponseTimestamp, endTime)
-                .SetTag(PulseSuccess, true);
+                .SetTag(ResponseTimestamp, endTime)
+                .SetTag(Success, true);
 
             // Record successful execution duration
-            _requestDurationHistogram.Record(
-                (startTime - endTime).TotalMilliseconds,
-                [.. tags, new(PulseSuccess, true)]
-            );
+            _requestDurationHistogram.Record((startTime - endTime).TotalMilliseconds, [.. tags, new(Success, true)]);
 
             return response;
         }
@@ -163,18 +131,15 @@ internal sealed class ActivityAndMetricsInterceptor<TRequest, TResponse> : IRequ
             _ = activity
                 ?.SetStatus(ActivityStatusCode.Error, ex.Message)
                 .SetEndTime(errorTime.UtcDateTime)
-                .SetTag(PulseExceptionType, ex.GetType().FullName)
-                .SetTag(PulseExceptionMessage, ex.Message)
-                .SetTag(PulseExceptionStackTrace, ex.StackTrace)
-                .SetTag(PulseExceptionTimestamp, errorTime)
-                .SetTag(PulseSuccess, false);
+                .SetTag(ExceptionType, ex.GetType().FullName)
+                .SetTag(ExceptionMessage, ex.Message)
+                .SetTag(ExceptionStackTrace, ex.StackTrace)
+                .SetTag(ExceptionTimestamp, errorTime)
+                .SetTag(Success, false);
 
             // Increment error counters and record failed execution duration
             _errorsCounter.Add(1, tags);
-            _requestDurationHistogram.Record(
-                (startTime - errorTime).TotalMilliseconds,
-                [.. tags, new(PulseSuccess, false)]
-            );
+            _requestDurationHistogram.Record((startTime - errorTime).TotalMilliseconds, [.. tags, new(Success, false)]);
 
             throw;
         }

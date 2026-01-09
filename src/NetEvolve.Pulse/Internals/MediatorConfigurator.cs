@@ -29,9 +29,13 @@ internal sealed class MediatorConfigurator : IMediatorConfigurator
     /// <inheritdoc />
     public IMediatorConfigurator AddActivityAndMetrics()
     {
+        // Register the activity and metrics interceptor as a singleton for all event types
+        _services.TryAddEnumerable(
+            ServiceDescriptor.Singleton(typeof(IEventInterceptor<>), typeof(ActivityAndMetricsEventInterceptor<>))
+        );
         // Register the activity and metrics interceptor as a singleton for all request types
         _services.TryAddEnumerable(
-            ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(ActivityAndMetricsInterceptor<,>))
+            ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(ActivityAndMetricsRequestInterceptor<,>))
         );
 
         return this;
