@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description></Description>
+    <PackageTags>$(PackageTags);extensibility;</PackageTags>
+  </PropertyGroup>
+</Project>
