@@ -189,12 +189,17 @@ public class ActivityAndMetricsEventInterceptorTests
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CorrelationId { get; set; }
+
         DateTimeOffset? IEvent.PublishedAt { get; set; }
     }
 
     private sealed class AnotherTestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+
+        public string? CorrelationId { get; set; }
+
         DateTimeOffset? IEvent.PublishedAt { get; set; }
     }
 }

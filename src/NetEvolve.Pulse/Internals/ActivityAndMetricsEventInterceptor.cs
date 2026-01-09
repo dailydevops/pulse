@@ -91,8 +91,10 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
 
         var startTime = _timeProvider.GetUtcNow();
 
-        _ = activity?.SetStartTime(startTime.UtcDateTime)
-            .SetTag(EventCorrelationId, message.CorrelationId).SetTag(EventTimestamp, startTime);
+        _ = activity
+            ?.SetStartTime(startTime.UtcDateTime)
+            .SetTag(EventCorrelationId, message.CorrelationId)
+            .SetTag(EventTimestamp, startTime);
         _eventCounter.Add(1, tags);
 
         try
