@@ -14,7 +14,7 @@ public class ActivityAndMetricsEventInterceptorTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
 
@@ -51,7 +51,7 @@ public class ActivityAndMetricsEventInterceptorTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
 
@@ -78,7 +78,7 @@ public class ActivityAndMetricsEventInterceptorTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
 
@@ -116,7 +116,7 @@ public class ActivityAndMetricsEventInterceptorTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
 
@@ -164,7 +164,7 @@ public class ActivityAndMetricsEventInterceptorTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
 

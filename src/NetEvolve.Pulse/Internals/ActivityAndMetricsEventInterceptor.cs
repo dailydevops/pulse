@@ -76,7 +76,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// </remarks>
     public async Task HandleAsync(TEvent message, Func<TEvent, Task> handler)
     {
-        var eventType = "Event";
+        const string eventType = "Event";
         var eventName = typeof(TEvent).Name;
 
         // Prepare tags for consistent labeling across activity and metrics

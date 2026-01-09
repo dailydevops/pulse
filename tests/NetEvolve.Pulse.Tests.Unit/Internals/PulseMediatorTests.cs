@@ -16,11 +16,10 @@ public class PulseMediatorTests
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var timeProvider = TimeProvider.System;
 
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            _ = new PulseMediator(logger!, serviceProvider, timeProvider)
+        _ = Assert.Throws<ArgumentNullException>(
+            "logger",
+            () => _ = new PulseMediator(logger!, serviceProvider, timeProvider)
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("logger");
     }
 
     [Test]
@@ -33,11 +32,10 @@ public class PulseMediatorTests
         IServiceProvider? serviceProvider = null;
         var timeProvider = TimeProvider.System;
 
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            _ = new PulseMediator(logger, serviceProvider!, timeProvider)
+        _ = Assert.Throws<ArgumentNullException>(
+            "serviceProvider",
+            () => _ = new PulseMediator(logger, serviceProvider!, timeProvider)
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("serviceProvider");
     }
 
     [Test]
@@ -50,11 +48,10 @@ public class PulseMediatorTests
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         TimeProvider? timeProvider = null;
 
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            _ = new PulseMediator(logger, serviceProvider, timeProvider!)
+        _ = Assert.Throws<ArgumentNullException>(
+            "timeProvider",
+            () => _ = new PulseMediator(logger, serviceProvider, timeProvider!)
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("timeProvider");
     }
 
     [Test]
@@ -86,11 +83,10 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await mediator.PublishAsync<TestEvent>(null!)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(
+            "message",
+            async () => await mediator.PublishAsync<TestEvent>(null!)
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("message");
     }
 
     [Test]
@@ -106,7 +102,7 @@ public class PulseMediatorTests
 
         await mediator.PublishAsync(testEvent);
 
-        _ = await Assert.That(((IEvent)testEvent).PublishedAt).IsNotNull();
+        _ = await Assert.That(testEvent.PublishedAt).IsNotNull();
     }
 
     [Test]
@@ -188,11 +184,10 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await mediator.QueryAsync<TestQuery, string>(null!)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(
+            "query",
+            async () => await mediator.QueryAsync<TestQuery, string>(null!)
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("query");
     }
 
     [Test]
@@ -244,11 +239,10 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await mediator.SendAsync<TestCommand, string>(null!)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(
+            "command",
+            async () => await mediator.SendAsync<TestCommand, string>(null!)
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("command");
     }
 
     [Test]

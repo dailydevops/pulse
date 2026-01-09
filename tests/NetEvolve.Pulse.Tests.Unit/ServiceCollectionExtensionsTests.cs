@@ -41,10 +41,7 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         var builderInvoked = false;
 
-        var result = services.AddPulse(builder =>
-        {
-            builderInvoked = true;
-        });
+        var result = services.AddPulse(_ => builderInvoked = true);
 
         using (Assert.Multiple())
         {

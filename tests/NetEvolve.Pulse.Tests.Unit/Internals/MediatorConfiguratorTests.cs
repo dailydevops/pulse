@@ -13,11 +13,10 @@ public class MediatorConfiguratorTests
     {
         IServiceCollection? services = null;
 
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            new MediatorConfigurator(services!).AddActivityAndMetrics()
+        _ = Assert.Throws<ArgumentNullException>(
+            "services",
+            () => new MediatorConfigurator(services!).AddActivityAndMetrics()
         );
-
-        _ = await Assert.That(exception.ParamName).IsEqualTo("services");
     }
 
     [Test]
