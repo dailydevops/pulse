@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
-    <Description></Description>
+    <Description>Pulse - A high-performance, lightweight CQRS mediator library specifically designed for modern ASP.NET Core applications. Pulse implements the mediator pattern to facilitate clean, decoupled communication between application components through commands, queries, and events. The library provides automatic handler discovery and registration through dependency injection, ensuring type-safe message dispatching with minimal boilerplate code. Key features include: comprehensive interceptor pipeline for cross-cutting concerns (validation, logging, metrics, caching), scoped lifetime management for thread-safe operations within HTTP request boundaries, built-in support for async/await patterns, zero-allocation optimizations for high-throughput scenarios, and seamless integration with ASP.NET Core's service container. Pulse enforces CQRS principles by requiring exactly one handler per command/query while supporting multiple event handlers for domain event broadcasting. Ideal for microservices, modular monoliths, vertical slice architectures, and any application requiring clear separation between read and write operations. The library promotes testability through its abstraction-based design and enables building maintainable, scalable applications following clean architecture and domain-driven design principles.</Description>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
-    <Description></Description>
+    <Description>Extensibility contracts and abstractions for the Pulse CQRS mediator library. This package defines the core interfaces and abstractions required to implement the mediator pattern with Command Query Responsibility Segregation (CQRS) principles. It provides strongly-typed contracts for commands (ICommand, ICommandHandler), queries (IQuery), events (IEvent, IEventHandler), and request/response patterns (IRequest, IRequestHandler). The extensibility model includes interceptor interfaces (ICommandInterceptor, IQueryInterceptor, IEventInterceptor, IRequestInterceptor) for implementing cross-cutting concerns such as validation, logging, caching, authentication, and transaction management. This package is designed to be framework-agnostic and serves as the foundation for building testable, maintainable, and decoupled application architectures. Perfect for domain-driven design (DDD), clean architecture, and hexagonal architecture patterns where business logic needs to be isolated from infrastructure concerns.</Description>
     <PackageTags>$(PackageTags);extensibility;</PackageTags>
     <NoWarn>$(NoWarn);CA1040;CA1711</NoWarn>
   </PropertyGroup>
