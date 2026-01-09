@@ -181,5 +181,7 @@ Examples:
 - Acknowledge inspiration or related projects
 -->
 
+---
+
 > [!NOTE] 
 > **Made with ❤️ by the NetEvolve Team**
