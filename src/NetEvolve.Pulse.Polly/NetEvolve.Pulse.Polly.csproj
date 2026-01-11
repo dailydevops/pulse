@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>Polly-based resilience policies for the Pulse CQRS mediator library. This package provides built-in interceptors for integrating Polly v8 resilience strategies including retry policies, circuit breakers, bulkhead isolation, timeout policies, and fallback strategies. The interceptors seamlessly integrate with the Pulse mediator pipeline through the IRequestInterceptor and IEventInterceptor interfaces, allowing you to apply resilience patterns to command handlers, query handlers, and event handlers. Supports both per-handler policy configuration and global policy application across all requests and events. Includes fluent API extensions for IMediatorConfigurator to simplify policy registration and configuration. Perfect for building robust, fault-tolerant applications that gracefully handle transient failures, cascading failures, and resource exhaustion scenarios in distributed systems and microservice architectures.</Description>
+    <PackageTags>$(PackageTags);polly;resilience;retry;circuit-breaker;bulkhead;timeout;fallback;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Polly.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>
