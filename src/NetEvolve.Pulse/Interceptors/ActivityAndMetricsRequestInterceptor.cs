@@ -1,9 +1,10 @@
-﻿namespace NetEvolve.Pulse.Internals;
+﻿namespace NetEvolve.Pulse.Interceptors;
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using NetEvolve.Pulse.Extensibility;
-using static Defaults.Tags;
+using NetEvolve.Pulse.Internals;
+using static Internals.Defaults.Tags;
 
 /// <summary>
 /// Internal interceptor that adds OpenTelemetry activity tracing and metrics collection for all requests.

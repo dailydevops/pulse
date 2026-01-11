@@ -1,8 +1,8 @@
-namespace NetEvolve.Pulse.Tests.Unit.Internals;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Internals;
+using NetEvolve.Pulse.Interceptors;
 using TUnit.Core;
 
 public class ActivityAndMetricsEventInterceptorTests
