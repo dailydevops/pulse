@@ -99,18 +99,23 @@ public sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInter
     /// </summary>
     /// <param name="request">The request to process.</param>
     /// <param name="handler">The delegate that represents the next step in the interceptor chain.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, containing the response from the handler.</returns>
     /// <remarks>
     /// The handler execution is wrapped in the Polly pipeline, which applies configured policies
     /// such as retry, circuit breaker, timeout, and bulkhead. The pipeline may execute the handler
     /// multiple times (retry), prevent execution (circuit breaker), or throw timeout exceptions.
     /// </remarks>
-    public async Task<TResponse> HandleAsync(TRequest request, Func<TRequest, Task<TResponse>> handler)
+    public async Task<TResponse> HandleAsync(
+        TRequest request,
+        Func<TRequest, Task<TResponse>> handler,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(handler);
 
         return await _pipeline
-            .ExecuteAsync(async _ => await handler(request).ConfigureAwait(false), CancellationToken.None)
+            .ExecuteAsync(async _ => await handler(request).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
     }
 }

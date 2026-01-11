@@ -75,7 +75,11 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// <item>Marks success/failure status in both activity and metrics</item>
     /// </list>
     /// </remarks>
-    public async Task HandleAsync(TEvent message, Func<TEvent, Task> handler)
+    public async Task HandleAsync(
+        TEvent message,
+        Func<TEvent, Task> handler,
+        CancellationToken cancellationToken = default
+    )
     {
         const string eventType = "Event";
         var eventName = typeof(TEvent).Name;

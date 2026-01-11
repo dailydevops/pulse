@@ -77,7 +77,11 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// <item>Marks success/failure status in both activity and metrics</item>
     /// </list>
     /// </remarks>
-    public async Task<TResponse> HandleAsync(TRequest request, Func<TRequest, Task<TResponse>> handler)
+    public async Task<TResponse> HandleAsync(
+        TRequest request,
+        Func<TRequest, Task<TResponse>> handler,
+        CancellationToken cancellationToken = default
+    )
     {
         // Determine request categorization (Command/Query/Request)
         var requestType = GetRequestType(request);

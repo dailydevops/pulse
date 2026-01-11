@@ -43,7 +43,7 @@
 ///         _logger = logger;
 ///     }
 ///
-///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler)
+///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler, CancellationToken cancellationToken = default)
 ///     {
 ///         _logger.LogInformation(
 ///             "Publishing event {EventType} with ID {EventId} at {PublishedAt}",
@@ -92,7 +92,7 @@
 ///         _currentUser = currentUser;
 ///     }
 ///
-///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler)
+///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler, CancellationToken cancellationToken = default)
 ///     {
 ///         // Create audit entry before handlers execute
 ///         var auditEntry = new AuditEntry
@@ -122,7 +122,7 @@
 ///         _correlationContext = correlationContext;
 ///     }
 ///
-///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler)
+///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler, CancellationToken cancellationToken = default)
 ///     {
 ///         // Enrich event with correlation ID
 ///         if (string.IsNullOrEmpty(message.CorrelationId))
@@ -152,6 +152,7 @@ public interface IEventInterceptor<TEvent>
     /// </summary>
     /// <param name="message">The event being processed.</param>
     /// <param name="handler">The next handler in the pipeline to invoke. Must be called to continue execution.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task HandleAsync(TEvent message, Func<TEvent, Task> handler);
+    Task HandleAsync(TEvent message, Func<TEvent, Task> handler, CancellationToken cancellationToken = default);
 }

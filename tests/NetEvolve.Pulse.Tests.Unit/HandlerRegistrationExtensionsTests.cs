@@ -660,28 +660,46 @@ public class HandlerRegistrationExtensionsTests
     // Test helper interceptor types
     private sealed partial class TestRequestInterceptor : IRequestInterceptor<TestCommand, string>
     {
-        public Task<string> HandleAsync(TestCommand request, Func<TestCommand, Task<string>> handler) =>
-            handler(request);
+        public Task<string> HandleAsync(
+            TestCommand request,
+            Func<TestCommand, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request);
     }
 
     private sealed partial class TestCommandInterceptor : ICommandInterceptor<TestCommand, string>
     {
-        public Task<string> HandleAsync(TestCommand request, Func<TestCommand, Task<string>> handler) =>
-            handler(request);
+        public Task<string> HandleAsync(
+            TestCommand request,
+            Func<TestCommand, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request);
     }
 
     private sealed partial class TestQueryInterceptor : IQueryInterceptor<TestQuery, string>
     {
-        public Task<string> HandleAsync(TestQuery request, Func<TestQuery, Task<string>> handler) => handler(request);
+        public Task<string> HandleAsync(
+            TestQuery request,
+            Func<TestQuery, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request);
     }
 
     private sealed partial class TestEventInterceptor : IEventInterceptor<TestEvent>
     {
-        public Task HandleAsync(TestEvent message, Func<TestEvent, Task> handler) => handler(message);
+        public Task HandleAsync(
+            TestEvent message,
+            Func<TestEvent, Task> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(message);
     }
 
     private sealed partial class AnotherTestEventInterceptor : IEventInterceptor<TestEvent>
     {
-        public Task HandleAsync(TestEvent message, Func<TestEvent, Task> handler) => handler(message);
+        public Task HandleAsync(
+            TestEvent message,
+            Func<TestEvent, Task> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(message);
     }
 }
