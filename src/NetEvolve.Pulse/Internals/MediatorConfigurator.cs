@@ -3,6 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Interceptors;
 
 /// <summary>
 /// Internal implementation of <see cref="IMediatorConfigurator"/> that provides fluent configuration capabilities for the Pulse mediator.
