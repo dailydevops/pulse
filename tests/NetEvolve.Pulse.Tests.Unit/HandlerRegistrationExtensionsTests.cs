@@ -74,6 +74,72 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
+    public void AddCommandHandler_VoidCommand_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddCommandHandler<TestVoidCommand, TestVoidCommandHandler>()
+        );
+    }
+
+    [Test]
+    public async Task AddCommandHandler_VoidCommand_RegistersHandlerWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config => config.AddCommandHandler<TestVoidCommand, TestVoidCommandHandler>());
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(ICommandHandler<TestVoidCommand, Void>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestVoidCommandHandler));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddCommandHandler_VoidCommand_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddCommandHandler<TestVoidCommand, TestVoidCommandHandler>(ServiceLifetime.Transient)
+        );
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(ICommandHandler<TestVoidCommand, Void>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestVoidCommandHandler));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Transient);
+        }
+    }
+
+    [Test]
+    public async Task AddCommandHandler_VoidCommand_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddCommandHandler<TestVoidCommand, TestVoidCommandHandler>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
     public void AddQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorConfigurator? configurator = null;
@@ -254,6 +320,17 @@ public class HandlerRegistrationExtensionsTests
     {
         public Task<string> HandleAsync(TestCommand command, CancellationToken cancellationToken = default) =>
             Task.FromResult(command.Value);
+    }
+
+    private sealed partial record TestVoidCommand(string Value) : ICommand<Void>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed partial class TestVoidCommandHandler : ICommandHandler<TestVoidCommand, Void>
+    {
+        public Task<Void> HandleAsync(TestVoidCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Void.Completed);
     }
 
     private sealed partial record TestQuery(string Value) : IQuery<string>

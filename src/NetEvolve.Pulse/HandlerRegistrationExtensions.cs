@@ -48,6 +48,45 @@ using NetEvolve.Pulse.Extensibility;
 public static class HandlerRegistrationExtensions
 {
     /// <summary>
+    /// Registers a command handler for the specified command type that does not return a response.
+    /// </summary>
+    /// <typeparam name="TCommand">The command type that implements <see cref="ICommand{TResponse}"/> with <see cref="Void"/> as the response type.</typeparam>
+    /// <typeparam name="THandler">The handler implementation type that implements <see cref="ICommandHandler{TCommand, TResponse}"/> with <see cref="Void"/> as the response type.</typeparam>
+    /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="lifetime">The service lifetime for the handler (default: Scoped).</param>
+    /// <returns>The configurator for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator"/> is null.</exception>
+    /// <remarks>
+    /// <para><strong>⚠️ IMPORTANT:</strong> Commands must have exactly one handler. Registering multiple handlers
+    /// for the same command type will result in the last registered handler being used.</para>
+    /// <para><strong>Void Commands:</strong></para>
+    /// This overload is for fire-and-forget commands that perform an action without returning a result.
+    /// Use this for commands like <c>DeleteOrderCommand</c>, <c>SendEmailCommand</c>, or <c>LogEventCommand</c>.
+    /// <para><strong>AOT Safety:</strong></para>
+    /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
+    /// ensures the handler's public constructors are preserved during trimming.
+    /// <para><strong>Performance:</strong></para>
+    /// Command handlers are resolved from the DI container on each mediator call. Use appropriate lifetimes
+    /// to balance memory usage and initialization overhead.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Register void command with default Scoped lifetime
+    /// config.AddCommandHandler&lt;DeleteOrderCommand, DeleteOrderCommandHandler&gt;();
+    ///
+    /// // Register void command with explicit Singleton lifetime for stateless handler
+    /// config.AddCommandHandler&lt;SendNotificationCommand, SendNotificationHandler&gt;(ServiceLifetime.Singleton);
+    /// </code>
+    /// </example>
+    public static IMediatorConfigurator AddCommandHandler<
+        TCommand,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
+    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        where TCommand : ICommand<Void>
+        where THandler : class, ICommandHandler<TCommand, Void> =>
+        configurator.AddCommandHandler<TCommand, Void, THandler>(lifetime);
+
+    /// <summary>
     /// Registers a command handler for the specified command type.
     /// </summary>
     /// <typeparam name="TCommand">The command type that implements <see cref="ICommand{TResponse}"/>.</typeparam>
