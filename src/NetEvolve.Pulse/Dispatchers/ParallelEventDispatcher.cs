@@ -51,6 +51,6 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
         Parallel.ForEachAsync(
             handlers,
             cancellationToken,
-            async (handler, ct) => await invoker(handler, message).ConfigureAwait(false)
+            async (handler, _) => await invoker(handler, message).ConfigureAwait(false)
         );
 }

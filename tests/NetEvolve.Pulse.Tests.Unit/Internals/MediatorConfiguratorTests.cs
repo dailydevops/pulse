@@ -364,9 +364,7 @@ public class MediatorConfiguratorTests
         var services = new ServiceCollection();
         var configurator = new MediatorConfigurator(services);
 
-        var result = configurator.UseDefaultEventDispatcher<RateLimitedEventDispatcher>(
-            sp => new RateLimitedEventDispatcher(maxConcurrency: 10)
-        );
+        var result = configurator.UseDefaultEventDispatcher(_ => new RateLimitedEventDispatcher(maxConcurrency: 10));
 
         _ = await Assert.That(result).IsSameReferenceAs(configurator);
 
@@ -392,8 +390,8 @@ public class MediatorConfiguratorTests
         var services = new ServiceCollection();
         var configurator = new MediatorConfigurator(services);
 
-        _ = configurator.UseDefaultEventDispatcher<RateLimitedEventDispatcher>(
-            sp => new RateLimitedEventDispatcher(maxConcurrency: 3),
+        _ = configurator.UseDefaultEventDispatcher(
+            _ => new RateLimitedEventDispatcher(maxConcurrency: 3),
             ServiceLifetime.Scoped
         );
 
@@ -425,7 +423,7 @@ public class MediatorConfiguratorTests
         var configurator = new MediatorConfigurator(services);
 
         var result = configurator.UseEventDispatcherFor<TestEvent, RateLimitedEventDispatcher>(
-            sp => new RateLimitedEventDispatcher(maxConcurrency: 5)
+            _ => new RateLimitedEventDispatcher(maxConcurrency: 5)
         );
 
         _ = await Assert.That(result).IsSameReferenceAs(configurator);
