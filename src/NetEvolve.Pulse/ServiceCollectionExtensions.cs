@@ -2,6 +2,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 
@@ -92,6 +93,9 @@ public static class ServiceCollectionExtensions
 
         // Register TimeProvider if not already registered
         services.TryAddSingleton(TimeProvider.System);
+
+        // Register default parallel event dispatcher if not configured
+        services.TryAddSingleton<IEventDispatcher, ParallelEventDispatcher>();
 
         if (builder is not null)
         {

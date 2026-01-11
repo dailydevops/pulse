@@ -141,4 +141,212 @@ public interface IMediatorConfigurator
     /// <seealso href="https://opentelemetry.io/docs/">OpenTelemetry Documentation</seealso>
     /// <seealso href="https://prometheus.io/docs/introduction/overview/">Prometheus Documentation</seealso>
     IMediatorConfigurator AddActivityAndMetrics();
+
+    /// <summary>
+    /// Configures a custom event dispatcher to control how events are dispatched to their handlers.
+    /// This allows customization of the execution strategy (parallel, sequential, rate-limited, etc.).
+    /// </summary>
+    /// <typeparam name="TDispatcher">
+    /// The type of event dispatcher to use. Must implement <see cref="IEventDispatcher"/>.
+    /// </typeparam>
+    /// <param name="lifetime">
+    /// The service lifetime for the dispatcher. Defaults to <see cref="ServiceLifetime.Singleton"/>
+    /// as dispatchers are typically stateless or manage their own state.
+    /// </param>
+    /// <returns>The current configurator instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Default Behavior:</strong></para>
+    /// If no dispatcher is configured, the mediator uses parallel dispatch by default.
+    /// <para><strong>Built-in Dispatchers:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><c>ParallelEventDispatcher</c>: Executes handlers concurrently for maximum throughput (default)</description></item>
+    /// <item><description><c>SequentialEventDispatcher</c>: Executes handlers one at a time in registration order</description></item>
+    /// <item><description><c>RateLimitedEventDispatcher</c>: Limits concurrent execution using a semaphore</description></item>
+    /// <item><description><c>PrioritizedEventDispatcher</c>: Orders handlers by priority before sequential execution</description></item>
+    /// <item><description><c>TransactionalEventDispatcher</c>: Stores events in outbox for reliable delivery</description></item>
+    /// </list>
+    /// <para><strong>Custom Dispatchers:</strong></para>
+    /// Implement <see cref="IEventDispatcher"/> for advanced scenarios:
+    /// <list type="bullet">
+    /// <item><description>Custom rate-limiting algorithms</description></item>
+    /// <item><description>Circuit breaker patterns</description></item>
+    /// <item><description>Batching and bulk operations</description></item>
+    /// </list>
+    /// <para><strong>⚠️ Note:</strong></para>
+    /// Calling this method multiple times replaces the previous dispatcher registration.
+    /// Only one dispatcher can be active at a time.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Use sequential dispatcher for ordered execution
+    /// services.AddPulse(config =>
+    /// {
+    ///     config.UseDefaultEventDispatcher&lt;SequentialEventDispatcher&gt;();
+    /// });
+    ///
+    /// // Custom rate-limited dispatcher
+    /// services.AddPulse(config =>
+    /// {
+    ///     config.UseDefaultEventDispatcher&lt;RateLimitedEventDispatcher&gt;(ServiceLifetime.Scoped);
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="IEventDispatcher"/>
+    IMediatorConfigurator UseDefaultEventDispatcher<TDispatcher>(ServiceLifetime lifetime = ServiceLifetime.Singleton)
+        where TDispatcher : class, IEventDispatcher;
+
+    /// <summary>
+    /// Configures a custom event dispatcher using a factory delegate for custom instantiation.
+    /// This allows configuring dispatchers with constructor parameters (e.g., rate limits, options).
+    /// </summary>
+    /// <typeparam name="TDispatcher">
+    /// The type of event dispatcher to use. Must implement <see cref="IEventDispatcher"/>.
+    /// </typeparam>
+    /// <param name="factory">
+    /// A factory delegate that receives the <see cref="IServiceProvider"/> and returns the dispatcher instance.
+    /// </param>
+    /// <param name="lifetime">
+    /// The service lifetime for the dispatcher. Defaults to <see cref="ServiceLifetime.Singleton"/>
+    /// as dispatchers are typically stateless or manage their own state.
+    /// </param>
+    /// <returns>The current configurator instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Use Cases:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>Configuring <c>RateLimitedEventDispatcher</c> with custom concurrency limits</description></item>
+    /// <item><description>Creating dispatchers that require external dependencies</description></item>
+    /// <item><description>Configuring dispatchers based on application settings</description></item>
+    /// </list>
+    /// <para><strong>⚠️ Note:</strong></para>
+    /// For <see cref="ServiceLifetime.Singleton"/> dispatchers, ensure the factory creates
+    /// thread-safe instances. For <see cref="ServiceLifetime.Scoped"/> dispatchers, a new
+    /// instance is created per scope.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Configure RateLimitedEventDispatcher with custom concurrency
+    /// services.AddPulse(config =&gt;
+    /// {
+    ///     config.UseDefaultEventDispatcher&lt;RateLimitedEventDispatcher&gt;(
+    ///         sp =&gt; new RateLimitedEventDispatcher(maxConcurrency: 10),
+    ///         ServiceLifetime.Singleton
+    ///     );
+    /// });
+    ///
+    /// // Use configuration from appsettings.json
+    /// services.AddPulse(config =&gt;
+    /// {
+    ///     config.UseDefaultEventDispatcher&lt;RateLimitedEventDispatcher&gt;(
+    ///         sp =&gt;
+    ///         {
+    ///             var options = sp.GetRequiredService&lt;IOptions&lt;RateLimitOptions&gt;&gt;().Value;
+    ///             return new RateLimitedEventDispatcher(options.MaxConcurrency);
+    ///         },
+    ///         ServiceLifetime.Singleton
+    ///     );
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="IEventDispatcher"/>
+    IMediatorConfigurator UseDefaultEventDispatcher<TDispatcher>(
+        Func<IServiceProvider, TDispatcher> factory,
+        ServiceLifetime lifetime = ServiceLifetime.Singleton
+    )
+        where TDispatcher : class, IEventDispatcher;
+
+    /// <summary>
+    /// Configures a custom event dispatcher for a specific event type using keyed services.
+    /// This allows different dispatch strategies for different event types.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event this dispatcher handles.</typeparam>
+    /// <typeparam name="TDispatcher">
+    /// The type of event dispatcher to use. Must implement <see cref="IEventDispatcher"/>.
+    /// </typeparam>
+    /// <param name="lifetime">
+    /// The service lifetime for the dispatcher. Defaults to <see cref="ServiceLifetime.Singleton"/>
+    /// as dispatchers are typically stateless or manage their own state.
+    /// </param>
+    /// <returns>The current configurator instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Resolution Order:</strong></para>
+    /// When publishing an event, the mediator resolves dispatchers in order:
+    /// <list type="number">
+    /// <item><description>Keyed <c>IEventDispatcher</c> with key <c>typeof(TEvent)</c> - Event-type specific (highest priority)</description></item>
+    /// <item><description>Non-keyed <c>IEventDispatcher</c> - Global dispatcher</description></item>
+    /// <item><description>Default <c>ParallelEventDispatcher</c> - Built-in fallback</description></item>
+    /// </list>
+    /// <para><strong>Use Cases:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>Critical events requiring sequential processing</description></item>
+    /// <item><description>High-volume events needing rate limiting</description></item>
+    /// <item><description>Events with specific ordering requirements</description></item>
+    /// </list>
+    /// <para><strong>⚠️ Note:</strong></para>
+    /// Calling this method multiple times for the same event type replaces the previous registration.
+    /// Uses .NET Keyed Services internally with the event type as key.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddPulse(config =>
+    /// {
+    ///     // OrderCreatedEvent uses sequential dispatch
+    ///     config.UseEventDispatcherFor&lt;OrderCreatedEvent, SequentialEventDispatcher&gt;();
+    ///
+    ///     // PaymentProcessedEvent uses a custom rate-limited dispatcher
+    ///     config.UseEventDispatcherFor&lt;PaymentProcessedEvent, RateLimitedDispatcher&gt;();
+    ///
+    ///     // All other events use parallel dispatch (default)
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="IEventDispatcher"/>
+    IMediatorConfigurator UseEventDispatcherFor<TEvent, TDispatcher>(
+        ServiceLifetime lifetime = ServiceLifetime.Singleton
+    )
+        where TEvent : IEvent
+        where TDispatcher : class, IEventDispatcher;
+
+    /// <summary>
+    /// Configures a custom event dispatcher for a specific event type using a factory delegate.
+    /// This allows configuring dispatchers with constructor parameters for specific event types.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event this dispatcher handles.</typeparam>
+    /// <typeparam name="TDispatcher">
+    /// The type of event dispatcher to use. Must implement <see cref="IEventDispatcher"/>.
+    /// </typeparam>
+    /// <param name="factory">
+    /// A factory delegate that receives the <see cref="IServiceProvider"/> and returns the dispatcher instance.
+    /// </param>
+    /// <param name="lifetime">
+    /// The service lifetime for the dispatcher. Defaults to <see cref="ServiceLifetime.Singleton"/>
+    /// as dispatchers are typically stateless or manage their own state.
+    /// </param>
+    /// <returns>The current configurator instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Use Cases:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>High-volume events requiring custom rate limits</description></item>
+    /// <item><description>Event-specific dispatchers with dependency injection</description></item>
+    /// <item><description>Configuration-driven dispatch strategies per event type</description></item>
+    /// </list>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddPulse(config =&gt;
+    /// {
+    ///     // PaymentProcessedEvent uses rate-limited dispatch with custom concurrency
+    ///     config.UseEventDispatcherFor&lt;PaymentProcessedEvent, RateLimitedEventDispatcher&gt;(
+    ///         sp =&gt; new RateLimitedEventDispatcher(maxConcurrency: 3),
+    ///         ServiceLifetime.Singleton
+    ///     );
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="IEventDispatcher"/>
+    IMediatorConfigurator UseEventDispatcherFor<TEvent, TDispatcher>(
+        Func<IServiceProvider, TDispatcher> factory,
+        ServiceLifetime lifetime = ServiceLifetime.Singleton
+    )
+        where TEvent : IEvent
+        where TDispatcher : class, IEventDispatcher;
 }
