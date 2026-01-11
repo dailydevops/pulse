@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -101,7 +101,7 @@ public static class AssemblyScanningExtensions
             ArgumentNullException.ThrowIfNull(configurator);
             ArgumentNullException.ThrowIfNull(assemblies);
 
-            foreach (var assembly in assemblies)
+            foreach (var assembly in assemblies.Where(a => a is not null))
             {
                 configurator.RegisterHandlersFromAssembly(assembly, lifetime);
             }
@@ -413,8 +413,7 @@ public static class AssemblyScanningExtensions
             // - Classes (not interfaces or structs)
             // - Not abstract
             // - Not generic type definitions (open generics)
-            var types = assembly
-                .GetTypes()
+            var types = GetAllTypesFromAssembly(assembly)
                 .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false });
 
             foreach (var type in types)
@@ -429,6 +428,19 @@ public static class AssemblyScanningExtensions
                     services.Add(new ServiceDescriptor(@interface, type, lifetime));
                 }
             }
+        }
+    }
+
+    private static Type[] GetAllTypesFromAssembly(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            // If some types fail to load, use only the types that loaded successfully
+            return [.. ex.Types.Where(t => t is not null)!];
         }
     }
 }
