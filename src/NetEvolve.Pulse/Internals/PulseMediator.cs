@@ -5,12 +5,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
 /// Internal implementation of <see cref="IMediator"/> that coordinates dispatching requests and events to their handlers.
 /// This class implements the mediator pattern, providing decoupled communication between components.
-/// It supports interceptor pipelines for cross-cutting concerns and parallel event handler execution.
+/// It supports interceptor pipelines for cross-cutting concerns and configurable event dispatch strategies.
 /// </summary>
 internal sealed partial class PulseMediator : IMediator
 {
@@ -30,13 +31,27 @@ internal sealed partial class PulseMediator : IMediator
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
+    /// Event dispatcher for controlling how events are dispatched to handlers.
+    /// Falls back to parallel dispatch when no custom dispatcher is registered.
+    /// </summary>
+    private readonly IEventDispatcher _eventDispatcher;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="PulseMediator"/> class.
     /// </summary>
     /// <param name="logger">The logger for diagnostic output.</param>
     /// <param name="serviceProvider">The service provider for dependency resolution.</param>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
-    public PulseMediator(ILogger<PulseMediator> logger, IServiceProvider serviceProvider, TimeProvider timeProvider)
+    /// <param name="eventDispatcher">
+    /// Optional event dispatcher for custom dispatch strategies. If null, uses <see cref="ParallelEventDispatcher"/>.
+    /// </param>
+    /// <exception cref="ArgumentNullException">Thrown if required parameters are null.</exception>
+    public PulseMediator(
+        ILogger<PulseMediator> logger,
+        IServiceProvider serviceProvider,
+        TimeProvider timeProvider,
+        IEventDispatcher? eventDispatcher = null
+    )
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(serviceProvider);
@@ -45,11 +60,12 @@ internal sealed partial class PulseMediator : IMediator
         _logger = logger;
         _serviceProvider = serviceProvider;
         _timeProvider = timeProvider;
+        _eventDispatcher = eventDispatcher ?? new ParallelEventDispatcher();
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// This method executes all registered event handlers in parallel.
+    /// This method executes all registered event handlers using the configured <see cref="IEventDispatcher"/>.
     /// The event's <see cref="IEvent.PublishedAt"/> property is automatically set before handlers execute.
     /// If any handler throws an exception, it is logged but does not prevent other handlers from executing.
     /// Event interceptors are applied in reverse registration order, allowing pre- and post-processing.
@@ -71,27 +87,8 @@ internal sealed partial class PulseMediator : IMediator
             return Task.CompletedTask;
         }
 
-        // Execute handlers through the interceptor pipeline
-        return ExecuteAsync(
-            message,
-            msg =>
-                Parallel.ForEachAsync(
-                    handlers,
-                    cancellationToken,
-                    async (handler, ct) =>
-                    {
-                        try
-                        {
-                            await handler.HandleAsync(msg, ct).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            // Log handler exceptions but don't fail other handlers
-                            LogErrorPublish(message.Id, ex);
-                        }
-                    }
-                )
-        );
+        // Execute handlers through the interceptor pipeline and dispatcher
+        return ExecuteAsync(message, handlers, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -135,27 +132,44 @@ internal sealed partial class PulseMediator : IMediator
     }
 
     /// <summary>
-    /// Builds and executes an interceptor pipeline for event handling.
+    /// Builds and executes an interceptor pipeline for event handling with dispatcher integration.
     /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
     /// can perform actions before and after calling the next interceptor or final handler.
     /// </summary>
     /// <typeparam name="TEvent">The type of event being processed.</typeparam>
     /// <param name="msg">The event to process.</param>
-    /// <param name="handler">The final handler to execute after all interceptors.</param>
+    /// <param name="handlers">The collection of handlers to dispatch the event to.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous execution of the event through the interceptor pipeline.</returns>
-    private Task ExecuteAsync<TEvent>(TEvent msg, Func<TEvent, Task> handler)
+    private Task ExecuteAsync<TEvent>(
+        TEvent msg,
+        IEnumerable<IEventHandler<TEvent>> handlers,
+        CancellationToken cancellationToken
+    )
         where TEvent : IEvent
     {
+        // Resolve dispatcher: keyed by event type first, then global, then default
+        var dispatcher = _serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
+
+        // Create the dispatch action that uses the resolved dispatcher
+        Task DispatchAsync(TEvent message) =>
+            dispatcher.DispatchAsync(
+                message,
+                handlers,
+                (handler, eventMessage) => InvokeHandlerAsync(handler, eventMessage, cancellationToken),
+                cancellationToken
+            );
+
         // Retrieve all registered event interceptors and reverse for correct pipeline order
         var interceptors = _serviceProvider.GetServices<IEventInterceptor<TEvent>>().Reverse().ToArray();
         if (interceptors.Length == 0)
         {
-            // No interceptors registered, execute handler directly
-            return handler(msg);
+            // No interceptors registered, execute dispatcher directly
+            return DispatchAsync(msg);
         }
 
-        // Build the interceptor chain from innermost (handler) to outermost (first interceptor)
-        var next = handler;
+        // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
+        var next = (Func<TEvent, Task>)DispatchAsync;
 
         foreach (var interceptor in interceptors)
         {
@@ -203,6 +217,24 @@ internal sealed partial class PulseMediator : IMediator
         }
 
         return next(request);
+    }
+
+    private async Task InvokeHandlerAsync<TEvent>(
+        IEventHandler<TEvent> handler,
+        TEvent message,
+        CancellationToken cancellationToken
+    )
+        where TEvent : IEvent
+    {
+        try
+        {
+            await handler.HandleAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Log handler exceptions but don't fail other handlers
+            LogErrorPublish(message.Id, ex);
+        }
     }
 
     /// <summary>
