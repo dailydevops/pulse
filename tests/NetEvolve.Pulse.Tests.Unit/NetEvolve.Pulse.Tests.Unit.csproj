@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(_TestTargetFrameworks)</TargetFrameworks>
+    <NoWarn>$(NoWarn);CA1812;</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
