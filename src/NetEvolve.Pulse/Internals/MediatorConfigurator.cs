@@ -10,10 +10,8 @@ using NetEvolve.Pulse.Extensibility;
 /// </summary>
 internal sealed class MediatorConfigurator : IMediatorConfigurator
 {
-    /// <summary>
-    /// The service collection being configured.
-    /// </summary>
-    private readonly IServiceCollection _services;
+    /// <inheritdoc />
+    public IServiceCollection Services { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MediatorConfigurator"/> class.
@@ -23,18 +21,18 @@ internal sealed class MediatorConfigurator : IMediatorConfigurator
     public MediatorConfigurator(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        _services = services;
+        Services = services;
     }
 
     /// <inheritdoc />
     public IMediatorConfigurator AddActivityAndMetrics()
     {
         // Register the activity and metrics interceptor as a singleton for all event types
-        _services.TryAddEnumerable(
+        Services.TryAddEnumerable(
             ServiceDescriptor.Singleton(typeof(IEventInterceptor<>), typeof(ActivityAndMetricsEventInterceptor<>))
         );
         // Register the activity and metrics interceptor as a singleton for all request types
-        _services.TryAddEnumerable(
+        Services.TryAddEnumerable(
             ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(ActivityAndMetricsRequestInterceptor<,>))
         );
 

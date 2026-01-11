@@ -121,4 +121,15 @@ public class MediatorConfiguratorTests
             _ = await Assert.That(result).IsTypeOf<IMediatorConfigurator>();
         }
     }
+
+    [Test]
+    public async Task Services_ReturnsProvidedServiceCollection()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorConfigurator(services);
+
+        var result = configurator.Services;
+
+        _ = await Assert.That(result).IsSameReferenceAs(services);
+    }
 }

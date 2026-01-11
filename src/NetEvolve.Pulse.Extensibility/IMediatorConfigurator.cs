@@ -1,5 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Extensibility;
 
+using Microsoft.Extensions.DependencyInjection;
+
 /// <summary>
 /// Provides a fluent interface for configuring the Pulse mediator with additional capabilities and interceptors.
 /// This interface is used during service registration to customize mediator behavior.
@@ -47,6 +49,38 @@
 /// </example>
 public interface IMediatorConfigurator
 {
+    /// <summary>
+    /// Gets the service collection for handler registration.
+    /// </summary>
+    /// <remarks>
+    /// <para><strong>Purpose:</strong></para>
+    /// Provides access to the underlying <see cref="IServiceCollection"/> to enable handler registration
+    /// through extension methods. This supports both manual registration and automatic discovery patterns.
+    /// <para><strong>Usage:</strong></para>
+    /// This property is primarily used by extension methods to register handlers with specific lifetimes
+    /// and to implement custom registration strategies (manual, assembly scanning, source-generated).
+    /// <para><strong>Best Practices:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>Use fluent extension methods for handler registration instead of direct service collection manipulation</description></item>
+    /// <item><description>Consider AOT compatibility when choosing registration strategy</description></item>
+    /// <item><description>Manual registration is AOT-safe and recommended for Native AOT scenarios</description></item>
+    /// </list>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Extension method using Services property
+    /// public static IMediatorConfigurator AddCommandHandler&lt;TCommand, TResponse, THandler&gt;(
+    ///     this IMediatorConfigurator configurator)
+    ///     where TCommand : ICommand&lt;TResponse&gt;
+    ///     where THandler : class, ICommandHandler&lt;TCommand, TResponse&gt;
+    /// {
+    ///     configurator.Services.AddScoped&lt;ICommandHandler&lt;TCommand, TResponse&gt;, THandler&gt;();
+    ///     return configurator;
+    /// }
+    /// </code>
+    /// </example>
+    IServiceCollection Services { get; }
+
     /// <summary>
     /// Adds activity tracing and metrics collection for all requests processed by the mediator.
     /// This enables OpenTelemetry-compatible distributed tracing and Prometheus-compatible metrics including request counts, durations, and error rates.
