@@ -10,7 +10,6 @@ NetEvolve.Pulse.Polly provides Polly v8 resilience policies for the Pulse CQRS m
 
 * **Polly v8 Integration**: Seamless integration with Polly's modern resilience pipeline API
 * **Per-Handler Policies**: Fine-grained control over resilience strategies for specific handlers
-* **Global Policies**: Apply policies across all requests or events
 * **Multiple Policy Types**: Retry, circuit breaker, timeout, bulkhead, and fallback strategies
 * **Fluent API**: Type-safe configuration through extension methods on `IMediatorConfigurator`
 * **LIFO-Aware**: Works with Pulse's interceptor execution order for predictable behavior
@@ -168,26 +167,6 @@ services.AddPulse(config => config
 
 **⚠️ Warning**: Event policies apply to all handlers for that event type. If the policy triggers a retry, all handlers will re-execute. Consider using `IEventOutbox` for reliable event delivery instead of aggressive retries.
 
-### Global Policies
-
-Apply policies to all requests or events:
-
-```csharp
-services.AddPulse(config => config
-    // Global timeout for all requests
-    .AddDefaultPollyRequestPolicies(pipeline => pipeline
-        .AddTimeout(TimeSpan.FromMinutes(5)))
-    
-    // Global timeout for all events
-    .AddDefaultPollyEventPolicies(pipeline => pipeline
-        .AddTimeout(TimeSpan.FromSeconds(30)))
-    
-    // Register handlers
-    .AddCommandHandler<CreateOrderCommand, OrderResult, CreateOrderHandler>()
-    .AddQueryHandler<GetUserQuery, User, GetUserQueryHandler>()
-    .AddEventHandler<OrderCreatedEvent, NotificationHandler>());
-```
-
 ### Bulkhead Isolation
 
 Limit concurrent executions to prevent resource exhaustion:
@@ -302,22 +281,6 @@ services.AddKeyedSingleton("standard", sp =>
     builder.AddRetry(new RetryStrategyOptions<OrderResult> { MaxRetryAttempts = 2 });
     return builder.Build();
 });
-```
-
-### Combining Global and Per-Handler Policies
-
-Global policies wrap per-handler policies:
-
-```csharp
-services.AddPulse(config => config
-    // Global timeout applies to all
-    .AddDefaultPollyRequestPolicies(pipeline => pipeline
-        .AddTimeout(TimeSpan.FromMinutes(5)))
-    
-    // Per-handler retry within global timeout
-    .AddCommandHandler<CreateOrder, Result, CreateOrderHandler>()
-    .AddPollyRequestPolicies<CreateOrder, Result>(pipeline => pipeline
-        .AddRetry(new RetryStrategyOptions<Result> { MaxRetryAttempts = 3 })));
 ```
 
 ## Telemetry and Monitoring
