@@ -360,4 +360,328 @@ public class HandlerRegistrationExtensionsTests
     {
         public Task HandleAsync(TestEvent @event, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
+
+    // Interceptor registration tests
+    [Test]
+    public void AddRequestInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddRequestInterceptor<TestCommand, string, TestRequestInterceptor>()
+        );
+    }
+
+    [Test]
+    public async Task AddRequestInterceptor_RegistersInterceptorWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config => config.AddRequestInterceptor<TestCommand, string, TestRequestInterceptor>());
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IRequestInterceptor<TestCommand, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestRequestInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddRequestInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddRequestInterceptor<TestCommand, string, TestRequestInterceptor>(ServiceLifetime.Singleton)
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IRequestInterceptor<TestCommand, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestRequestInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddRequestInterceptor_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddRequestInterceptor<TestCommand, string, TestRequestInterceptor>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public void AddCommandInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddCommandInterceptor<TestCommand, string, TestCommandInterceptor>()
+        );
+    }
+
+    [Test]
+    public async Task AddCommandInterceptor_RegistersInterceptorWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config => config.AddCommandInterceptor<TestCommand, string, TestCommandInterceptor>());
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(ICommandInterceptor<TestCommand, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestCommandInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddCommandInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddCommandInterceptor<TestCommand, string, TestCommandInterceptor>(ServiceLifetime.Singleton)
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(ICommandInterceptor<TestCommand, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestCommandInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddCommandInterceptor_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddCommandInterceptor<TestCommand, string, TestCommandInterceptor>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public void AddQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>()
+        );
+    }
+
+    [Test]
+    public async Task AddQueryInterceptor_RegistersInterceptorWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config => config.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>());
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IQueryInterceptor<TestQuery, string>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestQueryInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddQueryInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>(ServiceLifetime.Singleton)
+        );
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IQueryInterceptor<TestQuery, string>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestQueryInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddQueryInterceptor_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public void AddEventInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddEventInterceptor<TestEvent, TestEventInterceptor>()
+        );
+    }
+
+    [Test]
+    public async Task AddEventInterceptor_RegistersInterceptorWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config => config.AddEventInterceptor<TestEvent, TestEventInterceptor>());
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IEventInterceptor<TestEvent>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestEventInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddEventInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddEventInterceptor<TestEvent, TestEventInterceptor>(ServiceLifetime.Singleton)
+        );
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IEventInterceptor<TestEvent>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestEventInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddEventInterceptor_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddEventInterceptor<TestEvent, TestEventInterceptor>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public async Task AddEventInterceptor_AllowsMultipleInterceptorsForSameEvent()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config
+                .AddEventInterceptor<TestEvent, TestEventInterceptor>()
+                .AddEventInterceptor<TestEvent, AnotherTestEventInterceptor>()
+        );
+
+        var descriptors = services.Where(x => x.ServiceType == typeof(IEventInterceptor<TestEvent>)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors).Count().IsEqualTo(2);
+            _ = await Assert.That(descriptors.Any(d => d.ImplementationType == typeof(TestEventInterceptor))).IsTrue();
+            _ = await Assert
+                .That(descriptors.Any(d => d.ImplementationType == typeof(AnotherTestEventInterceptor)))
+                .IsTrue();
+        }
+    }
+
+    // Test helper interceptor types
+    private sealed partial class TestRequestInterceptor : IRequestInterceptor<TestCommand, string>
+    {
+        public Task<string> HandleAsync(TestCommand request, Func<TestCommand, Task<string>> handler) =>
+            handler(request);
+    }
+
+    private sealed partial class TestCommandInterceptor : ICommandInterceptor<TestCommand, string>
+    {
+        public Task<string> HandleAsync(TestCommand request, Func<TestCommand, Task<string>> handler) =>
+            handler(request);
+    }
+
+    private sealed partial class TestQueryInterceptor : IQueryInterceptor<TestQuery, string>
+    {
+        public Task<string> HandleAsync(TestQuery request, Func<TestQuery, Task<string>> handler) => handler(request);
+    }
+
+    private sealed partial class TestEventInterceptor : IEventInterceptor<TestEvent>
+    {
+        public Task HandleAsync(TestEvent message, Func<TestEvent, Task> handler) => handler(message);
+    }
+
+    private sealed partial class AnotherTestEventInterceptor : IEventInterceptor<TestEvent>
+    {
+        public Task HandleAsync(TestEvent message, Func<TestEvent, Task> handler) => handler(message);
+    }
 }
