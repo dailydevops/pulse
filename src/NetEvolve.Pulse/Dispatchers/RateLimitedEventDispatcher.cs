@@ -32,16 +32,17 @@ using NetEvolve.Pulse.Extensibility;
 /// </remarks>
 /// <example>
 /// <code>
-/// // Register rate-limited dispatcher with custom concurrency
+/// // Register rate-limited dispatcher with default concurrency (5)
 /// services.AddPulse(config =&gt;
 /// {
 ///     config.UseDefaultEventDispatcher&lt;RateLimitedEventDispatcher&gt;();
 /// });
 ///
-/// // Configure max concurrency via DI
-/// services.Configure&lt;RateLimitedEventDispatcherOptions&gt;(options =&gt;
+/// // Register with custom max concurrency via constructor
+/// services.AddSingleton(new RateLimitedEventDispatcher(maxConcurrency: 10));
+/// services.AddPulse(config =&gt;
 /// {
-///     options.MaxConcurrency = 10;
+///     config.UseDefaultEventDispatcher&lt;RateLimitedEventDispatcher&gt;();
 /// });
 /// </code>
 /// </example>
