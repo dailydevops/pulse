@@ -98,18 +98,23 @@ public sealed class PollyEventInterceptor<TEvent> : IEventInterceptor<TEvent>
     /// </summary>
     /// <param name="message">The event message to process.</param>
     /// <param name="handler">The delegate that represents the next step in the interceptor chain, invoking all registered event handlers.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     /// <remarks>
     /// The handler execution (which may invoke multiple event handlers) is wrapped in the Polly pipeline,
     /// applying configured policies such as retry, circuit breaker, timeout, and bulkhead.
     /// If the pipeline is configured with retry, all handlers will be re-executed on failure.
     /// </remarks>
-    public async Task HandleAsync(TEvent message, Func<TEvent, Task> handler)
+    public async Task HandleAsync(
+        TEvent message,
+        Func<TEvent, Task> handler,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(handler);
 
         await _pipeline
-            .ExecuteAsync(async _ => await handler(message).ConfigureAwait(false), CancellationToken.None)
+            .ExecuteAsync(async _ => await handler(message).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
     }
 }

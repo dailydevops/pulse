@@ -425,7 +425,11 @@ public class PulseMediatorTests
     {
         public List<TestCommand> InterceptedCommands { get; } = [];
 
-        public async Task<string> HandleAsync(TestCommand request, Func<TestCommand, Task<string>> handler)
+        public async Task<string> HandleAsync(
+            TestCommand request,
+            Func<TestCommand, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        )
         {
             InterceptedCommands.Add(request);
             return await handler(request);
@@ -436,7 +440,11 @@ public class PulseMediatorTests
     {
         public List<TestQuery> InterceptedQueries { get; } = [];
 
-        public async Task<string> HandleAsync(TestQuery request, Func<TestQuery, Task<string>> handler)
+        public async Task<string> HandleAsync(
+            TestQuery request,
+            Func<TestQuery, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        )
         {
             InterceptedQueries.Add(request);
             return await handler(request);
@@ -447,7 +455,11 @@ public class PulseMediatorTests
     {
         public List<TestEvent> InterceptedEvents { get; } = [];
 
-        public async Task HandleAsync(TestEvent message, Func<TestEvent, Task> handler)
+        public async Task HandleAsync(
+            TestEvent message,
+            Func<TestEvent, Task> handler,
+            CancellationToken cancellationToken = default
+        )
         {
             InterceptedEvents.Add(message);
             await handler(message);

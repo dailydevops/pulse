@@ -317,7 +317,11 @@ public sealed class PulseMediatorTests
 
     private sealed class FirstInterceptor : IRequestInterceptor<OrderCommand, string>
     {
-        public async Task<string> HandleAsync(OrderCommand request, Func<OrderCommand, Task<string>> next)
+        public async Task<string> HandleAsync(
+            OrderCommand request,
+            Func<OrderCommand, Task<string>> next,
+            CancellationToken cancellationToken = default
+        )
         {
             var result = await next(request);
             return $"First->{result}";
@@ -326,7 +330,11 @@ public sealed class PulseMediatorTests
 
     private sealed class SecondInterceptor : IRequestInterceptor<OrderCommand, string>
     {
-        public async Task<string> HandleAsync(OrderCommand request, Func<OrderCommand, Task<string>> next)
+        public async Task<string> HandleAsync(
+            OrderCommand request,
+            Func<OrderCommand, Task<string>> next,
+            CancellationToken cancellationToken = default
+        )
         {
             var result = await next(request);
             return $"Second->{result}";

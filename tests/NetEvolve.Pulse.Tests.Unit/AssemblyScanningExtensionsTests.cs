@@ -595,24 +595,37 @@ public class AssemblyScanningExtensionsTests
     // Test helper interceptor types for assembly scanning
     private sealed partial class ScanTestRequestInterceptor : IRequestInterceptor<ScanTestCommand, string>
     {
-        public Task<string> HandleAsync(ScanTestCommand request, Func<ScanTestCommand, Task<string>> handler) =>
-            handler(request);
+        public Task<string> HandleAsync(
+            ScanTestCommand request,
+            Func<ScanTestCommand, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request);
     }
 
     private sealed partial class ScanTestCommandInterceptor : ICommandInterceptor<ScanTestCommand, string>
     {
-        public Task<string> HandleAsync(ScanTestCommand request, Func<ScanTestCommand, Task<string>> handler) =>
-            handler(request);
+        public Task<string> HandleAsync(
+            ScanTestCommand request,
+            Func<ScanTestCommand, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request);
     }
 
     private sealed partial class ScanTestQueryInterceptor : IQueryInterceptor<ScanTestQuery, string>
     {
-        public Task<string> HandleAsync(ScanTestQuery request, Func<ScanTestQuery, Task<string>> handler) =>
-            handler(request);
+        public Task<string> HandleAsync(
+            ScanTestQuery request,
+            Func<ScanTestQuery, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request);
     }
 
     private sealed partial class ScanTestEventInterceptor : IEventInterceptor<ScanTestEvent>
     {
-        public Task HandleAsync(ScanTestEvent message, Func<ScanTestEvent, Task> handler) => handler(message);
+        public Task HandleAsync(
+            ScanTestEvent message,
+            Func<ScanTestEvent, Task> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(message);
     }
 }

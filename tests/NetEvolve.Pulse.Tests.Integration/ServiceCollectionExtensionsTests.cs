@@ -225,7 +225,11 @@ public sealed class ServiceCollectionExtensionsTests
     {
         public bool Executed { get; private set; }
 
-        public async Task<TestResponse> HandleAsync(TestCommand request, Func<TestCommand, Task<TestResponse>> next)
+        public async Task<TestResponse> HandleAsync(
+            TestCommand request,
+            Func<TestCommand, Task<TestResponse>> next,
+            CancellationToken cancellationToken = default
+        )
         {
             Executed = true;
             return await next(request);

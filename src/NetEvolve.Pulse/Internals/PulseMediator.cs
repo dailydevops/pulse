@@ -108,7 +108,7 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve the appropriate handler for the query
         var handler = _serviceProvider.GetRequiredService<IQueryHandler<TQuery, TResponse>>();
 
-        return ExecuteAsync(query, q => handler.HandleAsync(q, cancellationToken));
+        return ExecuteAsync(query, q => handler.HandleAsync(q, cancellationToken), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -128,7 +128,7 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve the appropriate handler for the command
         var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand, TResponse>>();
 
-        return ExecuteAsync(command, c => handler.HandleAsync(c, cancellationToken));
+        return ExecuteAsync(command, c => handler.HandleAsync(c, cancellationToken), cancellationToken);
     }
 
     /// <summary>
@@ -176,7 +176,7 @@ internal sealed partial class PulseMediator : IMediator
             var currentInterceptor = interceptor;
             var nextCopy = next;
             // Wrap the next action with the current interceptor
-            next = req => currentInterceptor.HandleAsync(req, nextCopy);
+            next = req => currentInterceptor.HandleAsync(req, nextCopy, cancellationToken);
         }
 
         return next(msg);
@@ -192,8 +192,13 @@ internal sealed partial class PulseMediator : IMediator
     /// <typeparam name="TResponse">The type of response produced.</typeparam>
     /// <param name="request">The request to process.</param>
     /// <param name="handler">The final handler to execute after all interceptors.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous execution of the request through the interceptor pipeline.</returns>
-    private Task<TResponse> ExecuteAsync<TRequest, TResponse>(TRequest request, Func<TRequest, Task<TResponse>> handler)
+    private Task<TResponse> ExecuteAsync<TRequest, TResponse>(
+        TRequest request,
+        Func<TRequest, Task<TResponse>> handler,
+        CancellationToken cancellationToken
+    )
         where TRequest : IRequest<TResponse>
     {
         // Retrieve all registered request interceptors and reverse for correct pipeline order
@@ -213,7 +218,7 @@ internal sealed partial class PulseMediator : IMediator
             var currentInterceptor = interceptor;
             var nextCopy = next;
             // Wrap the next action with the current interceptor
-            next = req => currentInterceptor.HandleAsync(req, nextCopy);
+            next = req => currentInterceptor.HandleAsync(req, nextCopy, cancellationToken);
         }
 
         return next(request);
