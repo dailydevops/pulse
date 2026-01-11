@@ -339,4 +339,280 @@ public class AssemblyScanningExtensionsTests
             CancellationToken cancellationToken = default
         );
     }
+
+    // Interceptor scanning tests
+    [Test]
+    public void AddInterceptorsFromAssembly_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+
+        _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddInterceptorsFromAssembly(assembly));
+    }
+
+    [Test]
+    public void AddInterceptorsFromAssembly_WithNullAssembly_ThrowsArgumentNullException()
+    {
+        var services = new ServiceCollection();
+        Assembly? assembly = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            services.AddPulse(config => config.AddInterceptorsFromAssembly(assembly!))
+        );
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssembly_RegistersRequestInterceptors()
+    {
+        var services = new ServiceCollection();
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssembly(assembly));
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IRequestInterceptor<ScanTestCommand, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(ScanTestRequestInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssembly_RegistersCommandInterceptors()
+    {
+        var services = new ServiceCollection();
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssembly(assembly));
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(ICommandInterceptor<ScanTestCommand, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(ScanTestCommandInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssembly_RegistersQueryInterceptors()
+    {
+        var services = new ServiceCollection();
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssembly(assembly));
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IQueryInterceptor<ScanTestQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(ScanTestQueryInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssembly_RegistersEventInterceptors()
+    {
+        var services = new ServiceCollection();
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssembly(assembly));
+
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IEventInterceptor<ScanTestEvent>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(ScanTestEventInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssembly_WithCustomLifetime_RegistersInterceptorsWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssembly(assembly, ServiceLifetime.Singleton));
+
+        var requestDescriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IRequestInterceptor<ScanTestCommand, string>)
+        );
+        var commandDescriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(ICommandInterceptor<ScanTestCommand, string>)
+        );
+        var queryDescriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IQueryInterceptor<ScanTestQuery, string>)
+        );
+        var eventDescriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IEventInterceptor<ScanTestEvent>));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(requestDescriptor).IsNotNull();
+            _ = await Assert.That(requestDescriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+            _ = await Assert.That(commandDescriptor).IsNotNull();
+            _ = await Assert.That(commandDescriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+            _ = await Assert.That(queryDescriptor).IsNotNull();
+            _ = await Assert.That(queryDescriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+            _ = await Assert.That(eventDescriptor).IsNotNull();
+            _ = await Assert.That(eventDescriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssembly_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddInterceptorsFromAssembly(assembly);
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public void AddInterceptorsFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+        var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
+
+        _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddInterceptorsFromAssemblies(assemblies));
+    }
+
+    [Test]
+    public void AddInterceptorsFromAssemblies_WithNullAssemblies_ThrowsArgumentNullException()
+    {
+        var services = new ServiceCollection();
+        Assembly[]? assemblies = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            services.AddPulse(config => config.AddInterceptorsFromAssemblies(assemblies!))
+        );
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssemblies_RegistersInterceptorsFromAllAssemblies()
+    {
+        var services = new ServiceCollection();
+        var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssemblies(assemblies));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(IRequestInterceptor<ScanTestCommand, string>)))
+                .IsTrue();
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(ICommandInterceptor<ScanTestCommand, string>)))
+                .IsTrue();
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(IQueryInterceptor<ScanTestQuery, string>)))
+                .IsTrue();
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(IEventInterceptor<ScanTestEvent>)))
+                .IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssemblies_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddInterceptorsFromAssemblies(assemblies);
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public async Task AddInterceptorsFromAssemblyContaining_RegistersInterceptors()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config => config.AddInterceptorsFromAssemblyContaining<ScanTestCommandInterceptor>());
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(IRequestInterceptor<ScanTestCommand, string>)))
+                .IsTrue();
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(ICommandInterceptor<ScanTestCommand, string>)))
+                .IsTrue();
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(IQueryInterceptor<ScanTestQuery, string>)))
+                .IsTrue();
+            _ = await Assert
+                .That(services.Any(x => x.ServiceType == typeof(IEventInterceptor<ScanTestEvent>)))
+                .IsTrue();
+        }
+    }
+
+    [Test]
+    public void AddInterceptorsFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddInterceptorsFromAssemblyContaining<ScanTestCommandInterceptor>()
+        );
+    }
+
+    // Test helper interceptor types for assembly scanning
+    private sealed partial class ScanTestRequestInterceptor : IRequestInterceptor<ScanTestCommand, string>
+    {
+        public Task<string> HandleAsync(ScanTestCommand request, Func<ScanTestCommand, Task<string>> handler) =>
+            handler(request);
+    }
+
+    private sealed partial class ScanTestCommandInterceptor : ICommandInterceptor<ScanTestCommand, string>
+    {
+        public Task<string> HandleAsync(ScanTestCommand request, Func<ScanTestCommand, Task<string>> handler) =>
+            handler(request);
+    }
+
+    private sealed partial class ScanTestQueryInterceptor : IQueryInterceptor<ScanTestQuery, string>
+    {
+        public Task<string> HandleAsync(ScanTestQuery request, Func<ScanTestQuery, Task<string>> handler) =>
+            handler(request);
+    }
+
+    private sealed partial class ScanTestEventInterceptor : IEventInterceptor<ScanTestEvent>
+    {
+        public Task HandleAsync(ScanTestEvent message, Func<ScanTestEvent, Task> handler) => handler(message);
+    }
 }

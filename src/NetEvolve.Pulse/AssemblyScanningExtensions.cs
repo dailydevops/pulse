@@ -429,6 +429,344 @@ public static class AssemblyScanningExtensions
                 }
             }
         }
+
+        /// <summary>
+        /// Scans the specified assemblies for interceptor implementations and registers them.
+        /// </summary>
+        /// <param name="assemblies">The assemblies to scan for interceptors.</param>
+        /// <param name="lifetime">The service lifetime for discovered interceptors (default: Scoped).</param>
+        /// <returns>The configurator for method chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="assemblies"/> is null.</exception>
+        /// <remarks>
+        /// <para><strong>⚠️ WARNING:</strong> This method uses reflection and is NOT compatible with Native AOT or IL trimming.</para>
+        /// <para>For AOT scenarios, use manual registration instead.</para>
+        /// <para><strong>Discovery Rules:</strong></para>
+        /// This method scans for all non-abstract classes that implement:
+        /// <list type="bullet">
+        /// <item><description><see cref="IRequestInterceptor{TRequest, TResponse}"/></description></item>
+        /// <item><description><see cref="ICommandInterceptor{TCommand, TResponse}"/></description></item>
+        /// <item><description><see cref="IQueryInterceptor{TQuery, TResponse}"/></description></item>
+        /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
+        /// </list>
+        /// <para><strong>Execution Order:</strong></para>
+        /// Interceptors execute in reverse order of registration (LIFO). Be mindful of registration order.
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// #pragma warning disable IL2026, IL3050
+        ///
+        /// var assemblies = new[]
+        /// {
+        ///     typeof(LoggingInterceptor&lt;,&gt;).Assembly,
+        ///     typeof(ValidationInterceptor&lt;,&gt;).Assembly
+        /// };
+        ///
+        /// config.AddInterceptorsFromAssemblies(assemblies);
+        ///
+        /// #pragma warning restore IL2026, IL3050
+        /// </code>
+        /// </example>
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        public IMediatorConfigurator AddInterceptorsFromAssemblies(
+            Assembly[] assemblies,
+            ServiceLifetime lifetime = ServiceLifetime.Scoped
+        )
+        {
+            ArgumentNullException.ThrowIfNull(configurator);
+            ArgumentNullException.ThrowIfNull(assemblies);
+
+            foreach (var assembly in assemblies.Where(a => a is not null))
+            {
+                configurator.RegisterInterceptorsFromAssembly(assembly, lifetime);
+            }
+
+            return configurator;
+        }
+
+        /// <summary>
+        /// Scans the specified assembly for interceptor implementations and registers them.
+        /// </summary>
+        /// <param name="assembly">The assembly to scan for interceptors.</param>
+        /// <param name="lifetime">The service lifetime for discovered interceptors (default: Scoped).</param>
+        /// <returns>The configurator for method chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="assembly"/> is null.</exception>
+        /// <remarks>
+        /// <para><strong>⚠️ WARNING:</strong> This method uses reflection and is NOT compatible with Native AOT or IL trimming.</para>
+        /// <para>For AOT scenarios, use manual registration instead.</para>
+        /// <para><strong>Discovery Rules:</strong></para>
+        /// This method scans for all non-abstract classes that implement:
+        /// <list type="bullet">
+        /// <item><description><see cref="IRequestInterceptor{TRequest, TResponse}"/></description></item>
+        /// <item><description><see cref="ICommandInterceptor{TCommand, TResponse}"/></description></item>
+        /// <item><description><see cref="IQueryInterceptor{TQuery, TResponse}"/></description></item>
+        /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
+        /// </list>
+        /// <para><strong>Generic Type Definitions:</strong></para>
+        /// Open generic interceptor types (e.g., <c>LoggingInterceptor&lt;,&gt;</c>) are excluded from scanning.
+        /// Only closed generic types are registered.
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// #pragma warning disable IL2026, IL3050
+        ///
+        /// var interceptorsAssembly = Assembly.Load("MyApp.Interceptors");
+        /// config.AddInterceptorsFromAssembly(interceptorsAssembly);
+        ///
+        /// #pragma warning restore IL2026, IL3050
+        /// </code>
+        /// </example>
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        public IMediatorConfigurator AddInterceptorsFromAssembly(
+            Assembly assembly,
+            ServiceLifetime lifetime = ServiceLifetime.Scoped
+        )
+        {
+            ArgumentNullException.ThrowIfNull(configurator);
+            ArgumentNullException.ThrowIfNull(assembly);
+
+            configurator.RegisterInterceptorsFromAssembly(assembly, lifetime);
+
+            return configurator;
+        }
+
+        /// <summary>
+        /// Scans the assembly containing the specified type for interceptor implementations and registers them.
+        /// </summary>
+        /// <typeparam name="TMarker">A type from the assembly to scan. Typically an interceptor type or marker interface.</typeparam>
+        /// <param name="lifetime">The service lifetime for discovered interceptors (default: Scoped).</param>
+        /// <returns>The configurator for method chaining.</returns>
+        /// <remarks>
+        /// <para><strong>⚠️ WARNING:</strong> This method uses reflection and is NOT compatible with Native AOT or IL trimming.</para>
+        /// <para>For AOT scenarios, use manual registration instead.</para>
+        /// <para><strong>Discovery Rules:</strong></para>
+        /// This method scans for all non-abstract classes that implement:
+        /// <list type="bullet">
+        /// <item><description><see cref="IRequestInterceptor{TRequest, TResponse}"/></description></item>
+        /// <item><description><see cref="ICommandInterceptor{TCommand, TResponse}"/></description></item>
+        /// <item><description><see cref="IQueryInterceptor{TQuery, TResponse}"/></description></item>
+        /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
+        /// </list>
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// #pragma warning disable IL2026, IL3050
+        ///
+        /// // Scan the assembly containing LoggingInterceptor
+        /// config.AddInterceptorsFromAssemblyContaining&lt;LoggingInterceptor&lt;,&gt;&gt;();
+        ///
+        /// #pragma warning restore IL2026, IL3050
+        /// </code>
+        /// </example>
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        public IMediatorConfigurator AddInterceptorsFromAssemblyContaining<TMarker>(
+            ServiceLifetime lifetime = ServiceLifetime.Scoped
+        )
+        {
+            ArgumentNullException.ThrowIfNull(configurator);
+
+            configurator.RegisterInterceptorsFromAssembly(typeof(TMarker).Assembly, lifetime);
+
+            return configurator;
+        }
+
+        /// <summary>
+        /// Scans the assembly of the caller for interceptor implementations and registers them.
+        /// </summary>
+        /// <param name="lifetime">The service lifetime for discovered interceptors (default: Scoped).</param>
+        /// <returns>The configurator for method chaining.</returns>
+        /// <remarks>
+        /// <para><strong>⚠️ WARNING:</strong> This method uses reflection and is NOT compatible with Native AOT or IL trimming.</para>
+        /// <para>For AOT scenarios, use manual registration instead.</para>
+        /// <para><strong>Discovery Rules:</strong></para>
+        /// This method scans for all non-abstract classes that implement:
+        /// <list type="bullet">
+        /// <item><description><see cref="IRequestInterceptor{TRequest, TResponse}"/></description></item>
+        /// <item><description><see cref="ICommandInterceptor{TCommand, TResponse}"/></description></item>
+        /// <item><description><see cref="IQueryInterceptor{TQuery, TResponse}"/></description></item>
+        /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
+        /// </list>
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// #pragma warning disable IL2026, IL3050
+        ///
+        /// services.AddPulse(config =>
+        /// {
+        ///     config.AddInterceptorsFromCallingAssembly();
+        /// });
+        ///
+        /// #pragma warning restore IL2026, IL3050
+        /// </code>
+        /// </example>
+        [ExcludeFromCodeCoverage]
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        public IMediatorConfigurator AddInterceptorsFromCallingAssembly(
+            ServiceLifetime lifetime = ServiceLifetime.Scoped
+        )
+        {
+            ArgumentNullException.ThrowIfNull(configurator);
+
+            configurator.RegisterInterceptorsFromAssembly(Assembly.GetCallingAssembly(), lifetime);
+            return configurator;
+        }
+
+        /// <summary>
+        /// Scans the entry assembly for interceptor implementations and registers them.
+        /// </summary>
+        /// <param name="lifetime">The service lifetime for discovered interceptors (default: Scoped).</param>
+        /// <returns>The configurator for method chaining.</returns>
+        /// <remarks>
+        /// <para><strong>⚠️ WARNING:</strong> This method uses reflection and is NOT compatible with Native AOT or IL trimming.</para>
+        /// <para>For AOT scenarios, use manual registration instead.</para>
+        /// <para><strong>Discovery Rules:</strong></para>
+        /// This method scans for all non-abstract classes that implement:
+        /// <list type="bullet">
+        /// <item><description><see cref="IRequestInterceptor{TRequest, TResponse}"/></description></item>
+        /// <item><description><see cref="ICommandInterceptor{TCommand, TResponse}"/></description></item>
+        /// <item><description><see cref="IQueryInterceptor{TQuery, TResponse}"/></description></item>
+        /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
+        /// </list>
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// #pragma warning disable IL2026, IL3050
+        ///
+        /// services.AddPulse(config =>
+        /// {
+        ///     config.AddInterceptorsFromEntryAssembly();
+        /// });
+        ///
+        /// #pragma warning restore IL2026, IL3050
+        /// </code>
+        /// </example>
+        [ExcludeFromCodeCoverage]
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        public IMediatorConfigurator AddInterceptorsFromEntryAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        {
+            ArgumentNullException.ThrowIfNull(configurator);
+
+            var entryAssembly = Assembly.GetEntryAssembly();
+            if (entryAssembly is not null)
+            {
+                configurator.RegisterInterceptorsFromAssembly(entryAssembly, lifetime);
+            }
+
+            return configurator;
+        }
+
+        /// <summary>
+        /// Scans the currently executing assembly for interceptor implementations and registers them.
+        /// </summary>
+        /// <param name="lifetime">The service lifetime for discovered interceptors (default: Scoped).</param>
+        /// <returns>The configurator for method chaining.</returns>
+        /// <remarks>
+        /// <para><strong>⚠️ WARNING:</strong> This method uses reflection and is NOT compatible with Native AOT or IL trimming.</para>
+        /// <para>For AOT scenarios, use manual registration instead.</para>
+        /// <para><strong>⚠️ IMPORTANT:</strong></para>
+        /// In most scenarios, use <see cref="AddInterceptorsFromAssemblyContaining{TMarker}"/> instead.
+        /// This method is primarily useful for testing or framework extensions.
+        /// <para><strong>Discovery Rules:</strong></para>
+        /// This method scans for all non-abstract classes that implement:
+        /// <list type="bullet">
+        /// <item><description><see cref="IRequestInterceptor{TRequest, TResponse}"/></description></item>
+        /// <item><description><see cref="ICommandInterceptor{TCommand, TResponse}"/></description></item>
+        /// <item><description><see cref="IQueryInterceptor{TQuery, TResponse}"/></description></item>
+        /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
+        /// </list>
+        /// </remarks>
+        /// <example>
+        /// <code>
+        /// #pragma warning disable IL2026, IL3050
+        ///
+        /// config.AddInterceptorsFromExecutingAssembly();
+        ///
+        /// #pragma warning restore IL2026, IL3050
+        /// </code>
+        /// </example>
+        [ExcludeFromCodeCoverage]
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        public IMediatorConfigurator AddInterceptorsFromExecutingAssembly(
+            ServiceLifetime lifetime = ServiceLifetime.Scoped
+        )
+        {
+            ArgumentNullException.ThrowIfNull(configurator);
+
+            configurator.RegisterInterceptorsFromAssembly(Assembly.GetExecutingAssembly(), lifetime);
+            return configurator;
+        }
+
+        /// <summary>
+        /// Internal method that performs the actual reflection-based interceptor discovery and registration.
+        /// </summary>
+        /// <param name="assembly">The assembly to scan.</param>
+        /// <param name="lifetime">The service lifetime for discovered interceptors.</param>
+        [RequiresUnreferencedCode(
+            "Assembly scanning uses reflection and is not compatible with IL trimming or Native AOT."
+        )]
+        [RequiresDynamicCode(
+            "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
+        )]
+        private void RegisterInterceptorsFromAssembly(Assembly assembly, ServiceLifetime lifetime)
+        {
+            var services = configurator.Services;
+            var interceptorInterfaces = new[]
+            {
+                typeof(IRequestInterceptor<,>),
+                typeof(ICommandInterceptor<,>),
+                typeof(IQueryInterceptor<,>),
+                typeof(IEventInterceptor<>),
+            };
+
+            // Get all types that are:
+            // - Classes (not interfaces or structs)
+            // - Not abstract
+            // - Not generic type definitions (open generics)
+            var types = GetAllTypesFromAssembly(assembly)
+                .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false });
+
+            foreach (var type in types)
+            {
+                // Find all interceptor interfaces implemented by this type
+                var interfaces = type.GetInterfaces()
+                    .Where(i => i.IsGenericType && interceptorInterfaces.Contains(i.GetGenericTypeDefinition()));
+
+                // Register each interceptor interface implementation
+                foreach (var @interface in interfaces)
+                {
+                    services.Add(new ServiceDescriptor(@interface, type, lifetime));
+                }
+            }
+        }
     }
 
     private static Type[] GetAllTypesFromAssembly(Assembly assembly)
