@@ -61,7 +61,7 @@ public static class OutboxMediatorConfiguratorExtensions
 
         // Register core services
         services.TryAddScoped<IEventOutbox, OutboxEventStore>();
-        services.TryAddScoped<IMessageTransport, InMemoryMessageTransport>();
+        services.TryAddSingleton<IMessageTransport, InMemoryMessageTransport>();
 
         // Register background processor (TryAddEnumerable prevents duplicate registrations)
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OutboxProcessorHostedService>());
@@ -74,15 +74,11 @@ public static class OutboxMediatorConfiguratorExtensions
     /// </summary>
     /// <typeparam name="TTransport">The transport implementation type.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
-    /// <param name="lifetime">The service lifetime for the transport. Defaults to <see cref="ServiceLifetime.Scoped"/>.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// Replaces any existing <see cref="IMessageTransport"/> registration.
     /// </remarks>
-    public static IMediatorConfigurator UseMessageTransport<TTransport>(
-        this IMediatorConfigurator configurator,
-        ServiceLifetime lifetime = ServiceLifetime.Scoped
-    )
+    public static IMediatorConfigurator UseMessageTransport<TTransport>(this IMediatorConfigurator configurator)
         where TTransport : class, IMessageTransport
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -95,8 +91,7 @@ public static class OutboxMediatorConfiguratorExtensions
             _ = services.Remove(existing);
         }
 
-        var descriptor = new ServiceDescriptor(typeof(IMessageTransport), typeof(TTransport), lifetime);
-        services.Add(descriptor);
+        _ = services.AddSingleton<IMessageTransport, TTransport>();
 
         return configurator;
     }
@@ -106,15 +101,13 @@ public static class OutboxMediatorConfiguratorExtensions
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="factory">The factory function to create the transport.</param>
-    /// <param name="lifetime">The service lifetime for the transport. Defaults to <see cref="ServiceLifetime.Scoped"/>.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// Replaces any existing <see cref="IMessageTransport"/> registration.
     /// </remarks>
     public static IMediatorConfigurator UseMessageTransport(
         this IMediatorConfigurator configurator,
-        Func<IServiceProvider, IMessageTransport> factory,
-        ServiceLifetime lifetime = ServiceLifetime.Scoped
+        Func<IServiceProvider, IMessageTransport> factory
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -128,8 +121,7 @@ public static class OutboxMediatorConfiguratorExtensions
             _ = services.Remove(existing);
         }
 
-        var descriptor = new ServiceDescriptor(typeof(IMessageTransport), factory, lifetime);
-        services.Add(descriptor);
+        _ = services.AddSingleton(factory);
 
         return configurator;
     }
