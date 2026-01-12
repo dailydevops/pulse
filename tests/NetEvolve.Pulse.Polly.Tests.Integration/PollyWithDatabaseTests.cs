@@ -474,8 +474,8 @@ public sealed class SqlServerContainerFixture : IAsyncInitializer, IAsyncDisposa
         command.CommandText = $"""
             IF EXISTS (SELECT name FROM sys.databases WHERE name = N'{database}')
             BEGIN
-                ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                DROP DATABASE [{database}];
+                ALTER DATABASE {QuoteSqlIdentifier(database)} SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                DROP DATABASE {QuoteSqlIdentifier(database)};
             END
             """;
         _ = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -514,4 +514,18 @@ public sealed class SqlServerContainerFixture : IAsyncInitializer, IAsyncDisposa
     /// Disposes the SQL Server container.
     /// </summary>
     public async ValueTask DisposeAsync() => await _container.DisposeAsync().ConfigureAwait(false);
+
+    /// <summary>
+    /// Quotes a SQL identifier using square brackets to prevent SQL injection.
+    /// </summary>
+    /// <param name="identifier">The identifier to quote.</param>
+    /// <returns>The quoted identifier.</returns>
+    private static string QuoteSqlIdentifier(string identifier)
+    {
+        ArgumentNullException.ThrowIfNull(identifier);
+
+        // Escape any square brackets in the identifier
+        var escaped = identifier.Replace("]", "]]", StringComparison.Ordinal);
+        return $"[{escaped}]";
+    }
 }

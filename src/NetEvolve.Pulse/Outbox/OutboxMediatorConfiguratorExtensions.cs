@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Outbox;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -62,8 +63,8 @@ public static class OutboxMediatorConfiguratorExtensions
         services.TryAddScoped<IEventOutbox, OutboxEventStore>();
         services.TryAddScoped<IMessageTransport, InMemoryMessageTransport>();
 
-        // Register background processor
-        _ = services.AddHostedService<OutboxProcessorHostedService>();
+        // Register background processor (TryAddEnumerable prevents duplicate registrations)
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OutboxProcessorHostedService>());
 
         return configurator;
     }
