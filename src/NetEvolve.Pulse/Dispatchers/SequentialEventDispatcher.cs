@@ -12,7 +12,9 @@ using NetEvolve.Pulse.Extensibility;
 /// Each handler completes before the next one starts.
 /// <para><strong>Error Handling:</strong></para>
 /// Individual handler failures do not prevent subsequent handlers from executing.
-/// Errors are handled by the invoker delegate which logs exceptions appropriately.
+/// All handlers are executed regardless of failures. If any handlers fail, an
+/// <see cref="AggregateException"/> is thrown after all handlers have completed,
+/// containing all exceptions that occurred.
 /// <para><strong>Use Cases:</strong></para>
 /// <list type="bullet">
 /// <item><description>Handlers with ordering dependencies</description></item>
@@ -41,6 +43,8 @@ public sealed class SequentialEventDispatcher : IEventDispatcher
     /// <remarks>
     /// Iterates through handlers sequentially, awaiting each handler before proceeding to the next.
     /// Respects cancellation between handler invocations.
+    /// Exceptions from individual handlers are collected and thrown as an <see cref="AggregateException"/>
+    /// after all handlers have completed.
     /// </remarks>
     public async Task DispatchAsync<TEvent>(
         TEvent message,
@@ -53,10 +57,25 @@ public sealed class SequentialEventDispatcher : IEventDispatcher
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 
+        List<Exception>? exceptions = null;
+
         foreach (var handler in handlers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await invoker(handler, message).ConfigureAwait(false);
+            try
+            {
+                await invoker(handler, message).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                exceptions ??= [];
+                exceptions.Add(ex);
+            }
+        }
+
+        if (exceptions is { Count: > 0 })
+        {
+            throw new AggregateException("One or more event handlers failed.", exceptions);
         }
     }
 }

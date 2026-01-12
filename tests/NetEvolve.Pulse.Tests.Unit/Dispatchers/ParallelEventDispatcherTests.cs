@@ -19,12 +19,14 @@ public class ParallelEventDispatcherTests
             new TestEventHandler(3, invokedHandlers),
         };
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -42,12 +44,14 @@ public class ParallelEventDispatcherTests
         var testEvent = new TestEvent();
         var handlers = Array.Empty<IEventHandler<TestEvent>>();
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -58,12 +62,14 @@ public class ParallelEventDispatcherTests
         var invokedHandlers = new List<int>();
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler(1, invokedHandlers) };
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         _ = await Assert.That(invokedHandlers).HasSingleItem();
     }
@@ -76,15 +82,18 @@ public class ParallelEventDispatcherTests
         var invokedHandlers = new List<int>();
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler(1, invokedHandlers) };
         using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
+        await cts.CancelAsync().ConfigureAwait(false);
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await dispatcher.DispatchAsync(
-                testEvent,
-                handlers,
-                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-                cts.Token
-            )
+            await dispatcher
+                .DispatchAsync(
+                    testEvent,
+                    handlers,
+                    async (handler, evt) =>
+                        await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                    cts.Token
+                )
+                .ConfigureAwait(false)
         );
     }
 

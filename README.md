@@ -12,23 +12,36 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 
 ### Core Libraries
 
-- **NetEvolve.Pulse** — Mediator implementation with interceptor pipeline and DI integration ([src/NetEvolve.Pulse/README.md](src/NetEvolve.Pulse/README.md))
+- **NetEvolve.Pulse** — Mediator implementation with interceptor pipeline, outbox pattern support, and DI integration ([src/NetEvolve.Pulse/README.md](src/NetEvolve.Pulse/README.md))
 - **NetEvolve.Pulse.Extensibility** — Contracts and abstractions for commands, queries, events, handlers, and configurators ([src/NetEvolve.Pulse.Extensibility/README.md](src/NetEvolve.Pulse.Extensibility/README.md))
+
+### Provider Libraries
+
+- **NetEvolve.Pulse.EntityFramework** — Entity Framework Core persistence for the outbox pattern ([src/NetEvolve.Pulse.EntityFramework/README.md](src/NetEvolve.Pulse.EntityFramework/README.md))
+- **NetEvolve.Pulse.SqlServer** — SQL Server ADO.NET persistence for the outbox pattern ([src/NetEvolve.Pulse.SqlServer/README.md](src/NetEvolve.Pulse.SqlServer/README.md))
+- **NetEvolve.Pulse.Polly** — Polly v8 resilience policies integration for retry, circuit breaker, and timeout strategies ([src/NetEvolve.Pulse.Polly/README.md](src/NetEvolve.Pulse.Polly/README.md))
 
 ### Tests
 
 - **NetEvolve.Pulse.Tests.Unit** — Unit coverage for mediator behaviors ([tests/NetEvolve.Pulse.Tests.Unit](tests/NetEvolve.Pulse.Tests.Unit))
 - **NetEvolve.Pulse.Tests.Integration** — Integration scenarios and pipeline validation ([tests/NetEvolve.Pulse.Tests.Integration](tests/NetEvolve.Pulse.Tests.Integration))
+- **NetEvolve.Pulse.EntityFramework.Tests.Integration** — Entity Framework outbox integration tests ([tests/NetEvolve.Pulse.EntityFramework.Tests.Integration](tests/NetEvolve.Pulse.EntityFramework.Tests.Integration))
+- **NetEvolve.Pulse.SqlServer.Tests.Integration** — SQL Server outbox integration tests ([tests/NetEvolve.Pulse.SqlServer.Tests.Integration](tests/NetEvolve.Pulse.SqlServer.Tests.Integration))
+- **NetEvolve.Pulse.Polly.Tests.Unit** — Polly integration unit tests ([tests/NetEvolve.Pulse.Polly.Tests.Unit](tests/NetEvolve.Pulse.Polly.Tests.Unit))
+- **NetEvolve.Pulse.Polly.Tests.Integration** — Polly integration tests ([tests/NetEvolve.Pulse.Polly.Tests.Integration](tests/NetEvolve.Pulse.Polly.Tests.Integration))
 
 ## Features
 
 - Typed CQRS mediator with single-handler enforcement for commands and queries, plus fan-out event dispatch
 - Interceptor pipeline for logging, metrics, tracing, validation, retries, and other cross-cutting concerns via `IMediatorConfigurator`
+- **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
 - OpenTelemetry-friendly hooks through `AddActivityAndMetrics()` and TimeProvider-aware flows for deterministic testing and scheduling
 - Minimal DI setup with `services.AddPulse(...)`, scoped lifetimes, and opt-in configurators per application
 - Contracts in `NetEvolve.Pulse.Extensibility` for framework-agnostic use or deep integration with ASP.NET Core
 - Parallel event dispatch with cancellation support to keep handlers responsive under load
 - Built-in primitives like `Void` to simplify command semantics without return values
+- **Multiple persistence providers**: Entity Framework Core (provider-agnostic) and SQL Server ADO.NET
+- **Polly v8 integration** for retry, circuit breaker, timeout, bulkhead, and fallback strategies
 
 ## Getting Started
 
@@ -127,11 +140,18 @@ dotnet test tests/NetEvolve.Pulse.Tests.Unit
 ```
 src/                 # Production libraries
 ├── NetEvolve.Pulse
-└── NetEvolve.Pulse.Extensibility
+├── NetEvolve.Pulse.Extensibility
+├── NetEvolve.Pulse.EntityFramework
+├── NetEvolve.Pulse.SqlServer
+└── NetEvolve.Pulse.Polly
 
 tests/               # Test projects
 ├── NetEvolve.Pulse.Tests.Unit
-└── NetEvolve.Pulse.Tests.Integration
+├── NetEvolve.Pulse.Tests.Integration
+├── NetEvolve.Pulse.EntityFramework.Tests.Integration
+├── NetEvolve.Pulse.SqlServer.Tests.Integration
+├── NetEvolve.Pulse.Polly.Tests.Unit
+└── NetEvolve.Pulse.Polly.Tests.Integration
 
 templates/           # Documentation templates
 ```
@@ -150,8 +170,11 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report
 
 ## Documentation
 
-- [NetEvolve.Pulse project docs](src/NetEvolve.Pulse/README.md) for mediator usage
+- [NetEvolve.Pulse project docs](src/NetEvolve.Pulse/README.md) for mediator and outbox usage
 - [NetEvolve.Pulse.Extensibility docs](src/NetEvolve.Pulse.Extensibility/README.md) for contract details
+- [NetEvolve.Pulse.EntityFramework docs](src/NetEvolve.Pulse.EntityFramework/README.md) for Entity Framework outbox persistence
+- [NetEvolve.Pulse.SqlServer docs](src/NetEvolve.Pulse.SqlServer/README.md) for SQL Server ADO.NET outbox persistence
+- [NetEvolve.Pulse.Polly docs](src/NetEvolve.Pulse.Polly/README.md) for Polly resilience policies
 - [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Versioning

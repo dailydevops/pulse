@@ -315,16 +315,34 @@ For integration with Pulse's `AddActivityAndMetrics()`, policy overhead is inclu
 | **Manual Polly in Handlers** | Fine-grained control, explicit | Repetitive code, hard to test, scattered logic |
 | **Middleware/Filters** | Request-level scope | Not handler-specific, can't differentiate commands/queries |
 
+## Requirements
+
+* .NET 8.0, .NET 9.0, or .NET 10.0
+* Polly v8.0 or later
+* `Microsoft.Extensions.DependencyInjection` for service registration
+
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md) for details.
+Contributions are welcome! Please read the [Contributing Guidelines](https://github.com/dailydevops/pulse/blob/main/CONTRIBUTING.md) before submitting a pull request.
+
+## Support
+
+* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/dailydevops/pulse/blob/main/LICENSE) file for details.
 
 ## Related Packages
 
-* [NetEvolve.Pulse](../NetEvolve.Pulse/README.md) - Core CQRS mediator
-* [NetEvolve.Pulse.Extensibility](../NetEvolve.Pulse.Extensibility/README.md) - Extensibility contracts
+* [NetEvolve.Pulse](https://www.nuget.org/packages/NetEvolve.Pulse/) - Core CQRS mediator
+* [NetEvolve.Pulse.Extensibility](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Extensibility contracts
+* [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core outbox persistence
+* [NetEvolve.Pulse.SqlServer](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET outbox persistence
 * [Polly](https://github.com/App-vNext/Polly) - Resilience and transient-fault-handling library
+
+---
+
+> [!NOTE] 
+> **Made with ❤️ by the NetEvolve Team**

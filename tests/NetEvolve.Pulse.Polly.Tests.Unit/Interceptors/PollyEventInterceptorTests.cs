@@ -96,7 +96,7 @@ public sealed class PollyEventInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(message, null!))
+            .That(async () => await interceptor.HandleAsync(message, null!).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
@@ -110,14 +110,16 @@ public sealed class PollyEventInterceptorTests
         var handlerCalled = false;
 
         // Act
-        await interceptor.HandleAsync(
-            message,
-            async evt =>
-            {
-                handlerCalled = true;
-                await Task.CompletedTask;
-            }
-        );
+        await interceptor
+            .HandleAsync(
+                message,
+                async evt =>
+                {
+                    handlerCalled = true;
+                    await Task.CompletedTask.ConfigureAwait(false);
+                }
+            )
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(handlerCalled).IsTrue();
@@ -144,18 +146,20 @@ public sealed class PollyEventInterceptorTests
         var message = new TestEvent();
 
         // Act
-        await interceptor.HandleAsync(
-            message,
-            evt =>
-            {
-                attemptCount++;
-                if (attemptCount < 3)
+        await interceptor
+            .HandleAsync(
+                message,
+                evt =>
                 {
-                    throw new InvalidOperationException("Transient failure");
+                    attemptCount++;
+                    if (attemptCount < 3)
+                    {
+                        throw new InvalidOperationException("Transient failure");
+                    }
+                    return Task.CompletedTask;
                 }
-                return Task.CompletedTask;
-            }
-        );
+            )
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(attemptCount).IsEqualTo(3);
@@ -184,14 +188,16 @@ public sealed class PollyEventInterceptorTests
         // Act & Assert
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(
-                    message,
-                    evt =>
-                    {
-                        attemptCount++;
-                        throw new InvalidOperationException("Persistent failure");
-                    }
-                )
+                await interceptor
+                    .HandleAsync(
+                        message,
+                        evt =>
+                        {
+                            attemptCount++;
+                            throw new InvalidOperationException("Persistent failure");
+                        }
+                    )
+                    .ConfigureAwait(false)
             )
             .Throws<InvalidOperationException>()
             .WithMessage("Persistent failure", StringComparison.OrdinalIgnoreCase);
@@ -222,18 +228,20 @@ public sealed class PollyEventInterceptorTests
         var message = new TestEvent();
 
         // Act
-        await interceptor.HandleAsync(
-            message,
-            evt =>
-            {
-                attemptCount++;
-                if (attemptCount < 2)
+        await interceptor
+            .HandleAsync(
+                message,
+                evt =>
                 {
-                    throw new InvalidOperationException("Transient failure");
+                    attemptCount++;
+                    if (attemptCount < 2)
+                    {
+                        throw new InvalidOperationException("Transient failure");
+                    }
+                    return Task.CompletedTask;
                 }
-                return Task.CompletedTask;
-            }
-        );
+            )
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(attemptCount).IsEqualTo(2);
@@ -263,33 +271,37 @@ public sealed class PollyEventInterceptorTests
         // Act & Assert - First two requests fail
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(
-                    message,
-                    evt =>
-                    {
-                        attemptCount++;
-                        throw new InvalidOperationException("Failure");
-                    }
-                )
+                await interceptor
+                    .HandleAsync(
+                        message,
+                        evt =>
+                        {
+                            attemptCount++;
+                            throw new InvalidOperationException("Failure");
+                        }
+                    )
+                    .ConfigureAwait(false)
             )
             .Throws<InvalidOperationException>();
 
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(
-                    message,
-                    evt =>
-                    {
-                        attemptCount++;
-                        throw new InvalidOperationException("Failure");
-                    }
-                )
+                await interceptor
+                    .HandleAsync(
+                        message,
+                        evt =>
+                        {
+                            attemptCount++;
+                            throw new InvalidOperationException("Failure");
+                        }
+                    )
+                    .ConfigureAwait(false)
             )
             .Throws<InvalidOperationException>();
 
         // Circuit should be open now, next request should be rejected immediately
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(message, evt => Task.CompletedTask))
+            .That(async () => await interceptor.HandleAsync(message, evt => Task.CompletedTask).ConfigureAwait(false))
             .Throws<BrokenCircuitException>();
 
         // Verify handler was only called twice (not on third attempt due to open circuit)

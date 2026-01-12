@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Dispatchers;
 
+using System.Collections.Concurrent;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -12,7 +13,9 @@ using NetEvolve.Pulse.Extensibility;
 /// The degree of parallelism is managed by the runtime based on system resources.
 /// <para><strong>Error Handling:</strong></para>
 /// Individual handler failures do not prevent other handlers from executing.
-/// Errors are handled by the invoker delegate which logs exceptions appropriately.
+/// All handlers are executed regardless of failures. If any handlers fail, an
+/// <see cref="AggregateException"/> is thrown after all handlers have completed,
+/// containing all exceptions that occurred.
 /// <para><strong>Use Cases:</strong></para>
 /// <list type="bullet">
 /// <item><description>High-throughput event processing</description></item>
@@ -40,17 +43,40 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
     /// <remarks>
     /// Uses <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, CancellationToken, Func{TSource, CancellationToken, ValueTask})"/>
     /// for efficient parallel execution with automatic partitioning and work stealing.
+    /// Exceptions from individual handlers are collected and thrown as an <see cref="AggregateException"/>
+    /// after all handlers have completed.
     /// </remarks>
-    public Task DispatchAsync<TEvent>(
+    public async Task DispatchAsync<TEvent>(
         TEvent message,
         IEnumerable<IEventHandler<TEvent>> handlers,
         Func<IEventHandler<TEvent>, TEvent, Task> invoker,
         CancellationToken cancellationToken
     )
-        where TEvent : IEvent =>
-        Parallel.ForEachAsync(
-            handlers,
-            cancellationToken,
-            async (handler, _) => await invoker(handler, message).ConfigureAwait(false)
-        );
+        where TEvent : IEvent
+    {
+        var exceptions = new ConcurrentBag<Exception>();
+
+        await Parallel
+            .ForEachAsync(
+                handlers,
+                cancellationToken,
+                async (handler, _) =>
+                {
+                    try
+                    {
+                        await invoker(handler, message).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            )
+            .ConfigureAwait(false);
+
+        if (!exceptions.IsEmpty)
+        {
+            throw new AggregateException("One or more event handlers failed.", exceptions);
+        }
+    }
 }

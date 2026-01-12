@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(_TestTargetFrameworks)</TargetFrameworks>
+    <NoWarn>$(NoWarn);CA1812;CA1859;</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="NetEvolve.Extensions.TUnit" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Verify.TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SqlServer\NetEvolve.Pulse.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Polly\NetEvolve.Pulse.Polly.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="..\..\src\NetEvolve.Pulse.SqlServer\Scripts\OutboxMessage.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Scripts\OutboxMessage.sql</Link>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="NetEvolve.Extensions.TUnit.IntegrationTestAttribute" />
+  </ItemGroup>
+</Project>

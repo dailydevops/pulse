@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration;
+﻿namespace NetEvolve.Pulse.Tests.Integration;
 
 using System.Diagnostics;
 using System.Threading;
@@ -38,7 +38,7 @@ public sealed class ActivityAndMetricsTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new MetricsTestCommand("TestValue");
-        var result = await mediator.SendAsync<MetricsTestCommand, string>(command);
+        var result = await mediator.SendAsync<MetricsTestCommand, string>(command).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("TestValue");
     }
@@ -64,7 +64,7 @@ public sealed class ActivityAndMetricsTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var query = new MetricsTestQuery("QueryValue");
-        var result = await mediator.QueryAsync<MetricsTestQuery, string>(query);
+        var result = await mediator.QueryAsync<MetricsTestQuery, string>(query).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("QueryValue");
     }
@@ -92,9 +92,9 @@ public sealed class ActivityAndMetricsTests
         var handler = scope.ServiceProvider.GetService<IEventHandler<MetricsTestEvent>>() as MetricsTestEventHandler;
 
         var evt = new MetricsTestEvent("EventValue");
-        await mediator.PublishAsync(evt);
+        await mediator.PublishAsync(evt).ConfigureAwait(false);
 
-        await Task.Delay(50);
+        await Task.Delay(50).ConfigureAwait(false);
 
         _ = await Assert.That(handler).IsNotNull();
         _ = await Assert.That(handler!.Handled).IsTrue();
@@ -124,7 +124,7 @@ public sealed class ActivityAndMetricsTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new MetricsTestCommand("Context");
-        _ = await mediator.SendAsync<MetricsTestCommand, string>(command);
+        _ = await mediator.SendAsync<MetricsTestCommand, string>(command).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -156,7 +156,7 @@ public sealed class ActivityAndMetricsTests
         var command = new FailingCommand();
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.SendAsync<FailingCommand, Void>(command)
+            await mediator.SendAsync<FailingCommand, Void>(command).ConfigureAwait(false)
         );
     }
 
@@ -187,7 +187,7 @@ public sealed class ActivityAndMetricsTests
             .Select(i => mediator.SendAsync<MetricsTestCommand, string>(new MetricsTestCommand($"Concurrent{i}")))
             .ToList();
 
-        var results = await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
         _ = await Assert.That(results.Length).IsEqualTo(numberOfRequests);
         for (var i = 0; i < numberOfRequests; i++)

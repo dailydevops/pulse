@@ -237,8 +237,8 @@ internal sealed partial class PulseMediator : IMediator
         }
         catch (Exception ex)
         {
-            // Log handler exceptions but don't fail other handlers
             LogErrorPublish(message.Id, ex);
+            throw;
         }
     }
 

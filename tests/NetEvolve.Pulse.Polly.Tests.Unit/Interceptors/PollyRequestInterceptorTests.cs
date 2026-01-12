@@ -98,7 +98,7 @@ public sealed class PollyRequestInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(request, null!))
+            .That(async () => await interceptor.HandleAsync(request, null!).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
@@ -112,7 +112,7 @@ public sealed class PollyRequestInterceptorTests
         const string expected = "success";
 
         // Act
-        var result = await interceptor.HandleAsync(request, _ => Task.FromResult(expected));
+        var result = await interceptor.HandleAsync(request, _ => Task.FromResult(expected)).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(result).IsEqualTo(expected);
@@ -139,18 +139,20 @@ public sealed class PollyRequestInterceptorTests
         var request = new TestCommand();
 
         // Act
-        var result = await interceptor.HandleAsync(
-            request,
-            _ =>
-            {
-                attemptCount++;
-                if (attemptCount < 3)
+        var result = await interceptor
+            .HandleAsync(
+                request,
+                _ =>
                 {
-                    throw new InvalidOperationException("Transient failure");
+                    attemptCount++;
+                    if (attemptCount < 3)
+                    {
+                        throw new InvalidOperationException("Transient failure");
+                    }
+                    return Task.FromResult("success");
                 }
-                return Task.FromResult("success");
-            }
-        );
+            )
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(result).IsEqualTo("success");
@@ -180,14 +182,16 @@ public sealed class PollyRequestInterceptorTests
         // Act & Assert
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(
-                    request,
-                    _ =>
-                    {
-                        attemptCount++;
-                        throw new InvalidOperationException("Persistent failure");
-                    }
-                )
+                await interceptor
+                    .HandleAsync(
+                        request,
+                        _ =>
+                        {
+                            attemptCount++;
+                            throw new InvalidOperationException("Persistent failure");
+                        }
+                    )
+                    .ConfigureAwait(false)
             )
             .Throws<InvalidOperationException>()
             .WithMessage("Persistent failure", StringComparison.OrdinalIgnoreCase);
@@ -218,18 +222,20 @@ public sealed class PollyRequestInterceptorTests
         var request = new TestCommand();
 
         // Act
-        var result = await interceptor.HandleAsync(
-            request,
-            _ =>
-            {
-                attemptCount++;
-                if (attemptCount < 2)
+        var result = await interceptor
+            .HandleAsync(
+                request,
+                _ =>
                 {
-                    throw new InvalidOperationException("Transient failure");
+                    attemptCount++;
+                    if (attemptCount < 2)
+                    {
+                        throw new InvalidOperationException("Transient failure");
+                    }
+                    return Task.FromResult("success");
                 }
-                return Task.FromResult("success");
-            }
-        );
+            )
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(result).IsEqualTo("success");
@@ -260,33 +266,39 @@ public sealed class PollyRequestInterceptorTests
         // Act & Assert - First two requests fail
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(
-                    request,
-                    _ =>
-                    {
-                        attemptCount++;
-                        throw new InvalidOperationException("Failure");
-                    }
-                )
+                await interceptor
+                    .HandleAsync(
+                        request,
+                        _ =>
+                        {
+                            attemptCount++;
+                            throw new InvalidOperationException("Failure");
+                        }
+                    )
+                    .ConfigureAwait(false)
             )
             .Throws<InvalidOperationException>();
 
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(
-                    request,
-                    _ =>
-                    {
-                        attemptCount++;
-                        throw new InvalidOperationException("Failure");
-                    }
-                )
+                await interceptor
+                    .HandleAsync(
+                        request,
+                        _ =>
+                        {
+                            attemptCount++;
+                            throw new InvalidOperationException("Failure");
+                        }
+                    )
+                    .ConfigureAwait(false)
             )
             .Throws<InvalidOperationException>();
 
         // Circuit should be open now, next request should be rejected immediately
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(request, _ => Task.FromResult("success")))
+            .That(async () =>
+                await interceptor.HandleAsync(request, _ => Task.FromResult("success")).ConfigureAwait(false)
+            )
             .Throws<BrokenCircuitException>();
 
         // Verify handler was only called twice (not on third attempt due to open circuit)

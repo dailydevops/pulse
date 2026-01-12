@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration;
+﻿namespace NetEvolve.Pulse.Tests.Integration;
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +25,7 @@ public sealed class ServiceCollectionExtensionsTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new TestCommand("Test");
-        var response = await mediator.SendAsync<TestCommand, TestResponse>(command);
+        var response = await mediator.SendAsync<TestCommand, TestResponse>(command).ConfigureAwait(false);
 
         _ = await Assert.That(response).IsNotNull();
         _ = await Assert.That(response.Value).IsEqualTo("Test");
@@ -41,7 +41,7 @@ public sealed class ServiceCollectionExtensionsTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var query = new TestQuery("Query");
-        var response = await mediator.QueryAsync<TestQuery, TestResponse>(query);
+        var response = await mediator.QueryAsync<TestQuery, TestResponse>(query).ConfigureAwait(false);
 
         _ = await Assert.That(response).IsNotNull();
         _ = await Assert.That(response.Value).IsEqualTo("Query");
@@ -69,7 +69,7 @@ public sealed class ServiceCollectionExtensionsTests
             .Single();
 
         var evt = new TestEvent("Event");
-        await mediator.PublishAsync(evt);
+        await mediator.PublishAsync(evt).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -90,7 +90,7 @@ public sealed class ServiceCollectionExtensionsTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new TestCommand("Test");
-        var response = await mediator.SendAsync<TestCommand, TestResponse>(command);
+        var response = await mediator.SendAsync<TestCommand, TestResponse>(command).ConfigureAwait(false);
 
         _ = await Assert.That(response).IsNotNull();
     }
@@ -107,14 +107,18 @@ public sealed class ServiceCollectionExtensionsTests
         await using (var scope1 = provider.CreateAsyncScope())
         {
             var mediator1 = scope1.ServiceProvider.GetRequiredService<IMediator>();
-            response1 = await mediator1.SendAsync<TestCommand, TestResponse>(new TestCommand("Scope1"));
+            response1 = await mediator1
+                .SendAsync<TestCommand, TestResponse>(new TestCommand("Scope1"))
+                .ConfigureAwait(false);
         }
 
         TestResponse response2;
         await using (var scope2 = provider.CreateAsyncScope())
         {
             var mediator2 = scope2.ServiceProvider.GetRequiredService<IMediator>();
-            response2 = await mediator2.SendAsync<TestCommand, TestResponse>(new TestCommand("Scope2"));
+            response2 = await mediator2
+                .SendAsync<TestCommand, TestResponse>(new TestCommand("Scope2"))
+                .ConfigureAwait(false);
         }
 
         using (Assert.Multiple())
@@ -139,7 +143,7 @@ public sealed class ServiceCollectionExtensionsTests
             provider.GetRequiredService<IRequestInterceptor<TestCommand, TestResponse>>() as TestCommandInterceptor;
 
         var command = new TestCommand("Intercepted");
-        var response = await mediator.SendAsync<TestCommand, TestResponse>(command);
+        var response = await mediator.SendAsync<TestCommand, TestResponse>(command).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -161,7 +165,7 @@ public sealed class ServiceCollectionExtensionsTests
         var command = new TestCommand("NoHandler");
 
         _ = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.SendAsync<TestCommand, TestResponse>(command)
+            await mediator.SendAsync<TestCommand, TestResponse>(command).ConfigureAwait(false)
         );
     }
 
@@ -232,7 +236,7 @@ public sealed class ServiceCollectionExtensionsTests
         )
         {
             Executed = true;
-            return await next(request);
+            return await next(request).ConfigureAwait(false);
         }
     }
 }

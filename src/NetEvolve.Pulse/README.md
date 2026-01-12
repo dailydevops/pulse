@@ -11,6 +11,7 @@ NetEvolve.Pulse is a high-performance CQRS mediator for ASP.NET Core that wires 
 * Typed CQRS mediator with single-handler enforcement for commands and queries plus fan-out events
 * Minimal DI integration via `services.AddPulse(...)` with scoped lifetimes for handlers and interceptors
 * Configurable interceptor pipeline (logging, metrics, tracing, validation) via `IMediatorConfigurator`
+* **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
 * Parallel event dispatch for efficient domain event broadcasting
 * TimeProvider-aware for deterministic testing and scheduling scenarios
 * OpenTelemetry-friendly metrics and tracing through `AddActivityAndMetrics()`
@@ -138,6 +139,30 @@ services.AddPulse(config =>
 });
 ```
 
+### Outbox Pattern Configuration
+
+The outbox pattern ensures reliable event delivery by persisting events before dispatching:
+
+```csharp
+services.AddPulse(config => config
+    .AddOutbox(
+        options => options.Schema = "pulse",
+        processorOptions =>
+        {
+            processorOptions.BatchSize = 100;              // Messages per batch (default: 100)
+            processorOptions.PollingInterval = TimeSpan.FromSeconds(5);  // Poll delay (default: 5s)
+            processorOptions.MaxRetryCount = 3;            // Max retries before dead letter (default: 3)
+            processorOptions.ProcessingTimeout = TimeSpan.FromSeconds(30); // Per-message timeout (default: 30s)
+            processorOptions.EnableBatchSending = false;   // Use batch transport (default: false)
+        })
+    // Choose a persistence provider:
+    // .AddEntityFrameworkOutbox<MyDbContext>()
+    // .AddSqlServerOutbox(connectionString)
+);
+```
+
+See [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) or [NetEvolve.Pulse.SqlServer](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) for persistence provider setup.
+
 ## Requirements
 
 * .NET 8.0, .NET 9.0, or .NET 10.0
@@ -147,6 +172,9 @@ services.AddPulse(config =>
 ## Related Packages
 
 * [**NetEvolve.Pulse.Extensibility**](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Core contracts and abstractions used by the mediator
+* [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core persistence for the outbox pattern
+* [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET persistence for the outbox pattern
+* [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
 
 ## Documentation
 

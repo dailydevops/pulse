@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
 
 using System.Threading.Tasks;
 using NetEvolve.Pulse;
@@ -27,12 +27,14 @@ public class TransactionalEventDispatcherTests
         var message = new TestEvent { Id = "test-123" };
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler() };
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -50,16 +52,18 @@ public class TransactionalEventDispatcherTests
         var handlerInvoked = false;
         var handlers = new List<IEventHandler<TestEvent>> { new TrackingTestHandler(() => handlerInvoked = true) };
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) =>
-            {
-                // This invoker should NOT be called by TransactionalEventDispatcher
-                return handler.HandleAsync(msg, CancellationToken.None);
-            },
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) =>
+                {
+                    // This invoker should NOT be called by TransactionalEventDispatcher
+                    return handler.HandleAsync(msg, CancellationToken.None);
+                },
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         _ = await Assert.That(handlerInvoked).IsFalse();
     }
@@ -72,15 +76,17 @@ public class TransactionalEventDispatcherTests
         var message = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler() };
         using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
+        await cts.CancelAsync().ConfigureAwait(false);
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await dispatcher.DispatchAsync(
-                message,
-                handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-                cts.Token
-            )
+            await dispatcher
+                .DispatchAsync(
+                    message,
+                    handlers,
+                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                    cts.Token
+                )
+                .ConfigureAwait(false)
         );
     }
 
@@ -93,12 +99,14 @@ public class TransactionalEventDispatcherTests
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler() };
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await dispatcher.DispatchAsync(
-                message,
-                handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-                CancellationToken.None
-            )
+            await dispatcher
+                .DispatchAsync(
+                    message,
+                    handlers,
+                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false)
         );
     }
 
@@ -110,12 +118,14 @@ public class TransactionalEventDispatcherTests
         var message = new TestEvent { Id = "empty-handlers-test" };
         var handlers = Enumerable.Empty<IEventHandler<TestEvent>>();
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {

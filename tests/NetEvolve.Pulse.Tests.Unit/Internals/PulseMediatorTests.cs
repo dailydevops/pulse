@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -84,7 +84,7 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "message",
-            async () => await mediator.PublishAsync<TestEvent>(null!)
+            async () => await mediator.PublishAsync<TestEvent>(null!).ConfigureAwait(false)
         );
     }
 
@@ -99,7 +99,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent);
+        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
 
         _ = await Assert.That(testEvent.PublishedAt).IsNotNull();
     }
@@ -119,7 +119,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent);
+        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -131,7 +131,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task PublishAsync_WithHandlerException_ContinuesExecutingOtherHandlers()
+    public async Task PublishAsync_WithHandlerException_ContinuesExecutingOtherHandlersAndThrowsAggregate()
     {
         var handler1 = new ThrowingEventHandler();
         var handler2 = new TestEventHandler();
@@ -145,8 +145,16 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent);
+        // Act & Assert - PublishAsync throws AggregateException containing the handler failure
+        var exception = await Assert.ThrowsAsync<AggregateException>(async () =>
+            await mediator.PublishAsync(testEvent).ConfigureAwait(false)
+        );
 
+        // Verify the exception contains the handler failure
+        _ = await Assert.That(exception!.InnerExceptions).Count().IsEqualTo(1);
+        _ = await Assert.That(exception.InnerExceptions[0]).IsAssignableTo<InvalidOperationException>();
+
+        // Verify the successful handler still executed despite the failure
         _ = await Assert.That(handler2.HandledEvents).HasSingleItem();
     }
 
@@ -161,7 +169,7 @@ public class PulseMediatorTests
         var testEvent = new TestEvent();
         var beforePublish = timeProvider.GetUtcNow();
 
-        await mediator.PublishAsync(testEvent);
+        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
 
         var afterPublish = timeProvider.GetUtcNow();
         var publishedAt = testEvent.PublishedAt;
@@ -185,7 +193,7 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "query",
-            async () => await mediator.QueryAsync<TestQuery, string>(null!)
+            async () => await mediator.QueryAsync<TestQuery, string>(null!).ConfigureAwait(false)
         );
     }
 
@@ -201,7 +209,7 @@ public class PulseMediatorTests
         var query = new TestQuery();
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.QueryAsync<TestQuery, string>(query)
+            await mediator.QueryAsync<TestQuery, string>(query).ConfigureAwait(false)
         );
     }
 
@@ -218,7 +226,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var query = new TestQuery();
 
-        var result = await mediator.QueryAsync<TestQuery, string>(query);
+        var result = await mediator.QueryAsync<TestQuery, string>(query).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -240,7 +248,7 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "command",
-            async () => await mediator.SendAsync<TestCommand, string>(null!)
+            async () => await mediator.SendAsync<TestCommand, string>(null!).ConfigureAwait(false)
         );
     }
 
@@ -256,7 +264,7 @@ public class PulseMediatorTests
         var command = new TestCommand();
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.SendAsync<TestCommand, string>(command)
+            await mediator.SendAsync<TestCommand, string>(command).ConfigureAwait(false)
         );
     }
 
@@ -273,7 +281,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var command = new TestCommand();
 
-        var result = await mediator.SendAsync<TestCommand, string>(command);
+        var result = await mediator.SendAsync<TestCommand, string>(command).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -298,7 +306,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var command = new TestCommand();
 
-        var result = await mediator.SendAsync<TestCommand, string>(command);
+        var result = await mediator.SendAsync<TestCommand, string>(command).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -323,7 +331,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var query = new TestQuery();
 
-        var result = await mediator.QueryAsync<TestQuery, string>(query);
+        var result = await mediator.QueryAsync<TestQuery, string>(query).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -348,7 +356,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent);
+        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -432,7 +440,7 @@ public class PulseMediatorTests
         )
         {
             InterceptedCommands.Add(request);
-            return await handler(request);
+            return await handler(request).ConfigureAwait(false);
         }
     }
 
@@ -447,7 +455,7 @@ public class PulseMediatorTests
         )
         {
             InterceptedQueries.Add(request);
-            return await handler(request);
+            return await handler(request).ConfigureAwait(false);
         }
     }
 
@@ -462,7 +470,7 @@ public class PulseMediatorTests
         )
         {
             InterceptedEvents.Add(message);
-            await handler(message);
+            await handler(message).ConfigureAwait(false);
         }
     }
 }
