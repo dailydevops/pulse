@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -162,7 +162,7 @@ public sealed class InMemoryMessageTransportTests
         var transport = new InMemoryMessageTransport(mediator, options);
 
         // Create payload with camelCase property names
-        var payload = """{"id":"custom-id","data":"custom data","correlationId":null,"publishedAt":null}""";
+        const string payload = """{"id":"custom-id","data":"custom data","correlationId":null,"publishedAt":null}""";
         var eventType = typeof(TestTransportEvent).AssemblyQualifiedName!;
         var message = new OutboxMessage
         {

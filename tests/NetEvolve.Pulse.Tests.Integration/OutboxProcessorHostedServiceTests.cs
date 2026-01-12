@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration;
+﻿namespace NetEvolve.Pulse.Tests.Integration;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -245,10 +245,7 @@ public sealed class OutboxProcessorHostedServiceTests
             .AddSingleton<IOutboxRepository>(repository)
             .AddPulse(configurator =>
             {
-                _ = configurator.AddOutbox(configureProcessorOptions: options =>
-                {
-                    options.PollingInterval = TimeSpan.FromMilliseconds(50);
-                });
+                _ = configurator.AddOutbox(configureProcessorOptions: options => options.PollingInterval = TimeSpan.FromMilliseconds(50));
                 _ = configurator.UseMessageTransport(_ => transport);
             });
 
