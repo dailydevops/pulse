@@ -70,16 +70,24 @@ public sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
         ArgumentNullException.ThrowIfNull(message);
 
         var now = _timeProvider.GetUtcNow();
+        var messageType = message.GetType();
+        var asmName =
+            messageType.AssemblyQualifiedName
+            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {messageType}");
+
+        if (asmName.Length > 500)
+        {
+            throw new InvalidOperationException(
+                "Event type identifier exceeds the EventType column maximum length of 500 characters. " +
+                "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
+            );
+        }
 
         var outboxMessage = new OutboxMessage
         {
             Id = Guid.TryParse(message.Id, out var id) ? id : Guid.NewGuid(),
-            EventType =
-                message.GetType().AssemblyQualifiedName
-                ?? throw new InvalidOperationException(
-                    $"Cannot get assembly-qualified name for type: {message.GetType()}"
-                ),
-            Payload = JsonSerializer.Serialize(message, message.GetType(), _options.JsonSerializerOptions),
+            EventType = asmName,
+            Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
             CorrelationId = message.CorrelationId,
             CreatedAt = now,
             UpdatedAt = now,
