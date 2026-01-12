@@ -161,8 +161,6 @@ public class PrioritizedEventDispatcherTests
                 CancellationToken.None
             )
             .ConfigureAwait(false);
-
-        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     private sealed class TestEvent : IEvent

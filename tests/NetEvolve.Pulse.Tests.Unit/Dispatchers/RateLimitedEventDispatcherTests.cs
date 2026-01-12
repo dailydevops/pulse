@@ -141,14 +141,14 @@ public class RateLimitedEventDispatcherTests
     }
 
     [Test]
-    public async Task Dispose_CalledMultipleTimes_DoesNotThrow()
+    public Task Dispose_CalledMultipleTimes_DoesNotThrow()
     {
         var dispatcher = new RateLimitedEventDispatcher();
 
         dispatcher.Dispose();
         dispatcher.Dispose();
 
-        await Task.CompletedTask.ConfigureAwait(false);
+        return Task.CompletedTask;
     }
 
     private sealed class TestEvent : IEvent

@@ -113,10 +113,10 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                async evt =>
+                evt =>
                 {
                     handlerCalled = true;
-                    await Task.CompletedTask.ConfigureAwait(false);
+                    return Task.CompletedTask;
                 }
             )
             .ConfigureAwait(false);
