@@ -78,8 +78,8 @@ public sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
         if (asmName.Length > 500)
         {
             throw new InvalidOperationException(
-                "Event type identifier exceeds the EventType column maximum length of 500 characters. " +
-                "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
+                "Event type identifier exceeds the EventType column maximum length of 500 characters. "
+                    + "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
             );
         }
 

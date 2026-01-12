@@ -58,6 +58,8 @@ public static class EntityFrameworkMediatorConfiguratorExtensions
 
         var services = configurator.Services;
 
+        _ = services.AddOptions<OutboxOptions>();
+
         // Register options if configureOptions is provided
         if (configureOptions is not null)
         {
