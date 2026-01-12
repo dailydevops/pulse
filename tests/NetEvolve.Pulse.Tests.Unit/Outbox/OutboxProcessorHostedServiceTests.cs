@@ -338,7 +338,7 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
-    public async Task ExecuteAsync_WithBatchSendingFailure_FallsBackToIndividualProcessing()
+    public async Task ExecuteAsync_WithBatchSendingFailure_MarkAsFailedForRetry()
     {
         var repository = new InMemoryOutboxRepository();
         var transport = new BatchFailingMessageTransport();
@@ -356,16 +356,22 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(200).ConfigureAwait(false);
+        // Wait for first polling cycle to process the batch failure
+        await Task.Delay(100).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
 
-        // Messages should still be processed individually after batch failure
+        // Verify that batch send was not followed by individual send (no fallback to ProcessIndividuallyAsync)
+        // Messages should be marked as failed or deadlettered (depending on retry cycles that ran),
+        // but NOT sent individually since we're testing that the fallback was removed.
         using (Assert.Multiple())
         {
-            _ = await Assert.That(transport.IndividualSendCallCount).IsEqualTo(2);
-            _ = await Assert.That(repository.CompletedMessageIds).Count().IsEqualTo(2);
+            _ = await Assert.That(transport.IndividualSendCallCount).IsEqualTo(0);
+            _ = await Assert.That(repository.CompletedMessageIds).Count().IsEqualTo(0);
+            // Messages should be in either Failed or DeadLetter based on how many cycles ran
+            var totalMarked = repository.FailedMessageIds.Count + repository.DeadLetterMessageIds.Count;
+            _ = await Assert.That(totalMarked).IsGreaterThanOrEqualTo(2);
         }
     }
 

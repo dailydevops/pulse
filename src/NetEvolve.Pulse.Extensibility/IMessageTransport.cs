@@ -45,9 +45,12 @@ public interface IMessageTransport
     /// <para><strong>Default Implementation:</strong></para>
     /// The default implementation calls <see cref="SendAsync"/> for each message sequentially.
     /// Override for message brokers that support batch publishing for better throughput.
-    /// <para><strong>Atomicity:</strong></para>
-    /// Batch operations are NOT necessarily atomic. If partial failure occurs, some messages
-    /// may be delivered while others fail. The outbox processor handles this appropriately.
+    /// <para><strong>Atomicity and Failure Handling:</strong></para>
+    /// Implementations SHOULD treat batch operations as all-or-nothing. If the operation fails,
+    /// no messages should be delivered. If some messages were delivered before the failure,
+    /// the implementation MUST roll back or handle recovery internally. Do NOT allow partial success,
+    /// as the outbox processor will mark all messages as failed and retry them on the next poll,
+    /// potentially causing duplicate deliveries.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="messages"/> is null.</exception>
     Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)

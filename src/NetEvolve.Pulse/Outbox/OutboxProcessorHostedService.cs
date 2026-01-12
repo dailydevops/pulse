@@ -208,8 +208,26 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         {
             LogBatchSendFailed(_logger, ex);
 
-            // Fallback to individual processing
-            await ProcessIndividuallyAsync(messages, cancellationToken).ConfigureAwait(false);
+            // Mark all messages as failed to avoid duplicate delivery from partial failures.
+            // Batch implementations should be atomic (all-or-nothing), but if partial success
+            // occurred, falling back to individual processing would re-send already-delivered messages.
+            // Instead, mark all as failed and let the retry mechanism handle them on next poll.
+            foreach (var message in messages)
+            {
+                if (message.RetryCount + 1 >= _options.MaxRetryCount)
+                {
+                    await _repository
+                        .MarkAsDeadLetterAsync(message.Id, ex.Message, cancellationToken)
+                        .ConfigureAwait(false);
+                    LogMessageMovedToDeadLetter(_logger, message.Id, _options.MaxRetryCount);
+                }
+                else
+                {
+                    await _repository
+                        .MarkAsFailedAsync(message.Id, ex.Message, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
         }
     }
 
