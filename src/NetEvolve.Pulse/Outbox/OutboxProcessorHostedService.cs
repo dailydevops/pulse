@@ -8,7 +8,7 @@ using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Background service that processes outbox messages and dispatches them via <see cref="IMessageTransport"/>.
-/// Implements reliable message processing with retry logic and exponential backoff.
+/// Implements reliable message processing with retry logic driven by the polling interval.
 /// </summary>
 /// <remarks>
 /// <para><strong>Processing Flow:</strong></para>
@@ -21,7 +21,7 @@ using NetEvolve.Pulse.Outbox;
 /// </list>
 /// <para><strong>Error Handling:</strong></para>
 /// <list type="bullet">
-/// <item><description>Transient failures: Retry with exponential backoff</description></item>
+/// <item><description>Transient failures: Retry on subsequent polling cycles using the configured polling interval</description></item>
 /// <item><description>Exceeded retries: Move to dead letter status</description></item>
 /// <item><description>Processor errors: Log and continue (resilient)</description></item>
 /// </list>
