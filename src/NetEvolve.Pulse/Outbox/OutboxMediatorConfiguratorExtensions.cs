@@ -73,14 +73,29 @@ public static class OutboxMediatorConfiguratorExtensions
     /// </summary>
     /// <typeparam name="TTransport">The transport implementation type.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="lifetime">The service lifetime for the transport. Defaults to <see cref="ServiceLifetime.Scoped"/>.</param>
     /// <returns>The configurator for chaining.</returns>
-    public static IMediatorConfigurator UseMessageTransport<TTransport>(this IMediatorConfigurator configurator)
+    /// <remarks>
+    /// Replaces any existing <see cref="IMessageTransport"/> registration.
+    /// </remarks>
+    public static IMediatorConfigurator UseMessageTransport<TTransport>(
+        this IMediatorConfigurator configurator,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped
+    )
         where TTransport : class, IMessageTransport
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
         var services = configurator.Services;
-        _ = services.AddScoped<IMessageTransport, TTransport>();
+
+        var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));
+        if (existing is not null)
+        {
+            _ = services.Remove(existing);
+        }
+
+        var descriptor = new ServiceDescriptor(typeof(IMessageTransport), typeof(TTransport), lifetime);
+        services.Add(descriptor);
 
         return configurator;
     }
@@ -90,17 +105,30 @@ public static class OutboxMediatorConfiguratorExtensions
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="factory">The factory function to create the transport.</param>
+    /// <param name="lifetime">The service lifetime for the transport. Defaults to <see cref="ServiceLifetime.Scoped"/>.</param>
     /// <returns>The configurator for chaining.</returns>
+    /// <remarks>
+    /// Replaces any existing <see cref="IMessageTransport"/> registration.
+    /// </remarks>
     public static IMediatorConfigurator UseMessageTransport(
         this IMediatorConfigurator configurator,
-        Func<IServiceProvider, IMessageTransport> factory
+        Func<IServiceProvider, IMessageTransport> factory,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
         ArgumentNullException.ThrowIfNull(factory);
 
         var services = configurator.Services;
-        _ = services.AddScoped(factory);
+
+        var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));
+        if (existing is not null)
+        {
+            _ = services.Remove(existing);
+        }
+
+        var descriptor = new ServiceDescriptor(typeof(IMessageTransport), factory, lifetime);
+        services.Add(descriptor);
 
         return configurator;
     }
