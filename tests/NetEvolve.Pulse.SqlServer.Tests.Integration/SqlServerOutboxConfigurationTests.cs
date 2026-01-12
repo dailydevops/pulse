@@ -3,6 +3,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
@@ -171,12 +172,11 @@ public sealed class SqlServerOutboxConfigurationTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFullPipeline_ProcessesMessages()
+    public async Task AddSqlServerOutbox_StoresMessagesForProcessing()
     {
         // Arrange
         var services = CreateServiceCollection();
         var connectionString = _fixture.GetConnectionString(_databaseName);
-        var handler = new TrackingEventHandler();
 
         _ = services.AddPulse(config =>
             config
@@ -187,21 +187,26 @@ public sealed class SqlServerOutboxConfigurationTests
                 })
                 .AddSqlServerOutbox(connectionString)
         );
-        _ = services.AddScoped<IEventHandler<TestSqlEvent>>(_ => handler);
 
         await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
 
-        var eventOutbox = scope.ServiceProvider.GetRequiredService<IEventOutbox>();
+        var eventOutbox = provider.GetRequiredService<IEventOutbox>();
+        var repository = provider.GetRequiredService<IOutboxRepository>();
 
         // Act - Store event
-        var evt = new TestSqlEvent("pipeline-1", "Pipeline test");
+        var evt = new TestSqlEvent("storage-1", "Storage test");
         await eventOutbox.StoreAsync(evt).ConfigureAwait(false);
 
-        // Assert - Event should be stored
-        var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+        // Assert - Event should be stored pending processing
         var pending = await repository.GetPendingAsync(10).ConfigureAwait(false);
         _ = await Assert.That(pending).Count().IsEqualTo(1);
+
+        // Verify the stored message contains the correct event
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(pending[0].EventType).Contains(nameof(TestSqlEvent));
+            _ = await Assert.That(pending[0].Payload).Contains("storage-1").And.Contains("Storage test");
+        }
     }
 
     private static ServiceCollection CreateServiceCollection()
