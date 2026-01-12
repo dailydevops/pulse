@@ -42,15 +42,14 @@ public interface IMessageTransport
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous batch send operation.</returns>
     /// <remarks>
-    /// <para><strong>Default Implementation:</strong></para>
-    /// The default implementation calls <see cref="SendAsync"/> for each message sequentially.
-    /// Override for message brokers that support batch publishing for better throughput.
-    /// <para><strong>Atomicity and Failure Handling:</strong></para>
-    /// Implementations SHOULD treat batch operations as all-or-nothing. If the operation fails,
-    /// no messages should be delivered. If some messages were delivered before the failure,
-    /// the implementation MUST roll back or handle recovery internally. Do NOT allow partial success,
-    /// as the outbox processor will mark all messages as failed and retry them on the next poll,
-    /// potentially causing duplicate deliveries.
+    /// <para><strong>Default Implementation (best-effort, non-atomic):</strong></para>
+    /// The default implementation calls <see cref="SendAsync"/> for each message sequentially and may
+    /// deliver a subset if an exception occurs mid-batch. Override when the transport supports atomic or
+    /// batched publishing to avoid partial delivery and improve throughput.
+    /// <para><strong>Atomicity Guidance for Implementers:</strong></para>
+    /// When the transport can guarantee atomic batches, treat the operation as all-or-nothing. If partial
+    /// delivery is possible, implement compensation or ensure idempotent handlers, because the outbox
+    /// processor will mark all messages as failed and retry the batch on the next poll.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="messages"/> is null.</exception>
     Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)

@@ -273,7 +273,7 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
     [LoggerMessage(Level = LogLevel.Debug, Message = "Successfully processed batch of {Count} outbox messages")]
     private static partial void LogBatchProcessed(ILogger logger, int count);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Batch send failed, falling back to individual processing")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Batch send failed; marking all messages as failed")]
     private static partial void LogBatchSendFailed(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Message transport is unhealthy, skipping processing cycle")]

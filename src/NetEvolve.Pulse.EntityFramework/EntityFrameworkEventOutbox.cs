@@ -83,12 +83,22 @@ public sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
             );
         }
 
+        var correlationId = message.CorrelationId;
+
+        if (correlationId is { Length: > 100 })
+        {
+            throw new InvalidOperationException(
+                "CorrelationId exceeds the maximum length of 100 characters defined by the OutboxMessage schema. "
+                    + "Provide a shorter correlation identifier to comply with the database constraint."
+            );
+        }
+
         var outboxMessage = new OutboxMessage
         {
             Id = Guid.TryParse(message.Id, out var id) ? id : Guid.NewGuid(),
             EventType = asmName,
             Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
-            CorrelationId = message.CorrelationId,
+            CorrelationId = correlationId,
             CreatedAt = now,
             UpdatedAt = now,
             Status = OutboxMessageStatus.Pending,

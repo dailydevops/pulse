@@ -127,7 +127,8 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
         {
             var connectionString = _fixture.GetConnectionString(dbName);
             var services = CreateServiceCollection();
-            var handler = new OutboxStoreHandler(connectionString);
+            const int transientFailureCount = 2;
+            var handler = new FlakyOutboxStoreHandler(connectionString, transientFailureCount);
 
             _ = services
                 .AddScoped<ICommandHandler<StoreOutboxCommand, bool>>(_ => handler)
@@ -152,6 +153,7 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
 
             // Assert
             _ = await Assert.That(result).IsTrue();
+            _ = await Assert.That(handler.AttemptCount).IsEqualTo(transientFailureCount + 1);
         }
         finally
         {
@@ -338,6 +340,33 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
         }
     }
 
+    private sealed class FlakyOutboxStoreHandler : ICommandHandler<StoreOutboxCommand, bool>
+    {
+        private readonly OutboxStoreHandler _inner;
+        private readonly int _failCount;
+        private int _attemptCount;
+
+        public FlakyOutboxStoreHandler(string connectionString, int failCount)
+        {
+            _inner = new OutboxStoreHandler(connectionString);
+            _failCount = failCount;
+        }
+
+        public int AttemptCount => _attemptCount;
+
+        public async Task<bool> HandleAsync(StoreOutboxCommand request, CancellationToken cancellationToken = default)
+        {
+            var attempt = Interlocked.Increment(ref _attemptCount);
+
+            if (attempt <= _failCount)
+            {
+                throw new TransientOutboxException($"Transient outbox failure on attempt {attempt}.");
+            }
+
+            return await _inner.HandleAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private sealed class FailingDatabaseHandler : ICommandHandler<DatabaseOperationCommand, string>
     {
         private readonly string _connectionString;
@@ -377,6 +406,17 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
     }
 
     #endregion
+}
+
+public sealed class TransientOutboxException : Exception
+{
+    public TransientOutboxException() { }
+
+    public TransientOutboxException(string message)
+        : base(message) { }
+
+    public TransientOutboxException(string message, Exception innerException)
+        : base(message, innerException) { }
 }
 
 /// <summary>
