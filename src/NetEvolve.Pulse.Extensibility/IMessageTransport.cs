@@ -70,7 +70,14 @@ public interface IMessageTransport
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns><c>true</c> if the transport is healthy; otherwise, <c>false</c>.</returns>
     /// <remarks>
-    /// Used by health checks and the background processor to determine if message sending should proceed.
+    /// <para><strong>Used by the outbox processor:</strong></para>
+    /// The processor checks transport health before each processing cycle. If unhealthy,
+    /// the cycle is skipped and retried after the polling interval.
+    /// <para><strong>Default Implementation:</strong></para>
+    /// Returns <c>true</c> by default. Override to implement actual health checks for message brokers,
+    /// HTTP endpoints, or other external dependencies.
+    /// <para><strong>External Integration:</strong></para>
+    /// Can also be used with Microsoft.Extensions.Diagnostics.HealthChecks for application health monitoring.
     /// </remarks>
     Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
 }

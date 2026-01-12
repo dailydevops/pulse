@@ -70,6 +70,15 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         {
             try
             {
+                // Check transport health before processing
+                var isHealthy = await _transport.IsHealthyAsync(stoppingToken).ConfigureAwait(false);
+                if (!isHealthy)
+                {
+                    LogTransportUnhealthy(_logger);
+                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 var processedCount = await ProcessBatchAsync(stoppingToken).ConfigureAwait(false);
 
                 if (processedCount == 0)
@@ -248,4 +257,7 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Batch send failed, falling back to individual processing")]
     private static partial void LogBatchSendFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Message transport is unhealthy, skipping processing cycle")]
+    private static partial void LogTransportUnhealthy(ILogger logger);
 }
