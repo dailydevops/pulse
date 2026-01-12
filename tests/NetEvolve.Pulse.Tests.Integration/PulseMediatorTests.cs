@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration;
+﻿namespace NetEvolve.Pulse.Tests.Integration;
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,7 +28,7 @@ public sealed class PulseMediatorTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new CreateOrderCommand("Order123", 100.50m);
-        var result = await mediator.SendAsync<CreateOrderCommand, OrderResult>(command);
+        var result = await mediator.SendAsync<CreateOrderCommand, OrderResult>(command).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -49,7 +49,7 @@ public sealed class PulseMediatorTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new DeleteOrderCommand("Order123");
-        var result = await mediator.SendAsync<DeleteOrderCommand, Void>(command);
+        var result = await mediator.SendAsync<DeleteOrderCommand, Void>(command).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo(default(Void));
     }
@@ -64,7 +64,7 @@ public sealed class PulseMediatorTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var query = new GetOrderQuery("Order456");
-        var result = await mediator.QueryAsync<GetOrderQuery, OrderDto>(query);
+        var result = await mediator.QueryAsync<GetOrderQuery, OrderDto>(query).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -90,9 +90,9 @@ public sealed class PulseMediatorTests
         var handlers = scope.ServiceProvider.GetServices<IEventHandler<OrderCreatedEvent>>().ToList();
 
         var evt = new OrderCreatedEvent("Order789", DateTimeOffset.UtcNow);
-        await mediator.PublishAsync(evt);
+        await mediator.PublishAsync(evt).ConfigureAwait(false);
 
-        await Task.Delay(100); // Give handlers time to complete
+        await Task.Delay(100).ConfigureAwait(false); // Give handlers time to complete
 
         foreach (var handler in handlers)
         {
@@ -123,7 +123,7 @@ public sealed class PulseMediatorTests
 
         var evt = new OrderCreatedEvent("Order999", DateTimeOffset.UtcNow);
         var beforePublish = DateTimeOffset.UtcNow;
-        await mediator.PublishAsync(evt);
+        await mediator.PublishAsync(evt).ConfigureAwait(false);
         var afterPublish = DateTimeOffset.UtcNow;
 
         using (Assert.Multiple())
@@ -135,7 +135,7 @@ public sealed class PulseMediatorTests
     }
 
     [Test]
-    public async Task PublishAsync_WithEventHandlerException_ContinuesExecutingOtherHandlers()
+    public async Task PublishAsync_WithEventHandlerException_ContinuesExecutingOtherHandlersAndThrowsAggregate()
     {
         var services = CreateServiceCollection();
         _ = services
@@ -152,10 +152,17 @@ public sealed class PulseMediatorTests
             .Single();
 
         var evt = new OrderCreatedEvent("Order123", DateTimeOffset.UtcNow);
-        await mediator.PublishAsync(evt);
 
-        await Task.Delay(100);
+        // Act & Assert - PublishAsync throws AggregateException containing the handler failure
+        var exception = await Assert.ThrowsAsync<AggregateException>(async () =>
+            await mediator.PublishAsync(evt).ConfigureAwait(false)
+        );
 
+        // Verify the exception contains the handler failure
+        _ = await Assert.That(exception!.InnerExceptions).Count().IsEqualTo(1);
+        _ = await Assert.That(exception.InnerExceptions[0]).IsAssignableTo<InvalidOperationException>();
+
+        // Verify the successful handler still executed despite the failure
         _ = await Assert.That(successfulHandler.Handled).IsTrue();
     }
 
@@ -174,7 +181,7 @@ public sealed class PulseMediatorTests
         var command = new SlowCommand();
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await mediator.SendAsync<SlowCommand, Void>(command, cts.Token)
+            await mediator.SendAsync<SlowCommand, Void>(command, cts.Token).ConfigureAwait(false)
         );
     }
 
@@ -192,7 +199,7 @@ public sealed class PulseMediatorTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         var command = new OrderCommand();
-        var result = await mediator.SendAsync<OrderCommand, string>(command);
+        var result = await mediator.SendAsync<OrderCommand, string>(command).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("First->Second->Handler");
     }
@@ -304,7 +311,7 @@ public sealed class PulseMediatorTests
     {
         public async Task<Void> HandleAsync(SlowCommand command, CancellationToken cancellationToken = default)
         {
-            await Task.Delay(5000, cancellationToken);
+            await Task.Delay(5000, cancellationToken).ConfigureAwait(false);
             return default;
         }
     }
@@ -323,7 +330,7 @@ public sealed class PulseMediatorTests
             CancellationToken cancellationToken = default
         )
         {
-            var result = await next(request);
+            var result = await next(request).ConfigureAwait(false);
             return $"First->{result}";
         }
     }
@@ -336,7 +343,7 @@ public sealed class PulseMediatorTests
             CancellationToken cancellationToken = default
         )
         {
-            var result = await next(request);
+            var result = await next(request).ConfigureAwait(false);
             return $"Second->{result}";
         }
     }

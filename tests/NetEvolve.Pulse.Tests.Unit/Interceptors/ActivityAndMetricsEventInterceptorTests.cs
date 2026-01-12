@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
 using NetEvolve.Pulse.Extensibility;
@@ -26,14 +26,16 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(
-            testEvent,
-            _ =>
-            {
-                handlerCalled = true;
-                return Task.CompletedTask;
-            }
-        );
+        await interceptor
+            .HandleAsync(
+                testEvent,
+                _ =>
+                {
+                    handlerCalled = true;
+                    return Task.CompletedTask;
+                }
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -63,7 +65,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(testEvent, _ => Task.CompletedTask);
+        await interceptor.HandleAsync(testEvent, _ => Task.CompletedTask).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -93,7 +95,7 @@ public class ActivityAndMetricsEventInterceptorTests
         listener.ActivityStopped = activity => capturedActivity = activity;
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(testEvent, _ => throw testException)
+            await interceptor.HandleAsync(testEvent, _ => throw testException).ConfigureAwait(false)
         );
 
         using (Assert.Multiple())
@@ -129,7 +131,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(testEvent, _ => Task.CompletedTask);
+        await interceptor.HandleAsync(testEvent, _ => Task.CompletedTask).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -147,14 +149,16 @@ public class ActivityAndMetricsEventInterceptorTests
         var testEvent = new TestEvent();
         TestEvent? receivedEvent = null;
 
-        await interceptor.HandleAsync(
-            testEvent,
-            evt =>
-            {
-                receivedEvent = evt;
-                return Task.CompletedTask;
-            }
-        );
+        await interceptor
+            .HandleAsync(
+                testEvent,
+                evt =>
+                {
+                    receivedEvent = evt;
+                    return Task.CompletedTask;
+                }
+            )
+            .ConfigureAwait(false);
 
         _ = await Assert.That(receivedEvent).IsSameReferenceAs(testEvent);
     }
@@ -177,8 +181,8 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStarted = activity => activities.Add(activity);
 
-        await interceptor1.HandleAsync(new TestEvent(), _ => Task.CompletedTask);
-        await interceptor2.HandleAsync(new AnotherTestEvent(), _ => Task.CompletedTask);
+        await interceptor1.HandleAsync(new TestEvent(), _ => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor2.HandleAsync(new AnotherTestEvent(), _ => Task.CompletedTask).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {

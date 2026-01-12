@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
 
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -25,12 +25,14 @@ public class PrioritizedEventDispatcherTests
             new PrioritizedTestHandler(2, 50, executionOrder), // Medium priority
         };
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         var order = executionOrder.ToArray();
         using (Assert.Multiple())
@@ -56,12 +58,14 @@ public class PrioritizedEventDispatcherTests
             new PrioritizedTestHandler(2, 500, executionOrder), // Medium priority
         };
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         var order = executionOrder.ToArray();
         using (Assert.Multiple())
@@ -88,12 +92,14 @@ public class PrioritizedEventDispatcherTests
             new PrioritizedTestHandler(3, 100, executionOrder),
         };
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         var order = executionOrder.ToArray();
         using (Assert.Multiple())
@@ -120,12 +126,14 @@ public class PrioritizedEventDispatcherTests
         };
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await dispatcher.DispatchAsync(
-                message,
-                handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-                cts.Token
-            )
+            await dispatcher
+                .DispatchAsync(
+                    message,
+                    handlers,
+                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                    cts.Token
+                )
+                .ConfigureAwait(false)
         );
 
         var order = executionOrder.ToArray();
@@ -145,14 +153,14 @@ public class PrioritizedEventDispatcherTests
         var message = new TestEvent();
         var handlers = Enumerable.Empty<IEventHandler<TestEvent>>();
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
-
-        await Task.CompletedTask;
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
     }
 
     private sealed class TestEvent : IEvent
@@ -219,7 +227,7 @@ public class PrioritizedEventDispatcherTests
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
             _executionOrder.Enqueue(_id);
-            await _cts.CancelAsync();
+            await _cts.CancelAsync().ConfigureAwait(false);
         }
     }
 }

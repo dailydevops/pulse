@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
 
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -55,12 +55,14 @@ public class RateLimitedEventDispatcherTests
             new TestEventHandler(3, invokedHandlers),
         };
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -105,12 +107,14 @@ public class RateLimitedEventDispatcherTests
             .Cast<IEventHandler<TestEvent>>()
             .ToList();
 
-        await dispatcher.DispatchAsync(
-            message,
-            handlers,
-            async (handler, msg) => await handler.HandleAsync(msg, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                message,
+                handlers,
+                async (handler, msg) => await handler.HandleAsync(msg, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         _ = await Assert.That(maxConcurrent).IsLessThanOrEqualTo(2);
     }
@@ -125,24 +129,26 @@ public class RateLimitedEventDispatcherTests
         dispatcher.Dispose();
 
         _ = await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await dispatcher.DispatchAsync(
-                message,
-                handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-                CancellationToken.None
-            )
+            await dispatcher
+                .DispatchAsync(
+                    message,
+                    handlers,
+                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task Dispose_CalledMultipleTimes_DoesNotThrow()
+    public Task Dispose_CalledMultipleTimes_DoesNotThrow()
     {
         var dispatcher = new RateLimitedEventDispatcher();
 
         dispatcher.Dispose();
         dispatcher.Dispose();
 
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private sealed class TestEvent : IEvent
@@ -184,7 +190,7 @@ public class RateLimitedEventDispatcherTests
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
             _onStart();
-            await Task.Delay(50, cancellationToken);
+            await Task.Delay(50, cancellationToken).ConfigureAwait(false);
             _onEnd();
         }
     }

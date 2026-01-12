@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
 
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Dispatchers;
@@ -20,12 +20,14 @@ public class SequentialEventDispatcherTests
             new TestEventHandler(3, executionOrder),
         };
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -43,12 +45,14 @@ public class SequentialEventDispatcherTests
         var testEvent = new TestEvent();
         var handlers = Array.Empty<IEventHandler<TestEvent>>();
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -59,12 +63,14 @@ public class SequentialEventDispatcherTests
         var executionOrder = new List<int>();
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler(1, executionOrder) };
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         _ = await Assert.That(executionOrder).HasSingleItem();
     }
@@ -84,12 +90,15 @@ public class SequentialEventDispatcherTests
         };
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await dispatcher.DispatchAsync(
-                testEvent,
-                handlers,
-                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-                cts.Token
-            )
+            await dispatcher
+                .DispatchAsync(
+                    testEvent,
+                    handlers,
+                    async (handler, evt) =>
+                        await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                    cts.Token
+                )
+                .ConfigureAwait(false)
         );
 
         _ = await Assert.That(executionOrder).HasSingleItem();
@@ -137,12 +146,14 @@ public class SequentialEventDispatcherTests
             ),
         };
 
-        await dispatcher.DispatchAsync(
-            testEvent,
-            handlers,
-            async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None),
-            CancellationToken.None
-        );
+        await dispatcher
+            .DispatchAsync(
+                testEvent,
+                handlers,
+                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                CancellationToken.None
+            )
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -192,7 +203,7 @@ public class SequentialEventDispatcherTests
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
             _executionOrder.Add(_id);
-            await _cts.CancelAsync();
+            await _cts.CancelAsync().ConfigureAwait(false);
         }
     }
 
@@ -220,7 +231,7 @@ public class SequentialEventDispatcherTests
         {
             _setConcurrent(_getConcurrent() + 1);
             _executionOrder.Add(_id);
-            await Task.Delay(10, cancellationToken);
+            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             _setConcurrent(_getConcurrent() - 1);
         }
     }

@@ -12,6 +12,7 @@ NetEvolve.Pulse.Extensibility delivers the core contracts for building CQRS medi
 * Strongly typed handler interfaces with single-handler guarantees for commands and queries
 * Interceptor interfaces for cross-cutting concerns (logging, validation, metrics, caching)
 * Fluent mediator configuration via `IMediatorConfigurator` and extension methods
+* **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
 * Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
 * Test-friendly primitives including `Void` responses and TimeProvider awareness
 
@@ -135,6 +136,9 @@ services.AddPulse(config =>
 ## Related Packages
 
 * [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) - Mediator implementation built on these abstractions
+* [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core outbox persistence
+* [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET outbox persistence
+* [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
 
 ## Documentation
 
