@@ -320,15 +320,18 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             await using var command = connection.CreateCommand();
+            var now = DateTimeOffset.UtcNow;
             command.CommandText = """
-                INSERT INTO OutboxMessage (Id, EventType, Payload, CreatedAt, State)
-                VALUES (@Id, @EventType, @Payload, @CreatedAt, 0)
+                INSERT INTO OutboxMessage (Id, EventType, Payload, CorrelationId, CreatedAt, UpdatedAt, RetryCount, Status)
+                VALUES (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, 0, 0)
                 """;
 
             _ = command.Parameters.AddWithValue("@Id", Guid.NewGuid());
             _ = command.Parameters.AddWithValue("@EventType", request.EventType);
             _ = command.Parameters.AddWithValue("@Payload", request.Payload);
-            _ = command.Parameters.AddWithValue("@CreatedAt", DateTimeOffset.UtcNow);
+            _ = command.Parameters.AddWithValue("@CorrelationId", DBNull.Value);
+            _ = command.Parameters.AddWithValue("@CreatedAt", now);
+            _ = command.Parameters.AddWithValue("@UpdatedAt", now);
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
@@ -451,14 +454,17 @@ public sealed class SqlServerContainerFixture : IAsyncInitializer, IAsyncDisposa
         await using var command = connection.CreateCommand();
         command.CommandText = """
             CREATE TABLE OutboxMessage (
-                Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-                EventType NVARCHAR(512) NOT NULL,
-                Payload NVARCHAR(MAX) NOT NULL,
-                CreatedAt DATETIMEOFFSET NOT NULL,
-                ProcessedAt DATETIMEOFFSET NULL,
-                RetryCount INT NOT NULL DEFAULT 0,
-                State INT NOT NULL DEFAULT 0,
-                LastError NVARCHAR(MAX) NULL
+                [Id] UNIQUEIDENTIFIER NOT NULL,
+                [EventType] NVARCHAR(500) NOT NULL,
+                [Payload] NVARCHAR(MAX) NOT NULL,
+                [CorrelationId] NVARCHAR(100) NULL,
+                [CreatedAt] DATETIMEOFFSET NOT NULL,
+                [UpdatedAt] DATETIMEOFFSET NOT NULL,
+                [ProcessedAt] DATETIMEOFFSET NULL,
+                [RetryCount] INT NOT NULL DEFAULT 0,
+                [Error] NVARCHAR(MAX) NULL,
+                [Status] INT NOT NULL DEFAULT 0,
+                CONSTRAINT [PK_OutboxMessage] PRIMARY KEY CLUSTERED ([Id])
             )
             """;
         _ = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
