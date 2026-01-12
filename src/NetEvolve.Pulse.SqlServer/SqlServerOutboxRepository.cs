@@ -82,18 +82,27 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
                 (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @RetryCount, @Error, @Status)
             """;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(sql, connection);
-
-        AddMessageParameters(command, message);
-
         var transaction = GetCurrentTransaction();
+
         if (transaction is not null)
         {
-            command.Transaction = transaction;
-        }
+            // Use the connection from the ambient transaction to avoid mismatch
+            var connection =
+                transaction.Connection
+                ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = new SqlCommand(sql, connection, transaction);
+            AddMessageParameters(command, message);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Create a new connection when no ambient transaction exists
+            await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = new SqlCommand(sql, connection);
+            AddMessageParameters(command, message);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />

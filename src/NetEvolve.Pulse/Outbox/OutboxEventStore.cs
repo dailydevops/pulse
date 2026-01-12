@@ -46,17 +46,35 @@ public sealed class OutboxEventStore : IEventOutbox
         ArgumentNullException.ThrowIfNull(message);
 
         var now = _timeProvider.GetUtcNow();
+        var messageType = message.GetType();
+        var eventType =
+            messageType.AssemblyQualifiedName
+            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {messageType}");
+
+        if (eventType.Length > OutboxMessageSchema.MaxLengths.EventType)
+        {
+            throw new InvalidOperationException(
+                $"Event type identifier exceeds the EventType column maximum length of {OutboxMessageSchema.MaxLengths.EventType} characters. "
+                    + "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
+            );
+        }
+
+        var correlationId = message.CorrelationId;
+
+        if (correlationId is { Length: > OutboxMessageSchema.MaxLengths.CorrelationId })
+        {
+            throw new InvalidOperationException(
+                $"CorrelationId exceeds the maximum length of {OutboxMessageSchema.MaxLengths.CorrelationId} characters defined by the OutboxMessage schema. "
+                    + "Provide a shorter correlation identifier to comply with the database constraint."
+            );
+        }
 
         var outboxMessage = new OutboxMessage
         {
             Id = Guid.TryParse(message.Id, out var id) ? id : Guid.NewGuid(),
-            EventType =
-                message.GetType().AssemblyQualifiedName
-                ?? throw new InvalidOperationException(
-                    $"Cannot get assembly-qualified name for type: {message.GetType()}"
-                ),
-            Payload = JsonSerializer.Serialize(message, message.GetType(), _options.JsonSerializerOptions),
-            CorrelationId = message.CorrelationId,
+            EventType = eventType,
+            Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
+            CorrelationId = correlationId,
             CreatedAt = now,
             UpdatedAt = now,
             Status = OutboxMessageStatus.Pending,

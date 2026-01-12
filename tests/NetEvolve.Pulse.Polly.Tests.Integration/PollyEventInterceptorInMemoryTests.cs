@@ -50,7 +50,7 @@ public sealed class PollyEventInterceptorInMemoryTests
     }
 
     [Test]
-    public async Task TimeoutPolicy_WithSlowHandler_ThrowsTimeoutException()
+    public async Task TimeoutPolicy_WithSlowHandler_HandlerIsCalled()
     {
         // Arrange
         var services = CreateServiceCollection();
@@ -67,15 +67,14 @@ public sealed class PollyEventInterceptorInMemoryTests
         await using var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        // Act & Assert - Note: PublishAsync typically catches handler exceptions
-        // but timeout may propagate differently
+        // Act
         var evt = new TimeoutEvent("timeout-event");
 
         // The timeout should be caught and logged, not necessarily thrown
         // because event publishing is fire-and-forget by design
         await mediator.PublishAsync(evt).ConfigureAwait(false);
 
-        // Assert - handler should have been called (and timed out)
+        // Assert - handler should have been called (and timed out internally)
         _ = await Assert.That(handler.WasCalled).IsTrue();
     }
 
@@ -146,17 +145,11 @@ public sealed class PollyEventInterceptorInMemoryTests
     }
 
     [Test]
-    public async Task GlobalEventPolicy_AppliesAcrossAllEvents()
+    public async Task EventPolicy_AppliesRetryToFailingHandler()
     {
         // Arrange
         var services = CreateServiceCollection();
         var handler = new FailingEventHandler(failCount: 1);
-
-        _ = services.AddSingleton(
-            new ResiliencePipelineBuilder()
-                .AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 3, Delay = TimeSpan.FromMilliseconds(10) })
-                .Build()
-        );
 
         _ = services
             .AddScoped<IEventHandler<RetryEvent>>(_ => handler)
@@ -172,7 +165,7 @@ public sealed class PollyEventInterceptorInMemoryTests
         var mediator = provider.GetRequiredService<IMediator>();
 
         // Act
-        var evt = new RetryEvent("global-policy");
+        var evt = new RetryEvent("retry-policy");
         await mediator.PublishAsync(evt).ConfigureAwait(false);
 
         // Assert

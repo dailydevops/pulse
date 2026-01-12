@@ -24,10 +24,11 @@ public static class SqlServerMediatorConfiguratorExtensions
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
-    /// Call <see cref="OutboxMediatorConfiguratorExtensions.AddOutbox"/> first to register core outbox services,
-    /// or this method will register them automatically.
+    /// Call <see cref="OutboxMediatorConfiguratorExtensions.AddOutbox"/> first to register core outbox services
+    /// before calling this method.
     /// </remarks>
     /// <example>
     /// <code>

@@ -74,6 +74,24 @@ public sealed class SqlServerEventOutbox : IEventOutbox
             message.GetType().AssemblyQualifiedName
             ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {message.GetType()}");
 
+        if (eventType.Length > OutboxMessageSchema.MaxLengths.EventType)
+        {
+            throw new InvalidOperationException(
+                $"Event type identifier exceeds the EventType column maximum length of {OutboxMessageSchema.MaxLengths.EventType} characters. "
+                    + "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
+            );
+        }
+
+        var correlationId = message.CorrelationId;
+
+        if (correlationId is { Length: > OutboxMessageSchema.MaxLengths.CorrelationId })
+        {
+            throw new InvalidOperationException(
+                $"CorrelationId exceeds the maximum length of {OutboxMessageSchema.MaxLengths.CorrelationId} characters defined by the OutboxMessage schema. "
+                    + "Provide a shorter correlation identifier to comply with the database constraint."
+            );
+        }
+
         var sql = $"""
             INSERT INTO {_options.FullTableName}
                 ([{OutboxMessageSchema.Columns.Id}],
@@ -98,7 +116,7 @@ public sealed class SqlServerEventOutbox : IEventOutbox
         _ = command.Parameters.AddWithValue("@Id", id);
         _ = command.Parameters.AddWithValue("@EventType", eventType);
         _ = command.Parameters.AddWithValue("@Payload", payload);
-        _ = command.Parameters.AddWithValue("@CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("@CorrelationId", (object?)correlationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("@CreatedAt", now);
         _ = command.Parameters.AddWithValue("@UpdatedAt", now);
 

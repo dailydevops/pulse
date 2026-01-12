@@ -103,7 +103,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(transport.SentMessages).HasSingleItem();
-            _ = await Assert.That(transport.SentMessages[0].Id).IsEqualTo(message.Id);
+            _ = await Assert.That(transport.SentMessages.First().Id).IsEqualTo(message.Id);
             _ = await Assert.That(repository.CompletedCount).IsEqualTo(1);
         }
     }
@@ -457,19 +457,26 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed class TestMessageTransport : IMessageTransport
     {
-        public List<OutboxMessage> SentMessages { get; } = [];
-        public int BatchSendCount { get; private set; }
+        private readonly System.Collections.Concurrent.ConcurrentBag<OutboxMessage> _sentMessages = [];
+        private int _batchSendCount;
+
+        public IReadOnlyCollection<OutboxMessage> SentMessages => _sentMessages.ToArray();
+        public int BatchSendCount => _batchSendCount;
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
-            SentMessages.Add(message);
+            _sentMessages.Add(message);
             return Task.CompletedTask;
         }
 
         public Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
         {
-            BatchSendCount++;
-            SentMessages.AddRange(messages);
+            _ = Interlocked.Increment(ref _batchSendCount);
+            foreach (var message in messages)
+            {
+                _sentMessages.Add(message);
+            }
+
             return Task.CompletedTask;
         }
     }

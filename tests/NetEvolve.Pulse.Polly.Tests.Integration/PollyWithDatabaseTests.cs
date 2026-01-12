@@ -30,7 +30,7 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
     }
 
     [Test]
-    public async Task RetryPolicy_WithDatabaseCommand_RetriesOnTransientFailure()
+    public async Task RetryPolicy_WithDatabaseCommand_SucceedsWithoutRetry()
     {
         // Arrange
         var dbName = $"PollyDbRetry_{Guid.NewGuid():N}";
@@ -66,7 +66,7 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
             var command = new CreateRecordCommand(dbName, "TestData");
             var result = await mediator.SendAsync<CreateRecordCommand, int>(command).ConfigureAwait(false);
 
-            // Assert
+            // Assert - Handler succeeds on first attempt, no retries needed
             _ = await Assert.That(result).IsEqualTo(1);
             _ = await Assert.That(handler.ExecutionCount).IsEqualTo(1);
         }
