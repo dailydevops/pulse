@@ -234,18 +234,4 @@ public sealed class SqlServerOutboxConfigurationTests
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
     }
-
-    /// <summary>
-    /// Tracking event handler for integration tests.
-    /// </summary>
-    private sealed class TrackingEventHandler : IEventHandler<TestSqlEvent>
-    {
-        public List<TestSqlEvent> HandledEvents { get; } = [];
-
-        public Task HandleAsync(TestSqlEvent message, CancellationToken cancellationToken = default)
-        {
-            HandledEvents.Add(message);
-            return Task.CompletedTask;
-        }
-    }
 }
