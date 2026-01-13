@@ -61,7 +61,7 @@
     />
     <PackageVersion
       Include="Microsoft.EntityFrameworkCore.Relational"
-      Version="8.0.16"
+      Version="8.0.22"
       Condition="'$(TargetFramework)' == 'net8.0'"
     />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
