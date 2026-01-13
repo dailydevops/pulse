@@ -72,7 +72,7 @@
     <PackageVersion Include="Polly.Core" Version="8.6.5" />
     <PackageVersion Include="Testcontainers" Version="4.3.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.3.0" />
-    <PackageVersion Include="TUnit" Version="1.9.85" />
+    <PackageVersion Include="TUnit" Version="1.9.91" />
     <PackageVersion Include="Verify.TUnit" Version="31.9.3" />
   </ItemGroup>
 </Project>
