@@ -31,7 +31,7 @@
     />
     <PackageVersion
       Include="Microsoft.EntityFrameworkCore.SqlServer"
-      Version="8.0.22"
+      Version="8.0.23"
       Condition="'$(TargetFramework)' == 'net8.0'"
     />
     <PackageVersion
