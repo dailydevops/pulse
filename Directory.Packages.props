@@ -51,7 +51,7 @@
     />
     <PackageVersion
       Include="Microsoft.EntityFrameworkCore.Relational"
-      Version="10.0.1"
+      Version="10.0.2"
       Condition="'$(TargetFramework)' == 'net10.0'"
     />
     <PackageVersion
