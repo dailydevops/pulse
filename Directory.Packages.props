@@ -41,12 +41,12 @@
     />
     <PackageVersion
       Include="Microsoft.EntityFrameworkCore"
-      Version="9.0.12"
+      Version="10.0.2"
       Condition="'$(TargetFramework)' == 'net9.0'"
     />
     <PackageVersion
       Include="Microsoft.EntityFrameworkCore"
-      Version="8.0.23"
+      Version="10.0.2"
       Condition="'$(TargetFramework)' == 'net8.0'"
     />
     <PackageVersion
