@@ -16,19 +16,9 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     where TEvent : IEvent
 {
     /// <summary>
-    /// The activity source for creating distributed tracing activities.
-    /// </summary>
-    private static readonly ActivitySource _activitySource = new ActivitySource("NetEvolve.Pulse", Defaults.Version);
-
-    /// <summary>
-    /// The meter for creating metrics instruments.
-    /// </summary>
-    private static readonly Meter _meter = new Meter("NetEvolve.Pulse", Defaults.Version);
-
-    /// <summary>
     /// Counter tracking the total number of events processed, tagged by event type.
     /// </summary>
-    private static readonly Counter<long> _eventCounter = _meter.CreateCounter<long>(
+    private static readonly Counter<long> EventCounter = Defaults.Meter.CreateCounter<long>(
         "pulse.events.total",
         "events",
         "Total number of events processed."
@@ -37,7 +27,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// <summary>
     /// Counter tracking the total number of event errors, tagged by event type.
     /// </summary>
-    private static readonly Counter<long> _errorsCounter = _meter.CreateCounter<long>(
+    private static readonly Counter<long> ErrorsCounter = Defaults.Meter.CreateCounter<long>(
         "pulse.event.errors",
         "errors",
         "Total number of event errors."
@@ -46,7 +36,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// <summary>
     /// Histogram measuring event processing duration in milliseconds, with percentile distributions.
     /// </summary>
-    private static readonly Histogram<double> _eventDurationHistogram = _meter.CreateHistogram<double>(
+    private static readonly Histogram<double> EventDurationHistogram = Defaults.Meter.CreateHistogram<double>(
         "pulse.event.duration",
         "ms",
         "Duration of event processing in milliseconds."
@@ -87,7 +77,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
         // Prepare tags for consistent labeling across activity and metrics
         var tags = new TagList { { EventType, eventType }, { EventName, eventName } };
 
-        using var activity = _activitySource.StartActivity(
+        using var activity = Defaults.ActivitySource.StartActivity(
             $"{eventType}.{eventName}",
             ActivityKind.Internal,
             null,
@@ -100,7 +90,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
             ?.SetStartTime(startTime.UtcDateTime)
             .SetTag(EventCorrelationId, message.CorrelationId)
             .SetTag(EventTimestamp, startTime);
-        _eventCounter.Add(1, tags);
+        EventCounter.Add(1, tags);
 
         try
         {
@@ -117,7 +107,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
                 .SetTag(Success, true);
 
             // Record successful execution duration
-            _eventDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
+            EventDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
         }
         catch (Exception ex)
         {
@@ -134,8 +124,8 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
                 .SetTag(Success, false);
 
             // Increment error counters and record failed execution duration
-            _errorsCounter.Add(1, tags);
-            _eventDurationHistogram.Record((errorTime - startTime).TotalMilliseconds, [.. tags, new(Success, false)]);
+            ErrorsCounter.Add(1, tags);
+            EventDurationHistogram.Record((errorTime - startTime).TotalMilliseconds, [.. tags, new(Success, false)]);
 
             throw;
         }
