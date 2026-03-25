@@ -460,7 +460,8 @@ public sealed class OutboxProcessorHostedServiceTests
         private readonly System.Collections.Concurrent.ConcurrentBag<OutboxMessage> _sentMessages = [];
         private int _batchSendCount;
 
-        public IReadOnlyCollection<OutboxMessage> SentMessages => _sentMessages.ToArray();
+        public IReadOnlyCollection<OutboxMessage> SentMessages => [.. _sentMessages];
+
         public int BatchSendCount => _batchSendCount;
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)

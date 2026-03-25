@@ -41,7 +41,7 @@ public sealed class PollyRequestInterceptorInMemoryTests
                         {
                             MaxRetryAttempts = 3,
                             Delay = TimeSpan.FromMilliseconds(10),
-                            OnRetry = args =>
+                            OnRetry = _1 =>
                             {
                                 _ = Interlocked.Increment(ref onRetryCallCount);
                                 return ValueTask.CompletedTask;
@@ -317,7 +317,7 @@ public sealed class PollyRequestInterceptorInMemoryTests
                         {
                             MaxRetryAttempts = 3,
                             Delay = TimeSpan.FromMilliseconds(10),
-                            OnRetry = args =>
+                            OnRetry = _1 =>
                             {
                                 _ = Interlocked.Increment(ref retryCount);
                                 return default;

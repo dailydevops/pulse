@@ -424,9 +424,7 @@ public sealed class TransientOutboxException : Exception
 /// </summary>
 public sealed class SqlServerContainerFixture : IAsyncInitializer, IAsyncDisposable
 {
-    private readonly MsSqlContainer _container = new MsSqlBuilder()
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-        .Build();
+    private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
 
     /// <summary>
     /// Initializes the SQL Server container.
