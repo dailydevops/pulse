@@ -90,7 +90,7 @@ public class OrderService
 
 ## Transaction Integration
 
-For true at-most-once delivery guarantees, store outbox events within the same database transaction as your business data. Pair the Dapr transport with a persistence provider that supports transaction enlistment:
+For reliable at-least-once delivery guarantees, store outbox events within the same database transaction as your business data. Pair the Dapr transport with a persistence provider that supports transaction enlistment:
 
 ```csharp
 public class OrderService
