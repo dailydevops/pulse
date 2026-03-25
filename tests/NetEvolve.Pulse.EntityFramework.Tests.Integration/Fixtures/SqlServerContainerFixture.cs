@@ -24,8 +24,7 @@ public sealed class SqlServerContainerFixture : IAsyncInitializer, IAsyncDisposa
     /// Initializes a new instance of the <see cref="SqlServerContainerFixture"/> class.
     /// </summary>
     public SqlServerContainerFixture() =>
-        _container = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+        _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
             .WithPassword("Test@Password123!")
             .Build();
 
