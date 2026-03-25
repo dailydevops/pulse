@@ -26,6 +26,7 @@
     <Project Path="src/NetEvolve.Pulse.Extensibility/NetEvolve.Pulse.Extensibility.csproj" />
     <Project Path="src/NetEvolve.Pulse/NetEvolve.Pulse.csproj" />
     <Project Path="src/NetEvolve.Pulse.EntityFramework/NetEvolve.Pulse.EntityFramework.csproj" />
+    <Project Path="src/NetEvolve.Pulse.Dapr/NetEvolve.Pulse.Dapr.csproj" />
     <Project Path="src/NetEvolve.Pulse.SqlServer/NetEvolve.Pulse.SqlServer.csproj" />
     <Project Path="src/NetEvolve.Pulse.Polly/NetEvolve.Pulse.Polly.csproj" />
   </Folder>

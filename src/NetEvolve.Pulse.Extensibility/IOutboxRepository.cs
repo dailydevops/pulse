@@ -51,6 +51,24 @@ public interface IOutboxRepository
     Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Marks multiple messages as successfully completed.
+    /// </summary>
+    /// <param name="messageIds">The IDs of the messages to mark as completed.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    async Task MarkAsCompletedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken = default
+    ) =>
+        await Parallel
+            .ForEachAsync(
+                messageIds,
+                cancellationToken,
+                async (id, ct) => await MarkAsCompletedAsync(id, ct).ConfigureAwait(false)
+            )
+            .ConfigureAwait(false);
+
+    /// <summary>
     /// Marks a message as failed and records the error.
     /// </summary>
     /// <param name="messageId">The ID of the message that failed.</param>
@@ -63,6 +81,29 @@ public interface IOutboxRepository
     Task MarkAsFailedAsync(Guid messageId, string errorMessage, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Marks multiple messages as failed and records the error for each.
+    /// </summary>
+    /// <param name="messageIds">The IDs of the messages that failed.</param>
+    /// <param name="errorMessage">The error message or exception details.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// Implementations SHOULD increment the retry count and update the status accordingly.
+    /// </remarks>
+    async Task MarkAsFailedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    ) =>
+        await Parallel
+            .ForEachAsync(
+                messageIds,
+                cancellationToken,
+                async (id, ct) => await MarkAsFailedAsync(id, errorMessage, ct).ConfigureAwait(false)
+            )
+            .ConfigureAwait(false);
+
+    /// <summary>
     /// Moves a message to dead letter status after exceeding retry limits.
     /// </summary>
     /// <param name="messageId">The ID of the message to move to dead letter.</param>
@@ -70,6 +111,26 @@ public interface IOutboxRepository
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task MarkAsDeadLetterAsync(Guid messageId, string errorMessage, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves multiple messages to dead letter status after exceeding retry limits.
+    /// </summary>
+    /// <param name="messageIds">The IDs of the messages to move to dead letter.</param>
+    /// <param name="errorMessage">The final error message.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    async Task MarkAsDeadLetterAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    ) =>
+        await Parallel
+            .ForEachAsync(
+                messageIds,
+                cancellationToken,
+                async (id, ct) => await MarkAsDeadLetterAsync(id, errorMessage, ct).ConfigureAwait(false)
+            )
+            .ConfigureAwait(false);
 
     /// <summary>
     /// Deletes completed messages older than the specified retention period.

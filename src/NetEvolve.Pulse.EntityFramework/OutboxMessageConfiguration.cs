@@ -41,7 +41,7 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
     /// Initializes a new instance of the <see cref="OutboxMessageConfiguration"/> class with default options.
     /// </summary>
     public OutboxMessageConfiguration()
-        : this(Microsoft.Extensions.Options.Options.Create(new OutboxOptions())) { }
+        : this(Options.Create(new OutboxOptions())) { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OutboxMessageConfiguration"/> class.
@@ -118,11 +118,15 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
 
         // Indexes for efficient querying
         // Index for pending message polling
-        _ = builder.HasIndex(m => new { m.Status, m.CreatedAt }).HasDatabaseName("IX_OutboxMessage_Status_CreatedAt");
+        _ = builder
+            .HasIndex(m => new { m.Status, m.CreatedAt })
+            .HasFilter($"[{OutboxMessageSchema.Columns.Status}] IN (0, 3)")
+            .HasDatabaseName("IX_OutboxMessage_Status_CreatedAt");
 
         // Index for completed message cleanup
         _ = builder
             .HasIndex(m => new { m.Status, m.ProcessedAt })
+            .HasFilter($"[{OutboxMessageSchema.Columns.Status}] = 2")
             .HasDatabaseName("IX_OutboxMessage_Status_ProcessedAt");
     }
 }
