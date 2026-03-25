@@ -71,7 +71,9 @@ public class ActivityAndMetricsEventInterceptorTests
         {
             _ = await Assert.That(capturedActivity).IsNotNull();
             _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
-            _ = await Assert.That(capturedActivity.GetTagItem("pulse.success")).IsEqualTo(true);
+#pragma warning disable CS8605 // Unboxing a possibly null value.
+            _ = await Assert.That((bool)capturedActivity.GetTagItem("pulse.success")).IsTrue();
+#pragma warning restore CS8605 // Unboxing a possibly null value.
         }
     }
 
@@ -104,7 +106,9 @@ public class ActivityAndMetricsEventInterceptorTests
             _ = await Assert.That(capturedActivity).IsNotNull();
             _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Error);
             _ = await Assert.That(capturedActivity.StatusDescription).IsEqualTo("Test exception");
-            _ = await Assert.That(capturedActivity.GetTagItem("pulse.success")).IsEqualTo(false);
+#pragma warning disable CS8605 // Unboxing a possibly null value.
+            _ = await Assert.That((bool)capturedActivity.GetTagItem("pulse.success")).IsFalse();
+#pragma warning restore CS8605 // Unboxing a possibly null value.
             _ = await Assert
                 .That(capturedActivity.GetTagItem("pulse.exception.type"))
                 .IsEqualTo("System.InvalidOperationException");
