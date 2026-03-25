@@ -20,7 +20,10 @@ using NetEvolve.Pulse.Extensibility;
 public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository
     where TContext : DbContext, IOutboxDbContext
 {
+    /// <summary>The DbContext used for all LINQ-to-SQL query and update operations.</summary>
     private readonly TContext _context;
+
+    /// <summary>The time provider used to generate consistent update and cutoff timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>

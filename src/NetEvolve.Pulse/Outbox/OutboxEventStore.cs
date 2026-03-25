@@ -18,8 +18,13 @@ using NetEvolve.Pulse.Extensibility;
 /// </remarks>
 public sealed class OutboxEventStore : IEventOutbox
 {
+    /// <summary>The repository used to persist outbox messages to the configured storage backend.</summary>
     private readonly IOutboxRepository _repository;
+
+    /// <summary>The resolved outbox options controlling serialization and table configuration.</summary>
     private readonly OutboxOptions _options;
+
+    /// <summary>The time provider used to generate consistent creation and update timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>

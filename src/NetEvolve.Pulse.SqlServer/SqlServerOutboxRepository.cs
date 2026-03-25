@@ -210,6 +210,12 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         return result is int count ? count : 0;
     }
 
+    /// <summary>
+    /// Opens and returns a new <see cref="SqlConnection"/> using the stored connection string.
+    /// The caller is responsible for disposing the connection.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
         var connection = new SqlConnection(_connectionString);
@@ -217,8 +223,21 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         return connection;
     }
 
+    /// <summary>
+    /// Retrieves the current ambient <see cref="SqlTransaction"/> from the registered
+    /// <see cref="IOutboxTransactionScope"/>, or <see langword="null"/> if no scope is configured
+    /// or no transaction is active.
+    /// </summary>
+    /// <returns>The current <see cref="SqlTransaction"/>, or <see langword="null"/>.</returns>
     private SqlTransaction? GetCurrentTransaction() => _transactionScope?.GetCurrentTransaction() as SqlTransaction;
 
+    /// <summary>
+    /// Adds all <see cref="OutboxMessage"/> property values as typed parameters to a <see cref="SqlCommand"/>.
+    /// Null-valued optional columns (<see cref="OutboxMessage.CorrelationId"/>, <see cref="OutboxMessage.Error"/>,
+    /// <see cref="OutboxMessage.ProcessedAt"/>) are mapped to <see cref="DBNull.Value"/>.
+    /// </summary>
+    /// <param name="command">The command to which parameters are added.</param>
+    /// <param name="message">The outbox message providing parameter values.</param>
     private static void AddMessageParameters(SqlCommand command, OutboxMessage message)
     {
         _ = command.Parameters.AddWithValue("@Id", message.Id);
@@ -236,6 +255,14 @@ public sealed class SqlServerOutboxRepository : IOutboxRepository
         _ = command.Parameters.AddWithValue("@Status", (int)message.Status);
     }
 
+    /// <summary>
+    /// Executes <paramref name="command"/> and reads all rows into a list of <see cref="OutboxMessage"/> instances
+    /// using <see cref="MapToMessage"/>. Column ordinals are resolved once per result set to avoid
+    /// repeated string lookups on every row.
+    /// </summary>
+    /// <param name="command">The <see cref="SqlCommand"/> to execute.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         SqlCommand command,
         CancellationToken cancellationToken
