@@ -17,9 +17,10 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 
 ### Provider Libraries
 
+- **NetEvolve.Pulse.Dapr** — Dapr pub/sub transport for the outbox pattern, publishing messages to any Dapr-supported broker via `DaprClient` ([src/NetEvolve.Pulse.Dapr/README.md](src/NetEvolve.Pulse.Dapr/README.md))
 - **NetEvolve.Pulse.EntityFramework** — Entity Framework Core persistence for the outbox pattern ([src/NetEvolve.Pulse.EntityFramework/README.md](src/NetEvolve.Pulse.EntityFramework/README.md))
-- **NetEvolve.Pulse.SqlServer** — SQL Server ADO.NET persistence for the outbox pattern ([src/NetEvolve.Pulse.SqlServer/README.md](src/NetEvolve.Pulse.SqlServer/README.md))
 - **NetEvolve.Pulse.Polly** — Polly v8 resilience policies integration for retry, circuit breaker, and timeout strategies ([src/NetEvolve.Pulse.Polly/README.md](src/NetEvolve.Pulse.Polly/README.md))
+- **NetEvolve.Pulse.SqlServer** — SQL Server ADO.NET persistence for the outbox pattern ([src/NetEvolve.Pulse.SqlServer/README.md](src/NetEvolve.Pulse.SqlServer/README.md))
 
 ### Tests
 
@@ -137,9 +138,10 @@ dotnet test tests/NetEvolve.Pulse.Tests.Unit
 
 ### Project Structure
 
-```
+```text
 src/                 # Production libraries
 ├── NetEvolve.Pulse
+├── NetEvolve.Pulse.Dapr
 ├── NetEvolve.Pulse.Extensibility
 ├── NetEvolve.Pulse.EntityFramework
 ├── NetEvolve.Pulse.SqlServer
@@ -171,10 +173,11 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report
 ## Documentation
 
 - [NetEvolve.Pulse project docs](src/NetEvolve.Pulse/README.md) for mediator and outbox usage
+- [NetEvolve.Pulse.Dapr docs](src/NetEvolve.Pulse.Dapr/README.md) for Dapr pub/sub transport
 - [NetEvolve.Pulse.Extensibility docs](src/NetEvolve.Pulse.Extensibility/README.md) for contract details
 - [NetEvolve.Pulse.EntityFramework docs](src/NetEvolve.Pulse.EntityFramework/README.md) for Entity Framework outbox persistence
-- [NetEvolve.Pulse.SqlServer docs](src/NetEvolve.Pulse.SqlServer/README.md) for SQL Server ADO.NET outbox persistence
 - [NetEvolve.Pulse.Polly docs](src/NetEvolve.Pulse.Polly/README.md) for Polly resilience policies
+- [NetEvolve.Pulse.SqlServer docs](src/NetEvolve.Pulse.SqlServer/README.md) for SQL Server ADO.NET outbox persistence
 - [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Versioning

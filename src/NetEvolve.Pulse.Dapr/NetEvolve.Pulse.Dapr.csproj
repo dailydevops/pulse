@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>Dapr pub/sub transport for the Pulse CQRS mediator outbox. Publishes outbox messages to Dapr topics via DaprClient, enabling integration with any message broker supported by Dapr (Redis, Kafka, Azure Service Bus, RabbitMQ, etc.). Supports single message publishing and batch publishing using Dapr's bulk publish API. Includes health checks via DaprClient.CheckHealthAsync and configurable topic name resolution from event types.</Description>
+    <PackageTags>$(PackageTags);dapr;pubsub;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapr.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>

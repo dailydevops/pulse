@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -118,14 +118,19 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <returns>The number of messages processed in this batch; <c>0</c> when no messages are available.</returns>
     private async Task<int> ProcessBatchAsync(CancellationToken cancellationToken)
     {
-        var messages = await _repository.GetPendingAsync(_options.BatchSize, cancellationToken).ConfigureAwait(false);
+        var batchSize = _options.BatchSize;
 
-        if (messages.Count == 0)
+        var messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
+
+        batchSize -= messages.Count;
+
+        if (batchSize > 0)
         {
             // Also check for failed messages eligible for retry
-            messages = await _repository
-                .GetFailedForRetryAsync(_options.MaxRetryCount, _options.BatchSize, cancellationToken)
+            var failedMessages = await _repository
+                .GetFailedForRetryAsync(_options.MaxRetryCount, batchSize, cancellationToken)
                 .ConfigureAwait(false);
+            messages = [.. messages, .. failedMessages];
         }
 
         if (messages.Count == 0)
@@ -229,11 +234,9 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
 
             await _transport.SendBatchAsync(messages, timeoutCts.Token).ConfigureAwait(false);
 
-            // Mark all as completed
-            foreach (var message in messages)
-            {
-                await _repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
-            }
+            // Mark all as completed in a single batch operation
+            var ids = messages.Select(static m => m.Id).ToArray();
+            await _repository.MarkAsCompletedAsync(ids, cancellationToken).ConfigureAwait(false);
 
             LogBatchProcessed(_logger, messages.Count);
         }
@@ -249,22 +252,28 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
             // Batch implementations should be atomic (all-or-nothing), but if partial success
             // occurred, falling back to individual processing would re-send already-delivered messages.
             // Instead, mark all as failed and let the retry mechanism handle them on next poll.
-            foreach (var message in messages)
-            {
-                if (message.RetryCount + 1 >= _options.MaxRetryCount)
-                {
-                    await _repository
-                        .MarkAsDeadLetterAsync(message.Id, ex.Message, cancellationToken)
-                        .ConfigureAwait(false);
-                    LogMessageMovedToDeadLetter(_logger, message.Id, _options.MaxRetryCount);
-                }
-                else
-                {
-                    await _repository
-                        .MarkAsFailedAsync(message.Id, ex.Message, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-            }
+            var deadLetterMessages = messages
+                .Where(m => m.RetryCount + 1 >= _options.MaxRetryCount)
+                .Select(m => m.Id)
+                .ToArray();
+            var failedMessages = messages
+                .Where(m => m.RetryCount + 1 < _options.MaxRetryCount)
+                .Select(m => m.Id)
+                .ToArray();
+
+            await Task.WhenAll(
+                    _repository.MarkAsFailedAsync(failedMessages, ex.Message, cancellationToken),
+                    _repository.MarkAsDeadLetterAsync(deadLetterMessages, ex.Message, cancellationToken),
+                    Parallel.ForEachAsync(
+                        deadLetterMessages,
+                        (messageId, _) =>
+                        {
+                            LogMessageMovedToDeadLetter(_logger, messageId, _options.MaxRetryCount);
+                            return ValueTask.CompletedTask;
+                        }
+                    )
+                )
+                .ConfigureAwait(false);
         }
     }
 

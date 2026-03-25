@@ -57,27 +57,32 @@ public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepositor
     {
         var now = _timeProvider.GetUtcNow();
 
-        // Get pending messages and update status to Processing in a single query
-        var messages = await _context
+        var ids = await _context
             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending)
             .OrderBy(m => m.CreatedAt)
             .Take(batchSize)
-            .ToListAsync(cancellationToken)
+            .Select(m => m.Id)
+            .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Mark as processing
-        foreach (var message in messages)
+        if (ids.Length == 0)
         {
-            message.Status = OutboxMessageStatus.Processing;
-            message.UpdatedAt = now;
+            return [];
         }
 
-        if (messages.Count > 0)
-        {
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
+        _ = await _context
+            .OutboxMessages.Where(m => ids.Contains(m.Id))
+            .ExecuteUpdateAsync(
+                m => m.SetProperty(m => m.Status, OutboxMessageStatus.Processing).SetProperty(m => m.UpdatedAt, now),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
 
-        return messages;
+        return await _context
+            .OutboxMessages.Where(m => ids.Contains(m.Id))
+            .AsNoTracking()
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -89,26 +94,32 @@ public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepositor
     {
         var now = _timeProvider.GetUtcNow();
 
-        var messages = await _context
+        var ids = await _context
             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Failed && m.RetryCount < maxRetryCount)
             .OrderBy(m => m.UpdatedAt)
             .Take(batchSize)
-            .ToListAsync(cancellationToken)
+            .Select(m => m.Id)
+            .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Mark as processing
-        foreach (var message in messages)
+        if (ids.Length == 0)
         {
-            message.Status = OutboxMessageStatus.Processing;
-            message.UpdatedAt = now;
+            return [];
         }
 
-        if (messages.Count > 0)
-        {
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
+        _ = await _context
+            .OutboxMessages.Where(m => ids.Contains(m.Id))
+            .ExecuteUpdateAsync(
+                m => m.SetProperty(m => m.Status, OutboxMessageStatus.Processing).SetProperty(m => m.UpdatedAt, now),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
 
-        return messages;
+        return await _context
+            .OutboxMessages.Where(m => ids.Contains(m.Id))
+            .AsNoTracking()
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -116,18 +127,41 @@ public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepositor
     {
         var now = _timeProvider.GetUtcNow();
 
-        var message = await _context
-            .OutboxMessages.FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken)
+        _ = await _context
+            .OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.Completed)
+                        .SetProperty(m => m.ProcessedAt, now)
+                        .SetProperty(m => m.UpdatedAt, now),
+                cancellationToken
+            )
             .ConfigureAwait(false);
+    }
 
-        if (message is not null)
+    /// <inheritdoc />
+    public async Task MarkAsCompletedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (messageIds is null || messageIds.Count == 0)
         {
-            message.Status = OutboxMessageStatus.Completed;
-            message.ProcessedAt = now;
-            message.UpdatedAt = now;
-
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        var now = _timeProvider.GetUtcNow();
+
+        _ = await _context
+            .OutboxMessages.Where(m => messageIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.Completed)
+                        .SetProperty(m => m.ProcessedAt, now)
+                        .SetProperty(m => m.UpdatedAt, now),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -139,19 +173,44 @@ public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepositor
     {
         var now = _timeProvider.GetUtcNow();
 
-        var message = await _context
-            .OutboxMessages.FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken)
+        _ = await _context
+            .OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.Failed)
+                        .SetProperty(m => m.Error, errorMessage)
+                        .SetProperty(m => m.UpdatedAt, now)
+                        .SetProperty(m => m.RetryCount, m => m.RetryCount + 1),
+                cancellationToken
+            )
             .ConfigureAwait(false);
+    }
 
-        if (message is not null)
+    /// <inheritdoc />
+    public async Task MarkAsFailedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (messageIds is null || messageIds.Count == 0)
         {
-            message.Status = OutboxMessageStatus.Failed;
-            message.RetryCount++;
-            message.Error = errorMessage;
-            message.UpdatedAt = now;
-
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        var now = _timeProvider.GetUtcNow();
+
+        _ = await _context
+            .OutboxMessages.Where(m => messageIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.Failed)
+                        .SetProperty(m => m.Error, errorMessage)
+                        .SetProperty(m => m.UpdatedAt, now)
+                        .SetProperty(m => m.RetryCount, m => m.RetryCount + 1),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -163,18 +222,42 @@ public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepositor
     {
         var now = _timeProvider.GetUtcNow();
 
-        var message = await _context
-            .OutboxMessages.FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken)
+        _ = await _context
+            .OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.DeadLetter)
+                        .SetProperty(m => m.Error, errorMessage)
+                        .SetProperty(m => m.UpdatedAt, now),
+                cancellationToken
+            )
             .ConfigureAwait(false);
+    }
 
-        if (message is not null)
+    /// <inheritdoc />
+    public async Task MarkAsDeadLetterAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (messageIds is null || messageIds.Count == 0)
         {
-            message.Status = OutboxMessageStatus.DeadLetter;
-            message.Error = errorMessage;
-            message.UpdatedAt = now;
-
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        var now = _timeProvider.GetUtcNow();
+
+        _ = await _context
+            .OutboxMessages.Where(m => messageIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.DeadLetter)
+                        .SetProperty(m => m.Error, errorMessage)
+                        .SetProperty(m => m.UpdatedAt, now),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -182,17 +265,9 @@ public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepositor
     {
         var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
-        var messagesToDelete = await _context
+        return await _context
             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Completed && m.ProcessedAt < cutoffTime)
-            .ToListAsync(cancellationToken)
+            .ExecuteDeleteAsync(cancellationToken)
             .ConfigureAwait(false);
-
-        if (messagesToDelete.Count > 0)
-        {
-            _context.OutboxMessages.RemoveRange(messagesToDelete);
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        return messagesToDelete.Count;
     }
 }

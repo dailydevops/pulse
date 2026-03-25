@@ -212,15 +212,12 @@ public sealed class InMemoryMessageTransportTests
         var message = CreateOutboxMessage(originalEvent);
 
         // Reflection-based invocation wraps exceptions in TargetInvocationException
-        var exception = await Assert.ThrowsAsync<System.Reflection.TargetInvocationException>(() =>
-            transport.SendAsync(message)
-        );
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => transport.SendAsync(message));
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(exception!.InnerException).IsNotNull();
-            _ = await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
-            _ = await Assert.That(exception.InnerException!.Message).IsEqualTo("Mediator error");
+            _ = await Assert.That(exception).IsNotNull();
+            _ = await Assert.That(exception.Message).IsEqualTo("Mediator error");
         }
     }
 

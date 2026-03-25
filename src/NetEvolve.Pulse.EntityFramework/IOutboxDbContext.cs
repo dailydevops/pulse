@@ -39,11 +39,4 @@ public interface IOutboxDbContext
     /// Gets the <see cref="DbSet{TEntity}"/> for outbox messages.
     /// </summary>
     DbSet<OutboxMessage> OutboxMessages { get; }
-
-    /// <summary>
-    /// Saves all changes made in this context to the database.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The number of state entries written to the database.</returns>
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
