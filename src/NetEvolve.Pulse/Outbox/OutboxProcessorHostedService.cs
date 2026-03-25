@@ -31,9 +31,16 @@ using NetEvolve.Pulse.Outbox;
 /// </remarks>
 public sealed partial class OutboxProcessorHostedService : BackgroundService
 {
+    /// <summary>The repository for reading and updating outbox message state.</summary>
     private readonly IOutboxRepository _repository;
+
+    /// <summary>The transport used to deliver outbox messages to their destination.</summary>
     private readonly IMessageTransport _transport;
+
+    /// <summary>The resolved processor configuration options controlling polling, batch size, and retry behaviour.</summary>
     private readonly OutboxProcessorOptions _options;
+
+    /// <summary>The logger used for diagnostic output during processing cycles.</summary>
     private readonly ILogger<OutboxProcessorHostedService> _logger;
 
     /// <summary>
@@ -102,6 +109,13 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         LogProcessorStopped(_logger);
     }
 
+    /// <summary>
+    /// Retrieves and processes a single batch of pending or retriable outbox messages.
+    /// Delegates to <see cref="ProcessBatchSendAsync"/> or <see cref="ProcessIndividuallyAsync"/> based on
+    /// <see cref="OutboxProcessorOptions.EnableBatchSending"/>.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The number of messages processed in this batch; <c>0</c> when no messages are available.</returns>
     private async Task<int> ProcessBatchAsync(CancellationToken cancellationToken)
     {
         var messages = await _repository.GetPendingAsync(_options.BatchSize, cancellationToken).ConfigureAwait(false);
@@ -133,6 +147,13 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         return messages.Count;
     }
 
+    /// <summary>
+    /// Sends each message in the batch individually via <see cref="IMessageTransport.SendAsync"/>,
+    /// stopping early if the cancellation token is triggered.
+    /// </summary>
+    /// <param name="messages">The ordered list of outbox messages to process.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ProcessIndividuallyAsync(
         IReadOnlyList<OutboxMessage> messages,
         CancellationToken cancellationToken
@@ -149,6 +170,14 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Sends a single outbox message via the transport, then marks it as completed or failed/dead-lettered
+    /// based on the outcome. Applies a per-message processing timeout using a linked
+    /// <see cref="System.Threading.CancellationTokenSource"/>.
+    /// </summary>
+    /// <param name="message">The outbox message to process.</param>
+    /// <param name="cancellationToken">A token to monitor for external cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ProcessMessageAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         try
@@ -183,6 +212,14 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Sends all messages in the batch atomically via <see cref="IMessageTransport.SendBatchAsync"/>.
+    /// On success, marks every message as completed. On failure, marks every message as failed or
+    /// dead-lettered so they are retried on subsequent polling cycles.
+    /// </summary>
+    /// <param name="messages">The ordered list of outbox messages to send as a batch.</param>
+    /// <param name="cancellationToken">A token to monitor for external cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ProcessBatchSendAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken)
     {
         try
@@ -231,27 +268,33 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         }
     }
 
+    /// <summary>Logs that the outbox processor has started with its configured <paramref name="pollingInterval"/> and <paramref name="batchSize"/>.</summary>
     [LoggerMessage(
         Level = LogLevel.Information,
         Message = "Outbox processor started. Polling interval: {PollingInterval}, Batch size: {BatchSize}"
     )]
     private static partial void LogProcessorStarted(ILogger logger, TimeSpan pollingInterval, int batchSize);
 
+    /// <summary>Logs that the outbox processor has stopped cleanly.</summary>
     [LoggerMessage(Level = LogLevel.Information, Message = "Outbox processor stopped")]
     private static partial void LogProcessorStopped(ILogger logger);
 
+    /// <summary>Logs an unhandled error that occurred during an outbox processing cycle.</summary>
     [LoggerMessage(Level = LogLevel.Error, Message = "Error during outbox processing cycle")]
     private static partial void LogProcessingCycleError(ILogger logger, Exception exception);
 
+    /// <summary>Logs the number of outbox messages being processed in the current batch.</summary>
     [LoggerMessage(Level = LogLevel.Debug, Message = "Processing {MessageCount} outbox messages")]
     private static partial void LogProcessingMessages(ILogger logger, int messageCount);
 
+    /// <summary>Logs that a single outbox message was successfully processed.</summary>
     [LoggerMessage(
         Level = LogLevel.Debug,
         Message = "Successfully processed outbox message {MessageId} of type {EventType}"
     )]
     private static partial void LogMessageProcessed(ILogger logger, Guid messageId, string eventType);
 
+    /// <summary>Logs a warning when processing a single outbox message fails, including retry progress.</summary>
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Failed to process outbox message {MessageId} (retry {RetryCount}/{MaxRetry})"
@@ -264,18 +307,22 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
         int maxRetry
     );
 
+    /// <summary>Logs that a message has exhausted all retries and been moved to the dead-letter status.</summary>
     [LoggerMessage(
         Level = LogLevel.Error,
         Message = "Outbox message {MessageId} moved to dead letter after {MaxRetry} retries"
     )]
     private static partial void LogMessageMovedToDeadLetter(ILogger logger, Guid messageId, int maxRetry);
 
+    /// <summary>Logs that a batch of outbox messages was successfully processed.</summary>
     [LoggerMessage(Level = LogLevel.Debug, Message = "Successfully processed batch of {Count} outbox messages")]
     private static partial void LogBatchProcessed(ILogger logger, int count);
 
+    /// <summary>Logs a warning when a batch send operation fails; all messages in the batch will be marked as failed.</summary>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Batch send failed; marking all messages as failed")]
     private static partial void LogBatchSendFailed(ILogger logger, Exception exception);
 
+    /// <summary>Logs a warning that the message transport is currently unhealthy and the processing cycle is being skipped.</summary>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Message transport is unhealthy, skipping processing cycle")]
     private static partial void LogTransportUnhealthy(ILogger logger);
 }

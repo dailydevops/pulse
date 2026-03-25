@@ -19,6 +19,7 @@ using NetEvolve.Pulse.Extensibility;
 public sealed class EntityFrameworkOutboxTransactionScope<TContext> : IOutboxTransactionScope
     where TContext : DbContext
 {
+    /// <summary>The DbContext from which the current transaction is retrieved.</summary>
     private readonly TContext _context;
 
     /// <summary>

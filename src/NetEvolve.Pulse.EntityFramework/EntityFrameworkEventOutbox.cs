@@ -42,8 +42,13 @@ using NetEvolve.Pulse.Outbox;
 public sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
     where TContext : DbContext, IOutboxDbContext
 {
+    /// <summary>The DbContext used for all database operations within the current scope.</summary>
     private readonly TContext _context;
+
+    /// <summary>The resolved outbox options controlling serialization and table configuration.</summary>
     private readonly OutboxOptions _options;
+
+    /// <summary>The time provider used to generate consistent creation and update timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>

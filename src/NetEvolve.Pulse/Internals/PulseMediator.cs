@@ -224,6 +224,15 @@ internal sealed partial class PulseMediator : IMediator
         return next(request);
     }
 
+    /// <summary>
+    /// Invokes a single event handler and logs any exception that occurs during execution.
+    /// This wrapper ensures errors are captured before being re-thrown to the dispatcher.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event being handled.</typeparam>
+    /// <param name="handler">The event handler to invoke.</param>
+    /// <param name="message">The event message to pass to the handler.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous handler execution.</returns>
     private async Task InvokeHandlerAsync<TEvent>(
         IEventHandler<TEvent> handler,
         TEvent message,

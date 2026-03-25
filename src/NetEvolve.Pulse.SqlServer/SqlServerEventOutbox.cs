@@ -34,9 +34,16 @@ using NetEvolve.Pulse.Outbox;
 )]
 public sealed class SqlServerEventOutbox : IEventOutbox
 {
+    /// <summary>The open SQL connection used to execute insert commands.</summary>
     private readonly SqlConnection _connection;
+
+    /// <summary>The optional SQL transaction to enlist with, ensuring atomicity with business operations.</summary>
     private readonly SqlTransaction? _transaction;
+
+    /// <summary>The resolved outbox options controlling table name, schema, and JSON serialization.</summary>
     private readonly OutboxOptions _options;
+
+    /// <summary>The time provider used to generate consistent creation and update timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
