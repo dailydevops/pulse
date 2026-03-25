@@ -18,19 +18,9 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     /// <summary>
-    /// The activity source for creating distributed tracing activities.
-    /// </summary>
-    private static readonly ActivitySource _activitySource = new ActivitySource("NetEvolve.Pulse", Defaults.Version);
-
-    /// <summary>
-    /// The meter for creating metrics instruments.
-    /// </summary>
-    private static readonly Meter _meter = new Meter("NetEvolve.Pulse", Defaults.Version);
-
-    /// <summary>
     /// Counter tracking the total number of requests processed, tagged by request type.
     /// </summary>
-    private static readonly Counter<long> _requestCounter = _meter.CreateCounter<long>(
+    private static readonly Counter<long> RequestCounter = Defaults.Meter.CreateCounter<long>(
         "pulse.requests.total",
         "requests",
         "Total number of requests processed."
@@ -39,7 +29,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// <summary>
     /// Counter tracking the total number of request errors, tagged by request type.
     /// </summary>
-    private static readonly Counter<long> _errorsCounter = _meter.CreateCounter<long>(
+    private static readonly Counter<long> ErrorsCounter = Defaults.Meter.CreateCounter<long>(
         "pulse.request.errors",
         "errors",
         "Total number of request errors."
@@ -48,7 +38,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// <summary>
     /// Histogram measuring request processing duration in milliseconds, with percentile distributions.
     /// </summary>
-    private static readonly Histogram<double> _requestDurationHistogram = _meter.CreateHistogram<double>(
+    private static readonly Histogram<double> RequestDurationHistogram = Defaults.Meter.CreateHistogram<double>(
         "pulse.request.duration",
         "ms",
         "Duration of request processing in milliseconds."
@@ -96,7 +86,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
             { ResponseType, responseType },
         };
 
-        using var activity = _activitySource.StartActivity(
+        using var activity = Defaults.ActivitySource.StartActivity(
             $"{requestType}.{requestName}",
             ActivityKind.Internal,
             null,
@@ -109,7 +99,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
             ?.SetStartTime(startTime.UtcDateTime)
             .SetTag(RequestCorrelationId, request.CorrelationId)
             .SetTag(RequestTimestamp, startTime);
-        _requestCounter.Add(1, tags);
+        RequestCounter.Add(1, tags);
 
         try
         {
@@ -126,7 +116,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
                 .SetTag(Success, true);
 
             // Record successful execution duration
-            _requestDurationHistogram.Record((startTime - endTime).TotalMilliseconds, [.. tags, new(Success, true)]);
+            RequestDurationHistogram.Record((startTime - endTime).TotalMilliseconds, [.. tags, new(Success, true)]);
 
             return response;
         }
@@ -145,8 +135,8 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
                 .SetTag(Success, false);
 
             // Increment error counters and record failed execution duration
-            _errorsCounter.Add(1, tags);
-            _requestDurationHistogram.Record((startTime - errorTime).TotalMilliseconds, [.. tags, new(Success, false)]);
+            ErrorsCounter.Add(1, tags);
+            RequestDurationHistogram.Record((startTime - errorTime).TotalMilliseconds, [.. tags, new(Success, false)]);
 
             throw;
         }

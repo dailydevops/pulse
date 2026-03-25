@@ -1,10 +1,43 @@
 ﻿namespace NetEvolve.Pulse.Internals;
 
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+
 /// <summary>
 /// Provides default values and constants used throughout the Pulse mediator implementation.
 /// </summary>
 internal static class Defaults
 {
+    /// <summary>
+    /// Lazy-initialized backing field for the <see cref="ActivitySource"/> instance.
+    /// Thread-safe initialization is ensured via <see cref="LazyThreadSafetyMode.ExecutionAndPublication"/>.
+    /// </summary>
+    private static readonly Lazy<ActivitySource> LazyActivitySource = new(
+        () => new ActivitySource("NetEvolve.Pulse", Version),
+        LazyThreadSafetyMode.ExecutionAndPublication
+    );
+
+    /// <summary>
+    /// Gets the <see cref="System.Diagnostics.ActivitySource"/> used by the Pulse mediator for OpenTelemetry distributed tracing.
+    /// The source name is <c>"NetEvolve.Pulse"</c> and the version matches the assembly version.
+    /// </summary>
+    public static ActivitySource ActivitySource => LazyActivitySource.Value;
+
+    /// <summary>
+    /// Lazy-initialized backing field for the <see cref="Meter"/> instance.
+    /// Thread-safe initialization is ensured via <see cref="LazyThreadSafetyMode.ExecutionAndPublication"/>.
+    /// </summary>
+    private static readonly Lazy<Meter> LazyMeter = new(
+        () => new Meter("NetEvolve.Pulse", Version),
+        LazyThreadSafetyMode.ExecutionAndPublication
+    );
+
+    /// <summary>
+    /// Gets the <see cref="System.Diagnostics.Metrics.Meter"/> used by the Pulse mediator for metrics collection.
+    /// The meter name is <c>"NetEvolve.Pulse"</c> and the version matches the assembly version.
+    /// </summary>
+    public static Meter Meter => LazyMeter.Value;
+
     /// <summary>
     /// Gets the version of the Pulse library, extracted from the assembly's version information.
     /// This version is used for activity source and meter naming in telemetry.
