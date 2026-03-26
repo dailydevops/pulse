@@ -77,9 +77,6 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
     }
 
     [Test]
-    [Skip(
-        "Polly timeout requires propagating ResilienceContext.CancellationToken to handlers. Architecture change needed."
-    )]
     public async Task TimeoutPolicy_WithSlowDatabaseQuery_ThrowsTimeoutException()
     {
         // Arrange
@@ -304,8 +301,18 @@ public sealed class PollyWithDatabaseTests(SqlServerContainerFixture fixture)
             command.CommandText = $"WAITFOR DELAY '{delayString}'; SELECT 1;";
             command.CommandTimeout = (int)_delay.TotalSeconds + 10;
 
-            var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-            return Convert.ToInt32(result, CultureInfo.InvariantCulture);
+            try
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return Convert.ToInt32(result, CultureInfo.InvariantCulture);
+            }
+            catch (SqlException) when (cancellationToken.IsCancellationRequested)
+            {
+                // SqlClient throws SqlException on cancellation instead of OperationCanceledException.
+                // Convert to OperationCanceledException so Polly can detect the timeout and wrap it
+                // in TimeoutRejectedException rather than propagating the SqlException directly.
+                throw new OperationCanceledException(cancellationToken);
+            }
         }
 #pragma warning restore CA2100
     }

@@ -231,12 +231,12 @@ public sealed class ServiceCollectionExtensionsTests
 
         public async Task<TestResponse> HandleAsync(
             TestCommand request,
-            Func<TestCommand, Task<TestResponse>> next,
+            Func<TestCommand, CancellationToken, Task<TestResponse>> next,
             CancellationToken cancellationToken = default
         )
         {
             Executed = true;
-            return await next(request).ConfigureAwait(false);
+            return await next(request, cancellationToken).ConfigureAwait(false);
         }
     }
 }

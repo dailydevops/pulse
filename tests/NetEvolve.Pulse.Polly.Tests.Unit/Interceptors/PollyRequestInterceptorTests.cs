@@ -112,7 +112,7 @@ public sealed class PollyRequestInterceptorTests
         const string expected = "success";
 
         // Act
-        var result = await interceptor.HandleAsync(request, _ => Task.FromResult(expected)).ConfigureAwait(false);
+        var result = await interceptor.HandleAsync(request, (_, _) => Task.FromResult(expected)).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(result).IsEqualTo(expected);
@@ -142,7 +142,7 @@ public sealed class PollyRequestInterceptorTests
         var result = await interceptor
             .HandleAsync(
                 request,
-                _ =>
+                (_, _) =>
                 {
                     attemptCount++;
                     if (attemptCount < 3)
@@ -185,7 +185,7 @@ public sealed class PollyRequestInterceptorTests
                 await interceptor
                     .HandleAsync(
                         request,
-                        _ =>
+                        (_, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Persistent failure");
@@ -225,7 +225,7 @@ public sealed class PollyRequestInterceptorTests
         var result = await interceptor
             .HandleAsync(
                 request,
-                _ =>
+                (_, _) =>
                 {
                     attemptCount++;
                     if (attemptCount < 2)
@@ -269,7 +269,7 @@ public sealed class PollyRequestInterceptorTests
                 await interceptor
                     .HandleAsync(
                         request,
-                        _ =>
+                        (_, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
@@ -284,7 +284,7 @@ public sealed class PollyRequestInterceptorTests
                 await interceptor
                     .HandleAsync(
                         request,
-                        _ =>
+                        (_, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
@@ -297,7 +297,7 @@ public sealed class PollyRequestInterceptorTests
         // Circuit should be open now, next request should be rejected immediately
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(request, _ => Task.FromResult("success")).ConfigureAwait(false)
+                await interceptor.HandleAsync(request, (_, _) => Task.FromResult("success")).ConfigureAwait(false)
             )
             .Throws<BrokenCircuitException>();
 

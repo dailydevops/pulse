@@ -29,7 +29,7 @@ public class ActivityAndMetricsEventInterceptorTests
         await interceptor
             .HandleAsync(
                 testEvent,
-                _ =>
+                (_, _) =>
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
@@ -65,7 +65,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(testEvent, _ => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -97,7 +97,7 @@ public class ActivityAndMetricsEventInterceptorTests
         listener.ActivityStopped = activity => capturedActivity = activity;
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(testEvent, _ => throw testException).ConfigureAwait(false)
+            await interceptor.HandleAsync(testEvent, (_, _) => throw testException).ConfigureAwait(false)
         );
 
         using (Assert.Multiple())
@@ -135,7 +135,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(testEvent, _ => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -156,7 +156,7 @@ public class ActivityAndMetricsEventInterceptorTests
         await interceptor
             .HandleAsync(
                 testEvent,
-                evt =>
+                (evt, _) =>
                 {
                     receivedEvent = evt;
                     return Task.CompletedTask;
@@ -185,8 +185,8 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStarted = activity => activities.Add(activity);
 
-        await interceptor1.HandleAsync(new TestEvent(), _ => Task.CompletedTask).ConfigureAwait(false);
-        await interceptor2.HandleAsync(new AnotherTestEvent(), _ => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor1.HandleAsync(new TestEvent(), (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor2.HandleAsync(new AnotherTestEvent(), (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {

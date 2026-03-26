@@ -597,35 +597,35 @@ public class AssemblyScanningExtensionsTests
     {
         public Task<string> HandleAsync(
             ScanTestCommand request,
-            Func<ScanTestCommand, Task<string>> handler,
+            Func<ScanTestCommand, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request);
+        ) => handler(request, cancellationToken);
     }
 
     private sealed partial class ScanTestCommandInterceptor : ICommandInterceptor<ScanTestCommand, string>
     {
         public Task<string> HandleAsync(
             ScanTestCommand request,
-            Func<ScanTestCommand, Task<string>> handler,
+            Func<ScanTestCommand, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request);
+        ) => handler(request, cancellationToken);
     }
 
     private sealed partial class ScanTestQueryInterceptor : IQueryInterceptor<ScanTestQuery, string>
     {
         public Task<string> HandleAsync(
             ScanTestQuery request,
-            Func<ScanTestQuery, Task<string>> handler,
+            Func<ScanTestQuery, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request);
+        ) => handler(request, cancellationToken);
     }
 
     private sealed partial class ScanTestEventInterceptor : IEventInterceptor<ScanTestEvent>
     {
         public Task HandleAsync(
             ScanTestEvent message,
-            Func<ScanTestEvent, Task> handler,
+            Func<ScanTestEvent, CancellationToken, Task> handler,
             CancellationToken cancellationToken = default
-        ) => handler(message);
+        ) => handler(message, cancellationToken);
     }
 }

@@ -30,7 +30,7 @@ public class ActivityAndMetricsRequestInterceptorTests
         var result = await interceptor
             .HandleAsync(
                 command,
-                _ =>
+                (_, _) =>
                 {
                     handlerCalled = true;
                     return Task.FromResult("test-result");
@@ -68,7 +68,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        var result = await interceptor.HandleAsync(query, _ => Task.FromResult(42)).ConfigureAwait(false);
+        var result = await interceptor.HandleAsync(query, (_, _) => Task.FromResult(42)).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -99,7 +99,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        var result = await interceptor.HandleAsync(request, _ => Task.FromResult(true)).ConfigureAwait(false);
+        var result = await interceptor.HandleAsync(request, (_, _) => Task.FromResult(true)).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -130,7 +130,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        _ = await interceptor.HandleAsync(command, _ => Task.FromResult("success")).ConfigureAwait(false);
+        _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("success")).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -162,7 +162,7 @@ public class ActivityAndMetricsRequestInterceptorTests
         listener.ActivityStopped = activity => capturedActivity = activity;
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(command, _ => throw testException).ConfigureAwait(false)
+            await interceptor.HandleAsync(command, (_, _) => throw testException).ConfigureAwait(false)
         );
 
         using (Assert.Multiple())
@@ -200,7 +200,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        _ = await interceptor.HandleAsync(command, _ => Task.FromResult("result")).ConfigureAwait(false);
+        _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("result")).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -221,7 +221,7 @@ public class ActivityAndMetricsRequestInterceptorTests
         _ = await interceptor
             .HandleAsync(
                 command,
-                cmd =>
+                (cmd, _) =>
                 {
                     receivedCommand = cmd;
                     return Task.FromResult("result");

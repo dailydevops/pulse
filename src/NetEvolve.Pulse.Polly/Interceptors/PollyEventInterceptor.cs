@@ -1,9 +1,9 @@
 namespace NetEvolve.Pulse.Interceptors;
 
 using System;
-using global::Polly;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
+using Polly;
 
 /// <summary>
 /// Event interceptor that applies Polly resilience policies to event handlers.
@@ -107,14 +107,14 @@ public sealed class PollyEventInterceptor<TEvent> : IEventInterceptor<TEvent>
     /// </remarks>
     public async Task HandleAsync(
         TEvent message,
-        Func<TEvent, Task> handler,
+        Func<TEvent, CancellationToken, Task> handler,
         CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(handler);
 
         await _pipeline
-            .ExecuteAsync(async _ => await handler(message).ConfigureAwait(false), cancellationToken)
+            .ExecuteAsync(async ct => await handler(message, ct).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
     }
 }

@@ -154,5 +154,9 @@ public interface IEventInterceptor<TEvent>
     /// <param name="handler">The next handler in the pipeline to invoke. Must be called to continue execution.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task HandleAsync(TEvent message, Func<TEvent, Task> handler, CancellationToken cancellationToken = default);
+    Task HandleAsync(
+        TEvent message,
+        Func<TEvent, CancellationToken, Task> handler,
+        CancellationToken cancellationToken = default
+    );
 }

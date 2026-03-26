@@ -108,14 +108,14 @@ public sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInter
     /// </remarks>
     public async Task<TResponse> HandleAsync(
         TRequest request,
-        Func<TRequest, Task<TResponse>> handler,
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
         CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(handler);
 
         return await _pipeline
-            .ExecuteAsync(async _ => await handler(request).ConfigureAwait(false), cancellationToken)
+            .ExecuteAsync(async ct => await handler(request, ct).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
     }
 }

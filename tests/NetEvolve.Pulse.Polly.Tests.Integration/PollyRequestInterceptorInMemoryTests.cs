@@ -109,9 +109,6 @@ public sealed class PollyRequestInterceptorInMemoryTests
     }
 
     [Test]
-    [Skip(
-        "Polly timeout requires propagating ResilienceContext.CancellationToken to handlers. Architecture change needed."
-    )]
     public async Task TimeoutPolicy_WithSlowHandler_ThrowsTimeoutException()
     {
         // Arrange

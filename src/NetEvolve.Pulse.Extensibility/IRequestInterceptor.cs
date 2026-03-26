@@ -186,7 +186,7 @@ public interface IRequestInterceptor<TRequest, TResponse>
     /// <returns>A task representing the asynchronous operation, containing the request response.</returns>
     Task<TResponse> HandleAsync(
         TRequest request,
-        Func<TRequest, Task<TResponse>> handler,
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
         CancellationToken cancellationToken = default
     );
 }
