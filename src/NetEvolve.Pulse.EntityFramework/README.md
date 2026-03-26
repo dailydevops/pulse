@@ -61,11 +61,11 @@ public class ApplicationDbContext : DbContext, IOutboxDbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Apply outbox configuration (uses default schema: pulse.OutboxMessage)
-        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+        // The factory automatically selects the right configuration for the active provider
+        modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(this));
 
         // Or with custom options
-        // modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration(
+        // modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(this,
         //     Options.Create(new OutboxOptions { Schema = "myschema" })));
     }
 }
@@ -156,6 +156,18 @@ public class OrderService
 
 ## Multi-Provider Support
 
+`OutboxMessageConfigurationFactory.Create(this)` automatically picks the right column types
+and index filter syntax for the active provider. Use it in `OnModelCreating` once and swap
+providers without touching the DbContext:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    base.OnModelCreating(modelBuilder);
+    modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(this));
+}
+```
+
 ### SQL Server
 
 ```csharp
@@ -179,31 +191,43 @@ services.AddDbContext<ApplicationDbContext>(options =>
 
 ### MySQL
 
+Supports both the Pomelo community provider and the Oracle official provider:
+
 ```csharp
+// Pomelo (recommended community provider)
 services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+// Oracle MySQL provider
+services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySQL(connectionString));
 ```
 
-## Schema Customization
+> [!NOTE]
+> MySQL does not support filtered (partial) indexes. The pending and completed message
+> indexes are created as plain indexes without a `WHERE` clause. The factory handles this
+> automatically — no configuration changes are required.
+
+### Other Providers
+
+For providers not listed above, derive from `OutboxMessageConfigurationBase` directly
+and return the appropriate filter syntax from `PendingMessagesFilter` and
+`CompletedMessagesFilter` (return `null` for databases without partial-index support):
 
 ```csharp
-// In OnModelCreating
-modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration(
-    Options.Create(new OutboxOptions
-    {
-        Schema = "messaging",    // Default: "pulse"
-        TableName = "Events"     // Default: "OutboxMessage"
-    })));
+internal sealed class MyCustomOutboxMessageConfiguration : OutboxMessageConfigurationBase
+{
+    public MyCustomOutboxMessageConfiguration(IOptions<OutboxOptions> options)
+        : base(options) { }
 
-// In service registration
-services.AddPulse(config => config
-    .AddOutbox(options =>
-    {
-        options.Schema = "messaging";
-        options.TableName = "Events";
-    })
-    .AddEntityFrameworkOutbox<ApplicationDbContext>()
-);
+    // Return null if the database does not support filtered indexes
+    protected override string? PendingMessagesFilter => null;
+    protected override string? CompletedMessagesFilter => null;
+}
+
+// In OnModelCreating:
+modelBuilder.ApplyConfiguration(new MyCustomOutboxMessageConfiguration(
+    Options.Create(new OutboxOptions())));
 ```
 
 ## Migration Examples
@@ -219,16 +243,16 @@ migrationBuilder.CreateTable(
     schema: "pulse",
     columns: table => new
     {
-        Id = table.Column<Guid>(nullable: false),
-        EventType = table.Column<string>(maxLength: 500, nullable: false),
-        Payload = table.Column<string>(nullable: false),
-        CorrelationId = table.Column<string>(maxLength: 100, nullable: true),
-        CreatedAt = table.Column<DateTimeOffset>(nullable: false),
-        UpdatedAt = table.Column<DateTimeOffset>(nullable: false),
-        ProcessedAt = table.Column<DateTimeOffset>(nullable: true),
-        RetryCount = table.Column<int>(nullable: false, defaultValue: 0),
-        Error = table.Column<string>(nullable: true),
-        Status = table.Column<int>(nullable: false, defaultValue: 0)
+        Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+        EventType = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+        Payload = table.Column<string>(type: "nvarchar(max)", nullable: false),
+        CorrelationId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+        CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+        UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+        ProcessedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+        RetryCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+        Error = table.Column<string>(type: "nvarchar(max)", nullable: true),
+        Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0)
     },
     constraints: table =>
     {

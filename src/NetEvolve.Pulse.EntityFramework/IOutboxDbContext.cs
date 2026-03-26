@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using Microsoft.EntityFrameworkCore;
+using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -10,11 +11,11 @@ using NetEvolve.Pulse.Extensibility;
 /// <remarks>
 /// <para><strong>Implementation:</strong></para>
 /// Your DbContext must expose a <see cref="DbSet{TEntity}"/> for <see cref="OutboxMessage"/>
-/// and apply the <see cref="OutboxMessageConfiguration"/> in <c>OnModelCreating</c>.
+/// and apply the <see cref="SqlServerOutboxMessageConfiguration"/> in <c>OnModelCreating</c>.
 /// <para><strong>Migration Workflow:</strong></para>
 /// <list type="number">
 /// <item><description>Implement <see cref="IOutboxDbContext"/> in your DbContext</description></item>
-/// <item><description>Apply <see cref="OutboxMessageConfiguration"/> in OnModelCreating</description></item>
+/// <item><description>Apply <see cref="SqlServerOutboxMessageConfiguration"/> in OnModelCreating</description></item>
 /// <item><description>Run <c>dotnet ef migrations add AddOutbox</c> with your chosen provider</description></item>
 /// <item><description>Apply migration with <c>dotnet ef database update</c></description></item>
 /// </list>
@@ -28,7 +29,7 @@ using NetEvolve.Pulse.Extensibility;
 ///     protected override void OnModelCreating(ModelBuilder modelBuilder)
 ///     {
 ///         base.OnModelCreating(modelBuilder);
-///         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+///         modelBuilder.ApplyConfiguration(new SqlServerOutboxMessageConfiguration());
 ///     }
 /// }
 /// </code>
