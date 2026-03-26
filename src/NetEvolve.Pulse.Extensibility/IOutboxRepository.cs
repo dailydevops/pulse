@@ -64,7 +64,7 @@ public interface IOutboxRepository
             .ForEachAsync(
                 messageIds,
                 cancellationToken,
-                async (id, ct) => await MarkAsCompletedAsync(id, ct).ConfigureAwait(false)
+                async (id, token) => await MarkAsCompletedAsync(id, token).ConfigureAwait(false)
             )
             .ConfigureAwait(false);
 
@@ -99,7 +99,7 @@ public interface IOutboxRepository
             .ForEachAsync(
                 messageIds,
                 cancellationToken,
-                async (id, ct) => await MarkAsFailedAsync(id, errorMessage, ct).ConfigureAwait(false)
+                async (id, token) => await MarkAsFailedAsync(id, errorMessage, token).ConfigureAwait(false)
             )
             .ConfigureAwait(false);
 
@@ -128,7 +128,7 @@ public interface IOutboxRepository
             .ForEachAsync(
                 messageIds,
                 cancellationToken,
-                async (id, ct) => await MarkAsDeadLetterAsync(id, errorMessage, ct).ConfigureAwait(false)
+                async (id, token) => await MarkAsDeadLetterAsync(id, errorMessage, token).ConfigureAwait(false)
             )
             .ConfigureAwait(false);
 

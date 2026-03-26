@@ -59,7 +59,7 @@ public class RateLimitedEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -111,7 +111,7 @@ public class RateLimitedEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                async (handler, msg) => await handler.HandleAsync(msg, CancellationToken.None).ConfigureAwait(false),
+                async (handler, msg, ct) => await handler.HandleAsync(msg, ct).ConfigureAwait(false),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -133,7 +133,7 @@ public class RateLimitedEventDispatcherTests
                 .DispatchAsync(
                     message,
                     handlers,
-                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                    (handler, msg, ct) => handler.HandleAsync(msg, ct),
                     CancellationToken.None
                 )
                 .ConfigureAwait(false)

@@ -108,7 +108,7 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve the appropriate handler for the query
         var handler = _serviceProvider.GetRequiredService<IQueryHandler<TQuery, TResponse>>();
 
-        return ExecuteAsync(query, (q, ct) => handler.HandleAsync(q, ct), cancellationToken);
+        return ExecuteAsync(query, handler.HandleAsync, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -128,7 +128,7 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve the appropriate handler for the command
         var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand, TResponse>>();
 
-        return ExecuteAsync(command, (c, ct) => handler.HandleAsync(c, ct), cancellationToken);
+        return ExecuteAsync(command, handler.HandleAsync, cancellationToken);
     }
 
     /// <summary>
@@ -152,31 +152,26 @@ internal sealed partial class PulseMediator : IMediator
         var dispatcher = _serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
 
         // Create the dispatch action that uses the resolved dispatcher
-        Task DispatchAsync(TEvent message, CancellationToken ct) =>
-            dispatcher.DispatchAsync(
-                message,
-                handlers,
-                (handler, eventMessage) => InvokeHandlerAsync(handler, eventMessage, ct),
-                ct
-            );
+        Task DispatchAsync(TEvent message, CancellationToken token) =>
+            dispatcher.DispatchAsync(message, handlers, InvokeHandlerAsync, token);
+
+        // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
+        var next = DispatchAsync;
 
         // Retrieve all registered event interceptors and reverse for correct pipeline order
         var interceptors = _serviceProvider.GetServices<IEventInterceptor<TEvent>>().Reverse().ToArray();
         if (interceptors.Length == 0)
         {
             // No interceptors registered, execute dispatcher directly
-            return DispatchAsync(msg, cancellationToken);
+            return next(msg, cancellationToken);
         }
-
-        // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
-        var next = (Func<TEvent, CancellationToken, Task>)DispatchAsync;
 
         foreach (var interceptor in interceptors)
         {
             var currentInterceptor = interceptor;
-            var nextCopy = next;
+            var currentNext = next;
             // Wrap the next action with the current interceptor
-            next = (req, ct) => currentInterceptor.HandleAsync(req, nextCopy, ct);
+            next = (req, token) => currentInterceptor.HandleAsync(req, currentNext, token);
         }
 
         return next(msg, cancellationToken);
@@ -218,7 +213,7 @@ internal sealed partial class PulseMediator : IMediator
             var currentInterceptor = interceptor;
             var nextCopy = next;
             // Wrap the next action with the current interceptor
-            next = (req, ct) => currentInterceptor.HandleAsync(req, nextCopy, ct);
+            next = (req, token) => currentInterceptor.HandleAsync(req, nextCopy, token);
         }
 
         return next(request, cancellationToken);

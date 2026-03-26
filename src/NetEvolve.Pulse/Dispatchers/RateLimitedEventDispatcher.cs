@@ -95,7 +95,7 @@ public sealed class RateLimitedEventDispatcher : IEventDispatcher, IDisposable
     public async Task DispatchAsync<TEvent>(
         TEvent message,
         IEnumerable<IEventHandler<TEvent>> handlers,
-        Func<IEventHandler<TEvent>, TEvent, Task> invoker,
+        Func<IEventHandler<TEvent>, TEvent, CancellationToken, Task> invoker,
         CancellationToken cancellationToken
     )
         where TEvent : IEvent
@@ -107,7 +107,7 @@ public sealed class RateLimitedEventDispatcher : IEventDispatcher, IDisposable
             await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await invoker(handler, message).ConfigureAwait(false);
+                await invoker(handler, message, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

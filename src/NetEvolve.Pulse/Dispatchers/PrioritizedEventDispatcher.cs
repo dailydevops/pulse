@@ -61,7 +61,7 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
     public async Task DispatchAsync<TEvent>(
         TEvent message,
         IEnumerable<IEventHandler<TEvent>> handlers,
-        Func<IEventHandler<TEvent>, TEvent, Task> invoker,
+        Func<IEventHandler<TEvent>, TEvent, CancellationToken, Task> invoker,
         CancellationToken cancellationToken
     )
         where TEvent : IEvent
@@ -78,7 +78,7 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
         foreach (var handler in orderedHandlers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await invoker(handler, message).ConfigureAwait(false);
+            await invoker(handler, message, cancellationToken).ConfigureAwait(false);
         }
     }
 
