@@ -34,8 +34,8 @@ using NetEvolve.Pulse.Outbox;
 ///   <description><see cref="MySqlOutboxMessageConfiguration"/></description>
 /// </item>
 /// <item>
-///   <term>Any other / <see langword="null"/></term>
-///   <description><see cref="SqlServerOutboxMessageConfiguration"/> (SQL Server)</description>
+///   <term><c>Microsoft.EntityFrameworkCore.SqlServer</c></term>
+///   <description><see cref="SqlServerOutboxMessageConfiguration"/></description>
 /// </item>
 /// </list>
 /// <para><strong>Recommended usage:</strong></para>
