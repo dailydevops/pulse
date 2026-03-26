@@ -111,10 +111,12 @@ public static class PollyMediatorConfiguratorExtensions
         ArgumentNullException.ThrowIfNull(configurator);
         ArgumentNullException.ThrowIfNull(configure);
 
+        var typeOfIRequestInterceptor = typeof(IRequestInterceptor<TRequest, TResponse>);
+        var typeOfPollyInterceptor = typeof(PollyRequestInterceptor<TRequest, TResponse>);
+
         // Remove existing interceptor registration
         var existingInterceptor = configurator.Services.FirstOrDefault(d =>
-            d.ServiceType == typeof(IRequestInterceptor<TRequest, TResponse>)
-            && d.ImplementationType == typeof(PollyRequestInterceptor<TRequest, TResponse>)
+            d.ServiceType == typeOfIRequestInterceptor && d.ImplementationType == typeOfPollyInterceptor
         );
         if (existingInterceptor is not null)
         {
@@ -126,7 +128,7 @@ public static class PollyMediatorConfiguratorExtensions
             new ServiceDescriptor(
                 typeof(ResiliencePipeline<TResponse>),
                 typeof(TRequest),
-                (sp, key) =>
+                (_, _) =>
                 {
                     var builder = new ResiliencePipelineBuilder<TResponse>();
                     configure(builder);
@@ -137,13 +139,7 @@ public static class PollyMediatorConfiguratorExtensions
         );
 
         // Register the interceptor
-        configurator.Services.Add(
-            new ServiceDescriptor(
-                typeof(IRequestInterceptor<TRequest, TResponse>),
-                typeof(PollyRequestInterceptor<TRequest, TResponse>),
-                lifetime
-            )
-        );
+        configurator.Services.Add(new ServiceDescriptor(typeOfIRequestInterceptor, typeOfPollyInterceptor, lifetime));
 
         return configurator;
     }

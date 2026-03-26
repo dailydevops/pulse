@@ -49,7 +49,7 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
     public async Task DispatchAsync<TEvent>(
         TEvent message,
         IEnumerable<IEventHandler<TEvent>> handlers,
-        Func<IEventHandler<TEvent>, TEvent, Task> invoker,
+        Func<IEventHandler<TEvent>, TEvent, CancellationToken, Task> invoker,
         CancellationToken cancellationToken
     )
         where TEvent : IEvent
@@ -60,11 +60,11 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
             .ForEachAsync(
                 handlers,
                 cancellationToken,
-                async (handler, _) =>
+                async (handler, token) =>
                 {
                     try
                     {
-                        await invoker(handler, message).ConfigureAwait(false);
+                        await invoker(handler, message, token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

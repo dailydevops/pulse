@@ -115,7 +115,7 @@ public sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInter
         ArgumentNullException.ThrowIfNull(handler);
 
         return await _pipeline
-            .ExecuteAsync(async ct => await handler(request, ct).ConfigureAwait(false), cancellationToken)
+            .ExecuteAsync(async token => await handler(request, token).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
     }
 }

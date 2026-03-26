@@ -68,6 +68,7 @@ public interface IEventDispatcher
     /// <param name="invoker">
     /// A delegate that invokes a single handler with the event.
     /// This delegate wraps handler invocation with interceptor pipeline execution and error handling.
+    /// The delegate receives the handler, the event message, and a cancellation token.
     /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous dispatch operation.</returns>
@@ -90,7 +91,7 @@ public interface IEventDispatcher
     Task DispatchAsync<TEvent>(
         TEvent message,
         IEnumerable<IEventHandler<TEvent>> handlers,
-        Func<IEventHandler<TEvent>, TEvent, Task> invoker,
+        Func<IEventHandler<TEvent>, TEvent, CancellationToken, Task> invoker,
         CancellationToken cancellationToken
     )
         where TEvent : IEvent;

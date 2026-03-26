@@ -29,7 +29,7 @@ public class PrioritizedEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -62,7 +62,7 @@ public class PrioritizedEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -96,7 +96,7 @@ public class PrioritizedEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -127,12 +127,7 @@ public class PrioritizedEventDispatcherTests
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
             await dispatcher
-                .DispatchAsync(
-                    message,
-                    handlers,
-                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-                    cts.Token
-                )
+                .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cts.Token)
                 .ConfigureAwait(false)
         );
 
@@ -157,7 +152,7 @@ public class PrioritizedEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);

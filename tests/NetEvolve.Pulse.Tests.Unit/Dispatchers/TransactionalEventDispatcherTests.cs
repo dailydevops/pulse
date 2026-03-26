@@ -31,7 +31,7 @@ public class TransactionalEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -56,10 +56,10 @@ public class TransactionalEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) =>
+                (handler, msg, ct) =>
                 {
                     // This invoker should NOT be called by TransactionalEventDispatcher
-                    return handler.HandleAsync(msg, CancellationToken.None);
+                    return handler.HandleAsync(msg, ct);
                 },
                 CancellationToken.None
             )
@@ -80,12 +80,7 @@ public class TransactionalEventDispatcherTests
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
             await dispatcher
-                .DispatchAsync(
-                    message,
-                    handlers,
-                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
-                    cts.Token
-                )
+                .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cts.Token)
                 .ConfigureAwait(false)
         );
     }
@@ -103,7 +98,7 @@ public class TransactionalEventDispatcherTests
                 .DispatchAsync(
                     message,
                     handlers,
-                    (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                    (handler, msg, ct) => handler.HandleAsync(msg, ct),
                     CancellationToken.None
                 )
                 .ConfigureAwait(false)
@@ -122,7 +117,7 @@ public class TransactionalEventDispatcherTests
             .DispatchAsync(
                 message,
                 handlers,
-                (handler, msg) => handler.HandleAsync(msg, CancellationToken.None),
+                (handler, msg, ct) => handler.HandleAsync(msg, ct),
                 CancellationToken.None
             )
             .ConfigureAwait(false);

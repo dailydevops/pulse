@@ -49,7 +49,7 @@ public sealed class SequentialEventDispatcher : IEventDispatcher
     public async Task DispatchAsync<TEvent>(
         TEvent message,
         IEnumerable<IEventHandler<TEvent>> handlers,
-        Func<IEventHandler<TEvent>, TEvent, Task> invoker,
+        Func<IEventHandler<TEvent>, TEvent, CancellationToken, Task> invoker,
         CancellationToken cancellationToken
     )
         where TEvent : IEvent
@@ -64,7 +64,7 @@ public sealed class SequentialEventDispatcher : IEventDispatcher
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                await invoker(handler, message).ConfigureAwait(false);
+                await invoker(handler, message, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

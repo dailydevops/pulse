@@ -23,7 +23,7 @@ public class ParallelEventDispatcherTests
             .DispatchAsync(
                 testEvent,
                 handlers,
-                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -48,7 +48,7 @@ public class ParallelEventDispatcherTests
             .DispatchAsync(
                 testEvent,
                 handlers,
-                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -66,7 +66,7 @@ public class ParallelEventDispatcherTests
             .DispatchAsync(
                 testEvent,
                 handlers,
-                async (handler, evt) => await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
                 CancellationToken.None
             )
             .ConfigureAwait(false);
@@ -89,8 +89,7 @@ public class ParallelEventDispatcherTests
                 .DispatchAsync(
                     testEvent,
                     handlers,
-                    async (handler, evt) =>
-                        await handler.HandleAsync(evt, CancellationToken.None).ConfigureAwait(false),
+                    async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
                     cts.Token
                 )
                 .ConfigureAwait(false)
