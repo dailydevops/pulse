@@ -116,7 +116,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
                 .SetTag(Success, true);
 
             // Record successful execution duration
-            RequestDurationHistogram.Record((startTime - endTime).TotalMilliseconds, [.. tags, new(Success, true)]);
+            RequestDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
 
             return response;
         }
@@ -136,7 +136,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
 
             // Increment error counters and record failed execution duration
             ErrorsCounter.Add(1, tags);
-            RequestDurationHistogram.Record((startTime - errorTime).TotalMilliseconds, [.. tags, new(Success, false)]);
+            RequestDurationHistogram.Record((errorTime - startTime).TotalMilliseconds, [.. tags, new(Success, false)]);
 
             throw;
         }
