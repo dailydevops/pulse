@@ -28,7 +28,7 @@
     <PackageVersion Include="Polly.Core" Version="8.6.6" />
     <PackageVersion Include="Testcontainers" Version="4.11.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.11.0" />
-    <PackageVersion Include="TUnit" Version="1.21.24" />
+    <PackageVersion Include="TUnit" Version="1.21.30" />
     <PackageVersion Include="Verify.TUnit" Version="31.13.5" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 8" Condition="'$(TargetFramework)' == 'net8.0'">
