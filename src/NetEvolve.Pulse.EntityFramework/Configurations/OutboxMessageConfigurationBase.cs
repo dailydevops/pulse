@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse.Configurations;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -7,51 +7,67 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
-/// Entity Framework Core configuration for <see cref="OutboxMessage"/>.
-/// Applies the canonical schema to ensure interchangeability with other persistence providers.
+/// Abstract base class for Entity Framework Core configuration of <see cref="OutboxMessage"/>.
+/// Encapsulates all provider-agnostic column and key mappings, leaving index filter
+/// expressions as abstract members to be implemented per database provider.
 /// </summary>
 /// <remarks>
-/// <para><strong>Schema Compatibility:</strong></para>
-/// This configuration produces the same table structure as the SQL Server ADO.NET scripts,
-/// allowing both providers to work with the same database.
-/// <para><strong>Provider Agnostic:</strong></para>
-/// Uses EF Core conventions that work across all database providers. Column types are
-/// mapped using provider-specific conventions (e.g., NVARCHAR for SQL Server, TEXT for PostgreSQL).
+/// <para><strong>Provider-specific filter expressions:</strong></para>
+/// Derived classes must supply raw SQL filter strings that match the quoting conventions
+/// of their target database:
+/// <list type="bullet">
+/// <item><description>SQL Server: bracket-quoted identifiers, e.g. <c>[Status]</c></description></item>
+/// <item><description>PostgreSQL: double-quoted identifiers, e.g. <c>"Status"</c></description></item>
+/// <item><description>SQLite: double-quoted identifiers, e.g. <c>"Status"</c></description></item>
+/// </list>
+/// <para><strong>Provider-specific column types:</strong></para>
+/// Derived classes may override <see cref="ApplyColumnTypes"/> to add explicit
+/// <c>HasColumnType</c> calls. Without overrides, EF Core convention-based defaults apply.
 /// <para><strong>Customization:</strong></para>
 /// Override schema and table names via <see cref="OutboxOptions"/> before applying this configuration.
 /// </remarks>
-/// <example>
-/// <code>
-/// protected override void OnModelCreating(ModelBuilder modelBuilder)
-/// {
-///     // With default options
-///     modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
-///
-///     // With custom options
-///     modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration(
-///         Options.Create(new OutboxOptions { Schema = "myschema" })));
-/// }
-/// </code>
-/// </example>
-public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
+internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguration<OutboxMessage>
 {
     private readonly OutboxOptions _options;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="OutboxMessageConfiguration"/> class with default options.
-    /// </summary>
-    public OutboxMessageConfiguration()
-        : this(Options.Create(new OutboxOptions())) { }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="OutboxMessageConfiguration"/> class.
+    /// Initializes a new instance of <see cref="OutboxMessageConfigurationBase"/>.
     /// </summary>
     /// <param name="options">The outbox options containing schema and table configuration.</param>
-    public OutboxMessageConfiguration(IOptions<OutboxOptions> options)
+    protected OutboxMessageConfigurationBase(IOptions<OutboxOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options.Value;
     }
+
+    /// <summary>
+    /// Gets the raw SQL filter expression used for the pending messages index.
+    /// Covers <see cref="OutboxMessageStatus.Pending"/> and <see cref="OutboxMessageStatus.Failed"/> rows.
+    /// Return <see langword="null"/> when the target database does not support filtered indexes
+    /// (e.g. MySQL) — EF Core will omit the filter clause entirely.
+    /// </summary>
+    protected abstract string? PendingMessagesFilter { get; }
+
+    /// <summary>
+    /// Applies provider-specific column type overrides to the entity mapping.
+    /// Called from <see cref="Configure"/> after all shared column mappings are applied.
+    /// </summary>
+    /// <remarks>
+    /// Override this method to call <c>HasColumnType</c> for columns whose native type
+    /// differs between providers (e.g. <c>uuid</c> vs. <c>uniqueidentifier</c> for <see cref="Guid"/>,
+    /// or <c>timestamp with time zone</c> vs. <c>datetimeoffset</c>).
+    /// The default implementation is a no-op.
+    /// </remarks>
+    /// <param name="builder">The entity type builder for <see cref="OutboxMessage"/>.</param>
+    protected virtual void ApplyColumnTypes(EntityTypeBuilder<OutboxMessage> builder) { }
+
+    /// <summary>
+    /// Gets the raw SQL filter expression used for the completed messages index.
+    /// Covers <see cref="OutboxMessageStatus.Completed"/> rows.
+    /// Return <see langword="null"/> when the target database does not support filtered indexes
+    /// (e.g. MySQL) — EF Core will omit the filter clause entirely.
+    /// </summary>
+    protected abstract string? CompletedMessagesFilter { get; }
 
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)
@@ -116,17 +132,20 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
             .HasDefaultValue(OutboxMessageStatus.Pending)
             .IsRequired();
 
+        // Provider-specific column type overrides
+        ApplyColumnTypes(builder);
+
         // Indexes for efficient querying
-        // Index for pending message polling
+        // Index for pending message polling (Pending + Failed)
         _ = builder
             .HasIndex(m => new { m.Status, m.CreatedAt })
-            .HasFilter($"[{OutboxMessageSchema.Columns.Status}] IN (0, 3)")
+            .HasFilter(PendingMessagesFilter)
             .HasDatabaseName("IX_OutboxMessage_Status_CreatedAt");
 
         // Index for completed message cleanup
         _ = builder
             .HasIndex(m => new { m.Status, m.ProcessedAt })
-            .HasFilter($"[{OutboxMessageSchema.Columns.Status}] = 2")
+            .HasFilter(CompletedMessagesFilter)
             .HasDatabaseName("IX_OutboxMessage_Status_ProcessedAt");
     }
 }
