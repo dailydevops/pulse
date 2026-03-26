@@ -326,11 +326,11 @@ public sealed class PulseMediatorTests
     {
         public async Task<string> HandleAsync(
             OrderCommand request,
-            Func<OrderCommand, Task<string>> next,
+            Func<OrderCommand, CancellationToken, Task<string>> next,
             CancellationToken cancellationToken = default
         )
         {
-            var result = await next(request).ConfigureAwait(false);
+            var result = await next(request, cancellationToken).ConfigureAwait(false);
             return $"First->{result}";
         }
     }
@@ -339,11 +339,11 @@ public sealed class PulseMediatorTests
     {
         public async Task<string> HandleAsync(
             OrderCommand request,
-            Func<OrderCommand, Task<string>> next,
+            Func<OrderCommand, CancellationToken, Task<string>> next,
             CancellationToken cancellationToken = default
         )
         {
-            var result = await next(request).ConfigureAwait(false);
+            var result = await next(request, cancellationToken).ConfigureAwait(false);
             return $"Second->{result}";
         }
     }

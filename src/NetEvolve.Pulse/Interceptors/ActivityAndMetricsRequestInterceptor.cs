@@ -69,7 +69,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// </remarks>
     public async Task<TResponse> HandleAsync(
         TRequest request,
-        Func<TRequest, Task<TResponse>> handler,
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
         CancellationToken cancellationToken = default
     )
     {
@@ -104,7 +104,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
         try
         {
             // Execute the actual request handler
-            var response = await handler(request).ConfigureAwait(false);
+            var response = await handler(request, cancellationToken).ConfigureAwait(false);
 
             var endTime = _timeProvider.GetUtcNow();
 

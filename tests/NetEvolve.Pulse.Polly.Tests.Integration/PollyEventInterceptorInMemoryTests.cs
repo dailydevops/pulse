@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using global::Polly;
 using global::Polly.Retry;
+using global::Polly.Timeout;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
@@ -70,11 +71,13 @@ public sealed class PollyEventInterceptorInMemoryTests
         // Act
         var evt = new TimeoutEvent("timeout-event");
 
-        // The timeout should be caught and logged, not necessarily thrown
-        // because event publishing is fire-and-forget by design
-        await mediator.PublishAsync(evt).ConfigureAwait(false);
+        // Timeout propagates as TimeoutRejectedException — event publishing is not fire-and-forget
+        // when a Polly pipeline is configured, so the caller receives the timeout signal.
+        _ = await Assert.ThrowsAsync<TimeoutRejectedException>(async () =>
+            await mediator.PublishAsync(evt).ConfigureAwait(false)
+        );
 
-        // Assert - handler should have been called (and timed out internally)
+        // Assert - handler was invoked before the timeout fired (WasCalled is set before Task.Delay)
         _ = await Assert.That(handler.WasCalled).IsTrue();
     }
 

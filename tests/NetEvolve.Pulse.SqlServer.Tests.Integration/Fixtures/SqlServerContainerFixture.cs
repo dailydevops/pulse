@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using DotNet.Testcontainers.Builders;
 using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
 using TUnit.Core.Interfaces;
@@ -27,13 +28,35 @@ public sealed partial class SqlServerContainerFixture : IAsyncInitializer, IAsyn
     public SqlServerContainerFixture() =>
         _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
             .WithPassword("Test@Password123!")
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(MsSqlBuilder.MsSqlPort))
             .Build();
 
     /// <summary>
     /// Starts the SQL Server container.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task InitializeAsync() => await _container.StartAsync().ConfigureAwait(false);
+    public async Task InitializeAsync()
+    {
+        await _container.StartAsync().ConfigureAwait(false);
+        await WaitUntilSqlServerIsReadyAsync().ConfigureAwait(false);
+    }
+
+    private async Task WaitUntilSqlServerIsReadyAsync()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(_container.GetConnectionString());
+                await connection.OpenAsync().ConfigureAwait(false);
+                return;
+            }
+            catch (Exception) when (attempt < 9)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            }
+        }
+    }
 
     /// <summary>
     /// Creates a new connection string for a specific database.
@@ -62,18 +85,29 @@ public sealed partial class SqlServerContainerFixture : IAsyncInitializer, IAsyn
     )]
     public async Task CreateDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_container.GetConnectionString());
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(_container.GetConnectionString());
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var sql = $"""
-            IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE [name] = N'{databaseName}')
-            BEGIN
-                CREATE DATABASE [{databaseName}]
-            END
-            """;
+                var sql = $"""
+                    IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE [name] = N'{databaseName}')
+                    BEGIN
+                        CREATE DATABASE [{databaseName}]
+                    END
+                    """;
 
-        await using var command = new SqlCommand(sql, connection);
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                await using var command = new SqlCommand(sql, connection);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (Exception) when (attempt < 2)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(attempt + 1), cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>
@@ -89,19 +123,30 @@ public sealed partial class SqlServerContainerFixture : IAsyncInitializer, IAsyn
     )]
     public async Task DropDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_container.GetConnectionString());
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(_container.GetConnectionString());
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var sql = $"""
-            IF EXISTS (SELECT 1 FROM sys.databases WHERE [name] = N'{databaseName}')
-            BEGIN
-                ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                DROP DATABASE [{databaseName}]
-            END
-            """;
+                var sql = $"""
+                    IF EXISTS (SELECT 1 FROM sys.databases WHERE [name] = N'{databaseName}')
+                    BEGIN
+                        ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                        DROP DATABASE [{databaseName}]
+                    END
+                    """;
 
-        await using var command = new SqlCommand(sql, connection);
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                await using var command = new SqlCommand(sql, connection);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (Exception) when (attempt < 2)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(attempt + 1), cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>

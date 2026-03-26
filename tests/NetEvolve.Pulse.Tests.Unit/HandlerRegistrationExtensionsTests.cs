@@ -662,44 +662,44 @@ public class HandlerRegistrationExtensionsTests
     {
         public Task<string> HandleAsync(
             TestCommand request,
-            Func<TestCommand, Task<string>> handler,
+            Func<TestCommand, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request);
+        ) => handler(request, cancellationToken);
     }
 
     private sealed partial class TestCommandInterceptor : ICommandInterceptor<TestCommand, string>
     {
         public Task<string> HandleAsync(
             TestCommand request,
-            Func<TestCommand, Task<string>> handler,
+            Func<TestCommand, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request);
+        ) => handler(request, cancellationToken);
     }
 
     private sealed partial class TestQueryInterceptor : IQueryInterceptor<TestQuery, string>
     {
         public Task<string> HandleAsync(
             TestQuery request,
-            Func<TestQuery, Task<string>> handler,
+            Func<TestQuery, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request);
+        ) => handler(request, cancellationToken);
     }
 
     private sealed partial class TestEventInterceptor : IEventInterceptor<TestEvent>
     {
         public Task HandleAsync(
             TestEvent message,
-            Func<TestEvent, Task> handler,
+            Func<TestEvent, CancellationToken, Task> handler,
             CancellationToken cancellationToken = default
-        ) => handler(message);
+        ) => handler(message, cancellationToken);
     }
 
     private sealed partial class AnotherTestEventInterceptor : IEventInterceptor<TestEvent>
     {
         public Task HandleAsync(
             TestEvent message,
-            Func<TestEvent, Task> handler,
+            Func<TestEvent, CancellationToken, Task> handler,
             CancellationToken cancellationToken = default
-        ) => handler(message);
+        ) => handler(message, cancellationToken);
     }
 }

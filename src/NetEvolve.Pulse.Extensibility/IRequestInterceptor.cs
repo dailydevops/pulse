@@ -28,6 +28,12 @@
 /// <item><description>Exception handling and retry logic</description></item>
 /// <item><description>Request/response transformation</description></item>
 /// </list>
+/// <para><strong>⚠️ Upgrade Notes:</strong></para>
+/// <para>The <paramref name="handler"/> delegate signature changed from <c>Func&lt;TRequest, Task&lt;TResponse&gt;&gt;</c>
+/// to <c>Func&lt;TRequest, CancellationToken, Task&lt;TResponse&gt;&gt;</c>. This is a <strong>breaking change</strong>:
+/// all existing interceptor implementations must update their <c>HandleAsync</c> overrides to forward
+/// the <c>cancellationToken</c> when invoking the handler, i.e.
+/// <c>await handler(request, cancellationToken)</c> instead of <c>await handler(request)</c>.</para>
 /// <para><strong>Best Practices:</strong></para>
 /// <list type="bullet">
 /// <item><description>Keep interceptors focused on a single concern</description></item>
@@ -53,7 +59,7 @@
 ///
 ///     public async Task&lt;TResponse&gt; HandleAsync(
 ///         TRequest request,
-///         Func&lt;TRequest, Task&lt;TResponse&gt;&gt; handler,
+///         Func&lt;TRequest, CancellationToken, Task&lt;TResponse&gt;&gt; handler,
 ///         CancellationToken cancellationToken = default)
 ///     {
 ///         var requestType = typeof(TRequest).Name;
@@ -62,7 +68,7 @@
 ///         var stopwatch = Stopwatch.StartNew();
 ///         try
 ///         {
-///             var response = await handler(request);
+///             var response = await handler(request, cancellationToken);
 ///             stopwatch.Stop();
 ///             _logger.LogInformation(
 ///                 "{RequestType} completed in {ElapsedMs}ms",
@@ -100,18 +106,18 @@
 ///
 ///     public async Task&lt;TResponse&gt; HandleAsync(
 ///         TRequest request,
-///         Func&lt;TRequest, Task&lt;TResponse&gt;&gt; handler,
+///         Func&lt;TRequest, CancellationToken, Task&lt;TResponse&gt;&gt; handler,
 ///         CancellationToken cancellationToken = default)
 ///     {
 ///         // Validate before calling handler
-///         var validationResult = await _validator.ValidateAsync(request);
+///         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
 ///         if (!validationResult.IsValid)
 ///         {
 ///             throw new ValidationException(validationResult.Errors);
 ///         }
 ///
 ///         // Continue pipeline
-///         return await handler(request);
+///         return await handler(request, cancellationToken);
 ///     }
 /// }
 /// </code>
@@ -131,14 +137,14 @@
 ///
 ///     public async Task&lt;TResponse&gt; HandleAsync(
 ///         TRequest request,
-///         Func&lt;TRequest, Task&lt;TResponse&gt;&gt; handler,
+///         Func&lt;TRequest, CancellationToken, Task&lt;TResponse&gt;&gt; handler,
 ///         CancellationToken cancellationToken = default)
 ///     {
 ///         for (int attempt = 1; attempt &lt;= MaxRetries; attempt++)
 ///         {
 ///             try
 ///             {
-///                 return await handler(request);
+///                 return await handler(request, cancellationToken);
 ///             }
 ///             catch (Exception ex) when (attempt &lt; MaxRetries)
 ///             {
@@ -149,12 +155,12 @@
 ///                     MaxRetries,
 ///                     typeof(TRequest).Name
 ///                 );
-///                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+///                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
 ///             }
 ///         }
 ///
 ///         // Final attempt without catching
-///         return await handler(request);
+///         return await handler(request, cancellationToken);
 ///     }
 /// }
 /// </code>
@@ -181,12 +187,13 @@ public interface IRequestInterceptor<TRequest, TResponse>
     /// Interceptors can short-circuit the pipeline by not calling the handler (e.g., for caching or validation failures).
     /// </summary>
     /// <param name="request">The request being processed.</param>
-    /// <param name="handler">The next handler in the pipeline to invoke. Must be called to continue execution unless short-circuiting.</param>
+    /// <param name="handler">The next handler in the pipeline to invoke, with signature <c>Func&lt;TRequest, CancellationToken, Task&lt;TResponse&gt;&gt;</c>.
+    /// Must be called to continue execution unless short-circuiting: <c>await handler(request, cancellationToken)</c>.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing the request response.</returns>
     Task<TResponse> HandleAsync(
         TRequest request,
-        Func<TRequest, Task<TResponse>> handler,
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
         CancellationToken cancellationToken = default
     );
 }

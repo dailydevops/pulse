@@ -435,12 +435,12 @@ public class PulseMediatorTests
 
         public async Task<string> HandleAsync(
             TestCommand request,
-            Func<TestCommand, Task<string>> handler,
+            Func<TestCommand, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
         )
         {
             InterceptedCommands.Add(request);
-            return await handler(request).ConfigureAwait(false);
+            return await handler(request, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -450,12 +450,12 @@ public class PulseMediatorTests
 
         public async Task<string> HandleAsync(
             TestQuery request,
-            Func<TestQuery, Task<string>> handler,
+            Func<TestQuery, CancellationToken, Task<string>> handler,
             CancellationToken cancellationToken = default
         )
         {
             InterceptedQueries.Add(request);
-            return await handler(request).ConfigureAwait(false);
+            return await handler(request, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -465,12 +465,12 @@ public class PulseMediatorTests
 
         public async Task HandleAsync(
             TestEvent message,
-            Func<TestEvent, Task> handler,
+            Func<TestEvent, CancellationToken, Task> handler,
             CancellationToken cancellationToken = default
         )
         {
             InterceptedEvents.Add(message);
-            await handler(message).ConfigureAwait(false);
+            await handler(message, cancellationToken).ConfigureAwait(false);
         }
     }
 }

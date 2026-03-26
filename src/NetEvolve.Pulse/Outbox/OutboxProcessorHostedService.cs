@@ -178,7 +178,7 @@ public sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>
     /// Sends a single outbox message via the transport, then marks it as completed or failed/dead-lettered
     /// based on the outcome. Applies a per-message processing timeout using a linked
-    /// <see cref="System.Threading.CancellationTokenSource"/>.
+    /// <see cref="CancellationTokenSource"/>.
     /// </summary>
     /// <param name="message">The outbox message to process.</param>
     /// <param name="cancellationToken">A token to monitor for external cancellation requests.</param>

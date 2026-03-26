@@ -108,7 +108,7 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve the appropriate handler for the query
         var handler = _serviceProvider.GetRequiredService<IQueryHandler<TQuery, TResponse>>();
 
-        return ExecuteAsync(query, q => handler.HandleAsync(q, cancellationToken), cancellationToken);
+        return ExecuteAsync(query, (q, ct) => handler.HandleAsync(q, ct), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -128,7 +128,7 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve the appropriate handler for the command
         var handler = _serviceProvider.GetRequiredService<ICommandHandler<TCommand, TResponse>>();
 
-        return ExecuteAsync(command, c => handler.HandleAsync(c, cancellationToken), cancellationToken);
+        return ExecuteAsync(command, (c, ct) => handler.HandleAsync(c, ct), cancellationToken);
     }
 
     /// <summary>
@@ -152,12 +152,12 @@ internal sealed partial class PulseMediator : IMediator
         var dispatcher = _serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
 
         // Create the dispatch action that uses the resolved dispatcher
-        Task DispatchAsync(TEvent message) =>
+        Task DispatchAsync(TEvent message, CancellationToken ct) =>
             dispatcher.DispatchAsync(
                 message,
                 handlers,
-                (handler, eventMessage) => InvokeHandlerAsync(handler, eventMessage, cancellationToken),
-                cancellationToken
+                (handler, eventMessage) => InvokeHandlerAsync(handler, eventMessage, ct),
+                ct
             );
 
         // Retrieve all registered event interceptors and reverse for correct pipeline order
@@ -165,21 +165,21 @@ internal sealed partial class PulseMediator : IMediator
         if (interceptors.Length == 0)
         {
             // No interceptors registered, execute dispatcher directly
-            return DispatchAsync(msg);
+            return DispatchAsync(msg, cancellationToken);
         }
 
         // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
-        var next = (Func<TEvent, Task>)DispatchAsync;
+        var next = (Func<TEvent, CancellationToken, Task>)DispatchAsync;
 
         foreach (var interceptor in interceptors)
         {
             var currentInterceptor = interceptor;
             var nextCopy = next;
             // Wrap the next action with the current interceptor
-            next = req => currentInterceptor.HandleAsync(req, nextCopy, cancellationToken);
+            next = (req, ct) => currentInterceptor.HandleAsync(req, nextCopy, ct);
         }
 
-        return next(msg);
+        return next(msg, cancellationToken);
     }
 
     /// <summary>
@@ -196,7 +196,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <returns>A task representing the asynchronous execution of the request through the interceptor pipeline.</returns>
     private Task<TResponse> ExecuteAsync<TRequest, TResponse>(
         TRequest request,
-        Func<TRequest, Task<TResponse>> handler,
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
         CancellationToken cancellationToken
     )
         where TRequest : IRequest<TResponse>
@@ -207,7 +207,7 @@ internal sealed partial class PulseMediator : IMediator
         if (interceptors.Length == 0)
         {
             // No interceptors registered, execute handler directly
-            return handler(request);
+            return handler(request, cancellationToken);
         }
 
         // Build the interceptor chain from innermost (handler) to outermost (first interceptor)
@@ -218,10 +218,10 @@ internal sealed partial class PulseMediator : IMediator
             var currentInterceptor = interceptor;
             var nextCopy = next;
             // Wrap the next action with the current interceptor
-            next = req => currentInterceptor.HandleAsync(req, nextCopy, cancellationToken);
+            next = (req, ct) => currentInterceptor.HandleAsync(req, nextCopy, ct);
         }
 
-        return next(request);
+        return next(request, cancellationToken);
     }
 
     /// <summary>

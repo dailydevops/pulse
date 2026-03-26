@@ -9,7 +9,7 @@
 /// /// <remarks>
 /// <para><strong>Execution Model:</strong></para>
 /// Event interceptors execute sequentially before the event handlers are invoked. Unlike request interceptors,
-/// event interceptors work with a <c>Func&lt;TEvent, Task&gt;</c> handler delegate (void return) since events don't produce responses.
+/// event interceptors work with a <c>Func&lt;TEvent, CancellationToken, Task&gt;</c> handler delegate (void return) since events don't produce responses.
 /// <para><strong>⚠️ WARNING:</strong> Event interceptors should be fast and non-blocking. Heavy processing should be avoided
 /// as it delays all event handlers from executing. Consider async operations carefully.</para>
 /// <para><strong>Common Use Cases:</strong></para>
@@ -20,6 +20,12 @@
 /// <item><description>Event filtering or routing</description></item>
 /// <item><description>Metrics and monitoring</description></item>
 /// </list>
+/// <para><strong>⚠️ Upgrade Notes:</strong></para>
+/// <para>The <paramref name="handler"/> delegate signature changed from <c>Func&lt;TEvent, Task&gt;</c>
+/// to <c>Func&lt;TEvent, CancellationToken, Task&gt;</c>. This is a <strong>breaking change</strong>:
+/// all existing interceptor implementations must update their <c>HandleAsync</c> overrides to pass
+/// the <c>cancellationToken</c> argument when invoking the handler, i.e.
+/// <c>await handler(message, cancellationToken)</c> instead of <c>await handler(message)</c>.</para>
 /// <para><strong>Best Practices:</strong></para>
 /// <list type="bullet">
 /// <item><description>Keep interceptors lightweight</description></item>
@@ -43,7 +49,7 @@
 ///         _logger = logger;
 ///     }
 ///
-///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler, CancellationToken cancellationToken = default)
+///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, CancellationToken, Task&gt; handler, CancellationToken cancellationToken = default)
 ///     {
 ///         _logger.LogInformation(
 ///             "Publishing event {EventType} with ID {EventId} at {PublishedAt}",
@@ -55,7 +61,7 @@
 ///         var stopwatch = Stopwatch.StartNew();
 ///         try
 ///         {
-///             await handler(message);
+///             await handler(message, cancellationToken);
 ///             stopwatch.Stop();
 ///             _logger.LogInformation(
 ///                 "Event {EventType} ({EventId}) processed in {ElapsedMs}ms",
@@ -92,7 +98,7 @@
 ///         _currentUser = currentUser;
 ///     }
 ///
-///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler, CancellationToken cancellationToken = default)
+///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, CancellationToken, Task&gt; handler, CancellationToken cancellationToken = default)
 ///     {
 ///         // Create audit entry before handlers execute
 ///         var auditEntry = new AuditEntry
@@ -107,7 +113,7 @@
 ///         await _auditService.RecordAsync(auditEntry);
 ///
 ///         // Continue to handlers
-///         await handler(message);
+///         await handler(message, cancellationToken);
 ///     }
 /// }
 ///
@@ -122,7 +128,7 @@
 ///         _correlationContext = correlationContext;
 ///     }
 ///
-///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, Task&gt; handler, CancellationToken cancellationToken = default)
+///     public async Task HandleAsync(TEvent message, Func&lt;TEvent, CancellationToken, Task&gt; handler, CancellationToken cancellationToken = default)
 ///     {
 ///         // Enrich event with correlation ID
 ///         if (string.IsNullOrEmpty(message.CorrelationId))
@@ -131,7 +137,7 @@
 ///                 ?? Guid.NewGuid().ToString();
 ///         }
 ///
-///         await handler(message);
+///         await handler(message, cancellationToken);
 ///     }
 /// }
 ///
@@ -151,8 +157,13 @@ public interface IEventInterceptor<TEvent>
     /// The interceptor is responsible for calling the <paramref name="handler"/> delegate to continue the pipeline.
     /// </summary>
     /// <param name="message">The event being processed.</param>
-    /// <param name="handler">The next handler in the pipeline to invoke. Must be called to continue execution.</param>
+    /// <param name="handler">The next handler in the pipeline to invoke, with signature <c>Func&lt;TEvent, CancellationToken, Task&gt;</c>.
+    /// Must be called to continue execution: <c>await handler(message, cancellationToken)</c>.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task HandleAsync(TEvent message, Func<TEvent, Task> handler, CancellationToken cancellationToken = default);
+    Task HandleAsync(
+        TEvent message,
+        Func<TEvent, CancellationToken, Task> handler,
+        CancellationToken cancellationToken = default
+    );
 }

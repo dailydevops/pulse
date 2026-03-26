@@ -113,7 +113,7 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                evt =>
+                (evt, _) =>
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
@@ -149,7 +149,7 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                evt =>
+                (evt, _) =>
                 {
                     attemptCount++;
                     if (attemptCount < 3)
@@ -191,7 +191,7 @@ public sealed class PollyEventInterceptorTests
                 await interceptor
                     .HandleAsync(
                         message,
-                        evt =>
+                        (evt, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Persistent failure");
@@ -231,7 +231,7 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                evt =>
+                (evt, _) =>
                 {
                     attemptCount++;
                     if (attemptCount < 2)
@@ -274,7 +274,7 @@ public sealed class PollyEventInterceptorTests
                 await interceptor
                     .HandleAsync(
                         message,
-                        evt =>
+                        (evt, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
@@ -289,7 +289,7 @@ public sealed class PollyEventInterceptorTests
                 await interceptor
                     .HandleAsync(
                         message,
-                        evt =>
+                        (evt, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
@@ -301,7 +301,9 @@ public sealed class PollyEventInterceptorTests
 
         // Circuit should be open now, next request should be rejected immediately
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(message, evt => Task.CompletedTask).ConfigureAwait(false))
+            .That(async () =>
+                await interceptor.HandleAsync(message, (evt, _) => Task.CompletedTask).ConfigureAwait(false)
+            )
             .Throws<BrokenCircuitException>();
 
         // Verify handler was only called twice (not on third attempt due to open circuit)

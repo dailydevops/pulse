@@ -67,7 +67,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// </remarks>
     public async Task HandleAsync(
         TEvent message,
-        Func<TEvent, Task> handler,
+        Func<TEvent, CancellationToken, Task> handler,
         CancellationToken cancellationToken = default
     )
     {
@@ -95,7 +95,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
         try
         {
             // Execute the actual event handler
-            await handler(message).ConfigureAwait(false);
+            await handler(message, cancellationToken).ConfigureAwait(false);
 
             var endTime = _timeProvider.GetUtcNow();
 
