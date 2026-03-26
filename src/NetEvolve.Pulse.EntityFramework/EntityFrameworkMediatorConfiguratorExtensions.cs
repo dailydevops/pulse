@@ -23,7 +23,7 @@ public static class EntityFrameworkMediatorConfiguratorExtensions
     /// <para><strong>Prerequisites:</strong></para>
     /// <list type="number">
     /// <item><description>Your DbContext must implement <see cref="IOutboxDbContext"/></description></item>
-    /// <item><description>Apply <see cref="SqlServerOutboxMessageConfiguration"/> in OnModelCreating</description></item>
+    /// <item><description>Apply <see cref="OutboxMessageConfigurationFactory"/> in OnModelCreating</description></item>
     /// <item><description>Generate and apply migrations with your chosen provider</description></item>
     /// </list>
     /// <para><strong>Registered Services:</strong></para>
