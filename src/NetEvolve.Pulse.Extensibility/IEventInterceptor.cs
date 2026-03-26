@@ -20,12 +20,6 @@
 /// <item><description>Event filtering or routing</description></item>
 /// <item><description>Metrics and monitoring</description></item>
 /// </list>
-/// <para><strong>⚠️ Upgrade Notes:</strong></para>
-/// <para>The <paramref name="handler"/> delegate signature changed from <c>Func&lt;TEvent, Task&gt;</c>
-/// to <c>Func&lt;TEvent, CancellationToken, Task&gt;</c>. This is a <strong>breaking change</strong>:
-/// all existing interceptor implementations must update their <c>HandleAsync</c> overrides to pass
-/// the <c>cancellationToken</c> argument when invoking the handler, i.e.
-/// <c>await handler(message, cancellationToken)</c> instead of <c>await handler(message)</c>.</para>
 /// <para><strong>Best Practices:</strong></para>
 /// <list type="bullet">
 /// <item><description>Keep interceptors lightweight</description></item>

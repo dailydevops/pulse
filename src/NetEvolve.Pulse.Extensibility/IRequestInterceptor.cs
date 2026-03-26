@@ -28,12 +28,6 @@
 /// <item><description>Exception handling and retry logic</description></item>
 /// <item><description>Request/response transformation</description></item>
 /// </list>
-/// <para><strong>⚠️ Upgrade Notes:</strong></para>
-/// <para>The <paramref name="handler"/> delegate signature changed from <c>Func&lt;TRequest, Task&lt;TResponse&gt;&gt;</c>
-/// to <c>Func&lt;TRequest, CancellationToken, Task&lt;TResponse&gt;&gt;</c>. This is a <strong>breaking change</strong>:
-/// all existing interceptor implementations must update their <c>HandleAsync</c> overrides to forward
-/// the <c>cancellationToken</c> when invoking the handler, i.e.
-/// <c>await handler(request, cancellationToken)</c> instead of <c>await handler(request)</c>.</para>
 /// <para><strong>Best Practices:</strong></para>
 /// <list type="bullet">
 /// <item><description>Keep interceptors focused on a single concern</description></item>
