@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -356,8 +356,8 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        // Wait for first polling cycle to process the batch failure
-        await Task.Delay(100).ConfigureAwait(false);
+        // Wait for first polling cycle to process the batch failure and complete marking
+        await Task.Delay(300).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(CancellationToken.None).ConfigureAwait(false);

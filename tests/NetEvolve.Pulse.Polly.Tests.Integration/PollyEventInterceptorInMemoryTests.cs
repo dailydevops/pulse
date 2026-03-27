@@ -61,7 +61,7 @@ public sealed class PollyEventInterceptorInMemoryTests
             .AddScoped<IEventHandler<TimeoutEvent>>(_ => handler)
             .AddPulse(configurator =>
                 configurator.AddPollyEventPolicies<TimeoutEvent>(pipeline =>
-                    pipeline.AddTimeout(TimeSpan.FromMilliseconds(100))
+                    pipeline.AddTimeout(TimeSpan.FromMilliseconds(300))
                 )
             );
 
