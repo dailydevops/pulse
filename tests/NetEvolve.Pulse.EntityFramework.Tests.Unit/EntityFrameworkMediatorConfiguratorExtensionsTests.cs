@@ -24,7 +24,7 @@ public sealed class EntityFrameworkMediatorConfiguratorExtensionsTests
     {
         var stub = new MediatorConfiguratorStub();
 
-        var result = EntityFrameworkMediatorConfiguratorExtensions.AddEntityFrameworkOutbox<TestDbContext>(stub);
+        var result = stub.AddEntityFrameworkOutbox<TestDbContext>();
 
         _ = await Assert.That(result).IsSameReferenceAs(stub);
     }

@@ -15,7 +15,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     [Test]
     public async Task AddSqlServerOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(null!, "Server=.;"))
+            .That(() => SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(null!, "Server=.;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -50,7 +50,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     {
         var stub = new MediatorConfiguratorStub();
 
-        var result = SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(stub, "Server=.;");
+        var result = stub.AddSqlServerOutbox("Server=.;Encrypt=true;");
 
         _ = await Assert.That(result).IsSameReferenceAs(stub);
     }
@@ -59,7 +59,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped()
     {
         var services = new ServiceCollection();
-        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox("Server=.;"));
+        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;"));
 
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxRepository));
 
@@ -74,7 +74,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton()
     {
         var services = new ServiceCollection();
-        _ = services.AddPulse(config => config.AddSqlServerOutbox("Server=.;"));
+        _ = services.AddPulse(config => config.AddSqlServerOutbox("Server=.;Encrypt=true;"));
 
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(TimeProvider));
 
@@ -90,7 +90,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.AddOutbox().AddSqlServerOutbox("Server=.;", options => options.Schema = "myschema")
+            config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;", options => options.Schema = "myschema")
         );
 
         await using var provider = services.BuildServiceProvider();
@@ -105,7 +105,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
             .That(() =>
                 SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(
                     null!,
-                    (Func<IServiceProvider, string>)(_ => "Server=.;")
+                    (Func<IServiceProvider, string>)(_ => "Server=.;Encrypt=true;")
                 )
             )
             .Throws<ArgumentNullException>();
@@ -126,7 +126,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     {
         var stub = new MediatorConfiguratorStub();
 
-        var result = SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(stub, _ => "Server=.;");
+        var result = stub.AddSqlServerOutbox(_ => "Server=.;Encrypt=true;");
 
         _ = await Assert.That(result).IsSameReferenceAs(stub);
     }
@@ -135,7 +135,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithFactory_RegistersOutboxRepositoryAsScoped()
     {
         var services = new ServiceCollection();
-        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;"));
+        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;Encrypt=true;"));
 
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxRepository));
 
@@ -151,7 +151,9 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;", options => options.TableName = "CustomTable")
+            config
+                .AddOutbox()
+                .AddSqlServerOutbox(_ => "Server=.;Encrypt=true;", options => options.TableName = "CustomTable")
         );
 
         await using var provider = services.BuildServiceProvider();
