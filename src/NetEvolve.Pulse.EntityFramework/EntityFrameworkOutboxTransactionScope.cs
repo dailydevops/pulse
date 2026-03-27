@@ -16,7 +16,7 @@ using NetEvolve.Pulse.Extensibility;
 /// ensuring it reflects the current transaction state.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type.</typeparam>
-public sealed class EntityFrameworkOutboxTransactionScope<TContext> : IOutboxTransactionScope
+internal sealed class EntityFrameworkOutboxTransactionScope<TContext> : IOutboxTransactionScope
     where TContext : DbContext
 {
     /// <summary>The DbContext from which the current transaction is retrieved.</summary>

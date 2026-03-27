@@ -54,7 +54,7 @@ using NetEvolve.Pulse.Extensibility;
 /// </example>
 /// <seealso cref="IEventDispatcher"/>
 /// <seealso cref="IEventOutbox"/>
-public sealed class TransactionalEventDispatcher : IEventDispatcher
+internal sealed class TransactionalEventDispatcher : IEventDispatcher
 {
     /// <summary>
     /// The outbox for storing events for later processing.

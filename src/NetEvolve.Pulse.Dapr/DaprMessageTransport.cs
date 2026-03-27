@@ -15,7 +15,7 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>Payload:</strong></para>
 /// The raw JSON payload from <see cref="OutboxMessage.Payload"/> is published as the CloudEvent data.
 /// <para><strong>Prerequisites:</strong></para>
-/// Requires <c>DaprClient</c> to be registered in the DI container, e.g. via <c>services.AddDaprClient()</c>
+/// Requires <see cref="DaprClient"/> to be registered in the DI container, e.g. via <c>services.AddDaprClient()</c>
 /// from the <c>Dapr.AspNetCore</c> package.
 /// </remarks>
 internal sealed class DaprMessageTransport : IMessageTransport

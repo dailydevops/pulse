@@ -37,7 +37,7 @@ using NetEvolve.Pulse.Extensibility;
 /// </example>
 /// <seealso cref="IEventDispatcher"/>
 /// <seealso cref="ParallelEventDispatcher"/>
-public sealed class SequentialEventDispatcher : IEventDispatcher
+internal sealed class SequentialEventDispatcher : IEventDispatcher
 {
     /// <inheritdoc />
     /// <remarks>
@@ -66,7 +66,7 @@ public sealed class SequentialEventDispatcher : IEventDispatcher
             {
                 await invoker(handler, message, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 exceptions ??= [];
                 exceptions.Add(ex);

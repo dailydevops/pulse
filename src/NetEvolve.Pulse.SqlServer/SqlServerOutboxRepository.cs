@@ -30,7 +30,7 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "Stored procedure names are constructed from validated OutboxOptions.Schema property, not user input."
 )]
-public sealed class SqlServerOutboxRepository : IOutboxRepository
+internal sealed class SqlServerOutboxRepository : IOutboxRepository
 {
     /// <summary>The SQL Server connection string used to open new connections for each repository operation.</summary>
     private readonly string _connectionString;

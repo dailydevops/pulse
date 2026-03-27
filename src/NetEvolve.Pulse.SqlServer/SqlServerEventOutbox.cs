@@ -46,6 +46,9 @@ public sealed class SqlServerEventOutbox : IEventOutbox
     /// <summary>The time provider used to generate consistent creation and update timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>Represents the SQL statement used for inserting data into a database table.</summary>
+    private readonly string _sqlInsertInto;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerEventOutbox"/> class.
     /// </summary>
@@ -68,6 +71,22 @@ public sealed class SqlServerEventOutbox : IEventOutbox
         _options = options.Value;
         _timeProvider = timeProvider;
         _transaction = transaction;
+
+        _sqlInsertInto = $"""
+            INSERT INTO {_options.FullTableName}
+                ([{OutboxMessageSchema.Columns.Id}],
+                 [{OutboxMessageSchema.Columns.EventType}],
+                 [{OutboxMessageSchema.Columns.Payload}],
+                 [{OutboxMessageSchema.Columns.CorrelationId}],
+                 [{OutboxMessageSchema.Columns.CreatedAt}],
+                 [{OutboxMessageSchema.Columns.UpdatedAt}],
+                 [{OutboxMessageSchema.Columns.ProcessedAt}],
+                 [{OutboxMessageSchema.Columns.RetryCount}],
+                 [{OutboxMessageSchema.Columns.Error}],
+                 [{OutboxMessageSchema.Columns.Status}])
+            VALUES
+                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, NULL, 0, NULL, @Status)
+            """;
     }
 
     /// <inheritdoc />
@@ -76,7 +95,6 @@ public sealed class SqlServerEventOutbox : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var now = _timeProvider.GetUtcNow();
         var eventType =
             message.GetType().AssemblyQualifiedName
             ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {message.GetType()}");
@@ -99,25 +117,10 @@ public sealed class SqlServerEventOutbox : IEventOutbox
             );
         }
 
-        var sql = $"""
-            INSERT INTO {_options.FullTableName}
-                ([{OutboxMessageSchema.Columns.Id}],
-                 [{OutboxMessageSchema.Columns.EventType}],
-                 [{OutboxMessageSchema.Columns.Payload}],
-                 [{OutboxMessageSchema.Columns.CorrelationId}],
-                 [{OutboxMessageSchema.Columns.CreatedAt}],
-                 [{OutboxMessageSchema.Columns.UpdatedAt}],
-                 [{OutboxMessageSchema.Columns.ProcessedAt}],
-                 [{OutboxMessageSchema.Columns.RetryCount}],
-                 [{OutboxMessageSchema.Columns.Error}],
-                 [{OutboxMessageSchema.Columns.Status}])
-            VALUES
-                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, NULL, 0, NULL, 0)
-            """;
-
-        await using var command = new SqlCommand(sql, _connection, _transaction);
+        await using var command = new SqlCommand(_sqlInsertInto, _connection, _transaction);
 
         var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
+        var now = _timeProvider.GetUtcNow();
         var payload = JsonSerializer.Serialize(message, message.GetType(), _options.JsonSerializerOptions);
 
         _ = command.Parameters.AddWithValue("@Id", id);
@@ -126,6 +129,7 @@ public sealed class SqlServerEventOutbox : IEventOutbox
         _ = command.Parameters.AddWithValue("@CorrelationId", (object?)correlationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("@CreatedAt", now);
         _ = command.Parameters.AddWithValue("@UpdatedAt", now);
+        _ = command.Parameters.AddWithValue("@Status", OutboxMessageStatus.Pending);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }

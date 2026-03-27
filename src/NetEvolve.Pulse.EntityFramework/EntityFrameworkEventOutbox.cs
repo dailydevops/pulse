@@ -39,7 +39,7 @@ using NetEvolve.Pulse.Outbox;
 /// </code>
 /// </example>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-public sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
+internal sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>The DbContext used for all database operations within the current scope.</summary>
@@ -74,33 +74,34 @@ public sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var now = _timeProvider.GetUtcNow();
         var messageType = message.GetType();
         var asmName =
             messageType.AssemblyQualifiedName
             ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {messageType}");
 
-        if (asmName.Length > 500)
+        if (asmName is { Length: > OutboxMessageSchema.MaxLengths.EventType })
         {
             throw new InvalidOperationException(
-                "Event type identifier exceeds the EventType column maximum length of 500 characters. "
+                $"Event type identifier exceeds the EventType column maximum length of {OutboxMessageSchema.MaxLengths.EventType} characters. "
                     + "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
             );
         }
 
         var correlationId = message.CorrelationId;
 
-        if (correlationId is { Length: > 100 })
+        if (correlationId is { Length: > OutboxMessageSchema.MaxLengths.CorrelationId })
         {
             throw new InvalidOperationException(
-                "CorrelationId exceeds the maximum length of 100 characters defined by the OutboxMessage schema. "
+                $"CorrelationId exceeds the maximum length of {OutboxMessageSchema.MaxLengths.CorrelationId} characters defined by the OutboxMessage schema. "
                     + "Provide a shorter correlation identifier to comply with the database constraint."
             );
         }
 
+        var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
+        var now = _timeProvider.GetUtcNow();
         var outboxMessage = new OutboxMessage
         {
-            Id = Guid.TryParse(message.Id, out var id) ? id : Guid.NewGuid(),
+            Id = id,
             EventType = asmName,
             Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
             CorrelationId = correlationId,

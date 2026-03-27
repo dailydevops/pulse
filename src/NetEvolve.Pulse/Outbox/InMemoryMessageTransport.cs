@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -21,7 +20,7 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>Error Handling:</strong></para>
 /// Exceptions from event handlers propagate to the outbox processor for retry handling.
 /// </remarks>
-public sealed class InMemoryMessageTransport : IMessageTransport
+internal sealed class InMemoryMessageTransport : IMessageTransport
 {
     /// <summary>Cache of compiled publish delegates keyed by concrete event type, avoiding per-message reflection overhead.</summary>
     private static readonly ConcurrentDictionary<

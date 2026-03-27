@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
+using static System.Net.WebRequestMethods;
 
 /// <summary>
 /// Provides extension methods for <see cref="IServiceCollection"/> to register the Pulse mediator and its dependencies.
@@ -36,8 +37,8 @@ public static class ServiceCollectionExtensions
     /// Event handlers are executed in parallel for optimal throughput.
     /// <para><strong>Additional Resources:</strong></para>
     /// <list type="bullet">
-    /// <item><description>Mediator Pattern: https://en.wikipedia.org/wiki/Mediator_pattern</description></item>
-    /// <item><description>CQRS Pattern: https://martinfowler.com/bliki/CQRS.html</description></item>
+    /// <item><description>Mediator Pattern: <see href="https://en.wikipedia.org/wiki/Mediator_pattern"/></description></item>
+    /// <item><description>CQRS Pattern: <see href="https://martinfowler.com/bliki/CQRS.html"/></description></item>
     /// </list>
     /// </remarks>
     /// <example>

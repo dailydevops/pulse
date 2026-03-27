@@ -28,7 +28,7 @@ using NetEvolve.Pulse.Extensibility;
 /// await transaction.CommitAsync();
 /// </code>
 /// </example>
-public sealed class SqlServerOutboxTransactionScope : IOutboxTransactionScope
+internal sealed class SqlServerOutboxTransactionScope : IOutboxTransactionScope
 {
     private readonly SqlTransaction? _transaction;
 
