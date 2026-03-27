@@ -8,11 +8,11 @@ Dapr pub/sub transport for the Pulse outbox pattern. Publishes outbox messages t
 
 ## Features
 
-* **Dapr pub/sub**: Publish outbox messages to any Dapr-supported message broker
-* **CloudEvents**: Payload is forwarded as CloudEvent data via `DaprClient.PublishEventAsync`
-* **Health checks**: Delegates to `DaprClient.CheckHealthAsync` for readiness probing
-* **Configurable topic resolution**: Map event types to topic names via a custom resolver function
-* **Broker-agnostic**: Switch brokers by changing the Dapr component configuration — no code changes required
+- **Dapr pub/sub**: Publish outbox messages to any Dapr-supported message broker
+- **CloudEvents**: Payload is forwarded as CloudEvent data via `DaprClient.PublishEventAsync`
+- **Health checks**: Delegates to `DaprClient.CheckHealthAsync` for readiness probing
+- **Configurable topic resolution**: Map event types to topic names via a custom resolver function
+- **Broker-agnostic**: Switch brokers by changing the Dapr component configuration — no code changes required
 
 ## Installation
 
@@ -137,7 +137,7 @@ public class OrderService
 ```
 
 > [!NOTE]
-> The Dapr transport only handles *publishing*. Transactional guarantees are provided by the persistence layer (e.g., `NetEvolve.Pulse.EntityFramework` or `NetEvolve.Pulse.SqlServer`).
+> The Dapr transport only handles _publishing_. Transactional guarantees are provided by the persistence layer (e.g., `NetEvolve.Pulse.EntityFramework` or `NetEvolve.Pulse.SqlServer`).
 
 ## Subscriber Integration
 
@@ -186,18 +186,18 @@ spec:
 
 ### `DaprMessageTransportOptions`
 
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `PubSubName` | `string` | `"pubsub"` | Name of the Dapr pub/sub component |
+| Property            | Type                          | Default           | Description                                    |
+| ------------------- | ----------------------------- | ----------------- | ---------------------------------------------- |
+| `PubSubName`        | `string`                      | `"pubsub"`        | Name of the Dapr pub/sub component             |
 | `TopicNameResolver` | `Func<OutboxMessage, string>` | Simple class name | Resolves the topic name from an outbox message |
 
 ### Topic Name Resolution
 
 By default, the simple class name of the event type is used as the topic name. The assembly qualifier and namespace are stripped automatically.
 
-| `EventType` | Resolved topic |
-|---|---|
-| `MyApp.Events.OrderCreated, MyApp` | `OrderCreated` |
+| `EventType`                            | Resolved topic     |
+| -------------------------------------- | ------------------ |
+| `MyApp.Events.OrderCreated, MyApp`     | `OrderCreated`     |
 | `MyApp.Events.PaymentProcessed, MyApp` | `PaymentProcessed` |
 
 Override the resolver for custom naming strategies:
@@ -306,11 +306,11 @@ Configure batch size and polling interval based on your throughput requirements:
 
 ## Requirements
 
-* .NET 8.0, .NET 9.0, or .NET 10.0
-* Dapr runtime 1.13+
-* `Dapr.AspNetCore` (or `Dapr.Client`) with a registered `DaprClient` in the DI container
-* `Microsoft.Extensions.DependencyInjection` for service registration
-* `Microsoft.Extensions.Hosting` for the background processor
+- .NET 8.0, .NET 9.0, or .NET 10.0
+- Dapr runtime 1.13+
+- `Dapr.AspNetCore` (or `Dapr.Client`) with a registered `DaprClient` in the DI container
+- `Microsoft.Extensions.DependencyInjection` for service registration
+- `Microsoft.Extensions.Hosting` for the background processor
 
 ## Related Packages
 
@@ -319,6 +319,7 @@ Configure batch size and polling interval based on your throughput requirements:
 - [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core persistence provider
 - [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET persistence provider
 - [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
+
 ## Documentation
 
 For complete documentation, please visit the [official documentation](https://github.com/dailydevops/pulse/blob/main/README.md).
@@ -329,8 +330,8 @@ Contributions are welcome! Please read the [Contributing Guidelines](https://git
 
 ## Support
 
-* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
-* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 

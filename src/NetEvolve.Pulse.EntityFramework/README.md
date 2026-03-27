@@ -8,12 +8,12 @@ Provider-agnostic Entity Framework Core persistence for the Pulse outbox pattern
 
 ## Features
 
-* **Provider Agnostic**: Works with SQL Server, PostgreSQL, SQLite, MySQL, and any EF Core provider
-* **Zero Provider Dependencies**: Only depends on `Microsoft.EntityFrameworkCore` abstractions
-* **Transaction Integration**: Automatic participation in `DbContext` transactions
-* **User-Generated Migrations**: Full control over database migrations with your chosen provider
-* **Schema Interchangeability**: Uses canonical schema compatible with ADO.NET providers
-* **LINQ Support**: Full Entity Framework query capabilities for advanced scenarios
+- **Provider Agnostic**: Works with SQL Server, PostgreSQL, SQLite, MySQL, and any EF Core provider
+- **Zero Provider Dependencies**: Only depends on `Microsoft.EntityFrameworkCore` abstractions
+- **Transaction Integration**: Automatic participation in `DbContext` transactions
+- **User-Generated Migrations**: Full control over database migrations with your chosen provider
+- **Schema Interchangeability**: Uses canonical schema compatible with ADO.NET providers
+- **LINQ Support**: Full Entity Framework query capabilities for advanced scenarios
 
 ## Installation
 
@@ -308,10 +308,10 @@ services.AddPulse(config => config
 
 ## Requirements
 
-* .NET 8.0, .NET 9.0, or .NET 10.0
-* Entity Framework Core 8.0+ with your chosen database provider
-* `Microsoft.Extensions.DependencyInjection` for service registration
-* `Microsoft.Extensions.Hosting` for the background processor
+- .NET 8.0, .NET 9.0, or .NET 10.0
+- Entity Framework Core 8.0+ with your chosen database provider
+- `Microsoft.Extensions.DependencyInjection` for service registration
+- `Microsoft.Extensions.Hosting` for the background processor
 
 ## Related Packages
 
@@ -331,8 +331,8 @@ Contributions are welcome! Please read the [Contributing Guidelines](https://git
 
 ## Support
 
-* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
-* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
@@ -340,5 +340,5 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ---
 
-> [!NOTE] 
+> [!NOTE]
 > **Made with ❤️ by the NetEvolve Team**

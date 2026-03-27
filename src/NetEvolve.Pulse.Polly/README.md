@@ -8,12 +8,12 @@ NetEvolve.Pulse.Polly provides Polly v8 resilience policies for the Pulse CQRS m
 
 ## Features
 
-* **Polly v8 Integration**: Seamless integration with Polly's modern resilience pipeline API
-* **Per-Handler Policies**: Fine-grained control over resilience strategies for specific handlers
-* **Multiple Policy Types**: Retry, circuit breaker, timeout, bulkhead, and fallback strategies
-* **Fluent API**: Type-safe configuration through extension methods on `IMediatorConfigurator`
-* **LIFO-Aware**: Works with Pulse's interceptor execution order for predictable behavior
-* **Thread-Safe**: Polly pipelines are singleton-safe and designed for concurrent use
+- **Polly v8 Integration**: Seamless integration with Polly's modern resilience pipeline API
+- **Per-Handler Policies**: Fine-grained control over resilience strategies for specific handlers
+- **Multiple Policy Types**: Retry, circuit breaker, timeout, bulkhead, and fallback strategies
+- **Fluent API**: Type-safe configuration through extension methods on `IMediatorConfigurator`
+- **LIFO-Aware**: Works with Pulse's interceptor execution order for predictable behavior
+- **Thread-Safe**: Polly pipelines are singleton-safe and designed for concurrent use
 
 ## Installation
 
@@ -222,44 +222,44 @@ pipeline
 
 ### Retry Policies
 
-* Use **exponential backoff** for transient failures (network, database connections)
-* Keep `MaxRetryAttempts` conservative (2-3 for most scenarios)
-* Add jitter to prevent thundering herd: `UseJitter = true`
-* Log retry attempts for observability
+- Use **exponential backoff** for transient failures (network, database connections)
+- Keep `MaxRetryAttempts` conservative (2-3 for most scenarios)
+- Add jitter to prevent thundering herd: `UseJitter = true`
+- Log retry attempts for observability
 
 ### Circuit Breakers
 
-* Apply to **external dependencies** (APIs, databases, message queues)
-* Set realistic `FailureRatio` (0.5-0.7) and `MinimumThroughput` values
-* Monitor circuit breaker state transitions for alerts
-* Use separate circuit breakers per dependency
+- Apply to **external dependencies** (APIs, databases, message queues)
+- Set realistic `FailureRatio` (0.5-0.7) and `MinimumThroughput` values
+- Monitor circuit breaker state transitions for alerts
+- Use separate circuit breakers per dependency
 
 ### Timeouts
 
-* Set based on **P99 latency + retry overhead**
-* Use shorter timeouts for events than requests
-* Consider async operations - timeout should exceed sum of all downstream calls
-* Combine with cancellation tokens for proper cleanup
+- Set based on **P99 latency + retry overhead**
+- Use shorter timeouts for events than requests
+- Consider async operations - timeout should exceed sum of all downstream calls
+- Combine with cancellation tokens for proper cleanup
 
 ### Bulkhead
 
-* Use for **resource-intensive operations** (file processing, heavy computations)
-* Set `PermitLimit` based on available resources (CPU cores, memory)
-* Monitor queue saturation for capacity planning
+- Use for **resource-intensive operations** (file processing, heavy computations)
+- Set `PermitLimit` based on available resources (CPU cores, memory)
+- Monitor queue saturation for capacity planning
 
 ### Performance
 
-* Register pipelines with **Singleton lifetime** (default) for optimal performance
-* Polly pipelines are thread-safe and stateless (except circuit breaker state)
-* Reuse pipelines across requests - avoid creating per-request instances
-* Profile policy overhead in production scenarios
+- Register pipelines with **Singleton lifetime** (default) for optimal performance
+- Polly pipelines are thread-safe and stateless (except circuit breaker state)
+- Reuse pipelines across requests - avoid creating per-request instances
+- Profile policy overhead in production scenarios
 
 ### Events
 
-* Be **conservative with retry policies** on events (multiple handlers amplify effects)
-* Use shorter timeouts than requests to keep event processing responsive
-* Consider `IEventOutbox` pattern for guaranteed delivery vs. aggressive retries
-* Monitor event handler failures separately from request failures
+- Be **conservative with retry policies** on events (multiple handlers amplify effects)
+- Use shorter timeouts than requests to keep event processing responsive
+- Consider `IEventOutbox` pattern for guaranteed delivery vs. aggressive retries
+- Monitor event handler failures separately from request failures
 
 ## Advanced Scenarios
 
@@ -309,17 +309,17 @@ For integration with Pulse's `AddActivityAndMetrics()`, policy overhead is inclu
 
 ## Comparison with Other Approaches
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| **Polly Interceptors** | Declarative, reusable, testable, composable with other interceptors | LIFO ordering requires planning |
-| **Manual Polly in Handlers** | Fine-grained control, explicit | Repetitive code, hard to test, scattered logic |
-| **Middleware/Filters** | Request-level scope | Not handler-specific, can't differentiate commands/queries |
+| Approach                     | Pros                                                                | Cons                                                       |
+| ---------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Polly Interceptors**       | Declarative, reusable, testable, composable with other interceptors | LIFO ordering requires planning                            |
+| **Manual Polly in Handlers** | Fine-grained control, explicit                                      | Repetitive code, hard to test, scattered logic             |
+| **Middleware/Filters**       | Request-level scope                                                 | Not handler-specific, can't differentiate commands/queries |
 
 ## Requirements
 
-* .NET 8.0, .NET 9.0, or .NET 10.0
-* Polly v8.0 or later
-* `Microsoft.Extensions.DependencyInjection` for service registration
+- .NET 8.0, .NET 9.0, or .NET 10.0
+- Polly v8.0 or later
+- `Microsoft.Extensions.DependencyInjection` for service registration
 
 ## Contributing
 
@@ -327,8 +327,8 @@ Contributions are welcome! Please read the [Contributing Guidelines](https://git
 
 ## Support
 
-* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
-* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
@@ -336,12 +336,13 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ## Related Packages
 
-* [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) - Core CQRS mediator
-* [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
-* [**NetEvolve.Pulse.Extensibility**](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Extensibility contracts
-* [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core outbox persistence
-* [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET outbox persistence
+- [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) - Core CQRS mediator
+- [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
+- [**NetEvolve.Pulse.Extensibility**](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Extensibility contracts
+- [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core outbox persistence
+- [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET outbox persistence
+
 ---
 
-> [!NOTE] 
+> [!NOTE]
 > **Made with ❤️ by the NetEvolve Team**

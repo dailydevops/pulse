@@ -8,13 +8,13 @@ NetEvolve.Pulse is a high-performance CQRS mediator for ASP.NET Core that wires 
 
 ## Features
 
-* Typed CQRS mediator with single-handler enforcement for commands and queries plus fan-out events
-* Minimal DI integration via `services.AddPulse(...)` with scoped lifetimes for handlers and interceptors
-* Configurable interceptor pipeline (logging, metrics, tracing, validation) via `IMediatorConfigurator`
-* **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
-* Parallel event dispatch for efficient domain event broadcasting
-* TimeProvider-aware for deterministic testing and scheduling scenarios
-* OpenTelemetry-friendly metrics and tracing through `AddActivityAndMetrics()`
+- Typed CQRS mediator with single-handler enforcement for commands and queries plus fan-out events
+- Minimal DI integration via `services.AddPulse(...)` with scoped lifetimes for handlers and interceptors
+- Configurable interceptor pipeline (logging, metrics, tracing, validation) via `IMediatorConfigurator`
+- **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
+- Parallel event dispatch for efficient domain event broadcasting
+- TimeProvider-aware for deterministic testing and scheduling scenarios
+- OpenTelemetry-friendly metrics and tracing through `AddActivityAndMetrics()`
 
 ## Installation
 
@@ -165,17 +165,17 @@ See [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.P
 
 ## Requirements
 
-* .NET 8.0, .NET 9.0, or .NET 10.0
-* ASP.NET Core environment with `Microsoft.Extensions.DependencyInjection`
-* OpenTelemetry packages when using `AddActivityAndMetrics()`
+- .NET 8.0, .NET 9.0, or .NET 10.0
+- ASP.NET Core environment with `Microsoft.Extensions.DependencyInjection`
+- OpenTelemetry packages when using `AddActivityAndMetrics()`
 
 ## Related Packages
 
-* [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
-* [**NetEvolve.Pulse.Extensibility**](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Core contracts and abstractions used by the mediator
-* [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core persistence for the outbox pattern
-* [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET persistence for the outbox pattern
-* [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
+- [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
+- [**NetEvolve.Pulse.Extensibility**](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Core contracts and abstractions used by the mediator
+- [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core persistence for the outbox pattern
+- [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET persistence for the outbox pattern
+- [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
 
 ## Documentation
 
@@ -187,8 +187,8 @@ Contributions are welcome! Please read the [Contributing Guidelines](https://git
 
 ## Support
 
-* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
-* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
@@ -196,5 +196,5 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ---
 
-> [!NOTE] 
+> [!NOTE]
 > **Made with ❤️ by the NetEvolve Team**

@@ -8,11 +8,11 @@ SQL Server persistence provider for the Pulse outbox pattern using plain ADO.NET
 
 ## Features
 
-* **Plain ADO.NET**: No ORM overhead, direct SQL Server access via `Microsoft.Data.SqlClient`
-* **Transaction Support**: Enlist outbox operations in existing `SqlTransaction` instances
-* **Optimized Queries**: Uses stored procedures with ROWLOCK/READPAST hints for concurrent access
-* **Configurable Schema**: Customize schema and table names for multi-tenant scenarios
-* **Schema Interchangeability**: Uses canonical schema compatible with Entity Framework provider
+- **Plain ADO.NET**: No ORM overhead, direct SQL Server access via `Microsoft.Data.SqlClient`
+- **Transaction Support**: Enlist outbox operations in existing `SqlTransaction` instances
+- **Optimized Queries**: Uses stored procedures with ROWLOCK/READPAST hints for concurrent access
+- **Configurable Schema**: Customize schema and table names for multi-tenant scenarios
+- **Schema Interchangeability**: Uses canonical schema compatible with Entity Framework provider
 
 ## Installation
 
@@ -53,6 +53,7 @@ sqlcmd -S your-server -d your-database -i OutboxMessage.sql
 ### Schema Script Contents
 
 The script creates:
+
 - `[pulse]` schema (configurable)
 - `[pulse].[OutboxMessage]` table with optimized indexes
 - Stored procedures for CRUD operations with proper locking
@@ -177,17 +178,22 @@ Remember to modify the SQL script accordingly when using custom schema/table nam
 ## Performance Considerations
 
 ### Indexing
+
 The default schema includes optimized indexes for:
+
 - Pending message polling (`Status`, `CreatedAt`)
 - Completed message cleanup (`Status`, `ProcessedAt`)
 
 ### Stored Procedures
+
 Operations use stored procedures with:
+
 - `ROWLOCK` for row-level locking
 - `READPAST` to skip locked rows during polling
 - `SET NOCOUNT ON` to reduce network traffic
 
 ### Batch Processing
+
 Configure batch size based on your throughput requirements:
 
 ```csharp
@@ -216,15 +222,15 @@ This provider uses the canonical outbox schema, making it fully interchangeable 
 
 ## Requirements
 
-* .NET 8.0, .NET 9.0, or .NET 10.0
-* SQL Server 2016 or later (or Azure SQL Database)
-* `Microsoft.Data.SqlClient` for database connectivity
-* `Microsoft.Extensions.Hosting` for the background processor
+- .NET 8.0, .NET 9.0, or .NET 10.0
+- SQL Server 2016 or later (or Azure SQL Database)
+- `Microsoft.Data.SqlClient` for database connectivity
+- `Microsoft.Extensions.Hosting` for the background processor
 
 ## Related Packages
 
 - [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) - Core mediator and outbox abstractions
-* [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
+- [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
 - [**NetEvolve.Pulse.Extensibility**](https://www.nuget.org/packages/NetEvolve.Pulse.Extensibility/) - Core contracts and abstractions
 - [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework persistence
 - [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
@@ -239,8 +245,8 @@ Contributions are welcome! Please read the [Contributing Guidelines](https://git
 
 ## Support
 
-* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
-* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
@@ -248,5 +254,5 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ---
 
-> [!NOTE] 
+> [!NOTE]
 > **Made with ❤️ by the NetEvolve Team**
