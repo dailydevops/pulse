@@ -8,13 +8,13 @@ NetEvolve.Pulse.Extensibility delivers the core contracts for building CQRS medi
 
 ## Features
 
-* Minimal abstractions for commands, queries, events, and request/response flows
-* Strongly typed handler interfaces with single-handler guarantees for commands and queries
-* Interceptor interfaces for cross-cutting concerns (logging, validation, metrics, caching)
-* Fluent mediator configuration via `IMediatorConfigurator` and extension methods
-* **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
-* Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
-* Test-friendly primitives including `Void` responses and TimeProvider awareness
+- Minimal abstractions for commands, queries, events, and request/response flows
+- Strongly typed handler interfaces with single-handler guarantees for commands and queries
+- Interceptor interfaces for cross-cutting concerns (logging, validation, metrics, caching)
+- Fluent mediator configuration via `IMediatorConfigurator` and extension methods
+- **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
+- Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
+- Test-friendly primitives including `Void` responses and TimeProvider awareness
 
 ## Installation
 
@@ -129,17 +129,17 @@ services.AddPulse(config =>
 
 ## Requirements
 
-* .NET 8.0, .NET 9.0, or .NET 10.0
-* Suitable for ASP.NET Core, console, worker, and library projects
-* OpenTelemetry packages required when using `AddActivityAndMetrics()` through Pulse
+- .NET 8.0, .NET 9.0, or .NET 10.0
+- Suitable for ASP.NET Core, console, worker, and library projects
+- OpenTelemetry packages required when using `AddActivityAndMetrics()` through Pulse
 
 ## Related Packages
 
-* [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) - Mediator implementation built on these abstractions
-* [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
-* [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core outbox persistence
-* [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET outbox persistence
-* [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
+- [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) - Mediator implementation built on these abstractions
+- [**NetEvolve.Pulse.Dapr**](https://www.nuget.org/packages/NetEvolve.Pulse.Dapr/) - Dapr pub/sub integration for event dispatch
+- [**NetEvolve.Pulse.EntityFramework**](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) - Entity Framework Core outbox persistence
+- [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) - SQL Server ADO.NET outbox persistence
+- [**NetEvolve.Pulse.Polly**](https://www.nuget.org/packages/NetEvolve.Pulse.Polly/) - Polly v8 resilience policies integration
 
 ## Documentation
 
@@ -151,8 +151,8 @@ Contributions are welcome! Please read the [Contributing Guidelines](https://git
 
 ## Support
 
-* **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
-* **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
@@ -160,5 +160,5 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ---
 
-> [!NOTE] 
+> [!NOTE]
 > **Made with ❤️ by the NetEvolve Team**
