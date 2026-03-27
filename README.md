@@ -1,8 +1,9 @@
 # NetEvolve Pulse
 
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/dailydevops/pulse/ci.yml?branch=main)](https://github.com/dailydevops/pulse/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/dailydevops/pulse/cicd.yml?branch=main)](https://github.com/dailydevops/pulse/actions)
 [![Contributors](https://img.shields.io/github/contributors/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/graphs/contributors)
+[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2Fdailydevops%2Fpulse%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/dailydevops/pulse/main)
 
 ## Overview
 
