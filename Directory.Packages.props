@@ -18,7 +18,7 @@
     <GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.22.0.136894" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Dapr.Client" Version="1.17.6" />
+    <PackageVersion Include="Dapr.Client" Version="1.17.7" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.5" />
