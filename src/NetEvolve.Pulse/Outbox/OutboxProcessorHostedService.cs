@@ -29,7 +29,7 @@ using NetEvolve.Pulse.Outbox;
 /// The processor respects cancellation tokens and completes current batch processing
 /// before shutdown.
 /// </remarks>
-public sealed partial class OutboxProcessorHostedService : BackgroundService
+internal sealed partial class OutboxProcessorHostedService : BackgroundService
 {
     /// <summary>The repository for reading and updating outbox message state.</summary>
     private readonly IOutboxRepository _repository;

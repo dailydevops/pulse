@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Dispatchers;
 
-using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>

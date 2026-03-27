@@ -1,6 +1,5 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
 
-using NetEvolve.Pulse;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;

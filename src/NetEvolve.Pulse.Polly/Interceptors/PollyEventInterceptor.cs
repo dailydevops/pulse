@@ -69,7 +69,7 @@ using Polly;
 ///         })));
 /// </code>
 /// </example>
-public sealed class PollyEventInterceptor<TEvent> : IEventInterceptor<TEvent>
+internal sealed class PollyEventInterceptor<TEvent> : IEventInterceptor<TEvent>
     where TEvent : IEvent
 {
     private readonly ResiliencePipeline _pipeline;

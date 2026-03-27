@@ -65,27 +65,27 @@ public static class OutboxMessageConfigurationFactory
     /// <summary>
     /// The provider name for Npgsql (PostgreSQL).
     /// </summary>
-    public const string NpgsqlProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL";
+    private const string NpgsqlProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL";
 
     /// <summary>
     /// The provider name for Microsoft.EntityFrameworkCore.Sqlite.
     /// </summary>
-    public const string SqliteProviderName = "Microsoft.EntityFrameworkCore.Sqlite";
+    private const string SqliteProviderName = "Microsoft.EntityFrameworkCore.Sqlite";
 
     /// <summary>
     /// The provider name for Microsoft.EntityFrameworkCore.SqlServer.
     /// </summary>
-    public const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
+    private const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
 
     /// <summary>
     /// The provider name for Pomelo MySQL (<c>Pomelo.EntityFrameworkCore.MySql</c>).
     /// </summary>
-    public const string PomeloMySqlProviderName = "Pomelo.EntityFrameworkCore.MySql";
+    private const string PomeloMySqlProviderName = "Pomelo.EntityFrameworkCore.MySql";
 
     /// <summary>
     /// The provider name for the Oracle MySQL provider (<c>MySql.EntityFrameworkCore</c>).
     /// </summary>
-    public const string OracleMySqlProviderName = "MySql.EntityFrameworkCore";
+    private const string OracleMySqlProviderName = "MySql.EntityFrameworkCore";
 
     /// <summary>
     /// Creates the appropriate <see cref="IEntityTypeConfiguration{TEntity}"/> by reading the

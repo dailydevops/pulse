@@ -2,7 +2,6 @@
 
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
-using NetEvolve.Pulse;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;

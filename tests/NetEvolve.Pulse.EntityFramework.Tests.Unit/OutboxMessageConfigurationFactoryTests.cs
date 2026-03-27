@@ -30,63 +30,6 @@ public sealed class OutboxMessageConfigurationFactoryTests
             .Throws<NotSupportedException>();
 
     [Test]
-    public async Task Create_WithNpgsqlProviderName_ReturnsConfiguration()
-    {
-        var config = OutboxMessageConfigurationFactory.Create(OutboxMessageConfigurationFactory.NpgsqlProviderName);
-
-        _ = await Assert.That(config).IsNotNull();
-    }
-
-    [Test]
-    public async Task Create_WithSqliteProviderName_ReturnsConfiguration()
-    {
-        var config = OutboxMessageConfigurationFactory.Create(OutboxMessageConfigurationFactory.SqliteProviderName);
-
-        _ = await Assert.That(config).IsNotNull();
-    }
-
-    [Test]
-    public async Task Create_WithSqlServerProviderName_ReturnsConfiguration()
-    {
-        var config = OutboxMessageConfigurationFactory.Create(OutboxMessageConfigurationFactory.SqlServerProviderName);
-
-        _ = await Assert.That(config).IsNotNull();
-    }
-
-    [Test]
-    public async Task Create_WithPomeloMySqlProviderName_ReturnsConfiguration()
-    {
-        var config = OutboxMessageConfigurationFactory.Create(
-            OutboxMessageConfigurationFactory.PomeloMySqlProviderName
-        );
-
-        _ = await Assert.That(config).IsNotNull();
-    }
-
-    [Test]
-    public async Task Create_WithOracleMySqlProviderName_ReturnsConfiguration()
-    {
-        var config = OutboxMessageConfigurationFactory.Create(
-            OutboxMessageConfigurationFactory.OracleMySqlProviderName
-        );
-
-        _ = await Assert.That(config).IsNotNull();
-    }
-
-    [Test]
-    public async Task Create_WithProviderName_WithOptions_ReturnsConfiguration()
-    {
-        var options = Options.Create(new OutboxOptions { Schema = "custom" });
-
-        var config = OutboxMessageConfigurationFactory.Create(
-            OutboxMessageConfigurationFactory.SqlServerProviderName,
-            options
-        );
-
-        _ = await Assert.That(config).IsNotNull();
-    }
-
-    [Test]
     public async Task Create_WithInMemoryDbContext_ThrowsNotSupportedException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()

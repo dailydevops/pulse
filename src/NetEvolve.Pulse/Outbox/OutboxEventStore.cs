@@ -16,7 +16,7 @@ using NetEvolve.Pulse.Extensibility;
 /// Events are serialized to JSON using System.Text.Json. The assembly-qualified type name
 /// is stored for deserialization by the message transport.
 /// </remarks>
-public sealed class OutboxEventStore : IEventOutbox
+internal sealed class OutboxEventStore : IEventOutbox
 {
     /// <summary>The repository used to persist outbox messages to the configured storage backend.</summary>
     private readonly IOutboxRepository _repository;
@@ -50,7 +50,6 @@ public sealed class OutboxEventStore : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var now = _timeProvider.GetUtcNow();
         var messageType = message.GetType();
         var eventType =
             messageType.AssemblyQualifiedName
@@ -74,9 +73,12 @@ public sealed class OutboxEventStore : IEventOutbox
             );
         }
 
+        var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
+        var now = _timeProvider.GetUtcNow();
+
         var outboxMessage = new OutboxMessage
         {
-            Id = Guid.TryParse(message.Id, out var id) ? id : Guid.NewGuid(),
+            Id = id,
             EventType = eventType,
             Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
             CorrelationId = correlationId,

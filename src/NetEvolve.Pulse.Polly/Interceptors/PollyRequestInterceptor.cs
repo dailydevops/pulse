@@ -70,7 +70,7 @@ using Polly;
 ///         })));
 /// </code>
 /// </example>
-public sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInterceptor<TRequest, TResponse>
+internal sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInterceptor<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     private readonly ResiliencePipeline<TResponse> _pipeline;

@@ -17,7 +17,7 @@ using NetEvolve.Pulse.Extensibility;
 /// consider using the SQL Server ADO.NET provider with explicit locking.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-public sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository
+internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>The DbContext used for all LINQ-to-SQL query and update operations.</summary>

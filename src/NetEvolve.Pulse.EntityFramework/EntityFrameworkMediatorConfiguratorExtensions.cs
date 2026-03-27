@@ -3,14 +3,13 @@ namespace NetEvolve.Pulse;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Extension methods for configuring Entity Framework outbox services on <see cref="IMediatorConfigurator"/>.
 /// </summary>
-public static class EntityFrameworkMediatorConfiguratorExtensions
+internal static class EntityFrameworkMediatorConfiguratorExtensions
 {
     /// <summary>
     /// Adds Entity Framework Core outbox persistence with the specified DbContext.
