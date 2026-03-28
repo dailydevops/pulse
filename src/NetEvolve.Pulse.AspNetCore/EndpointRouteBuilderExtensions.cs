@@ -41,7 +41,7 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapCommand&lt;UpdateOrderCommand, OrderResult&gt;("/orders/{id}", CommandHttpMethod.Put);
     /// </code>
     /// </example>
-    public static RouteHandlerBuilder MapCommand<TCommand, TResponse>(
+    public static IEndpointConventionBuilder MapCommand<TCommand, TResponse>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern,
         CommandHttpMethod httpMethod = CommandHttpMethod.Post
@@ -87,7 +87,7 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}", CommandHttpMethod.Delete);
     /// </code>
     /// </example>
-    public static RouteHandlerBuilder MapCommand<TCommand>(
+    public static IEndpointConventionBuilder MapCommand<TCommand>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern,
         CommandHttpMethod httpMethod = CommandHttpMethod.Post
@@ -126,7 +126,7 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapQuery&lt;GetOrderQuery, OrderDto&gt;("/orders/{id}");
     /// </code>
     /// </example>
-    public static RouteHandlerBuilder MapQuery<TQuery, TResponse>(
+    public static IEndpointConventionBuilder MapQuery<TQuery, TResponse>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern
     )
