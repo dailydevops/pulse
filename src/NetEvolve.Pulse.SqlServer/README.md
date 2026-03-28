@@ -11,6 +11,7 @@ SQL Server persistence provider for the Pulse outbox pattern using plain ADO.NET
 - **Plain ADO.NET**: No ORM overhead, direct SQL Server access via `Microsoft.Data.SqlClient`
 - **Transaction Support**: Enlist outbox operations in existing `SqlTransaction` instances
 - **Optimized Queries**: Uses stored procedures with ROWLOCK/READPAST hints for concurrent access
+- **Dead Letter Management**: Built-in support for inspecting, replaying, and monitoring dead-letter messages via `IOutboxManagement`
 - **Configurable Schema**: Customize schema and table names for multi-tenant scenarios
 - **Schema Interchangeability**: Uses canonical schema compatible with Entity Framework provider
 
@@ -36,27 +37,71 @@ dotnet add package NetEvolve.Pulse.SqlServer
 
 ## Database Setup
 
-Before using this provider, execute the schema script to create the required database objects:
+Before using this provider, execute the schema script to create the required database objects.
 
-```sql
--- Execute the embedded script from the package
--- Located at: content/Scripts/OutboxMessage.sql
-```
+> [!IMPORTANT]
+> The script uses [SQLCMD variables](https://learn.microsoft.com/sql/tools/sqlcmd/sqlcmd-use-scripting-variables) (`:setvar`) and **must be run in SQLCMD mode**.
 
-Or run via your deployment pipeline:
+### Running the Script
+
+**sqlcmd utility:**
 
 ```powershell
-# Example using sqlcmd
 sqlcmd -S your-server -d your-database -i OutboxMessage.sql
+```
+
+**SQL Server Management Studio (SSMS):**
+
+Enable SQLCMD Mode via `Query > SQLCMD Mode` (Ctrl+Shift+Q), then execute the script.
+
+**Azure Data Studio:**
+
+Enable SQLCMD via the query toolbar before executing.
+
+### SQLCMD Variables
+
+The script exposes the following configurable variables at the top of `OutboxMessage.sql`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `SchemaName` | `pulse` | Database schema name |
+| `TableName` | `OutboxMessage` | Table name |
+
+To use custom names, change the `:setvar` values before executing:
+
+```sql
+:setvar SchemaName "myapp"
+:setvar TableName "Events"
 ```
 
 ### Schema Script Contents
 
 The script creates:
 
-- `[pulse]` schema (configurable)
-- `[pulse].[OutboxMessage]` table with optimized indexes
-- Stored procedures for CRUD operations with proper locking
+- The configured schema (default: `[pulse]`)
+- The `[OutboxMessage]` table with two optimized non-clustered indexes
+
+**Core stored procedures:**
+
+| Procedure | Purpose |
+|---|---|
+| `usp_GetPendingOutboxMessages` | Retrieves and locks pending messages for processing |
+| `usp_GetFailedOutboxMessagesForRetry` | Retrieves failed messages eligible for retry |
+| `usp_MarkOutboxMessageCompleted` | Marks a message as successfully processed |
+| `usp_MarkOutboxMessageFailed` | Marks a message as failed with error details |
+| `usp_MarkOutboxMessageDeadLetter` | Moves a message to dead-letter status |
+| `usp_DeleteCompletedOutboxMessages` | Removes old completed messages older than a given threshold |
+
+**Management stored procedures:**
+
+| Procedure | Purpose |
+|---|---|
+| `usp_GetDeadLetterOutboxMessages` | Returns a paginated list of dead-letter messages |
+| `usp_GetDeadLetterOutboxMessage` | Returns a single dead-letter message by ID |
+| `usp_GetDeadLetterOutboxMessageCount` | Returns the total count of dead-letter messages |
+| `usp_ReplayOutboxMessage` | Resets a single dead-letter message to Pending |
+| `usp_ReplayAllDeadLetterOutboxMessages` | Resets all dead-letter messages to Pending |
+| `usp_GetOutboxStatistics` | Returns message counts grouped by status |
 
 ## Quick Start
 
@@ -88,6 +133,58 @@ services.AddPulse(config => config
         })
 );
 ```
+
+### Registered Services
+
+`AddSqlServerOutbox(...)` registers the following services:
+
+| Service | Implementation | Lifetime |
+|---|---|---|
+| `IOutboxRepository` | `SqlServerOutboxRepository` | Scoped |
+| `IOutboxManagement` | `SqlServerOutboxManagement` | Scoped |
+| `TimeProvider` | `TimeProvider.System` | Singleton (if not already registered) |
+
+## Dead Letter Management
+
+The `IOutboxManagement` service is automatically registered when calling `AddSqlServerOutbox(...)`. It provides operations for inspecting and recovering dead-letter messages, as well as monitoring outbox health.
+
+```csharp
+public class OutboxMonitorService
+{
+    private readonly IOutboxManagement _management;
+
+    public OutboxMonitorService(IOutboxManagement management) =>
+        _management = management;
+
+    public async Task PrintStatisticsAsync(CancellationToken ct)
+    {
+        var stats = await _management.GetStatisticsAsync(ct);
+        Console.WriteLine($"Pending: {stats.Pending}");
+        Console.WriteLine($"Processing: {stats.Processing}");
+        Console.WriteLine($"Completed: {stats.Completed}");
+        Console.WriteLine($"Failed: {stats.Failed}");
+        Console.WriteLine($"Dead Letter: {stats.DeadLetter}");
+        Console.WriteLine($"Total: {stats.Total}");
+    }
+
+    public async Task ReplayAllDeadLettersAsync(CancellationToken ct)
+    {
+        var replayed = await _management.ReplayAllDeadLetterAsync(ct);
+        Console.WriteLine($"Replayed {replayed} dead-letter messages.");
+    }
+}
+```
+
+### Available Operations
+
+| Method | Description |
+|---|---|
+| `GetStatisticsAsync()` | Returns message counts grouped by status (`OutboxStatistics`) |
+| `GetDeadLetterMessagesAsync(pageSize, page)` | Returns a paginated list of dead-letter messages |
+| `GetDeadLetterMessageAsync(messageId)` | Returns a single dead-letter message by ID |
+| `GetDeadLetterCountAsync()` | Returns the total count of dead-letter messages |
+| `ReplayMessageAsync(messageId)` | Resets a single dead-letter message to Pending for reprocessing |
+| `ReplayAllDeadLetterAsync()` | Resets all dead-letter messages to Pending and returns the updated count |
 
 ## Transaction Integration
 
@@ -162,18 +259,23 @@ services.AddScoped<IOutboxTransactionScope, UnitOfWork>();
 
 ## Schema Customization
 
+To use a custom schema or table name, update the `:setvar` variables at the top of `OutboxMessage.sql` before executing, then configure the same names in code:
+
+```sql
+:setvar SchemaName "myapp"
+:setvar TableName "Events"
+```
+
 ```csharp
 services.AddPulse(config => config
     .AddOutbox(options =>
     {
         options.Schema = "myapp";      // Default: "pulse"
-        options.TableName = "Events";   // Default: "OutboxMessage"
+        options.TableName = "Events";  // Default: "OutboxMessage"
     })
     .AddSqlServerOutbox(connectionString)
 );
 ```
-
-Remember to modify the SQL script accordingly when using custom schema/table names.
 
 ## Performance Considerations
 
