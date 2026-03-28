@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(_TestTargetFrameworks)</TargetFrameworks>
+    <NoWarn>$(NoWarn);CA1812;</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetEvolve.Extensions.TUnit" />
+    <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.HttpCorrelation\NetEvolve.Pulse.HttpCorrelation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="NetEvolve.Extensions.TUnit.UnitTestAttribute" />
+  </ItemGroup>
+</Project>
