@@ -17,7 +17,9 @@ internal static class SqlServerOutboxOptionsExtensions
         {
             get
             {
-                var schema = string.IsNullOrWhiteSpace(options.Schema) ? OutboxMessageSchema.DefaultSchema : options.Schema.Trim();
+                var schema = string.IsNullOrWhiteSpace(options.Schema)
+                    ? OutboxMessageSchema.DefaultSchema
+                    : options.Schema.Trim();
                 return $"[{schema}].[{options.TableName}]";
             }
         }
