@@ -39,7 +39,7 @@ using NetEvolve.Pulse.Outbox;
 /// </code>
 /// </example>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
+internal sealed class EntityFrameworkOutbox<TContext> : IEventOutbox
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>The DbContext used for all database operations within the current scope.</summary>
@@ -52,12 +52,12 @@ internal sealed class EntityFrameworkEventOutbox<TContext> : IEventOutbox
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="EntityFrameworkEventOutbox{TContext}"/> class.
+    /// Initializes a new instance of the <see cref="EntityFrameworkOutbox{TContext}"/> class.
     /// </summary>
     /// <param name="context">The DbContext for database operations.</param>
     /// <param name="options">The outbox configuration options.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
-    public EntityFrameworkEventOutbox(TContext context, IOptions<OutboxOptions> options, TimeProvider timeProvider)
+    public EntityFrameworkOutbox(TContext context, IOptions<OutboxOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(options);

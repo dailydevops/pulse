@@ -398,11 +398,11 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT
-        SUM(CASE WHEN [Status] = 0 THEN 1 ELSE 0 END) AS [Pending],
-        SUM(CASE WHEN [Status] = 1 THEN 1 ELSE 0 END) AS [Processing],
-        SUM(CASE WHEN [Status] = 2 THEN 1 ELSE 0 END) AS [Completed],
-        SUM(CASE WHEN [Status] = 3 THEN 1 ELSE 0 END) AS [Failed],
-        SUM(CASE WHEN [Status] = 4 THEN 1 ELSE 0 END) AS [DeadLetter]
+        SUM(CASE WHEN [Status] = 0 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Pending],
+        SUM(CASE WHEN [Status] = 1 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Processing],
+        SUM(CASE WHEN [Status] = 2 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Completed],
+        SUM(CASE WHEN [Status] = 3 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Failed],
+        SUM(CASE WHEN [Status] = 4 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [DeadLetter]
     FROM [$(SchemaName)].[OutboxMessage];
 END
 GO

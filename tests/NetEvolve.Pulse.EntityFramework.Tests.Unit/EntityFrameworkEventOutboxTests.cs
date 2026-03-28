@@ -15,7 +15,7 @@ public sealed class EntityFrameworkEventOutboxTests
     public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                new EntityFrameworkEventOutbox<TestDbContext>(
+                new EntityFrameworkOutbox<TestDbContext>(
                     null!,
                     Options.Create(new OutboxOptions()),
                     TimeProvider.System
@@ -32,7 +32,7 @@ public sealed class EntityFrameworkEventOutboxTests
         await using var context = new TestDbContext(options);
 
         _ = await Assert
-            .That(() => new EntityFrameworkEventOutbox<TestDbContext>(context, null!, TimeProvider.System))
+            .That(() => new EntityFrameworkOutbox<TestDbContext>(context, null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
     }
 
@@ -45,9 +45,7 @@ public sealed class EntityFrameworkEventOutboxTests
         await using var context = new TestDbContext(options);
 
         _ = await Assert
-            .That(() =>
-                new EntityFrameworkEventOutbox<TestDbContext>(context, Options.Create(new OutboxOptions()), null!)
-            )
+            .That(() => new EntityFrameworkOutbox<TestDbContext>(context, Options.Create(new OutboxOptions()), null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -59,7 +57,7 @@ public sealed class EntityFrameworkEventOutboxTests
             .Options;
         await using var context = new TestDbContext(options);
 
-        var outbox = new EntityFrameworkEventOutbox<TestDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestDbContext>(
             context,
             Options.Create(new OutboxOptions()),
             TimeProvider.System
@@ -75,7 +73,7 @@ public sealed class EntityFrameworkEventOutboxTests
             .UseInMemoryDatabase(nameof(StoreAsync_WithNullMessage_ThrowsArgumentNullException))
             .Options;
         await using var context = new TestDbContext(options);
-        var outbox = new EntityFrameworkEventOutbox<TestDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestDbContext>(
             context,
             Options.Create(new OutboxOptions()),
             TimeProvider.System
@@ -93,7 +91,7 @@ public sealed class EntityFrameworkEventOutboxTests
             .UseInMemoryDatabase(nameof(StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException))
             .Options;
         await using var context = new TestDbContext(options);
-        var outbox = new EntityFrameworkEventOutbox<TestDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestDbContext>(
             context,
             Options.Create(new OutboxOptions()),
             TimeProvider.System

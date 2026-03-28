@@ -11,6 +11,32 @@ using NetEvolve.Pulse.Extensibility;
 internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagement
     where TContext : DbContext, IOutboxDbContext
 {
+    /// <summary>Pre-compiled paged dead-letter query; eliminates expression-tree overhead on every call.</summary>
+    private static readonly Func<TContext, int, int, IAsyncEnumerable<OutboxMessage>> _deadLetterPageQuery =
+        EF.CompileAsyncQuery(
+            (TContext ctx, int skip, int take) =>
+                ctx
+                    .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.DeadLetter)
+                    .OrderByDescending(m => m.UpdatedAt)
+                    .Skip(skip)
+                    .Take(take)
+                    .AsNoTracking()
+        );
+
+    /// <summary>Pre-compiled single dead-letter lookup; eliminates expression-tree overhead on every call.</summary>
+    private static readonly Func<TContext, Guid, Task<OutboxMessage?>> _deadLetterByIdQuery = EF.CompileAsyncQuery(
+        (TContext ctx, Guid id) =>
+            ctx
+                .OutboxMessages.Where(m => m.Id == id && m.Status == OutboxMessageStatus.DeadLetter)
+                .AsNoTracking()
+                .FirstOrDefault()
+    );
+
+    /// <summary>Pre-compiled dead-letter count query; eliminates expression-tree overhead on every call.</summary>
+    private static readonly Func<TContext, Task<long>> _deadLetterCountQuery = EF.CompileAsyncQuery(
+        (TContext ctx) => ctx.OutboxMessages.LongCount(m => m.Status == OutboxMessageStatus.DeadLetter)
+    );
+
     /// <summary>The DbContext used for all LINQ-to-SQL query and update operations.</summary>
     private readonly TContext _context;
 
@@ -41,32 +67,32 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
 
-        return await _context
-            .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.DeadLetter)
-            .OrderByDescending(m => m.UpdatedAt)
-            .Skip(page * pageSize)
-            .Take(pageSize)
-            .AsNoTracking()
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var result = new List<OutboxMessage>(pageSize);
+        await foreach (
+            var message in _deadLetterPageQuery(_context, page * pageSize, pageSize)
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false)
+        )
+        {
+            result.Add(message);
+        }
+
+        return result;
     }
 
     /// <inheritdoc />
-    public async Task<OutboxMessage?> GetDeadLetterMessageAsync(
-        Guid messageId,
-        CancellationToken cancellationToken = default
-    ) =>
-        await _context
-            .OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.DeadLetter)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+    public Task<OutboxMessage?> GetDeadLetterMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return _deadLetterByIdQuery(_context, messageId);
+    }
 
     /// <inheritdoc />
-    public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default) =>
-        await _context
-            .OutboxMessages.LongCountAsync(m => m.Status == OutboxMessageStatus.DeadLetter, cancellationToken)
-            .ConfigureAwait(false);
+    public Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return _deadLetterCountQuery(_context);
+    }
 
     /// <inheritdoc />
     public async Task<bool> ReplayMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
@@ -112,44 +138,16 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
         var counts = await _context
             .OutboxMessages.GroupBy(m => m.Status)
             .Select(g => new { Status = g.Key, Count = (long)g.Count() })
-            .ToArrayAsync(cancellationToken)
+            .ToDictionaryAsync(g => g.Status, g => g.Count, cancellationToken)
             .ConfigureAwait(false);
-
-        var pending = 0L;
-        var processing = 0L;
-        var completed = 0L;
-        var failed = 0L;
-        var deadLetter = 0L;
-
-        foreach (var entry in counts)
-        {
-            switch (entry.Status)
-            {
-                case OutboxMessageStatus.Pending:
-                    pending = entry.Count;
-                    break;
-                case OutboxMessageStatus.Processing:
-                    processing = entry.Count;
-                    break;
-                case OutboxMessageStatus.Completed:
-                    completed = entry.Count;
-                    break;
-                case OutboxMessageStatus.Failed:
-                    failed = entry.Count;
-                    break;
-                case OutboxMessageStatus.DeadLetter:
-                    deadLetter = entry.Count;
-                    break;
-            }
-        }
 
         return new OutboxStatistics
         {
-            Pending = pending,
-            Processing = processing,
-            Completed = completed,
-            Failed = failed,
-            DeadLetter = deadLetter,
+            Pending = counts.GetValueOrDefault(OutboxMessageStatus.Pending),
+            Processing = counts.GetValueOrDefault(OutboxMessageStatus.Processing),
+            Completed = counts.GetValueOrDefault(OutboxMessageStatus.Completed),
+            Failed = counts.GetValueOrDefault(OutboxMessageStatus.Failed),
+            DeadLetter = counts.GetValueOrDefault(OutboxMessageStatus.DeadLetter),
         };
     }
 }
