@@ -60,10 +60,13 @@ internal sealed class HttpCorrelationRequestInterceptor<TRequest, TResponse> : I
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        var correlationId = _serviceProvider.GetService<IHttpCorrelationAccessor>()?.CorrelationId;
-        if (!string.IsNullOrEmpty(correlationId) && string.IsNullOrEmpty(request.CorrelationId))
+        if (string.IsNullOrEmpty(request.CorrelationId))
         {
-            request.CorrelationId = correlationId;
+            var correlationId = _serviceProvider.GetService<IHttpCorrelationAccessor>()?.CorrelationId;
+            if (!string.IsNullOrEmpty(correlationId))
+            {
+                request.CorrelationId = correlationId;
+            }
         }
 
         return await handler(request, cancellationToken).ConfigureAwait(false);

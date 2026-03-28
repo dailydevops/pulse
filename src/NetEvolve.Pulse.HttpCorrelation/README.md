@@ -74,11 +74,13 @@ From this point on, any `IRequest<TResponse>` or `IEvent` whose `CorrelationId` 
 The interceptors apply the following rule before invoking the next handler:
 
 ```
-if accessor.CorrelationId is non-empty AND request.CorrelationId is null or empty
-    → request.CorrelationId = accessor.CorrelationId
+if request.CorrelationId is null or empty
+    → resolve IHttpCorrelationAccessor
+    → if accessor.CorrelationId is non-empty
+        → request.CorrelationId = accessor.CorrelationId
 ```
 
-Existing non-empty `CorrelationId` values are **never overwritten**, so callers can explicitly set a custom correlation ID that will be respected throughout the pipeline.
+The accessor is resolved **lazily** — only when the message actually needs a correlation ID. Existing non-empty `CorrelationId` values are **never overwritten**, so callers can explicitly set a custom correlation ID that will be respected throughout the pipeline.
 
 ### Background Services
 
@@ -92,6 +94,7 @@ services.AddPulse(c => c.AddHttpCorrelationEnrichment());
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0
+- `Microsoft.Extensions.DependencyInjection.Abstractions` for `IServiceProvider` extensions
 - `NetEvolve.Http.Correlation.Abstractions` for `IHttpCorrelationAccessor`
 - A compatible `NetEvolve.Http.Correlation.*` implementation package to register `IHttpCorrelationAccessor`
 

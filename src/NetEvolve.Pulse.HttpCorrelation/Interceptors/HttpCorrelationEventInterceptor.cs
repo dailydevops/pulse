@@ -59,10 +59,13 @@ internal sealed class HttpCorrelationEventInterceptor<TEvent> : IEventIntercepto
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        var correlationId = _serviceProvider.GetService<IHttpCorrelationAccessor>()?.CorrelationId;
-        if (!string.IsNullOrEmpty(correlationId) && string.IsNullOrEmpty(message.CorrelationId))
+        if (string.IsNullOrEmpty(message.CorrelationId))
         {
-            message.CorrelationId = correlationId;
+            var correlationId = _serviceProvider.GetService<IHttpCorrelationAccessor>()?.CorrelationId;
+            if (!string.IsNullOrEmpty(correlationId))
+            {
+                message.CorrelationId = correlationId;
+            }
         }
 
         await handler(message, cancellationToken).ConfigureAwait(false);
