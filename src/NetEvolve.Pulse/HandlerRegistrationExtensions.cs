@@ -179,6 +179,49 @@ public static class HandlerRegistrationExtensions
     }
 
     /// <summary>
+    /// Registers a streaming query handler for the specified streaming query type.
+    /// </summary>
+    /// <typeparam name="TQuery">The streaming query type that implements <see cref="IStreamQuery{TResponse}"/>.</typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded by the streaming query handler.</typeparam>
+    /// <typeparam name="THandler">The handler implementation type that implements <see cref="IStreamQueryHandler{TQuery, TResponse}"/>.</typeparam>
+    /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="lifetime">The service lifetime for the handler (default: Scoped).</param>
+    /// <returns>The configurator for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator"/> is null.</exception>
+    /// <remarks>
+    /// <para><strong>⚠️ IMPORTANT:</strong> Streaming queries must have exactly one handler. Registering multiple handlers
+    /// for the same streaming query type will result in the last registered handler being used.</para>
+    /// <para><strong>AOT Safety:</strong></para>
+    /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
+    /// ensures the handler's public constructors are preserved during trimming.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Register with default Scoped lifetime
+    /// config.AddStreamQueryHandler&lt;GetProductsStreamQuery, ProductDto, GetProductsStreamQueryHandler&gt;();
+    ///
+    /// // Register with Singleton lifetime for stateless handlers
+    /// config.AddStreamQueryHandler&lt;GetProductsStreamQuery, ProductDto, GetProductsStreamQueryHandler&gt;(ServiceLifetime.Singleton);
+    /// </code>
+    /// </example>
+    public static IMediatorConfigurator AddStreamQueryHandler<
+        TQuery,
+        TResponse,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
+    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        where TQuery : IStreamQuery<TResponse>
+        where THandler : class, IStreamQueryHandler<TQuery, TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(configurator);
+
+        configurator.Services.Add(
+            new ServiceDescriptor(typeof(IStreamQueryHandler<TQuery, TResponse>), typeof(THandler), lifetime)
+        );
+
+        return configurator;
+    }
+
+    /// <summary>
     /// Registers an event handler for the specified event type.
     /// Multiple handlers can be registered for the same event type and will all be invoked in parallel.
     /// </summary>

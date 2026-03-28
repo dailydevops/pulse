@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit;
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
@@ -206,6 +207,78 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
+    public void AddStreamQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>()
+        );
+    }
+
+    [Test]
+    public async Task AddStreamQueryHandler_RegistersHandlerWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>()
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IStreamQueryHandler<TestStreamQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestStreamQueryHandler));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryHandler_WithTransientLifetime_RegistersHandlerWithTransientLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>(ServiceLifetime.Transient)
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IStreamQueryHandler<TestStreamQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestStreamQueryHandler));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Transient);
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryHandler_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
     public void AddEventHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorConfigurator? configurator = null;
@@ -342,6 +415,23 @@ public class HandlerRegistrationExtensionsTests
     {
         public Task<string> HandleAsync(TestQuery query, CancellationToken cancellationToken = default) =>
             Task.FromResult(query.Value);
+    }
+
+    private sealed partial record TestStreamQuery(string Value) : IStreamQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed partial class TestStreamQueryHandler : IStreamQueryHandler<TestStreamQuery, string>
+    {
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery query,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            yield return query.Value;
+            await Task.Yield();
+        }
     }
 
     private sealed partial record TestEvent : IEvent

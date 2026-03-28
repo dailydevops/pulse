@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Extensibility;
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
@@ -44,6 +45,25 @@ public interface IMediator
     /// </remarks>
     Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent;
+
+    /// <summary>
+    /// Asynchronously executes a streaming query and returns items incrementally via <see cref="IAsyncEnumerable{TResponse}"/>.
+    /// Streaming queries are read-only operations that yield results one at a time without buffering.
+    /// </summary>
+    /// <typeparam name="TQuery">The type of streaming query to execute.</typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded by the streaming query.</typeparam>
+    /// <param name="query">The streaming query to execute.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>An async enumerable of items produced by the streaming query handler.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the streaming query type.</exception>
+    /// <remarks>
+    /// ⚠️ Exactly one handler must be registered for each streaming query type.
+    /// </remarks>
+    IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+        [NotNull] TQuery query,
+        CancellationToken cancellationToken = default
+    )
+        where TQuery : IStreamQuery<TResponse>;
 
     /// <summary>
     /// Asynchronously executes a query and returns the result. Queries are read-only operations.

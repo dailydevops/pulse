@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
+using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
@@ -265,6 +266,12 @@ public sealed class InMemoryMessageTransportTests
         )
             where TQuery : notnull, IQuery<TResponse> => throw new NotSupportedException();
 
+        public IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+            TQuery query,
+            CancellationToken cancellationToken = default
+        )
+            where TQuery : notnull, IStreamQuery<TResponse> => throw new NotSupportedException();
+
         public Task<TResponse> SendAsync<TCommand, TResponse>(
             TCommand command,
             CancellationToken cancellationToken = default
@@ -289,6 +296,12 @@ public sealed class InMemoryMessageTransportTests
             CancellationToken cancellationToken = default
         )
             where TQuery : notnull, IQuery<TResponse> => throw new NotSupportedException();
+
+        public IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+            TQuery query,
+            CancellationToken cancellationToken = default
+        )
+            where TQuery : notnull, IStreamQuery<TResponse> => throw new NotSupportedException();
 
         public Task<TResponse> SendAsync<TCommand, TResponse>(
             TCommand command,

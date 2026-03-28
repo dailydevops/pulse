@@ -1,5 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Extensibility;
@@ -195,6 +197,66 @@ public class PulseMediatorTests
             "query",
             async () => await mediator.QueryAsync<TestQuery, string>(null!).ConfigureAwait(false)
         );
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithNullQuery_ThrowsArgumentNullException()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+
+        _ = Assert.Throws<ArgumentNullException>(
+            "query",
+            () => mediator.StreamQueryAsync<TestStreamQuery, string>(null!)
+        );
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithNoHandler_ThrowsInvalidOperationException()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+        var query = new TestStreamQuery();
+
+        _ = Assert.Throws<InvalidOperationException>(() => mediator.StreamQueryAsync<TestStreamQuery, string>(query));
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithHandler_YieldsExpectedItems()
+    {
+        var handler = new TestStreamQueryHandler(["item1", "item2", "item3"]);
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(handler);
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+        var query = new TestStreamQuery();
+
+        var results = new List<string>();
+        await foreach (var result in mediator.StreamQueryAsync<TestStreamQuery, string>(query).ConfigureAwait(false))
+        {
+            results.Add(result);
+        }
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(results).Count().IsEqualTo(3);
+            _ = await Assert.That(results[0]).IsEqualTo("item1");
+            _ = await Assert.That(results[1]).IsEqualTo("item2");
+            _ = await Assert.That(results[2]).IsEqualTo("item3");
+            _ = await Assert.That(handler.HandledQueries).HasSingleItem();
+            _ = await Assert.That(handler.HandledQueries[0]).IsSameReferenceAs(query);
+        }
     }
 
     [Test]
@@ -426,6 +488,33 @@ public class PulseMediatorTests
         {
             HandledQueries.Add(request);
             return Task.FromResult(_result);
+        }
+    }
+
+    private sealed class TestStreamQuery : IStreamQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class TestStreamQueryHandler : IStreamQueryHandler<TestStreamQuery, string>
+    {
+        private readonly IReadOnlyList<string> _items;
+        public List<TestStreamQuery> HandledQueries { get; } = [];
+
+        public TestStreamQueryHandler(IReadOnlyList<string> items) => _items = items;
+
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery request,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            HandledQueries.Add(request);
+            foreach (var item in _items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return item;
+                await Task.Yield();
+            }
         }
     }
 

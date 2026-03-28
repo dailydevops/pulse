@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Internals;
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -89,6 +90,26 @@ internal sealed partial class PulseMediator : IMediator
 
         // Execute handlers through the interceptor pipeline and dispatcher
         return ExecuteAsync(message, handlers, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// This method resolves a single streaming query handler from the service provider and returns its <see cref="IAsyncEnumerable{TResponse}"/> directly.
+    /// Results are yielded incrementally without buffering, enabling processing of large data sets with minimal memory pressure.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the streaming query type.</exception>
+    public IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+        [NotNull] TQuery query,
+        CancellationToken cancellationToken = default
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // Resolve the appropriate handler for the streaming query
+        var handler = _serviceProvider.GetRequiredService<IStreamQueryHandler<TQuery, TResponse>>();
+
+        return handler.HandleAsync(query, cancellationToken);
     }
 
     /// <inheritdoc />
