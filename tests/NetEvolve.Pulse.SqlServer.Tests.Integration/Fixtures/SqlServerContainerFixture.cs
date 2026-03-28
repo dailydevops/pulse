@@ -37,8 +37,19 @@ public sealed partial class SqlServerContainerFixture : IAsyncInitializer, IAsyn
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
-        await _container.StartAsync().ConfigureAwait(false);
-        await WaitUntilSqlServerIsReadyAsync().ConfigureAwait(false);
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                await _container.StartAsync().ConfigureAwait(false);
+                await WaitUntilSqlServerIsReadyAsync().ConfigureAwait(false);
+                return;
+            }
+            catch (Exception) when (attempt < 2)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task WaitUntilSqlServerIsReadyAsync()
