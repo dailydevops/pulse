@@ -9,6 +9,10 @@ using PulseEndpoints = global::NetEvolve.Pulse.EndpointRouteBuilderExtensions;
 
 public sealed class EndpointRouteBuilderExtensionsTests
 {
+    // Represents an undefined CommandHttpMethod value used to verify validation behaviour.
+    private const global::NetEvolve.Pulse.CommandHttpMethod UndefinedHttpMethod =
+        (global::NetEvolve.Pulse.CommandHttpMethod)99;
+
     // MapCommand<TCommand, TResponse> — null-argument guards
 
     [Test]
@@ -28,42 +32,12 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand, TResponse> — httpMethod validation
 
     [Test]
-    public async Task MapCommand_WithResponse_WithGetMethod_ThrowsArgumentException()
+    public async Task MapCommand_WithResponse_WithUndefinedMethod_ThrowsArgumentOutOfRangeException()
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "GET")
-        );
-    }
-
-    [Test]
-    public async Task MapCommand_WithResponse_WithGetMethodLowercase_ThrowsArgumentException()
-    {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "get")
-        );
-    }
-
-    [Test]
-    public async Task MapCommand_WithResponse_WithEmptyMethod_ThrowsArgumentException()
-    {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "")
-        );
-    }
-
-    [Test]
-    public async Task MapCommand_WithResponse_WithWhitespaceMethod_ThrowsArgumentException()
-    {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "  ")
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", UndefinedHttpMethod)
         );
     }
 
@@ -84,7 +58,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "PUT");
+        var builder = PulseEndpoints.MapCommand<TestCommand, string>(
+            endpoints,
+            "/test",
+            global::NetEvolve.Pulse.CommandHttpMethod.Put
+        );
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -94,7 +72,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "PATCH");
+        var builder = PulseEndpoints.MapCommand<TestCommand, string>(
+            endpoints,
+            "/test",
+            global::NetEvolve.Pulse.CommandHttpMethod.Patch
+        );
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -104,7 +86,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", "DELETE");
+        var builder = PulseEndpoints.MapCommand<TestCommand, string>(
+            endpoints,
+            "/test",
+            global::NetEvolve.Pulse.CommandHttpMethod.Delete
+        );
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -126,40 +112,12 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand> (void) — httpMethod validation
 
     [Test]
-    public async Task MapCommand_Void_WithGetMethod_ThrowsArgumentException()
+    public async Task MapCommand_Void_WithUndefinedMethod_ThrowsArgumentOutOfRangeException()
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", "GET")
-        );
-    }
-
-    [Test]
-    public async Task MapCommand_Void_WithGetMethodLowercase_ThrowsArgumentException()
-    {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", "get")
-        );
-    }
-
-    [Test]
-    public async Task MapCommand_Void_WithEmptyMethod_ThrowsArgumentException()
-    {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentException>(() => PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", ""));
-    }
-
-    [Test]
-    public async Task MapCommand_Void_WithWhitespaceMethod_ThrowsArgumentException()
-    {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentException>(() =>
-            PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", "  ")
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", UndefinedHttpMethod)
         );
     }
 
@@ -180,7 +138,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", "DELETE");
+        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(
+            endpoints,
+            "/test",
+            global::NetEvolve.Pulse.CommandHttpMethod.Delete
+        );
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -190,7 +152,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", "PUT");
+        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(
+            endpoints,
+            "/test",
+            global::NetEvolve.Pulse.CommandHttpMethod.Put
+        );
 
         _ = await Assert.That(builder).IsNotNull();
     }

@@ -45,7 +45,7 @@ public sealed class MinimalApiTests
     public async Task MapCommand_WithResponse_PutMethod_ReturnsOkWithResult()
     {
         await using var app = CreateApp(
-            endpoints => endpoints.MapCommand<CreateOrderCommand, OrderResult>("/orders/put", "PUT"),
+            endpoints => endpoints.MapCommand<CreateOrderCommand, OrderResult>("/orders/put", CommandHttpMethod.Put),
             services =>
                 services.AddScoped<ICommandHandler<CreateOrderCommand, OrderResult>, CreateOrderCommandHandler>()
         );
@@ -86,7 +86,7 @@ public sealed class MinimalApiTests
     public async Task MapCommand_Void_DeleteMethod_ReturnsNoContent()
     {
         await using var app = CreateApp(
-            endpoints => endpoints.MapCommand<DeleteOrderCommand>("/orders/{orderId}", "DELETE"),
+            endpoints => endpoints.MapCommand<DeleteOrderCommand>("/orders/{orderId}", CommandHttpMethod.Delete),
             services => services.AddScoped<ICommandHandler<DeleteOrderCommand, Void>, DeleteOrderCommandHandler>()
         );
 

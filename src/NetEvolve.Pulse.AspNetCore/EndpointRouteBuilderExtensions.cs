@@ -23,15 +23,14 @@ public static class EndpointRouteBuilderExtensions
     /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the endpoint to.</param>
     /// <param name="pattern">The route pattern for the endpoint.</param>
     /// <param name="httpMethod">
-    /// The HTTP method to use for the endpoint. Defaults to <c>POST</c>.
-    /// Must not be <c>GET</c> since commands are state-changing operations.
+    /// The HTTP method to use for the endpoint. Defaults to <see cref="CommandHttpMethod.Post"/>.
     /// </param>
     /// <returns>A <see cref="RouteHandlerBuilder"/> to further configure the endpoint.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="endpoints"/> or <paramref name="pattern"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown if <paramref name="httpMethod"/> is <c>null</c>, empty, or <c>GET</c>.
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if <paramref name="httpMethod"/> is not a defined <see cref="CommandHttpMethod"/> value.
     /// </exception>
     /// <example>
     /// <code>
@@ -39,35 +38,22 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapCommand&lt;CreateOrderCommand, OrderResult&gt;("/orders");
     ///
     /// // Custom method
-    /// app.MapCommand&lt;UpdateOrderCommand, OrderResult&gt;("/orders/{id}", "PUT");
+    /// app.MapCommand&lt;UpdateOrderCommand, OrderResult&gt;("/orders/{id}", CommandHttpMethod.Put);
     /// </code>
     /// </example>
     public static RouteHandlerBuilder MapCommand<TCommand, TResponse>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern,
-        string httpMethod = "POST"
+        CommandHttpMethod httpMethod = CommandHttpMethod.Post
     )
         where TCommand : ICommand<TResponse>
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        if (string.IsNullOrWhiteSpace(httpMethod))
-        {
-            throw new ArgumentException("HTTP method cannot be null or whitespace.", nameof(httpMethod));
-        }
-
-        if (httpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "GET is not a valid HTTP method for commands. Commands are state-changing operations.",
-                nameof(httpMethod)
-            );
-        }
-
         return endpoints.MapMethods(
             pattern,
-            [httpMethod],
+            [httpMethod.ToHttpMethodString()],
             async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
                 TypedResults.Ok(
                     await mediator.SendAsync<TCommand, TResponse>(command, cancellationToken).ConfigureAwait(false)
@@ -83,15 +69,14 @@ public static class EndpointRouteBuilderExtensions
     /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the endpoint to.</param>
     /// <param name="pattern">The route pattern for the endpoint.</param>
     /// <param name="httpMethod">
-    /// The HTTP method to use for the endpoint. Defaults to <c>POST</c>.
-    /// Must not be <c>GET</c> since commands are state-changing operations.
+    /// The HTTP method to use for the endpoint. Defaults to <see cref="CommandHttpMethod.Post"/>.
     /// </param>
     /// <returns>A <see cref="RouteHandlerBuilder"/> to further configure the endpoint.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="endpoints"/> or <paramref name="pattern"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown if <paramref name="httpMethod"/> is <c>null</c>, empty, or <c>GET</c>.
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if <paramref name="httpMethod"/> is not a defined <see cref="CommandHttpMethod"/> value.
     /// </exception>
     /// <example>
     /// <code>
@@ -99,35 +84,22 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}");
     ///
     /// // Custom method
-    /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}", "DELETE");
+    /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}", CommandHttpMethod.Delete);
     /// </code>
     /// </example>
     public static RouteHandlerBuilder MapCommand<TCommand>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern,
-        string httpMethod = "POST"
+        CommandHttpMethod httpMethod = CommandHttpMethod.Post
     )
         where TCommand : ICommand
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        if (string.IsNullOrWhiteSpace(httpMethod))
-        {
-            throw new ArgumentException("HTTP method cannot be null or whitespace.", nameof(httpMethod));
-        }
-
-        if (httpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "GET is not a valid HTTP method for commands. Commands are state-changing operations.",
-                nameof(httpMethod)
-            );
-        }
-
         return endpoints.MapMethods(
             pattern,
-            [httpMethod],
+            [httpMethod.ToHttpMethodString()],
             async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
             {
                 await mediator.SendAsync<TCommand>(command, cancellationToken).ConfigureAwait(false);
@@ -171,4 +143,14 @@ public static class EndpointRouteBuilderExtensions
                 )
         );
     }
+
+    private static string ToHttpMethodString(this CommandHttpMethod method) =>
+        method switch
+        {
+            CommandHttpMethod.Post => "POST",
+            CommandHttpMethod.Put => "PUT",
+            CommandHttpMethod.Patch => "PATCH",
+            CommandHttpMethod.Delete => "DELETE",
+            _ => throw new ArgumentOutOfRangeException(nameof(method), method, "Invalid CommandHttpMethod value."),
+        };
 }
