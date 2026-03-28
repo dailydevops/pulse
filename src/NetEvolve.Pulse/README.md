@@ -11,6 +11,7 @@ NetEvolve.Pulse is a high-performance CQRS mediator for ASP.NET Core that wires 
 - Typed CQRS mediator with single-handler enforcement for commands and queries plus fan-out events
 - Minimal DI integration via `services.AddPulse(...)` with scoped lifetimes for handlers and interceptors
 - Configurable interceptor pipeline (logging, metrics, tracing, validation) via `IMediatorConfigurator`
+- **Distributed query caching** — register `ICacheableQuery<TResponse>` per query and enable transparent `IDistributedCache` caching with `AddQueryCaching()`
 - **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
 - Parallel event dispatch for efficient domain event broadcasting
 - TimeProvider-aware for deterministic testing and scheduling scenarios
@@ -138,6 +139,53 @@ services.AddPulse(config =>
     // config.AddCustomValidation();
 });
 ```
+
+### Distributed Query Caching
+
+Enable transparent `IDistributedCache` caching for queries. Any query that implements `ICacheableQuery<TResponse>` (from `NetEvolve.Pulse.Extensibility`) is served from the cache on subsequent invocations; all other queries pass through unchanged.
+
+```csharp
+// 1. Register an IDistributedCache implementation
+services.AddDistributedMemoryCache(); // or Redis, SQL Server, etc.
+
+// 2. Enable the caching interceptor (with optional options)
+services.AddPulse(config => config.AddQueryCaching(options =>
+{
+    // Choose between absolute (default) and sliding expiration
+    options.ExpirationMode = CacheExpirationMode.Sliding;
+
+    // Supply custom JsonSerializerOptions for cache serialization
+    options.JsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+}));
+
+// 3. Implement ICacheableQuery<TResponse> on the queries you want cached
+public record GetProductQuery(Guid Id) : ICacheableQuery<ProductDto>
+{
+    public string? CorrelationId { get; set; }
+
+    // Unique per query result — include all discriminating parameters
+    public string CacheKey => $"product:{Id}";
+
+    // null = no explicit expiry (relies on cache defaults); or provide a TimeSpan
+    public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
+}
+```
+
+Behavior summary:
+
+| Scenario | Result |
+| --- | --- |
+| Query implements `ICacheableQuery<TResponse>` and cache entry exists | Cached response returned; handler skipped |
+| Query implements `ICacheableQuery<TResponse>` and no cache entry | Handler invoked; response stored in cache |
+| Query does **not** implement `ICacheableQuery<TResponse>` | Handler always invoked; cache never consulted |
+| `IDistributedCache` not registered in DI | Interceptor falls through; handler invoked without error |
+| `Expiry = null` and `DefaultExpiry = null` | Entry stored without explicit expiry; cache default eviction policy applies |
+| `Expiry = null` and `DefaultExpiry` is set | `DefaultExpiry` value is applied using the configured `ExpirationMode` |
+| `ExpirationMode = Absolute` (default) | `Expiry` (or `DefaultExpiry`) is applied as absolute expiry relative to now |
+| `ExpirationMode = Sliding` | `Expiry` (or `DefaultExpiry`) window resets on each cache access |
 
 ### Outbox Pattern Configuration
 

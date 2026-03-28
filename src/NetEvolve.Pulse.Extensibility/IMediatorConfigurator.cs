@@ -143,6 +143,53 @@ public interface IMediatorConfigurator
     IMediatorConfigurator AddActivityAndMetrics();
 
     /// <summary>
+    /// Registers the distributed cache interceptor for queries.
+    /// Queries implementing <see cref="ICacheableQuery{TResponse}"/> are transparently served from
+    /// <c>IDistributedCache</c> when a cache entry exists,
+    /// or stored after a cache miss.
+    /// </summary>
+    /// <param name="configure">
+    /// An optional delegate that configures <see cref="QueryCachingOptions"/>.
+    /// When <see langword="null"/>, default options are used.
+    /// </param>
+    /// <returns>The current configurator instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Opt-In:</strong></para>
+    /// Only queries that implement <see cref="ICacheableQuery{TResponse}"/> participate in caching.
+    /// All other queries pass through to the handler unchanged.
+    /// <para><strong>Prerequisite:</strong></para>
+    /// An <c>IDistributedCache</c> implementation must be
+    /// registered in the DI container (e.g. via <c>services.AddDistributedMemoryCache()</c>).
+    /// When no cache is registered the interceptor falls through without error.
+    /// <para><strong>Custom Serialization:</strong></para>
+    /// Use <see cref="QueryCachingOptions.JsonSerializerOptions"/> to supply custom
+    /// <see cref="System.Text.Json.JsonSerializerOptions"/> for cache serialization.
+    /// <para><strong>Expiration Mode:</strong></para>
+    /// Use <see cref="QueryCachingOptions.ExpirationMode"/> to choose between
+    /// absolute (<see cref="CacheExpirationMode.Absolute"/>, default) and
+    /// sliding (<see cref="CacheExpirationMode.Sliding"/>) cache expiration.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddDistributedMemoryCache();
+    /// services.AddPulse(config =>
+    /// {
+    ///     config.AddQueryCaching(options =>
+    ///     {
+    ///         options.ExpirationMode = CacheExpirationMode.Sliding;
+    ///         options.JsonSerializerOptions = new JsonSerializerOptions
+    ///         {
+    ///             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    ///         };
+    ///     });
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="ICacheableQuery{TResponse}"/>
+    /// <seealso cref="QueryCachingOptions"/>
+    IMediatorConfigurator AddQueryCaching(Action<QueryCachingOptions>? configure = null);
+
+    /// <summary>
     /// Configures a custom event dispatcher to control how events are dispatched to their handlers.
     /// This allows customization of the execution strategy (parallel, sequential, rate-limited, etc.).
     /// </summary>

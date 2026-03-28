@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;

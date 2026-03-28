@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Dispatchers;
+﻿namespace NetEvolve.Pulse.Dispatchers;
 
 using System.Collections.Concurrent;
 using NetEvolve.Pulse.Extensibility;

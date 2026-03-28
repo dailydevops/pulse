@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 using NetEvolve.Pulse.Extensibility;
 

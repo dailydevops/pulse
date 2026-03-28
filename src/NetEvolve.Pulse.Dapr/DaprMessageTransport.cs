@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using System.Text.Json;
 using Dapr.Client;

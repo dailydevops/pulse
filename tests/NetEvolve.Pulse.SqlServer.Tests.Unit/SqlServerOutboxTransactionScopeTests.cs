@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.SqlServer.Tests.Unit;
+﻿namespace NetEvolve.Pulse.SqlServer.Tests.Unit;
 
 using System.Threading.Tasks;
 using TUnit.Core;

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
 
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse;

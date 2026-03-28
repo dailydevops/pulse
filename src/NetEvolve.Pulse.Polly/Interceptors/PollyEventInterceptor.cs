@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Interceptors;
+﻿namespace NetEvolve.Pulse.Interceptors;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;

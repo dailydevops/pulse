@@ -12,6 +12,7 @@ NetEvolve.Pulse.Extensibility delivers the core contracts for building CQRS medi
 - Strongly typed handler interfaces with single-handler guarantees for commands and queries
 - Interceptor interfaces for cross-cutting concerns (logging, validation, metrics, caching)
 - Fluent mediator configuration via `IMediatorConfigurator` and extension methods
+- **`ICacheableQuery<TResponse>`** — opt-in caching contract that pairs with the `AddQueryCaching()` interceptor in `NetEvolve.Pulse`
 - **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
 - Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
 - Test-friendly primitives including `Void` responses and TimeProvider awareness
@@ -112,6 +113,59 @@ services.AddPulse(config =>
           .AddCustomValidation();
 });
 ```
+
+### Cacheable Queries (`ICacheableQuery<TResponse>`)
+
+Opt specific queries into transparent `IDistributedCache` caching by implementing `ICacheableQuery<TResponse>` instead of `IQuery<TResponse>`. The interface adds two properties that control the cache entry:
+
+```csharp
+using NetEvolve.Pulse.Extensibility;
+
+// Implement ICacheableQuery<TResponse> on the queries you want cached
+public record GetCustomerByIdQuery(Guid CustomerId)
+    : ICacheableQuery<CustomerDetailsDto>
+{
+    public string? CorrelationId { get; set; }
+
+    // Unique cache key — include all parameters that distinguish results
+    public string CacheKey => $"customer:{CustomerId}";
+
+    // null = rely on cache default; TimeSpan = expiry duration
+    public TimeSpan? Expiry => TimeSpan.FromMinutes(10);
+}
+
+public record CustomerDetailsDto(Guid Id, string Name, string Email);
+```
+
+To activate caching, register an `IDistributedCache` implementation and call `AddQueryCaching()` during Pulse setup (requires `NetEvolve.Pulse`). Use `QueryCachingOptions` to configure serialization and expiration behavior:
+
+```csharp
+services.AddDistributedMemoryCache();
+services.AddPulse(config => config.AddQueryCaching(options =>
+{
+    // Absolute (default) or Sliding expiration
+    options.ExpirationMode = CacheExpirationMode.Sliding;
+
+    // Fallback expiry for queries that return null from ICacheableQuery<TResponse>.Expiry
+    options.DefaultExpiry = TimeSpan.FromMinutes(10);
+
+    // Custom JSON serializer options
+    options.JsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+}));
+```
+
+`QueryCachingOptions` properties:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `JsonSerializerOptions` | `JsonSerializerOptions` | `JsonSerializerOptions.Default` | Options used for cache serialization and deserialization |
+| `ExpirationMode` | `CacheExpirationMode` | `Absolute` | Whether `Expiry` is treated as absolute or sliding expiration |
+| `DefaultExpiry` | `TimeSpan?` | `null` | Fallback expiry used when `ICacheableQuery<TResponse>.Expiry` returns `null` |
+
+Queries that do **not** implement `ICacheableQuery<TResponse>` always reach the handler unchanged. When `IDistributedCache` is not registered the interceptor falls through silently.
 
 ## Configuration
 

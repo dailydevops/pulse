@@ -42,6 +42,22 @@ internal sealed class MediatorConfigurator : IMediatorConfigurator
     }
 
     /// <inheritdoc />
+    public IMediatorConfigurator AddQueryCaching(Action<QueryCachingOptions>? configure = null)
+    {
+        _ = Services.AddOptions<QueryCachingOptions>();
+        if (configure is not null)
+        {
+            _ = Services.Configure(configure);
+        }
+
+        Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(DistributedCacheQueryInterceptor<,>))
+        );
+
+        return this;
+    }
+
+    /// <inheritdoc />
     public IMediatorConfigurator UseDefaultEventDispatcher<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TDispatcher
     >(ServiceLifetime lifetime = ServiceLifetime.Singleton)

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;

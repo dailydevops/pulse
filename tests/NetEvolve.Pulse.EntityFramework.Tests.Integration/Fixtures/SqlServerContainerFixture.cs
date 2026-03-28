@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Integration.Fixtures;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Integration.Fixtures;
 
 using System.Diagnostics.CodeAnalysis;
 using DotNet.Testcontainers.Builders;
