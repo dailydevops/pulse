@@ -36,6 +36,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 
 - Typed CQRS mediator with single-handler enforcement for commands and queries, plus fan-out event dispatch
 - Interceptor pipeline for logging, metrics, tracing, validation, retries, and other cross-cutting concerns via `IMediatorConfigurator`
+- **Distributed query caching** via `ICacheableQuery<TResponse>` and `AddQueryCaching()` — transparent `IDistributedCache` integration without handler code changes
 - **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
 - OpenTelemetry-friendly hooks through `AddActivityAndMetrics()` and TimeProvider-aware flows for deterministic testing and scheduling
 - Minimal DI setup with `services.AddPulse(...)`, scoped lifetimes, and opt-in configurators per application
