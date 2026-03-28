@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using Polly;
@@ -123,8 +122,19 @@ public static class PollyMediatorConfiguratorExtensions
             _ = configurator.Services.Remove(existingInterceptor);
         }
 
+        // Remove existing pipeline registration and re-register to ensure the latest configuration is used
+        var existingPipeline = configurator.Services.FirstOrDefault(d =>
+            d.ServiceType == typeof(ResiliencePipeline<TResponse>)
+            && d.ServiceKey is Type key
+            && key == typeof(TRequest)
+        );
+        if (existingPipeline is not null)
+        {
+            _ = configurator.Services.Remove(existingPipeline);
+        }
+
         // Register the resilience pipeline as keyed service with TRequest as key
-        configurator.Services.TryAdd(
+        configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline<TResponse>),
                 typeof(TRequest),
@@ -236,8 +246,17 @@ public static class PollyMediatorConfiguratorExtensions
             _ = configurator.Services.Remove(existingInterceptor);
         }
 
+        // Remove existing pipeline registration and re-register to ensure the latest configuration is used
+        var existingPipeline = configurator.Services.FirstOrDefault(d =>
+            d.ServiceType == typeof(ResiliencePipeline) && d.ServiceKey is Type key && key == typeof(TEvent)
+        );
+        if (existingPipeline is not null)
+        {
+            _ = configurator.Services.Remove(existingPipeline);
+        }
+
         // Register the resilience pipeline as keyed service with TEvent as key
-        configurator.Services.TryAdd(
+        configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline),
                 typeof(TEvent),
