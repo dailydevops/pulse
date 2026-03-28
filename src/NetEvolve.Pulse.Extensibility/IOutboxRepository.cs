@@ -133,6 +133,17 @@ public interface IOutboxRepository
             .ConfigureAwait(false);
 
     /// <summary>
+    /// Returns the current count of pending outbox messages.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The number of messages currently in <see cref="OutboxMessageStatus.Pending"/> status.</returns>
+    /// <remarks>
+    /// The default implementation returns <c>0</c>. Override to query the actual storage backend
+    /// for an accurate count. This value is used by the <c>pulse.outbox.pending</c> observable gauge.
+    /// </remarks>
+    Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default) => Task.FromResult(0L);
+
+    /// <summary>
     /// Deletes completed messages older than the specified retention period.
     /// </summary>
     /// <param name="olderThan">The age threshold for deletion.</param>

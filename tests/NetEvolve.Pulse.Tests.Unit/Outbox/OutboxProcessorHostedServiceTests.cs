@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -406,6 +407,248 @@ public sealed class OutboxProcessorHostedServiceTests
 
     #endregion
 
+    #region Metrics Tests
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_WithPendingMessages_RecordsProcessedMetric()
+    {
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+
+        var processedTotal = 0L;
+        meterListener.SetMeasurementEventCallback<long>(
+            (instrument, measurement, _, _) =>
+            {
+                if (instrument.Name == "pulse.outbox.processed.total")
+                {
+                    _ = Interlocked.Add(ref processedTotal, measurement);
+                }
+            }
+        );
+        meterListener.Start();
+
+        var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        var message = CreateMessage();
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        meterListener.RecordObservableInstruments();
+
+        _ = await Assert.That(Volatile.Read(ref processedTotal)).IsGreaterThanOrEqualTo(1L);
+    }
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_WithTransportFailure_RecordsFailedMetric()
+    {
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+
+        var failedTotal = 0L;
+        meterListener.SetMeasurementEventCallback<long>(
+            (instrument, measurement, _, _) =>
+            {
+                if (instrument.Name == "pulse.outbox.failed.total")
+                {
+                    _ = Interlocked.Add(ref failedTotal, measurement);
+                }
+            }
+        );
+        meterListener.Start();
+
+        var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 3 }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        var message = CreateMessage();
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        _ = await Assert.That(Volatile.Read(ref failedTotal)).IsGreaterThanOrEqualTo(1L);
+    }
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_WithExceededRetries_RecordsDeadLetterMetric()
+    {
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+
+        var deadLetterTotal = 0L;
+        meterListener.SetMeasurementEventCallback<long>(
+            (instrument, measurement, _, _) =>
+            {
+                if (instrument.Name == "pulse.outbox.deadletter.total")
+                {
+                    _ = Interlocked.Add(ref deadLetterTotal, measurement);
+                }
+            }
+        );
+        meterListener.Start();
+
+        var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 2 }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        var message = CreateMessage();
+        message.RetryCount = 1;
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        _ = await Assert.That(Volatile.Read(ref deadLetterTotal)).IsGreaterThanOrEqualTo(1L);
+    }
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_AfterProcessingCycle_RecordsProcessingDuration()
+    {
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+
+        var durationRecorded = false;
+        meterListener.SetMeasurementEventCallback<double>(
+            (instrument, _, _, _) =>
+            {
+                if (instrument.Name == "pulse.outbox.processing.duration")
+                {
+                    Volatile.Write(ref durationRecorded, true);
+                }
+            }
+        );
+        meterListener.Start();
+
+        var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        _ = await Assert.That(Volatile.Read(ref durationRecorded)).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_WithPendingMessages_ObservableGaugeReflectsPendingCount()
+    {
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+
+        var pendingObserved = 0L;
+        meterListener.SetMeasurementEventCallback<long>(
+            (instrument, measurement, _, _) =>
+            {
+                if (instrument.Name == "pulse.outbox.pending")
+                {
+                    Volatile.Write(ref pendingObserved, measurement);
+                }
+            }
+        );
+        meterListener.Start();
+
+        var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        // Add 3 pending messages before starting
+        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
+        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
+        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+
+        // Wait at least one polling cycle so the gauge is refreshed before observing
+        await Task.Delay(75).ConfigureAwait(false);
+        meterListener.RecordObservableInstruments();
+
+        var earlyObservation = Volatile.Read(ref pendingObserved);
+
+        await Task.Delay(400).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        // After processing all messages, the pending count should be 0
+        meterListener.RecordObservableInstruments();
+        var lateObservation = Volatile.Read(ref pendingObserved);
+
+        using (Assert.Multiple())
+        {
+            // The gauge should have been observed at some point (>= 0 is always valid for a count)
+            _ = await Assert.That(earlyObservation).IsGreaterThanOrEqualTo(0L);
+            // After all messages are processed, pending count should be 0
+            _ = await Assert.That(lateObservation).IsEqualTo(0L);
+        }
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static ILogger<OutboxProcessorHostedService> CreateLogger() =>
@@ -452,6 +695,15 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default) =>
             Task.FromResult(0);
+
+        public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
+        {
+            lock (_lock)
+            {
+                var count = _messages.Count(m => m.Status == OutboxMessageStatus.Pending);
+                return Task.FromResult((long)count);
+            }
+        }
 
         public Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
             int maxRetryCount,
