@@ -143,8 +143,11 @@ public static class PollyMediatorConfiguratorExtensions
             _ = configurator.Services.Remove(existingPipeline);
         }
 
-        // Register the resilience pipeline as keyed service with TRequest as key
+        // Register the resilience pipeline as keyed service with TRequest as key.
+        // The telemetry opt-in check is wrapped in Lazy<bool> so the service collection scan
+        // occurs only once (on first factory invocation) regardless of service lifetime.
         var services = configurator.Services;
+        var lazyTelemetryEnabled = new Lazy<bool>(() => IsActivityAndMetricsEnabled(services));
         configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline<TResponse>),
@@ -155,7 +158,7 @@ public static class PollyMediatorConfiguratorExtensions
                     configure(builder);
 
                     // Opt-in telemetry bridge: activates when AddActivityAndMetrics() was also registered
-                    if (IsActivityAndMetricsEnabled(services))
+                    if (lazyTelemetryEnabled.Value)
                     {
                         builder.TelemetryListener = new PulseTelemetryListener(
                             typeof(TRequest).Name,
@@ -278,6 +281,7 @@ public static class PollyMediatorConfiguratorExtensions
 
         // Register the resilience pipeline as keyed service with TEvent as key
         var services = configurator.Services;
+        var lazyTelemetryEnabled = new Lazy<bool>(() => IsActivityAndMetricsEnabled(services));
         configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline),
@@ -288,7 +292,7 @@ public static class PollyMediatorConfiguratorExtensions
                     configure(builder);
 
                     // Opt-in telemetry bridge: activates when AddActivityAndMetrics() was also registered
-                    if (IsActivityAndMetricsEnabled(services))
+                    if (lazyTelemetryEnabled.Value)
                     {
                         builder.TelemetryListener = new PulseTelemetryListener(
                             typeof(TEvent).Name,
