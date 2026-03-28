@@ -8,12 +8,13 @@ NetEvolve.Pulse.AspNetCore provides `IEndpointRouteBuilder` extension methods th
 
 ## Features
 
-- **`MapCommand<TCommand, TResponse>`**: Maps a command to a `POST` endpoint returning `200 OK` with the response
-- **`MapCommand<TCommand>`**: Maps a void command to a `POST` endpoint returning `204 No Content`
-- **`MapQuery<TQuery, TResponse>`**: Maps a query to a `GET` endpoint returning `200 OK` with the result
-- **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token
-- **OpenAPI compatible**: Returns typed results (`TypedResults`) so `WithOpenApi()` produces correct response schemas
-- **DI-based**: `IMediator` is resolved from the request scope at runtime — no compile-time dependency on `NetEvolve.Pulse`
+- **`MapCommand<TCommand, TResponse>`**: Maps a command to an HTTP endpoint returning `200 OK` with the response. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
+- **`MapCommand<TCommand>`**: Maps a void command to an HTTP endpoint returning `204 No Content`. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
+- **`MapQuery<TQuery, TResponse>`**: Maps a query to a `GET` endpoint returning `200 OK` with the result.
+- **`CommandHttpMethod` enum**: Strongly-typed HTTP method selection — `Post`, `Put`, `Patch`, `Delete`. `GET` is excluded by design since commands are state-changing operations.
+- **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token.
+- **OpenAPI compatible**: Returns typed results (`TypedResults`) so `WithOpenApi()` produces correct response schemas.
+- **DI-based**: `IMediator` is resolved from the request scope at runtime — no compile-time dependency on `NetEvolve.Pulse`.
 
 ## Installation
 
@@ -45,15 +46,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Register Pulse and handlers
 builder.Services.AddPulse();
 builder.Services.AddScoped<ICommandHandler<CreateOrderCommand, OrderResult>, CreateOrderHandler>();
+builder.Services.AddScoped<ICommandHandler<UpdateOrderCommand, OrderResult>, UpdateOrderHandler>();
 builder.Services.AddScoped<ICommandHandler<DeleteOrderCommand, Void>, DeleteOrderHandler>();
 builder.Services.AddScoped<IQueryHandler<GetOrderQuery, OrderDto>, GetOrderHandler>();
 
 var app = builder.Build();
 
 // Map commands and queries — no boilerplate lambdas needed
-app.MapCommand<CreateOrderCommand, OrderResult>("/orders");
-app.MapCommand<DeleteOrderCommand>("/orders/{id}");
-app.MapQuery<GetOrderQuery, OrderDto>("/orders/{id}");
+app.MapCommand<CreateOrderCommand, OrderResult>("/orders");                                    // POST  /orders
+app.MapCommand<UpdateOrderCommand, OrderResult>("/orders/{id}", CommandHttpMethod.Put);        // PUT   /orders/{id}
+app.MapCommand<DeleteOrderCommand>("/orders/{id}", CommandHttpMethod.Delete);                  // DELETE /orders/{id}
+app.MapQuery<GetOrderQuery, OrderDto>("/orders/{id}");                                         // GET   /orders/{id}
 
 app.Run();
 ```
@@ -64,7 +67,10 @@ Without this package you would write:
 app.MapPost("/orders", async (CreateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
     Results.Ok(await mediator.SendAsync<CreateOrderCommand, OrderResult>(cmd, ct)));
 
-app.MapPost("/orders/{id}", async (DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
+app.MapPut("/orders/{id}", async (UpdateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
+    Results.Ok(await mediator.SendAsync<UpdateOrderCommand, OrderResult>(cmd, ct)));
+
+app.MapDelete("/orders/{id}", async ([FromBody] DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
 {
     await mediator.SendAsync<DeleteOrderCommand>(cmd, ct);
     return Results.NoContent();
@@ -78,22 +84,39 @@ app.MapGet("/orders/{id}", async ([AsParameters] GetOrderQuery query, IMediator 
 
 ### Commands with a Response
 
-`MapCommand<TCommand, TResponse>` registers a `POST` endpoint that binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `200 OK` with the result:
+`MapCommand<TCommand, TResponse>` binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `200 OK` with the result. The default HTTP method is `POST`; use the `CommandHttpMethod` parameter to choose a different method:
 
 ```csharp
+// POST /orders  (default)
 app.MapCommand<CreateOrderCommand, OrderResult>("/orders");
 
+// PUT /orders/{id}
+app.MapCommand<UpdateOrderCommand, OrderResult>("/orders/{id}", CommandHttpMethod.Put);
+
+// PATCH /orders/{id}
+app.MapCommand<PatchOrderCommand, OrderResult>("/orders/{id}", CommandHttpMethod.Patch);
+```
+
+```csharp
 public record CreateOrderCommand(string Sku, int Quantity) : ICommand<OrderResult>;
+public record UpdateOrderCommand(Guid Id, string Sku, int Quantity) : ICommand<OrderResult>;
 public record OrderResult(Guid OrderId, string Status);
 ```
 
 ### Void Commands
 
-`MapCommand<TCommand>` registers a `POST` endpoint that binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `204 No Content`:
+`MapCommand<TCommand>` binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `204 No Content`. The default HTTP method is `POST`:
 
 ```csharp
-app.MapCommand<DeleteOrderCommand>("/orders/{id}");
+// POST /orders/cancel  (default)
+app.MapCommand<CancelOrderCommand>("/orders/cancel");
 
+// DELETE /orders/{id}
+app.MapCommand<DeleteOrderCommand>("/orders/{id}", CommandHttpMethod.Delete);
+```
+
+```csharp
+public record CancelOrderCommand(Guid Id) : ICommand;
 public record DeleteOrderCommand(Guid Id) : ICommand;
 ```
 
@@ -103,10 +126,26 @@ public record DeleteOrderCommand(Guid Id) : ICommand;
 
 ```csharp
 app.MapQuery<GetOrderQuery, OrderDto>("/orders/{id}");
+```
 
+```csharp
 public record GetOrderQuery(Guid Id) : IQuery<OrderDto>;
 public record OrderDto(Guid Id, string Sku, string Status);
 ```
+
+### CommandHttpMethod Enum
+
+The `CommandHttpMethod` enum controls the HTTP method registered for command endpoints. `GET` is intentionally excluded because commands are state-changing operations — use `MapQuery` for read-only operations instead:
+
+| Value | HTTP Method | Typical use |
+|-------|-------------|-------------|
+| `Post` (default) | `POST` | Create a new resource |
+| `Put` | `PUT` | Replace an existing resource |
+| `Patch` | `PATCH` | Partially update a resource |
+| `Delete` | `DELETE` | Remove a resource |
+
+> [!NOTE]
+> Passing an undefined enum value throws `ArgumentOutOfRangeException`.
 
 ### Chaining Endpoint Configuration
 
@@ -115,6 +154,12 @@ All methods return `RouteHandlerBuilder`, so you can chain Minimal API metadata:
 ```csharp
 app.MapCommand<CreateOrderCommand, OrderResult>("/orders")
    .WithName("CreateOrder")
+   .WithTags("Orders")
+   .WithOpenApi()
+   .RequireAuthorization();
+
+app.MapCommand<DeleteOrderCommand>("/orders/{id}", CommandHttpMethod.Delete)
+   .WithName("DeleteOrder")
    .WithTags("Orders")
    .WithOpenApi()
    .RequireAuthorization();
@@ -136,7 +181,8 @@ var orders = app.MapGroup("/orders")
     .RequireAuthorization();
 
 orders.MapCommand<CreateOrderCommand, OrderResult>("/");
-orders.MapCommand<DeleteOrderCommand>("/{id}");
+orders.MapCommand<UpdateOrderCommand, OrderResult>("/{id}", CommandHttpMethod.Put);
+orders.MapCommand<DeleteOrderCommand>("/{id}", CommandHttpMethod.Delete);
 orders.MapQuery<GetOrderQuery, OrderDto>("/{id}");
 ```
 
