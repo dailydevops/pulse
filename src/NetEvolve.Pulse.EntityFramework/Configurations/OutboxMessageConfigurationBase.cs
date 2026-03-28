@@ -75,14 +75,8 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         ArgumentNullException.ThrowIfNull(builder);
 
         // Table configuration
-        if (!string.IsNullOrWhiteSpace(_options.Schema))
-        {
-            _ = builder.ToTable(_options.TableName, _options.Schema);
-        }
-        else
-        {
-            _ = builder.ToTable(_options.TableName);
-        }
+        var schema = string.IsNullOrWhiteSpace(_options.Schema) ? OutboxMessageSchema.DefaultSchema : _options.Schema.Trim();
+        _ = builder.ToTable(_options.TableName, schema);
 
         // Primary key
         _ = builder.HasKey(m => m.Id);

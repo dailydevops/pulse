@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse;
 
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
@@ -12,9 +13,13 @@ internal static class SqlServerOutboxOptionsExtensions
         /// <summary>
         /// Gets the fully qualified table name including schema.
         /// </summary>
-        public string FullTableName =>
-            string.IsNullOrWhiteSpace(options.Schema)
-                ? $"[{options.TableName}]"
-                : $"[{options.Schema}].[{options.TableName}]";
+        public string FullTableName
+        {
+            get
+            {
+                var schema = string.IsNullOrWhiteSpace(options.Schema) ? OutboxMessageSchema.DefaultSchema : options.Schema.Trim();
+                return $"[{schema}].[{options.TableName}]";
+            }
+        }
     }
 }
