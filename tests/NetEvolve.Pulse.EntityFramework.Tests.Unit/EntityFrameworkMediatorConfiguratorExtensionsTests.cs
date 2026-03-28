@@ -132,6 +132,24 @@ public sealed class EntityFrameworkMediatorConfiguratorExtensionsTests
         _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomOutbox");
     }
 
+    [Test]
+    public async Task AddEntityFrameworkOutbox_RegistersOutboxManagementAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDbContext<TestDbContext>(o =>
+            o.UseInMemoryDatabase(nameof(AddEntityFrameworkOutbox_RegistersOutboxManagementAsScoped))
+        );
+        _ = services.AddPulse(config => config.AddOutbox().AddEntityFrameworkOutbox<TestDbContext>());
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxManagement));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
     private sealed class MediatorConfiguratorStub : IMediatorConfigurator
     {
         public IServiceCollection Services { get; } = new ServiceCollection();

@@ -24,6 +24,7 @@ public static class SqlServerMediatorConfiguratorExtensions
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
+    /// <item><description><see cref="IOutboxManagement"/> as <see cref="SqlServerOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
@@ -66,6 +67,13 @@ public static class SqlServerMediatorConfiguratorExtensions
             var transactionScope = sp.GetService<IOutboxTransactionScope>();
 
             return new SqlServerOutboxRepository(connectionString, options, timeProvider, transactionScope);
+        });
+
+        // Register the management API
+        _ = services.AddScoped<IOutboxManagement>(sp =>
+        {
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
+            return new SqlServerOutboxManagement(connectionString, options);
         });
 
         return configurator;
@@ -121,6 +129,14 @@ public static class SqlServerMediatorConfiguratorExtensions
             var transactionScope = sp.GetService<IOutboxTransactionScope>();
 
             return new SqlServerOutboxRepository(connectionString, options, timeProvider, transactionScope);
+        });
+
+        // Register the management API with factory
+        _ = services.AddScoped<IOutboxManagement>(sp =>
+        {
+            var connectionString = connectionStringFactory(sp);
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
+            return new SqlServerOutboxManagement(connectionString, options);
         });
 
         return configurator;

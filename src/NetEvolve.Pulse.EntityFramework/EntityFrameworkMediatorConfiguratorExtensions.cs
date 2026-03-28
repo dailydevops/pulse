@@ -30,6 +30,7 @@ internal static class EntityFrameworkMediatorConfiguratorExtensions
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="EntityFrameworkOutboxRepository{TContext}"/> (Scoped)</description></item>
     /// <item><description><see cref="IEventOutbox"/> as <see cref="EntityFrameworkEventOutbox{TContext}"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxTransactionScope"/> as <see cref="EntityFrameworkOutboxTransactionScope{TContext}"/> (Scoped)</description></item>
+    /// <item><description><see cref="IOutboxManagement"/> as <see cref="EntityFrameworkOutboxManagement{TContext}"/> (Scoped)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
     /// The DbContext must already be registered in the service collection.
@@ -77,6 +78,9 @@ internal static class EntityFrameworkMediatorConfiguratorExtensions
 
         // Register the transaction scope
         _ = services.AddScoped<IOutboxTransactionScope, EntityFrameworkOutboxTransactionScope<TContext>>();
+
+        // Register the management API
+        _ = services.AddScoped<IOutboxManagement, EntityFrameworkOutboxManagement<TContext>>();
 
         return configurator;
     }

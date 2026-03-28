@@ -162,6 +162,36 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
         _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
     }
 
+    [Test]
+    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;"));
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxManagement));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddSqlServerOutbox_WithFactory_RegistersOutboxManagementAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;Encrypt=true;"));
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxManagement));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
     private sealed class MediatorConfiguratorStub : IMediatorConfigurator
     {
         public IServiceCollection Services { get; } = new ServiceCollection();
