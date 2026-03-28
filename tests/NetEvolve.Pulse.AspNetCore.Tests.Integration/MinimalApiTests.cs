@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.AspNetCore.Tests.Integration;
 
 using System;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,6 +42,31 @@ public sealed class MinimalApiTests
     }
 
     [Test]
+    public async Task MapCommand_WithResponse_PutMethod_ReturnsOkWithResult()
+    {
+        await using var app = CreateApp(
+            endpoints => endpoints.MapCommand<CreateOrderCommand, OrderResult>("/orders/put", "PUT"),
+            services =>
+                services.AddScoped<ICommandHandler<CreateOrderCommand, OrderResult>, CreateOrderCommandHandler>()
+        );
+
+        await app.StartAsync();
+        var client = app.GetTestClient();
+
+        using var content = JsonContent.Create(new CreateOrderCommand("order-put", 55.00m));
+        var response = await client.PutAsync(new Uri("/orders/put", UriKind.Relative), content);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+            var result = await response.Content.ReadFromJsonAsync<OrderResult>();
+            _ = await Assert.That(result).IsNotNull();
+            _ = await Assert.That(result!.OrderId).IsEqualTo("order-put");
+        }
+    }
+
+    [Test]
     public async Task MapCommand_Void_ReturnsNoContent()
     {
         await using var app = CreateApp(
@@ -52,6 +78,26 @@ public sealed class MinimalApiTests
         var client = app.GetTestClient();
 
         var response = await client.PostAsJsonAsync("/orders/delete", new DeleteOrderCommand("order-123"));
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+    }
+
+    [Test]
+    public async Task MapCommand_Void_DeleteMethod_ReturnsNoContent()
+    {
+        await using var app = CreateApp(
+            endpoints => endpoints.MapCommand<DeleteOrderCommand>("/orders/{orderId}", "DELETE"),
+            services => services.AddScoped<ICommandHandler<DeleteOrderCommand, Void>, DeleteOrderCommandHandler>()
+        );
+
+        await app.StartAsync();
+        var client = app.GetTestClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri("/orders/order-789", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new DeleteOrderCommand("order-789")),
+        };
+        var response = await client.SendAsync(request);
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
     }
