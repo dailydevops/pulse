@@ -146,6 +146,86 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
     }
 
     [Test]
+    public async Task AddPollyRequestPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 3 })
+                )
+                .AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 5 })
+                )
+        );
+
+        // Assert - exactly one pipeline descriptor registered for this type/key combination
+        var pipelineDescriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(ResiliencePipeline<string>)
+                && d.ServiceKey is Type key
+                && key == typeof(TestCommand)
+            )
+            .ToList();
+
+        _ = await Assert.That(pipelineDescriptors.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AddPollyRequestPolicies_CalledTwice_SecondConfigurationIsApplied()
+    {
+        // Arrange
+        var firstFactoryInvoked = false;
+        var secondFactoryInvoked = false;
+
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                {
+                    firstFactoryInvoked = true;
+                    _ = pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 3 });
+                })
+                .AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                {
+                    secondFactoryInvoked = true;
+                    _ = pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 5 });
+                })
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolve the pipeline to trigger factory invocation
+        _ = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
+
+        // Assert - only the second factory should have been invoked
+        _ = await Assert.That(firstFactoryInvoked).IsFalse();
+        _ = await Assert.That(secondFactoryInvoked).IsTrue();
+    }
+
+    [Test]
+    public async Task AddPollyRequestPolicies_VoidCommand_CalledTwice_ReplacesExistingRegistration()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyRequestPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(10)))
+                .AddPollyRequestPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)))
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert - Should have only one interceptor and one pipeline (the second one)
+        var interceptors = provider.GetServices<IRequestInterceptor<VoidCommand, Extensibility.Void>>().ToList();
+        _ = await Assert.That(interceptors.Count).IsEqualTo(1);
+
+        var pipeline = provider.GetKeyedService<ResiliencePipeline<Extensibility.Void>>(typeof(VoidCommand));
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
     public async Task AddPollyRequestPolicies_CalledTwice_ReplacesExistingRegistration()
     {
         // Arrange
@@ -168,6 +248,89 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
 
         var pipeline = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
         _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyEventPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyEventPolicies<TestEvent>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 })
+                )
+                .AddPollyEventPolicies<TestEvent>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 4 })
+                )
+        );
+
+        // Assert - exactly one pipeline descriptor registered for this type/key combination
+        var pipelineDescriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(ResiliencePipeline) && d.ServiceKey is Type key && key == typeof(TestEvent)
+            )
+            .ToList();
+
+        _ = await Assert.That(pipelineDescriptors.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AddPollyEventPolicies_CalledTwice_SecondConfigurationIsApplied()
+    {
+        // Arrange
+        var firstFactoryInvoked = false;
+        var secondFactoryInvoked = false;
+
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyEventPolicies<TestEvent>(pipeline =>
+                {
+                    firstFactoryInvoked = true;
+                    _ = pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 });
+                })
+                .AddPollyEventPolicies<TestEvent>(pipeline =>
+                {
+                    secondFactoryInvoked = true;
+                    _ = pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 4 });
+                })
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolve the pipeline to trigger factory invocation
+        _ = provider.GetKeyedService<ResiliencePipeline>(typeof(TestEvent));
+
+        // Assert - only the second factory should have been invoked
+        _ = await Assert.That(firstFactoryInvoked).IsFalse();
+        _ = await Assert.That(secondFactoryInvoked).IsTrue();
+    }
+
+    [Test]
+    public async Task AddPollyEventPolicies_WithDifferentLifetimes_RespectsLifetime()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyEventPolicies<TestEvent>(
+                pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)),
+                ServiceLifetime.Scoped
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert - Create two scopes and verify different instances
+        using var scope1 = provider.CreateScope();
+        using var scope2 = provider.CreateScope();
+
+        var pipeline1 = scope1.ServiceProvider.GetKeyedService<ResiliencePipeline>(typeof(TestEvent));
+        var pipeline2 = scope2.ServiceProvider.GetKeyedService<ResiliencePipeline>(typeof(TestEvent));
+
+        _ = await Assert.That(pipeline1).IsNotNull();
+        _ = await Assert.That(pipeline2).IsNotNull();
+        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
     }
 
     [Test]
