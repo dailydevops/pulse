@@ -23,6 +23,16 @@ using Polly;
 /// <item><description><strong>Bulkhead:</strong> Limit concurrent executions to prevent resource exhaustion</description></item>
 /// <item><description><strong>Fallback:</strong> Provide alternative responses on handler failure</description></item>
 /// </list>
+/// <para><strong>Pulse Telemetry Bridging (opt-in):</strong></para>
+/// When <c>AddActivityAndMetrics()</c> is also registered, Polly resilience events are automatically
+/// forwarded into the <c>"NetEvolve.Pulse"</c> <see cref="System.Diagnostics.ActivitySource"/> and
+/// <see cref="System.Diagnostics.Metrics.Meter"/>. No additional configuration is required.
+/// The following instruments are emitted:
+/// <list type="bullet">
+/// <item><description><c>pulse.polly.retry.attempts</c> — Counter of cumulative retry attempts per pipeline.</description></item>
+/// <item><description><c>pulse.polly.timeout.total</c> — Counter of cumulative timeout occurrences per pipeline.</description></item>
+/// <item><description><c>pulse.polly.circuitbreaker.state</c> — Observable gauge of current circuit breaker state (0=Closed, 1=Open, 2=HalfOpen).</description></item>
+/// </list>
 /// <para><strong>Interceptor Ordering (LIFO):</strong></para>
 /// Remember that interceptors execute in reverse order of registration. Policy interceptors registered
 /// last will execute first. Plan your interceptor chain accordingly:
@@ -134,6 +144,7 @@ public static class PollyMediatorConfiguratorExtensions
         }
 
         // Register the resilience pipeline as keyed service with TRequest as key
+        var services = configurator.Services;
         configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline<TResponse>),
@@ -142,6 +153,16 @@ public static class PollyMediatorConfiguratorExtensions
                 {
                     var builder = new ResiliencePipelineBuilder<TResponse>();
                     configure(builder);
+
+                    // Opt-in telemetry bridge: activates when AddActivityAndMetrics() was also registered
+                    if (IsActivityAndMetricsEnabled(services))
+                    {
+                        builder.TelemetryListener = new PulseTelemetryListener(
+                            typeof(TRequest).Name,
+                            builder.TelemetryListener
+                        );
+                    }
+
                     return builder.Build();
                 },
                 lifetime
@@ -256,6 +277,7 @@ public static class PollyMediatorConfiguratorExtensions
         }
 
         // Register the resilience pipeline as keyed service with TEvent as key
+        var services = configurator.Services;
         configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline),
@@ -264,6 +286,16 @@ public static class PollyMediatorConfiguratorExtensions
                 {
                     var builder = new ResiliencePipelineBuilder();
                     configure(builder);
+
+                    // Opt-in telemetry bridge: activates when AddActivityAndMetrics() was also registered
+                    if (IsActivityAndMetricsEnabled(services))
+                    {
+                        builder.TelemetryListener = new PulseTelemetryListener(
+                            typeof(TEvent).Name,
+                            builder.TelemetryListener
+                        );
+                    }
+
                     return builder.Build();
                 },
                 lifetime
@@ -277,4 +309,17 @@ public static class PollyMediatorConfiguratorExtensions
 
         return configurator;
     }
+
+    /// <summary>
+    /// Checks whether <c>AddActivityAndMetrics()</c> has been registered in the service collection
+    /// by detecting the open-generic <see cref="IRequestInterceptor{TRequest,TResponse}"/> registration
+    /// that <c>AddActivityAndMetrics()</c> adds.
+    /// </summary>
+    /// <param name="services">The service collection to inspect.</param>
+    /// <returns>
+    /// <see langword="true"/> when <c>AddActivityAndMetrics()</c> was registered;
+    /// <see langword="false"/> otherwise.
+    /// </returns>
+    private static bool IsActivityAndMetricsEnabled(IServiceCollection services) =>
+        services.Any(d => d.ServiceType == typeof(IRequestInterceptor<,>));
 }

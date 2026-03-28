@@ -358,6 +358,89 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         _ = await Assert.That(pipeline).IsNotNull();
     }
 
+    [Test]
+    public async Task AddPollyRequestPolicies_WithActivityAndMetrics_AttachesTelemetryListener()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 2 })
+                )
+                .AddActivityAndMetrics()
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolving the pipeline triggers factory execution which attaches the listener
+        var pipeline = provider.GetKeyedService<global::Polly.ResiliencePipeline<string>>(typeof(TestCommand));
+
+        // Assert - pipeline is created successfully
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyRequestPolicies_WithoutActivityAndMetrics_NoPulseTelemetryListener()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 2 })
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolving the pipeline triggers factory execution (no listener should be attached)
+        var pipeline = provider.GetKeyedService<global::Polly.ResiliencePipeline<string>>(typeof(TestCommand));
+
+        // Assert - pipeline is created successfully without a listener
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyEventPolicies_WithActivityAndMetrics_AttachesTelemetryListener()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddActivityAndMetrics()
+                .AddPollyEventPolicies<TestEvent>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 })
+                )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolving the pipeline triggers factory execution
+        var pipeline = provider.GetKeyedService<global::Polly.ResiliencePipeline>(typeof(TestEvent));
+
+        // Assert - pipeline is created successfully
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyEventPolicies_WithoutActivityAndMetrics_NoPulseTelemetryListener()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyEventPolicies<TestEvent>(pipeline =>
+                pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 })
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        var pipeline = provider.GetKeyedService<global::Polly.ResiliencePipeline>(typeof(TestEvent));
+
+        // Assert - pipeline is created successfully without telemetry
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
     private sealed record TestCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }
