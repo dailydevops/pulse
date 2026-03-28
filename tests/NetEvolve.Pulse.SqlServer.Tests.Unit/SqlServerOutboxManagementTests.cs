@@ -53,4 +53,64 @@ public sealed class SqlServerOutboxManagementTests
 
         _ = await Assert.That(management).IsNotNull();
     }
+
+    [Test]
+    public async Task Constructor_WithEmptySchema_UsesDefaultDboSchema()
+    {
+        var options = Options.Create(new OutboxOptions { Schema = string.Empty });
+
+        var management = new SqlServerOutboxManagement(ValidConnectionString, options);
+
+        _ = await Assert.That(management).IsNotNull();
+    }
+
+    [Test]
+    public async Task Constructor_WithWhitespaceSchema_UsesDefaultDboSchema()
+    {
+        var options = Options.Create(new OutboxOptions { Schema = "   " });
+
+        var management = new SqlServerOutboxManagement(ValidConnectionString, options);
+
+        _ = await Assert.That(management).IsNotNull();
+    }
+
+    [Test]
+    public async Task Constructor_WithCustomSchema_CreatesInstance()
+    {
+        var options = Options.Create(new OutboxOptions { Schema = "custom" });
+
+        var management = new SqlServerOutboxManagement(ValidConnectionString, options);
+
+        _ = await Assert.That(management).IsNotNull();
+    }
+
+    [Test]
+    public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException()
+    {
+        var management = new SqlServerOutboxManagement(ValidConnectionString, Options.Create(new OutboxOptions()));
+
+        _ = await Assert
+            .That(async () => await management.GetDeadLetterMessagesAsync(pageSize: -1).ConfigureAwait(false))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
+    {
+        var management = new SqlServerOutboxManagement(ValidConnectionString, Options.Create(new OutboxOptions()));
+
+        _ = await Assert
+            .That(async () => await management.GetDeadLetterMessagesAsync(pageSize: 0).ConfigureAwait(false))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException()
+    {
+        var management = new SqlServerOutboxManagement(ValidConnectionString, Options.Create(new OutboxOptions()));
+
+        _ = await Assert
+            .That(async () => await management.GetDeadLetterMessagesAsync(page: -1).ConfigureAwait(false))
+            .Throws<ArgumentOutOfRangeException>();
+    }
 }
