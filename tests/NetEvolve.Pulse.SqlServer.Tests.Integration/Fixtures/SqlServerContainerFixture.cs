@@ -161,13 +161,27 @@ public sealed partial class SqlServerContainerFixture : IAsyncInitializer, IAsyn
         var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "OutboxMessage.sql");
         var script = await File.ReadAllTextAsync(scriptPath, cancellationToken).ConfigureAwait(false);
 
+        // Parse SQLCMD :setvar directives and build a variable map
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        script = SqlcmdSetvarDirective()
+            .Replace(
+                script,
+                m =>
+                {
+                    variables[m.Groups["name"].Value] = m.Groups["value"].Value.Trim('"').Trim('\'');
+                    return string.Empty;
+                }
+            );
+
+        // Replace $(VarName) placeholders with actual values
+        script = SqlcmdVariable()
+            .Replace(script, m => variables.TryGetValue(m.Groups["name"].Value, out var value) ? value : m.Value);
+
         await using var connection = new SqlConnection(GetConnectionString(databaseName));
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         // Split script on GO statements and execute each batch
-        var batches = GoBatchSeparator().Split(script);
-
-        foreach (var batch in batches)
+        foreach (var batch in GoBatchSeparator().Split(script))
         {
             var trimmedBatch = batch.Trim();
             if (string.IsNullOrWhiteSpace(trimmedBatch))
@@ -186,4 +200,13 @@ public sealed partial class SqlServerContainerFixture : IAsyncInitializer, IAsyn
 
     [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex GoBatchSeparator();
+
+    [GeneratedRegex(
+        @"^\s*:setvar\s+(?<name>\w+)\s+(?<value>""[^""]*""|'[^']*'|\S+)\s*$",
+        RegexOptions.Multiline | RegexOptions.IgnoreCase
+    )]
+    private static partial Regex SqlcmdSetvarDirective();
+
+    [GeneratedRegex(@"\$\((?<name>\w+)\)")]
+    private static partial Regex SqlcmdVariable();
 }
