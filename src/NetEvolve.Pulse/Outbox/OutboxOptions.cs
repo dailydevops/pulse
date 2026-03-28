@@ -25,11 +25,6 @@ public sealed class OutboxOptions
     public string TableName { get; set; } = OutboxMessageSchema.DefaultTableName;
 
     /// <summary>
-    /// Gets the fully qualified table name including schema.
-    /// </summary>
-    public string FullTableName => string.IsNullOrWhiteSpace(Schema) ? $"[{TableName}]" : $"[{Schema}].[{TableName}]";
-
-    /// <summary>
     /// Gets or sets the JSON serializer options for event serialization.
     /// </summary>
     public JsonSerializerOptions? JsonSerializerOptions { get; set; }
