@@ -236,3 +236,160 @@ BEGIN
     SELECT @@ROWCOUNT AS [DeletedCount];
 END
 GO
+
+-- ============================================================================
+-- Management Stored Procedures
+-- ============================================================================
+
+-- usp_GetDeadLetterOutboxMessages: Returns a paginated list of dead-letter messages
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetDeadLetterOutboxMessages]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessages];
+END
+GO
+
+CREATE PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessages]
+    @pageSize INT,
+    @page     INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        [Id],
+        [EventType],
+        [Payload],
+        [CorrelationId],
+        [CreatedAt],
+        [UpdatedAt],
+        [ProcessedAt],
+        [RetryCount],
+        [Error],
+        [Status]
+    FROM [pulse].[OutboxMessage]
+    WHERE [Status] = 4 -- DeadLetter
+    ORDER BY [UpdatedAt] DESC
+    OFFSET (@page * @pageSize) ROWS
+    FETCH NEXT @pageSize ROWS ONLY;
+END
+GO
+
+-- usp_GetDeadLetterOutboxMessage: Returns a single dead-letter message by Id
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetDeadLetterOutboxMessage]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessage];
+END
+GO
+
+CREATE PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessage]
+    @messageId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        [Id],
+        [EventType],
+        [Payload],
+        [CorrelationId],
+        [CreatedAt],
+        [UpdatedAt],
+        [ProcessedAt],
+        [RetryCount],
+        [Error],
+        [Status]
+    FROM [pulse].[OutboxMessage]
+    WHERE [Id] = @messageId
+      AND [Status] = 4; -- DeadLetter
+END
+GO
+
+-- usp_GetDeadLetterOutboxMessageCount: Returns the count of dead-letter messages
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetDeadLetterOutboxMessageCount]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessageCount];
+END
+GO
+
+CREATE PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessageCount]
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT COUNT_BIG(1) AS [DeadLetterCount]
+    FROM [pulse].[OutboxMessage]
+    WHERE [Status] = 4; -- DeadLetter
+END
+GO
+
+-- usp_ReplayOutboxMessage: Resets a dead-letter message to Pending for reprocessing
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_ReplayOutboxMessage]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [pulse].[usp_ReplayOutboxMessage];
+END
+GO
+
+CREATE PROCEDURE [pulse].[usp_ReplayOutboxMessage]
+    @messageId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE [pulse].[OutboxMessage]
+    SET
+        [Status]     = 0, -- Pending
+        [RetryCount] = 0,
+        [Error]      = NULL,
+        [UpdatedAt]  = SYSDATETIMEOFFSET()
+    WHERE [Id] = @messageId
+      AND [Status] = 4; -- DeadLetter
+
+    SELECT @@ROWCOUNT AS [UpdatedCount];
+END
+GO
+
+-- usp_ReplayAllDeadLetterOutboxMessages: Resets all dead-letter messages to Pending
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_ReplayAllDeadLetterOutboxMessages]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [pulse].[usp_ReplayAllDeadLetterOutboxMessages];
+END
+GO
+
+CREATE PROCEDURE [pulse].[usp_ReplayAllDeadLetterOutboxMessages]
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE [pulse].[OutboxMessage]
+    SET
+        [Status]     = 0, -- Pending
+        [RetryCount] = 0,
+        [Error]      = NULL,
+        [UpdatedAt]  = SYSDATETIMEOFFSET()
+    WHERE [Status] = 4; -- DeadLetter
+
+    SELECT @@ROWCOUNT AS [UpdatedCount];
+END
+GO
+
+-- usp_GetOutboxStatistics: Returns message counts grouped by status
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetOutboxStatistics]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [pulse].[usp_GetOutboxStatistics];
+END
+GO
+
+CREATE PROCEDURE [pulse].[usp_GetOutboxStatistics]
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        SUM(CASE WHEN [Status] = 0 THEN 1 ELSE 0 END) AS [Pending],
+        SUM(CASE WHEN [Status] = 1 THEN 1 ELSE 0 END) AS [Processing],
+        SUM(CASE WHEN [Status] = 2 THEN 1 ELSE 0 END) AS [Completed],
+        SUM(CASE WHEN [Status] = 3 THEN 1 ELSE 0 END) AS [Failed],
+        SUM(CASE WHEN [Status] = 4 THEN 1 ELSE 0 END) AS [DeadLetter]
+    FROM [pulse].[OutboxMessage];
+END
+GO
