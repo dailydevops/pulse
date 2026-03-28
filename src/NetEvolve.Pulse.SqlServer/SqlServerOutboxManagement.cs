@@ -61,7 +61,9 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
 
         _connectionString = connectionString;
 
-        var schema = string.IsNullOrWhiteSpace(options.Value.Schema) ? "dbo" : options.Value.Schema;
+        var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
+            ? OutboxMessageSchema.DefaultSchema
+            : options.Value.Schema;
         _getDeadLetterMessagesSql = $"[{schema}].[usp_GetDeadLetterOutboxMessages]";
         _getDeadLetterMessageSql = $"[{schema}].[usp_GetDeadLetterOutboxMessage]";
         _getDeadLetterCountSql = $"[{schema}].[usp_GetDeadLetterOutboxMessageCount]";
@@ -181,20 +183,20 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         return new OutboxStatistics
         {
             Pending = await reader.IsDBNullAsync(ordPending, cancellationToken).ConfigureAwait(false)
-                ? 0L
-                : reader.GetInt64(ordPending),
+                ? 0
+                : reader.GetInt32(ordPending),
             Processing = await reader.IsDBNullAsync(ordProcessing, cancellationToken).ConfigureAwait(false)
-                ? 0L
-                : reader.GetInt64(ordProcessing),
+                ? 0
+                : reader.GetInt32(ordProcessing),
             Completed = await reader.IsDBNullAsync(ordCompleted, cancellationToken).ConfigureAwait(false)
-                ? 0L
-                : reader.GetInt64(ordCompleted),
+                ? 0
+                : reader.GetInt32(ordCompleted),
             Failed = await reader.IsDBNullAsync(ordFailed, cancellationToken).ConfigureAwait(false)
-                ? 0L
-                : reader.GetInt64(ordFailed),
+                ? 0
+                : reader.GetInt32(ordFailed),
             DeadLetter = await reader.IsDBNullAsync(ordDeadLetter, cancellationToken).ConfigureAwait(false)
-                ? 0L
-                : reader.GetInt64(ordDeadLetter),
+                ? 0
+                : reader.GetInt32(ordDeadLetter),
         };
     }
 
@@ -223,13 +225,11 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
-        var messages = new List<OutboxMessage>();
-
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
         if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            return messages;
+            return [];
         }
 
         var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
@@ -243,6 +243,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
 
+        var messages = new List<OutboxMessage>();
         do
         {
             messages.Add(
