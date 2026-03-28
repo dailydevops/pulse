@@ -9,7 +9,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
 /// <summary>
-/// Integration tests for <see cref="EntityFrameworkEventOutbox{TContext}"/>.
+/// Integration tests for <see cref="EntityFrameworkOutbox{TContext}"/>.
 /// Tests event storage with EF Core against a real SQL Server database.
 /// </summary>
 [ClassDataSource<SqlServerContainerFixture>(Shared = SharedType.PerAssembly)]
@@ -80,7 +80,7 @@ public sealed class EntityFrameworkEventOutboxTests
         await using var scope = provider.CreateAsyncScope();
 
         var context = scope.ServiceProvider.GetRequiredService<TestOutboxDbContext>();
-        var outbox = new EntityFrameworkEventOutbox<TestOutboxDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestOutboxDbContext>(
             context,
             Microsoft.Extensions.Options.Options.Create(new OutboxOptions()),
             TimeProvider.System
@@ -113,7 +113,7 @@ public sealed class EntityFrameworkEventOutboxTests
         await using var scope = provider.CreateAsyncScope();
 
         var context = scope.ServiceProvider.GetRequiredService<TestOutboxDbContext>();
-        var outbox = new EntityFrameworkEventOutbox<TestOutboxDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestOutboxDbContext>(
             context,
             Microsoft.Extensions.Options.Options.Create(new OutboxOptions()),
             TimeProvider.System
@@ -141,7 +141,7 @@ public sealed class EntityFrameworkEventOutboxTests
         await using var scope = provider.CreateAsyncScope();
 
         var context = scope.ServiceProvider.GetRequiredService<TestOutboxDbContext>();
-        var outbox = new EntityFrameworkEventOutbox<TestOutboxDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestOutboxDbContext>(
             context,
             Microsoft.Extensions.Options.Options.Create(new OutboxOptions()),
             TimeProvider.System
@@ -172,7 +172,7 @@ public sealed class EntityFrameworkEventOutboxTests
         await using var scope = provider.CreateAsyncScope();
 
         var context = scope.ServiceProvider.GetRequiredService<TestOutboxDbContext>();
-        var outbox = new EntityFrameworkEventOutbox<TestOutboxDbContext>(
+        var outbox = new EntityFrameworkOutbox<TestOutboxDbContext>(
             context,
             Microsoft.Extensions.Options.Options.Create(new OutboxOptions()),
             TimeProvider.System
@@ -219,7 +219,7 @@ public sealed class EntityFrameworkEventOutboxTests
             options.UseSqlServer(_fixture.GetConnectionString(_databaseName))
         );
         _ = services.Configure<OutboxOptions>(_ => { });
-        _ = services.AddScoped<IEventOutbox, EntityFrameworkEventOutbox<TestOutboxDbContext>>();
+        _ = services.AddScoped<IEventOutbox, EntityFrameworkOutbox<TestOutboxDbContext>>();
         return services;
     }
 

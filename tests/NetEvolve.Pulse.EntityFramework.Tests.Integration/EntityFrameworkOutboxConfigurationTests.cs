@@ -78,7 +78,7 @@ public sealed class EntityFrameworkOutboxConfigurationTests
         var outbox = provider.GetRequiredService<IEventOutbox>();
 
         // Assert
-        _ = await Assert.That(outbox).IsTypeOf<EntityFrameworkEventOutbox<TestOutboxDbContext>>();
+        _ = await Assert.That(outbox).IsTypeOf<EntityFrameworkOutbox<TestOutboxDbContext>>();
     }
 
     [Test]

@@ -184,19 +184,19 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         {
             Pending = await reader.IsDBNullAsync(ordPending, cancellationToken).ConfigureAwait(false)
                 ? 0
-                : reader.GetInt32(ordPending),
+                : reader.GetInt64(ordPending),
             Processing = await reader.IsDBNullAsync(ordProcessing, cancellationToken).ConfigureAwait(false)
                 ? 0
-                : reader.GetInt32(ordProcessing),
+                : reader.GetInt64(ordProcessing),
             Completed = await reader.IsDBNullAsync(ordCompleted, cancellationToken).ConfigureAwait(false)
                 ? 0
-                : reader.GetInt32(ordCompleted),
+                : reader.GetInt64(ordCompleted),
             Failed = await reader.IsDBNullAsync(ordFailed, cancellationToken).ConfigureAwait(false)
                 ? 0
-                : reader.GetInt32(ordFailed),
+                : reader.GetInt64(ordFailed),
             DeadLetter = await reader.IsDBNullAsync(ordDeadLetter, cancellationToken).ConfigureAwait(false)
                 ? 0
-                : reader.GetInt32(ordDeadLetter),
+                : reader.GetInt64(ordDeadLetter),
         };
     }
 

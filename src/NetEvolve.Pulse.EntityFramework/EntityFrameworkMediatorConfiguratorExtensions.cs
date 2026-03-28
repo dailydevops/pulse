@@ -28,7 +28,7 @@ internal static class EntityFrameworkMediatorConfiguratorExtensions
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="EntityFrameworkOutboxRepository{TContext}"/> (Scoped)</description></item>
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="EntityFrameworkEventOutbox{TContext}"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="EntityFrameworkOutbox{TContext}"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxTransactionScope"/> as <see cref="EntityFrameworkOutboxTransactionScope{TContext}"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="EntityFrameworkOutboxManagement{TContext}"/> (Scoped)</description></item>
     /// </list>
@@ -74,7 +74,7 @@ internal static class EntityFrameworkMediatorConfiguratorExtensions
         _ = services.AddScoped<IOutboxRepository, EntityFrameworkOutboxRepository<TContext>>();
 
         // Register the event outbox (overrides the default OutboxEventStore)
-        _ = services.AddScoped<IEventOutbox, EntityFrameworkEventOutbox<TContext>>();
+        _ = services.AddScoped<IEventOutbox, EntityFrameworkOutbox<TContext>>();
 
         // Register the transaction scope
         _ = services.AddScoped<IOutboxTransactionScope, EntityFrameworkOutboxTransactionScope<TContext>>();
