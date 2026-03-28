@@ -277,6 +277,53 @@ public class DistributedCacheQueryInterceptorTests
         _ = await Assert.That(cachedResult).IsEqualTo("custom-json-value");
     }
 
+    [Test]
+    public async Task HandleAsync_DefaultExpiry_UsedWhenQueryExpiryIsNull()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        await using var provider = services.BuildServiceProvider();
+
+        var options = Options.Create(new QueryCachingOptions { DefaultExpiry = TimeSpan.FromMinutes(5) });
+        var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(provider, options);
+        var query = new CacheableQuery("default-expiry-key");
+
+        var result = await interceptor
+            .HandleAsync(query, (_, _) => Task.FromResult("default-expiry-value"))
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("default-expiry-value");
+
+        // Entry should be present (default expiry applied)
+        var cache = provider.GetRequiredService<IDistributedCache>();
+        var bytes = await cache.GetAsync("default-expiry-key").ConfigureAwait(false);
+        _ = await Assert.That(bytes).IsNotNull();
+    }
+
+    [Test]
+    public async Task HandleAsync_DefaultExpiry_NotUsedWhenQueryExpiryIsProvided()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        await using var provider = services.BuildServiceProvider();
+
+        // DefaultExpiry set but query overrides with its own expiry value
+        var options = Options.Create(new QueryCachingOptions { DefaultExpiry = TimeSpan.FromMilliseconds(1) });
+        var interceptor = new DistributedCacheQueryInterceptor<CacheableQueryWithExpiry, string>(provider, options);
+        var query = new CacheableQueryWithExpiry("query-expiry-key", TimeSpan.FromMinutes(10));
+
+        var result = await interceptor
+            .HandleAsync(query, (_, _) => Task.FromResult("query-expiry-value"))
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("query-expiry-value");
+
+        // Entry should still be present because the query's own expiry (10 min) overrode DefaultExpiry (1 ms)
+        var cache = provider.GetRequiredService<IDistributedCache>();
+        var bytes = await cache.GetAsync("query-expiry-key").ConfigureAwait(false);
+        _ = await Assert.That(bytes).IsNotNull();
+    }
+
     // ── Private test types ───────────────────────────────────────────────────
 
     private sealed class NonCacheableQuery : IQuery<string>

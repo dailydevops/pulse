@@ -24,9 +24,10 @@ using NetEvolve.Pulse.Extensibility;
 /// When <see cref="IDistributedCache"/> is not registered in the DI container, the interceptor
 /// falls through to the handler without error.
 /// <para><strong>Expiry:</strong></para>
-/// When <see cref="ICacheableQuery{TResponse}.Expiry"/> is <see langword="null"/>, the entry is stored
-/// without an explicit expiration. Otherwise the provided <see cref="TimeSpan"/> is applied as
-/// either absolute or sliding expiration, depending on <see cref="QueryCachingOptions.ExpirationMode"/>.
+/// The effective expiry is determined by first checking <see cref="ICacheableQuery{TResponse}.Expiry"/>;
+/// when it is <see langword="null"/>, <see cref="QueryCachingOptions.DefaultExpiry"/> is used as a fallback.
+/// If both are <see langword="null"/> the entry is stored without an explicit expiration.
+/// The resolved expiry is applied as absolute or sliding based on <see cref="QueryCachingOptions.ExpirationMode"/>.
 /// <para><strong>Serialization:</strong></para>
 /// Responses are serialized using <c>System.Text.Json</c> with the options supplied via
 /// <see cref="QueryCachingOptions.JsonSerializerOptions"/>. Defaults to
@@ -100,15 +101,16 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
     {
         var entryOptions = new DistributedCacheEntryOptions();
 
-        if (cacheableQuery.Expiry.HasValue)
+        var expiry = cacheableQuery.Expiry ?? _options.DefaultExpiry;
+        if (expiry.HasValue)
         {
             if (_options.ExpirationMode == CacheExpirationMode.Sliding)
             {
-                entryOptions.SlidingExpiration = cacheableQuery.Expiry;
+                entryOptions.SlidingExpiration = expiry;
             }
             else
             {
-                entryOptions.AbsoluteExpirationRelativeToNow = cacheableQuery.Expiry;
+                entryOptions.AbsoluteExpirationRelativeToNow = expiry;
             }
         }
 

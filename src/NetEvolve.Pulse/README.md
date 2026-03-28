@@ -182,9 +182,10 @@ Behavior summary:
 | Query implements `ICacheableQuery<TResponse>` and no cache entry | Handler invoked; response stored in cache |
 | Query does **not** implement `ICacheableQuery<TResponse>` | Handler always invoked; cache never consulted |
 | `IDistributedCache` not registered in DI | Interceptor falls through; handler invoked without error |
-| `Expiry = null` | Entry stored without explicit expiry; cache default eviction policy applies |
-| `ExpirationMode = Absolute` (default) | `Expiry` is applied as absolute expiry relative to now |
-| `ExpirationMode = Sliding` | `Expiry` window resets on each cache access |
+| `Expiry = null` and `DefaultExpiry = null` | Entry stored without explicit expiry; cache default eviction policy applies |
+| `Expiry = null` and `DefaultExpiry` is set | `DefaultExpiry` value is applied using the configured `ExpirationMode` |
+| `ExpirationMode = Absolute` (default) | `Expiry` (or `DefaultExpiry`) is applied as absolute expiry relative to now |
+| `ExpirationMode = Sliding` | `Expiry` (or `DefaultExpiry`) window resets on each cache access |
 
 ### Outbox Pattern Configuration
 

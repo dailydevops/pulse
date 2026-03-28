@@ -44,7 +44,30 @@ public sealed class QueryCachingOptions
     /// </item>
     /// </list>
     /// When <see cref="ICacheableQuery{TResponse}.Expiry"/> is <see langword="null"/>,
-    /// no expiry is set regardless of this setting.
+    /// <see cref="DefaultExpiry"/> is used if set; otherwise no expiry is applied and the
+    /// cache's default eviction policy is used.
     /// </remarks>
     public CacheExpirationMode ExpirationMode { get; set; } = CacheExpirationMode.Absolute;
+
+    /// <summary>
+    /// Gets or sets the fallback expiry duration used when
+    /// <see cref="ICacheableQuery{TResponse}.Expiry"/> returns <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// When <see langword="null"/> (default), entries whose query returns a <see langword="null"/>
+    /// <see cref="ICacheableQuery{TResponse}.Expiry"/> are stored without an explicit expiration,
+    /// relying on the cache's default eviction policy.
+    /// When a <see cref="TimeSpan"/> value is provided, it is applied according to
+    /// <see cref="ExpirationMode"/> in the same way as a per-query expiry would be.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddPulse(config => config.AddQueryCaching(options =>
+    /// {
+    ///     // All queries without an explicit Expiry get a 10-minute TTL
+    ///     options.DefaultExpiry = TimeSpan.FromMinutes(10);
+    /// }));
+    /// </code>
+    /// </example>
+    public TimeSpan? DefaultExpiry { get; set; }
 }

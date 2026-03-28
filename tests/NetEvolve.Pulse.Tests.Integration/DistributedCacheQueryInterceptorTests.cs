@@ -189,6 +189,51 @@ public sealed class DistributedCacheQueryInterceptorTests
         }
     }
 
+    [Test]
+    public async Task QueryAsync_WithDefaultExpiry_AppliedWhenQueryExpiryIsNull()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddDistributedMemoryCache();
+        _ = services
+            .AddPulse(config =>
+                config.AddQueryCaching(options =>
+                {
+                    options.DefaultExpiry = TimeSpan.FromMinutes(5);
+                })
+            )
+            .AddScoped<IQueryHandler<CachedValueQuery, string>, CachedValueQueryHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+
+        await using var scope1 = provider.CreateAsyncScope();
+        var mediator1 = scope1.ServiceProvider.GetRequiredService<IMediator>();
+        var handler1 =
+            scope1.ServiceProvider.GetRequiredService<IQueryHandler<CachedValueQuery, string>>()
+            as CachedValueQueryHandler;
+
+        var query = new CachedValueQuery("default-expiry-integration-key");
+        var firstResult = await mediator1.QueryAsync<CachedValueQuery, string>(query).ConfigureAwait(false);
+
+        await using var scope2 = provider.CreateAsyncScope();
+        var mediator2 = scope2.ServiceProvider.GetRequiredService<IMediator>();
+        var handler2 =
+            scope2.ServiceProvider.GetRequiredService<IQueryHandler<CachedValueQuery, string>>()
+            as CachedValueQueryHandler;
+
+        var secondResult = await mediator2.QueryAsync<CachedValueQuery, string>(query).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(firstResult).IsEqualTo("integration-value");
+            _ = await Assert.That(secondResult).IsEqualTo("integration-value");
+            _ = await Assert.That(handler1).IsNotNull();
+            _ = await Assert.That(handler1!.CallCount).IsEqualTo(1);
+            _ = await Assert.That(handler2).IsNotNull();
+            _ = await Assert.That(handler2!.CallCount).IsEqualTo(0);
+        }
+    }
+
     // ── Private test types ───────────────────────────────────────────────────
 
     private sealed record CachedValueQuery(string Key) : ICacheableQuery<string>

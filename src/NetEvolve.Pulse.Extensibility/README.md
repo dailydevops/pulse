@@ -146,6 +146,9 @@ services.AddPulse(config => config.AddQueryCaching(options =>
     // Absolute (default) or Sliding expiration
     options.ExpirationMode = CacheExpirationMode.Sliding;
 
+    // Fallback expiry for queries that return null from ICacheableQuery<TResponse>.Expiry
+    options.DefaultExpiry = TimeSpan.FromMinutes(10);
+
     // Custom JSON serializer options
     options.JsonSerializerOptions = new JsonSerializerOptions
     {
@@ -160,6 +163,7 @@ services.AddPulse(config => config.AddQueryCaching(options =>
 | --- | --- | --- | --- |
 | `JsonSerializerOptions` | `JsonSerializerOptions` | `JsonSerializerOptions.Default` | Options used for cache serialization and deserialization |
 | `ExpirationMode` | `CacheExpirationMode` | `Absolute` | Whether `Expiry` is treated as absolute or sliding expiration |
+| `DefaultExpiry` | `TimeSpan?` | `null` | Fallback expiry used when `ICacheableQuery<TResponse>.Expiry` returns `null` |
 
 Queries that do **not** implement `ICacheableQuery<TResponse>` always reach the handler unchanged. When `IDistributedCache` is not registered the interceptor falls through silently.
 
