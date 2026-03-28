@@ -23,11 +23,15 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>Optional Dependency:</strong></para>
 /// If <see cref="IHttpCorrelationAccessor"/> is not registered in the DI container (for example in a
 /// background-service context), the interceptor passes through without modification or error.
+/// <para><strong>Lifetime Consideration:</strong></para>
+/// <see cref="IHttpCorrelationAccessor"/> is a scoped service. This interceptor is also registered
+/// as scoped so that it receives the current request's <see cref="IServiceProvider"/> and resolves
+/// the accessor fresh on each <see cref="HandleAsync"/> invocation.
 /// </remarks>
 internal sealed class HttpCorrelationEventInterceptor<TEvent> : IEventInterceptor<TEvent>
     where TEvent : IEvent
 {
-    private readonly IHttpCorrelationAccessor? _accessor;
+    private readonly IServiceProvider _serviceProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HttpCorrelationEventInterceptor{TEvent}"/> class.
@@ -37,7 +41,7 @@ internal sealed class HttpCorrelationEventInterceptor<TEvent> : IEventIntercepto
     public HttpCorrelationEventInterceptor(IServiceProvider serviceProvider)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
-        _accessor = serviceProvider.GetService<IHttpCorrelationAccessor>();
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -55,7 +59,7 @@ internal sealed class HttpCorrelationEventInterceptor<TEvent> : IEventIntercepto
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        var correlationId = _accessor?.CorrelationId;
+        var correlationId = _serviceProvider.GetService<IHttpCorrelationAccessor>()?.CorrelationId;
         if (!string.IsNullOrEmpty(correlationId) && string.IsNullOrEmpty(message.CorrelationId))
         {
             message.CorrelationId = correlationId;

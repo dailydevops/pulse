@@ -57,11 +57,11 @@ public static class HttpCorrelationMediatorConfiguratorExtensions
         ArgumentNullException.ThrowIfNull(configurator);
 
         configurator.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(HttpCorrelationRequestInterceptor<,>))
+            ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(HttpCorrelationRequestInterceptor<,>))
         );
 
         configurator.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton(typeof(IEventInterceptor<>), typeof(HttpCorrelationEventInterceptor<>))
+            ServiceDescriptor.Scoped(typeof(IEventInterceptor<>), typeof(HttpCorrelationEventInterceptor<>))
         );
 
         return configurator;
