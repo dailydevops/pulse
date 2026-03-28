@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
 
 using System;
 using System.Threading.Tasks;
@@ -135,7 +135,7 @@ public sealed class EntityFrameworkOutboxManagementTests
 
         var result = await management.GetDeadLetterMessagesAsync().ConfigureAwait(false);
 
-        _ = await Assert.That(result).HasCount().EqualTo(1);
+        _ = await Assert.That(result).Count().IsEqualTo(1);
         _ = await Assert.That(result[0].Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
     }
 
