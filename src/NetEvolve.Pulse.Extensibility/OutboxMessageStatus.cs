@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility;
+﻿namespace NetEvolve.Pulse.Extensibility;
 
 /// <summary>
 /// Represents the processing status of an outbox message.

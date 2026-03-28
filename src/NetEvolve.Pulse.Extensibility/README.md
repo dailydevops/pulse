@@ -130,19 +130,36 @@ public record GetCustomerByIdQuery(Guid CustomerId)
     // Unique cache key — include all parameters that distinguish results
     public string CacheKey => $"customer:{CustomerId}";
 
-    // null = rely on cache default; TimeSpan = absolute expiry relative to now
+    // null = rely on cache default; TimeSpan = expiry duration
     public TimeSpan? Expiry => TimeSpan.FromMinutes(10);
 }
 
 public record CustomerDetailsDto(Guid Id, string Name, string Email);
 ```
 
-To activate caching, register an `IDistributedCache` implementation and call `AddQueryCaching()` during Pulse setup (requires `NetEvolve.Pulse`):
+To activate caching, register an `IDistributedCache` implementation and call `AddQueryCaching()` during Pulse setup (requires `NetEvolve.Pulse`). Use `QueryCachingOptions` to configure serialization and expiration behavior:
 
 ```csharp
 services.AddDistributedMemoryCache();
-services.AddPulse(config => config.AddQueryCaching());
+services.AddPulse(config => config.AddQueryCaching(options =>
+{
+    // Absolute (default) or Sliding expiration
+    options.ExpirationMode = CacheExpirationMode.Sliding;
+
+    // Custom JSON serializer options
+    options.JsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+}));
 ```
+
+`QueryCachingOptions` properties:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `JsonSerializerOptions` | `JsonSerializerOptions` | `JsonSerializerOptions.Default` | Options used for cache serialization and deserialization |
+| `ExpirationMode` | `CacheExpirationMode` | `Absolute` | Whether `Expiry` is treated as absolute or sliding expiration |
 
 Queries that do **not** implement `ICacheableQuery<TResponse>` always reach the handler unchanged. When `IDistributedCache` is not registered the interceptor falls through silently.
 

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility;
+﻿namespace NetEvolve.Pulse.Extensibility;
 
 /// <summary>
 /// Defines the contract for outbox message persistence operations.

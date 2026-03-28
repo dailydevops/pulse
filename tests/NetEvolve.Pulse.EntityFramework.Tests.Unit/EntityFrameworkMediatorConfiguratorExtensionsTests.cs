@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
 
 using System;
 using System.Linq;
@@ -138,7 +138,8 @@ public sealed class EntityFrameworkMediatorConfiguratorExtensionsTests
 
         public IMediatorConfigurator AddActivityAndMetrics() => throw new NotImplementedException();
 
-        public IMediatorConfigurator AddQueryCaching() => throw new NotImplementedException();
+        public IMediatorConfigurator AddQueryCaching(Action<QueryCachingOptions>? configure = null) =>
+            throw new NotImplementedException();
 
         public IMediatorConfigurator UseDefaultEventDispatcher<TDispatcher>(
             ServiceLifetime lifetime = ServiceLifetime.Singleton

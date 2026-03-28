@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration;
 
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,6 +106,89 @@ public sealed class DistributedCacheQueryInterceptorTests
         }
     }
 
+    [Test]
+    public async Task QueryAsync_WithCustomJsonSerializerOptions_SerializesAndDeserializesCorrectly()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddDistributedMemoryCache();
+        _ = services
+            .AddPulse(config =>
+                config.AddQueryCaching(options =>
+                {
+                    options.JsonSerializerOptions = new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    };
+                })
+            )
+            .AddScoped<IQueryHandler<CachedValueQuery, string>, CachedValueQueryHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+
+        await using var scope1 = provider.CreateAsyncScope();
+        var mediator1 = scope1.ServiceProvider.GetRequiredService<IMediator>();
+
+        var query = new CachedValueQuery("custom-json-integration-key");
+        var firstResult = await mediator1.QueryAsync<CachedValueQuery, string>(query).ConfigureAwait(false);
+
+        await using var scope2 = provider.CreateAsyncScope();
+        var mediator2 = scope2.ServiceProvider.GetRequiredService<IMediator>();
+        var handler2 =
+            scope2.ServiceProvider.GetRequiredService<IQueryHandler<CachedValueQuery, string>>()
+            as CachedValueQueryHandler;
+
+        var secondResult = await mediator2.QueryAsync<CachedValueQuery, string>(query).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(firstResult).IsEqualTo("integration-value");
+            _ = await Assert.That(secondResult).IsEqualTo("integration-value");
+            _ = await Assert.That(handler2).IsNotNull();
+            _ = await Assert.That(handler2!.CallCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task QueryAsync_WithSlidingExpiration_SecondInvocationServedFromCache()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddDistributedMemoryCache();
+        _ = services
+            .AddPulse(config =>
+                config.AddQueryCaching(options =>
+                {
+                    options.ExpirationMode = CacheExpirationMode.Sliding;
+                })
+            )
+            .AddScoped<IQueryHandler<CachedValueQueryWithExpiry, string>, CachedValueQueryWithExpiryHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+
+        await using var scope1 = provider.CreateAsyncScope();
+        var mediator1 = scope1.ServiceProvider.GetRequiredService<IMediator>();
+
+        var query = new CachedValueQueryWithExpiry("sliding-integration-key");
+        var firstResult = await mediator1.QueryAsync<CachedValueQueryWithExpiry, string>(query).ConfigureAwait(false);
+
+        await using var scope2 = provider.CreateAsyncScope();
+        var mediator2 = scope2.ServiceProvider.GetRequiredService<IMediator>();
+        var handler2 =
+            scope2.ServiceProvider.GetRequiredService<IQueryHandler<CachedValueQueryWithExpiry, string>>()
+            as CachedValueQueryWithExpiryHandler;
+
+        var secondResult = await mediator2.QueryAsync<CachedValueQueryWithExpiry, string>(query).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(firstResult).IsEqualTo("integration-value-with-expiry");
+            _ = await Assert.That(secondResult).IsEqualTo("integration-value-with-expiry");
+            _ = await Assert.That(handler2).IsNotNull();
+            _ = await Assert.That(handler2!.CallCount).IsEqualTo(0);
+        }
+    }
+
     // ── Private test types ───────────────────────────────────────────────────
 
     private sealed record CachedValueQuery(string Key) : ICacheableQuery<string>
@@ -112,6 +196,13 @@ public sealed class DistributedCacheQueryInterceptorTests
         public string? CorrelationId { get; set; }
         public string CacheKey => Key;
         public TimeSpan? Expiry => null;
+    }
+
+    private sealed record CachedValueQueryWithExpiry(string Key) : ICacheableQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+        public string CacheKey => Key;
+        public TimeSpan? Expiry => TimeSpan.FromMinutes(5);
     }
 
     private sealed class NonCachedQuery : IQuery<string>
@@ -127,6 +218,17 @@ public sealed class DistributedCacheQueryInterceptorTests
         {
             CallCount++;
             return Task.FromResult("integration-value");
+        }
+    }
+
+    private sealed class CachedValueQueryWithExpiryHandler : IQueryHandler<CachedValueQueryWithExpiry, string>
+    {
+        public int CallCount { get; private set; }
+
+        public Task<string> HandleAsync(CachedValueQueryWithExpiry query, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult("integration-value-with-expiry");
         }
     }
 

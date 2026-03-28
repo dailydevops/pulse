@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility;
+﻿namespace NetEvolve.Pulse.Extensibility;
 
 /// <summary>
 /// Defines a handler for processing events that supports priority-based ordering.

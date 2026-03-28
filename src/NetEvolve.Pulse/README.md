@@ -148,8 +148,18 @@ Enable transparent `IDistributedCache` caching for queries. Any query that imple
 // 1. Register an IDistributedCache implementation
 services.AddDistributedMemoryCache(); // or Redis, SQL Server, etc.
 
-// 2. Enable the caching interceptor
-services.AddPulse(config => config.AddQueryCaching());
+// 2. Enable the caching interceptor (with optional options)
+services.AddPulse(config => config.AddQueryCaching(options =>
+{
+    // Choose between absolute (default) and sliding expiration
+    options.ExpirationMode = CacheExpirationMode.Sliding;
+
+    // Supply custom JsonSerializerOptions for cache serialization
+    options.JsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+}));
 
 // 3. Implement ICacheableQuery<TResponse> on the queries you want cached
 public record GetProductQuery(Guid Id) : ICacheableQuery<ProductDto>
@@ -173,6 +183,8 @@ Behavior summary:
 | Query does **not** implement `ICacheableQuery<TResponse>` | Handler always invoked; cache never consulted |
 | `IDistributedCache` not registered in DI | Interceptor falls through; handler invoked without error |
 | `Expiry = null` | Entry stored without explicit expiry; cache default eviction policy applies |
+| `ExpirationMode = Absolute` (default) | `Expiry` is applied as absolute expiry relative to now |
+| `ExpirationMode = Sliding` | `Expiry` window resets on each cache access |
 
 ### Outbox Pattern Configuration
 

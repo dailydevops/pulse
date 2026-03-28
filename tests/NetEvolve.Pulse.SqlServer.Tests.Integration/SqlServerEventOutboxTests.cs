@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.SqlServer.Tests.Integration;
+﻿namespace NetEvolve.Pulse.SqlServer.Tests.Integration;
 
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;

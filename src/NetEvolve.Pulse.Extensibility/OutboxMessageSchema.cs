@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility;
+﻿namespace NetEvolve.Pulse.Extensibility;
 
 using System.Diagnostics.CodeAnalysis;
 

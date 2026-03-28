@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Unit;
 
 using System;
 using System.Threading.Tasks;

@@ -384,7 +384,8 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
 
         public IMediatorConfigurator AddActivityAndMetrics() => throw new NotImplementedException();
 
-        public IMediatorConfigurator AddQueryCaching() => throw new NotImplementedException();
+        public IMediatorConfigurator AddQueryCaching(Action<QueryCachingOptions>? configure = null) =>
+            throw new NotImplementedException();
 
         public IMediatorConfigurator UseDefaultEventDispatcher<TDispatcher>(
             ServiceLifetime lifetime = ServiceLifetime.Singleton

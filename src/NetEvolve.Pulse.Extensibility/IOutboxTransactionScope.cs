@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility;
+﻿namespace NetEvolve.Pulse.Extensibility;
 
 /// <summary>
 /// Defines the contract for managing transaction scope when storing outbox messages.

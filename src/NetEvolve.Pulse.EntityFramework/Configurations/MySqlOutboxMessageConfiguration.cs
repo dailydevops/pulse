@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Configurations;
+﻿namespace NetEvolve.Pulse.Configurations;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

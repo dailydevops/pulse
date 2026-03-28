@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Integration.Fixtures;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Integration.Fixtures;
 
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Configurations;

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;

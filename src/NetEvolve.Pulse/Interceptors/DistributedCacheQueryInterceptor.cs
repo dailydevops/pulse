@@ -3,6 +3,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -24,24 +25,31 @@ using NetEvolve.Pulse.Extensibility;
 /// falls through to the handler without error.
 /// <para><strong>Expiry:</strong></para>
 /// When <see cref="ICacheableQuery{TResponse}.Expiry"/> is <see langword="null"/>, the entry is stored
-/// without an explicit absolute expiration. Otherwise the provided <see cref="TimeSpan"/> is used
-/// as absolute expiration relative to now.
+/// without an explicit expiration. Otherwise the provided <see cref="TimeSpan"/> is applied as
+/// either absolute or sliding expiration, depending on <see cref="QueryCachingOptions.ExpirationMode"/>.
 /// <para><strong>Serialization:</strong></para>
-/// Responses are serialized using <c>System.Text.Json</c> with default options. Complex types with
-/// custom converters, circular references, or special serialization requirements may not round-trip
-/// correctly. Ensure <typeparamref name="TResponse"/> is serializable with the default options.
+/// Responses are serialized using <c>System.Text.Json</c> with the options supplied via
+/// <see cref="QueryCachingOptions.JsonSerializerOptions"/>. Defaults to
+/// <see cref="JsonSerializerOptions.Default"/> when no custom options are configured.
 /// </remarks>
 /// <seealso cref="ICacheableQuery{TResponse}"/>
+/// <seealso cref="QueryCachingOptions"/>
 internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQueryInterceptor<TQuery, TResponse>
     where TQuery : IQuery<TResponse>
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly QueryCachingOptions _options;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DistributedCacheQueryInterceptor{TQuery, TResponse}"/> class.
     /// </summary>
     /// <param name="serviceProvider">The service provider used to resolve <see cref="IDistributedCache"/>.</param>
-    public DistributedCacheQueryInterceptor(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
+    /// <param name="options">The caching options.</param>
+    public DistributedCacheQueryInterceptor(IServiceProvider serviceProvider, IOptions<QueryCachingOptions> options)
+    {
+        _serviceProvider = serviceProvider;
+        _options = options.Value;
+    }
 
     /// <inheritdoc />
     public async Task<TResponse> HandleAsync(
@@ -64,24 +72,32 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
         }
 
         var cacheKey = cacheableQuery.CacheKey;
+        var jsonOptions = _options.JsonSerializerOptions;
 
         var cachedBytes = await cache.GetAsync(cacheKey, cancellationToken).ConfigureAwait(false);
         if (cachedBytes is not null)
         {
-            return JsonSerializer.Deserialize<TResponse>(cachedBytes)!;
+            return JsonSerializer.Deserialize<TResponse>(cachedBytes, jsonOptions)!;
         }
 
         var response = await handler(request, cancellationToken).ConfigureAwait(false);
 
-        var serialized = JsonSerializer.SerializeToUtf8Bytes(response);
+        var serialized = JsonSerializer.SerializeToUtf8Bytes(response, jsonOptions);
 
-        var options = new DistributedCacheEntryOptions();
+        var entryOptions = new DistributedCacheEntryOptions();
         if (cacheableQuery.Expiry.HasValue)
         {
-            options.AbsoluteExpirationRelativeToNow = cacheableQuery.Expiry;
+            if (_options.ExpirationMode == CacheExpirationMode.Sliding)
+            {
+                entryOptions.SlidingExpiration = cacheableQuery.Expiry;
+            }
+            else
+            {
+                entryOptions.AbsoluteExpirationRelativeToNow = cacheableQuery.Expiry;
+            }
         }
 
-        await cache.SetAsync(cacheKey, serialized, options, cancellationToken).ConfigureAwait(false);
+        await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
 
         return response;
     }

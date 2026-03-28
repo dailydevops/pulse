@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility;
+﻿namespace NetEvolve.Pulse.Extensibility;
 
 /// <summary>
 /// Defines the contract for transporting outbox messages to external systems or handlers.

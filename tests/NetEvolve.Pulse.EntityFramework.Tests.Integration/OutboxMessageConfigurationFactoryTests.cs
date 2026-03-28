@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.EntityFramework.Tests.Integration;
+﻿namespace NetEvolve.Pulse.EntityFramework.Tests.Integration;
 
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
