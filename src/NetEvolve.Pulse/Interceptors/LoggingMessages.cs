@@ -7,35 +7,35 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 internal static partial class LoggingMessages
 {
-    [LoggerMessage(Message = "Handling {RequestType} '{RequestName}' (CorrelationId: {CorrelationId})")]
-    internal static partial void LogBeginRequest(
+    [LoggerMessage(Message = "Handling {HandleAsyncType} '{HandleAsyncName}' (CorrelationId: {CorrelationId})")]
+    internal static partial void LogBeginHandle(
         this ILogger logger,
         LogLevel level,
-        string requestType,
-        string requestName,
+        string handleAsyncType,
+        string handleAsyncName,
         string? correlationId
     );
 
     [LoggerMessage(
-        Message = "Handled {RequestType} '{RequestName}' in {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
+        Message = "Handled {HandleAsyncType} '{HandleAsyncName}' in {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
     )]
-    internal static partial void LogEndRequest(
+    internal static partial void LogEndHandle(
         this ILogger logger,
         LogLevel level,
-        string requestType,
-        string requestName,
+        string handleAsyncType,
+        string handleAsyncName,
         double elapsedMs,
         string? correlationId
     );
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "{RequestType} '{RequestName}' exceeded slow threshold of {ThresholdMs}ms, actual: {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
+        Message = "{HandleAsyncType} '{HandleAsyncName}' exceeded slow threshold of {ThresholdMs}ms, actual: {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
     )]
-    internal static partial void LogSlowRequest(
+    internal static partial void LogSlowHandle(
         this ILogger logger,
-        string requestType,
-        string requestName,
+        string handleAsyncType,
+        string handleAsyncName,
         double elapsedMs,
         double thresholdMs,
         string? correlationId
@@ -43,54 +43,13 @@ internal static partial class LoggingMessages
 
     [LoggerMessage(
         Level = LogLevel.Error,
-        Message = "{RequestType} '{RequestName}' failed after {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
+        Message = "{HandleAsyncType} '{HandleAsyncName}' failed after {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
     )]
-    internal static partial void LogErrorRequest(
+    internal static partial void LogErrorHandle(
         this ILogger logger,
         Exception exception,
-        string requestType,
-        string requestName,
-        double elapsedMs,
-        string? correlationId
-    );
-
-    [LoggerMessage(Message = "Handling event '{EventName}' (CorrelationId: {CorrelationId})")]
-    internal static partial void LogBeginEvent(
-        this ILogger logger,
-        LogLevel level,
-        string eventName,
-        string? correlationId
-    );
-
-    [LoggerMessage(Message = "Handled event '{EventName}' in {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})")]
-    internal static partial void LogEndEvent(
-        this ILogger logger,
-        LogLevel level,
-        string eventName,
-        double elapsedMs,
-        string? correlationId
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Event '{EventName}' exceeded slow threshold of {ThresholdMs}ms, actual: {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
-    )]
-    internal static partial void LogSlowEvent(
-        this ILogger logger,
-        string eventName,
-        double elapsedMs,
-        double thresholdMs,
-        string? correlationId
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Error,
-        Message = "Event '{EventName}' failed after {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})"
-    )]
-    internal static partial void LogErrorEvent(
-        this ILogger logger,
-        Exception exception,
-        string eventName,
+        string handleAsyncType,
+        string handleAsyncName,
         double elapsedMs,
         string? correlationId
     );

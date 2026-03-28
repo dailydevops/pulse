@@ -51,7 +51,7 @@ internal sealed class LoggingEventInterceptor<TEvent> : IEventInterceptor<TEvent
     {
         var eventName = typeof(TEvent).Name;
 
-        _logger.LogBeginEvent(_options.LogLevel, eventName, message.CorrelationId);
+        _logger.LogBeginHandle(_options.LogLevel, "Event", eventName, message.CorrelationId);
 
         var startTime = _timeProvider.GetUtcNow();
 
@@ -61,14 +61,15 @@ internal sealed class LoggingEventInterceptor<TEvent> : IEventInterceptor<TEvent
 
             var elapsedMs = (_timeProvider.GetUtcNow() - startTime).TotalMilliseconds;
 
-            _logger.LogEndEvent(_options.LogLevel, eventName, elapsedMs, message.CorrelationId);
+            _logger.LogEndHandle(_options.LogLevel, "Event", eventName, elapsedMs, message.CorrelationId);
 
             if (
                 _options.SlowRequestThreshold.HasValue
                 && elapsedMs > _options.SlowRequestThreshold.Value.TotalMilliseconds
             )
             {
-                _logger.LogSlowEvent(
+                _logger.LogSlowHandle(
+                    "Event",
                     eventName,
                     elapsedMs,
                     _options.SlowRequestThreshold.Value.TotalMilliseconds,
@@ -79,7 +80,7 @@ internal sealed class LoggingEventInterceptor<TEvent> : IEventInterceptor<TEvent
         catch (Exception ex)
         {
             var elapsedMs = (_timeProvider.GetUtcNow() - startTime).TotalMilliseconds;
-            _logger.LogErrorEvent(ex, eventName, elapsedMs, message.CorrelationId);
+            _logger.LogErrorHandle(ex, "Event", eventName, elapsedMs, message.CorrelationId);
             throw;
         }
     }

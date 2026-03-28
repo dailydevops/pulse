@@ -53,7 +53,7 @@ internal sealed class LoggingRequestInterceptor<TRequest, TResponse> : IRequestI
         var requestType = GetRequestType(request);
         var requestName = typeof(TRequest).Name;
 
-        _logger.LogBeginRequest(_options.LogLevel, requestType, requestName, request.CorrelationId);
+        _logger.LogBeginHandle(_options.LogLevel, requestType, requestName, request.CorrelationId);
 
         var startTime = _timeProvider.GetUtcNow();
 
@@ -63,14 +63,14 @@ internal sealed class LoggingRequestInterceptor<TRequest, TResponse> : IRequestI
 
             var elapsedMs = (_timeProvider.GetUtcNow() - startTime).TotalMilliseconds;
 
-            _logger.LogEndRequest(_options.LogLevel, requestType, requestName, elapsedMs, request.CorrelationId);
+            _logger.LogEndHandle(_options.LogLevel, requestType, requestName, elapsedMs, request.CorrelationId);
 
             if (
                 _options.SlowRequestThreshold.HasValue
                 && elapsedMs > _options.SlowRequestThreshold.Value.TotalMilliseconds
             )
             {
-                _logger.LogSlowRequest(
+                _logger.LogSlowHandle(
                     requestType,
                     requestName,
                     elapsedMs,
@@ -84,7 +84,7 @@ internal sealed class LoggingRequestInterceptor<TRequest, TResponse> : IRequestI
         catch (Exception ex)
         {
             var elapsedMs = (_timeProvider.GetUtcNow() - startTime).TotalMilliseconds;
-            _logger.LogErrorRequest(ex, requestType, requestName, elapsedMs, request.CorrelationId);
+            _logger.LogErrorHandle(ex, requestType, requestName, elapsedMs, request.CorrelationId);
             throw;
         }
     }
