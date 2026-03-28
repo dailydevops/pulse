@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>ASP.NET Core Minimal API integration for the Pulse CQRS mediator. Provides IEndpointRouteBuilder extension methods that map mediator commands and queries directly to HTTP endpoints, eliminating boilerplate endpoint handlers that only forward to IMediator. Supports POST endpoints for commands (with typed response or 204 No Content for void commands) and GET endpoints for queries, with full CancellationToken propagation and OpenAPI compatibility.</Description>
+    <PackageTags>$(PackageTags);aspnetcore;minimal-api;endpoints;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>
