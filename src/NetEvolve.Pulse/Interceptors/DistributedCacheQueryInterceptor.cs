@@ -84,7 +84,22 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
 
         var serialized = JsonSerializer.SerializeToUtf8Bytes(response, jsonOptions);
 
+        var entryOptions = GetCacheEntryOptions(cacheableQuery);
+
+        await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
+
+        return response;
+    }
+
+    /// <summary>
+    /// Determines the appropriate cache entry options based on the query's expiry and the configured expiration mode.
+    /// </summary>
+    /// <param name="cacheableQuery">The cacheable query.</param>
+    /// <returns>The cache entry options.</returns>
+    private DistributedCacheEntryOptions GetCacheEntryOptions(ICacheableQuery<TResponse> cacheableQuery)
+    {
         var entryOptions = new DistributedCacheEntryOptions();
+
         if (cacheableQuery.Expiry.HasValue)
         {
             if (_options.ExpirationMode == CacheExpirationMode.Sliding)
@@ -97,8 +112,6 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
             }
         }
 
-        await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
-
-        return response;
+        return entryOptions;
     }
 }
