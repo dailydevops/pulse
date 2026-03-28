@@ -1,9 +1,12 @@
 ﻿namespace NetEvolve.Pulse;
 
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
@@ -31,6 +34,34 @@ using NetEvolve.Pulse.Outbox;
 /// </remarks>
 internal sealed partial class OutboxProcessorHostedService : BackgroundService
 {
+    /// <summary>Counter tracking the total number of successfully processed outbox messages.</summary>
+    private static readonly Counter<long> ProcessedCounter = Defaults.Meter.CreateCounter<long>(
+        "pulse.outbox.processed.total",
+        "messages",
+        "Cumulative number of successfully processed outbox messages."
+    );
+
+    /// <summary>Counter tracking the total number of failed outbox processing attempts.</summary>
+    private static readonly Counter<long> FailedCounter = Defaults.Meter.CreateCounter<long>(
+        "pulse.outbox.failed.total",
+        "messages",
+        "Cumulative number of failed outbox processing attempts."
+    );
+
+    /// <summary>Counter tracking the total number of outbox messages moved to dead-letter.</summary>
+    private static readonly Counter<long> DeadLetterCounter = Defaults.Meter.CreateCounter<long>(
+        "pulse.outbox.deadletter.total",
+        "messages",
+        "Cumulative number of outbox messages moved to dead-letter."
+    );
+
+    /// <summary>Histogram measuring the duration of each outbox processing batch in milliseconds.</summary>
+    private static readonly Histogram<double> ProcessingDurationHistogram = Defaults.Meter.CreateHistogram<double>(
+        "pulse.outbox.processing.duration",
+        "ms",
+        "Duration of each outbox processing batch in milliseconds."
+    );
+
     /// <summary>The repository for reading and updating outbox message state.</summary>
     private readonly IOutboxRepository _repository;
 
@@ -42,6 +73,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
     /// <summary>The logger used for diagnostic output during processing cycles.</summary>
     private readonly ILogger<OutboxProcessorHostedService> _logger;
+
+    /// <summary>Cached count of pending outbox messages, refreshed each polling cycle.</summary>
+    private long _pendingCount;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OutboxProcessorHostedService"/> class.
@@ -66,6 +100,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         _transport = transport;
         _options = options.Value;
         _logger = logger;
+
+        _ = Defaults.Meter.CreateObservableGauge<long>(
+            "pulse.outbox.pending",
+            observeValue: () => Volatile.Read(ref _pendingCount),
+            unit: "messages",
+            description: "Current number of pending outbox messages."
+        );
     }
 
     /// <inheritdoc />
@@ -86,7 +127,21 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     continue;
                 }
 
+                // Refresh the pending count gauge before processing
+                await RefreshPendingCountAsync(stoppingToken).ConfigureAwait(false);
+
+                var batchStartTime = Stopwatch.GetTimestamp();
                 var processedCount = await ProcessBatchAsync(stoppingToken).ConfigureAwait(false);
+                var elapsed = Stopwatch.GetElapsedTime(batchStartTime).TotalMilliseconds;
+
+                try
+                {
+                    ProcessingDurationHistogram.Record(elapsed);
+                }
+                catch (Exception ex)
+                {
+                    LogMetricRecordingWarning(_logger, ex);
+                }
 
                 if (processedCount == 0)
                 {
@@ -107,6 +162,28 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         }
 
         LogProcessorStopped(_logger);
+    }
+
+    /// <summary>
+    /// Queries the repository for the current pending message count and updates the cached value.
+    /// Exceptions are caught and logged at Warning level so that metric failures never interrupt processing.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    private async Task RefreshPendingCountAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await _repository.GetPendingCountAsync(cancellationToken).ConfigureAwait(false);
+            Volatile.Write(ref _pendingCount, count);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LogMetricRecordingWarning(_logger, ex);
+        }
     }
 
     /// <summary>
@@ -194,6 +271,15 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             await _repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
 
             LogMessageProcessed(_logger, message.Id, message.EventType);
+
+            try
+            {
+                ProcessedCounter.Add(1);
+            }
+            catch (Exception ex)
+            {
+                LogMetricRecordingWarning(_logger, ex);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -209,10 +295,28 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     .MarkAsDeadLetterAsync(message.Id, ex.Message, cancellationToken)
                     .ConfigureAwait(false);
                 LogMessageMovedToDeadLetter(_logger, message.Id, _options.MaxRetryCount);
+
+                try
+                {
+                    DeadLetterCounter.Add(1);
+                }
+                catch (Exception metricEx)
+                {
+                    LogMetricRecordingWarning(_logger, metricEx);
+                }
             }
             else
             {
                 await _repository.MarkAsFailedAsync(message.Id, ex.Message, cancellationToken).ConfigureAwait(false);
+
+                try
+                {
+                    FailedCounter.Add(1);
+                }
+                catch (Exception metricEx)
+                {
+                    LogMetricRecordingWarning(_logger, metricEx);
+                }
             }
         }
     }
@@ -239,6 +343,15 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             await _repository.MarkAsCompletedAsync(ids, cancellationToken).ConfigureAwait(false);
 
             LogBatchProcessed(_logger, messages.Count);
+
+            try
+            {
+                ProcessedCounter.Add(messages.Count);
+            }
+            catch (Exception ex)
+            {
+                LogMetricRecordingWarning(_logger, ex);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -274,6 +387,23 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     )
                 )
                 .ConfigureAwait(false);
+
+            try
+            {
+                if (failedMessages.Length > 0)
+                {
+                    FailedCounter.Add(failedMessages.Length);
+                }
+
+                if (deadLetterMessages.Length > 0)
+                {
+                    DeadLetterCounter.Add(deadLetterMessages.Length);
+                }
+            }
+            catch (Exception metricEx)
+            {
+                LogMetricRecordingWarning(_logger, metricEx);
+            }
         }
     }
 
@@ -334,4 +464,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>Logs a warning that the message transport is currently unhealthy and the processing cycle is being skipped.</summary>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Message transport is unhealthy, skipping processing cycle")]
     private static partial void LogTransportUnhealthy(ILogger logger);
+
+    /// <summary>Logs a warning when recording an outbox metric fails, so metric errors never interrupt processing.</summary>
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to record outbox metric")]
+    private static partial void LogMetricRecordingWarning(ILogger logger, Exception exception);
 }
