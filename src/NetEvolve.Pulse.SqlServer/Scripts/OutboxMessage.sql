@@ -255,13 +255,13 @@ GO
 -- ============================================================================
 
 -- usp_GetDeadLetterOutboxMessages: Returns a paginated list of dead-letter messages
-IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetDeadLetterOutboxMessages]') AND [type] = N'P')
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetDeadLetterOutboxMessages]') AND [type] = N'P')
 BEGIN
-    DROP PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessages];
+    DROP PROCEDURE [$(SchemaName)].[usp_GetDeadLetterOutboxMessages];
 END
 GO
 
-CREATE PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessages]
+CREATE PROCEDURE [$(SchemaName)].[usp_GetDeadLetterOutboxMessages]
     @pageSize INT,
     @page     INT
 AS
@@ -279,7 +279,7 @@ BEGIN
         [RetryCount],
         [Error],
         [Status]
-    FROM [pulse].[OutboxMessage]
+    FROM [$(SchemaName)].[OutboxMessage]
     WHERE [Status] = 4 -- DeadLetter
     ORDER BY [UpdatedAt] DESC
     OFFSET (@page * @pageSize) ROWS
@@ -288,13 +288,13 @@ END
 GO
 
 -- usp_GetDeadLetterOutboxMessage: Returns a single dead-letter message by Id
-IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetDeadLetterOutboxMessage]') AND [type] = N'P')
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetDeadLetterOutboxMessage]') AND [type] = N'P')
 BEGIN
-    DROP PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessage];
+    DROP PROCEDURE [$(SchemaName)].[usp_GetDeadLetterOutboxMessage];
 END
 GO
 
-CREATE PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessage]
+CREATE PROCEDURE [$(SchemaName)].[usp_GetDeadLetterOutboxMessage]
     @messageId UNIQUEIDENTIFIER
 AS
 BEGIN
@@ -311,44 +311,44 @@ BEGIN
         [RetryCount],
         [Error],
         [Status]
-    FROM [pulse].[OutboxMessage]
+    FROM [$(SchemaName)].[OutboxMessage]
     WHERE [Id] = @messageId
       AND [Status] = 4; -- DeadLetter
 END
 GO
 
 -- usp_GetDeadLetterOutboxMessageCount: Returns the count of dead-letter messages
-IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetDeadLetterOutboxMessageCount]') AND [type] = N'P')
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetDeadLetterOutboxMessageCount]') AND [type] = N'P')
 BEGIN
-    DROP PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessageCount];
+    DROP PROCEDURE [$(SchemaName)].[usp_GetDeadLetterOutboxMessageCount];
 END
 GO
 
-CREATE PROCEDURE [pulse].[usp_GetDeadLetterOutboxMessageCount]
+CREATE PROCEDURE [$(SchemaName)].[usp_GetDeadLetterOutboxMessageCount]
 AS
 BEGIN
     SET NOCOUNT ON;
 
     SELECT COUNT_BIG(1) AS [DeadLetterCount]
-    FROM [pulse].[OutboxMessage]
+    FROM [$(SchemaName)].[OutboxMessage]
     WHERE [Status] = 4; -- DeadLetter
 END
 GO
 
 -- usp_ReplayOutboxMessage: Resets a dead-letter message to Pending for reprocessing
-IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_ReplayOutboxMessage]') AND [type] = N'P')
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_ReplayOutboxMessage]') AND [type] = N'P')
 BEGIN
-    DROP PROCEDURE [pulse].[usp_ReplayOutboxMessage];
+    DROP PROCEDURE [$(SchemaName)].[usp_ReplayOutboxMessage];
 END
 GO
 
-CREATE PROCEDURE [pulse].[usp_ReplayOutboxMessage]
+CREATE PROCEDURE [$(SchemaName)].[usp_ReplayOutboxMessage]
     @messageId UNIQUEIDENTIFIER
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    UPDATE [pulse].[OutboxMessage]
+    UPDATE [$(SchemaName)].[OutboxMessage]
     SET
         [Status]     = 0, -- Pending
         [RetryCount] = 0,
@@ -362,18 +362,18 @@ END
 GO
 
 -- usp_ReplayAllDeadLetterOutboxMessages: Resets all dead-letter messages to Pending
-IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_ReplayAllDeadLetterOutboxMessages]') AND [type] = N'P')
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_ReplayAllDeadLetterOutboxMessages]') AND [type] = N'P')
 BEGIN
-    DROP PROCEDURE [pulse].[usp_ReplayAllDeadLetterOutboxMessages];
+    DROP PROCEDURE [$(SchemaName)].[usp_ReplayAllDeadLetterOutboxMessages];
 END
 GO
 
-CREATE PROCEDURE [pulse].[usp_ReplayAllDeadLetterOutboxMessages]
+CREATE PROCEDURE [$(SchemaName)].[usp_ReplayAllDeadLetterOutboxMessages]
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    UPDATE [pulse].[OutboxMessage]
+    UPDATE [$(SchemaName)].[OutboxMessage]
     SET
         [Status]     = 0, -- Pending
         [RetryCount] = 0,
@@ -386,13 +386,13 @@ END
 GO
 
 -- usp_GetOutboxStatistics: Returns message counts grouped by status
-IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[pulse].[usp_GetOutboxStatistics]') AND [type] = N'P')
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetOutboxStatistics]') AND [type] = N'P')
 BEGIN
-    DROP PROCEDURE [pulse].[usp_GetOutboxStatistics];
+    DROP PROCEDURE [$(SchemaName)].[usp_GetOutboxStatistics];
 END
 GO
 
-CREATE PROCEDURE [pulse].[usp_GetOutboxStatistics]
+CREATE PROCEDURE [$(SchemaName)].[usp_GetOutboxStatistics]
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -403,6 +403,6 @@ BEGIN
         SUM(CASE WHEN [Status] = 2 THEN 1 ELSE 0 END) AS [Completed],
         SUM(CASE WHEN [Status] = 3 THEN 1 ELSE 0 END) AS [Failed],
         SUM(CASE WHEN [Status] = 4 THEN 1 ELSE 0 END) AS [DeadLetter]
-    FROM [pulse].[OutboxMessage];
+    FROM [$(SchemaName)].[OutboxMessage];
 END
 GO
