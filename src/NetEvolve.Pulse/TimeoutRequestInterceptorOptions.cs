@@ -20,9 +20,12 @@ namespace NetEvolve.Pulse;
 public sealed class TimeoutRequestInterceptorOptions
 {
     /// <summary>
-    /// Gets or sets the global fallback timeout applied to all requests that do not implement
-    /// <see cref="Extensibility.ITimeoutRequest"/>.
-    /// When <see langword="null"/> (default), requests without an explicit timeout are not affected.
+    /// Gets or sets the global fallback timeout applied to <see cref="Extensibility.ITimeoutRequest"/>
+    /// implementations that return <see langword="null"/> from <see cref="Extensibility.ITimeoutRequest.Timeout"/>.
+    /// Requests that do not implement <see cref="Extensibility.ITimeoutRequest"/> are always passed through
+    /// regardless of this value.
+    /// When <see langword="null"/> (default), requests with a <see langword="null"/>
+    /// <see cref="Extensibility.ITimeoutRequest.Timeout"/> are not subject to any deadline.
     /// </summary>
     public TimeSpan? GlobalTimeout { get; set; }
 }

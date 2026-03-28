@@ -14,12 +14,14 @@ using NetEvolve.Pulse.Extensibility;
 /// <typeparam name="TResponse">The type of response produced by the request.</typeparam>
 /// <remarks>
 /// <para><strong>Activation:</strong></para>
-/// The interceptor enforces a timeout when either:
-/// <list type="bullet">
-/// <item><description>The request implements <see cref="ITimeoutRequest"/> — its <see cref="ITimeoutRequest.Timeout"/> value is used as the deadline.</description></item>
-/// <item><description>A global fallback timeout is configured via <see cref="TimeoutRequestInterceptorOptions.GlobalTimeout"/> — applied to all requests that do not implement <see cref="ITimeoutRequest"/>.</description></item>
+/// The interceptor only activates when the request implements <see cref="ITimeoutRequest"/>.
+/// Requests that do not implement <see cref="ITimeoutRequest"/> are always passed through without any timeout.
+/// For <see cref="ITimeoutRequest"/> implementations the effective deadline is resolved as follows:
+/// <list type="number">
+/// <item><description><see cref="ITimeoutRequest.Timeout"/> — used when non-<see langword="null"/>.</description></item>
+/// <item><description><see cref="TimeoutRequestInterceptorOptions.GlobalTimeout"/> — used as fallback when <see cref="ITimeoutRequest.Timeout"/> is <see langword="null"/>.</description></item>
+/// <item><description>If neither is set, the interceptor is a transparent pass-through for that request.</description></item>
 /// </list>
-/// When neither condition is met the interceptor is a transparent pass-through.
 /// <para><strong>Cancellation Semantics:</strong></para>
 /// The interceptor correctly distinguishes between a timeout-triggered cancellation and a
 /// caller-initiated cancellation: only when the deadline is exceeded is a
@@ -58,9 +60,14 @@ internal sealed class TimeoutRequestInterceptor<TRequest, TResponse> : IRequestI
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        // Determine the effective timeout for this request.
-        // ITimeoutRequest.Timeout takes precedence over the global fallback.
-        var timeout = request is ITimeoutRequest timeoutRequest ? timeoutRequest.Timeout : _options.Value.GlobalTimeout;
+        // Requests not implementing ITimeoutRequest are always passed through.
+        if (request is not ITimeoutRequest timeoutRequest)
+        {
+            return await handler(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Resolve effective timeout: per-request value first, global fallback second.
+        var timeout = timeoutRequest.Timeout ?? _options.Value.GlobalTimeout;
 
         // No timeout configured — transparent pass-through.
         if (timeout is null)

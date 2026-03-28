@@ -87,11 +87,28 @@ public sealed class TimeoutRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithNonTimeoutRequest_AndNoGlobalTimeout_PassesThrough()
+    public async Task HandleAsync_WithNonTimeoutRequest_AlwaysPassesThrough_RegardlessOfGlobalTimeout()
     {
-        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var options = Options.Create(
+            new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(1) }
+        );
         var interceptor = new TimeoutRequestInterceptor<TestCommand, string>(options);
         var command = new TestCommand();
+
+        // Even though GlobalTimeout is 1ms, the non-ITimeoutRequest should pass through immediately.
+        var result = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("passed-through"))
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("passed-through");
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutRequest_NullTimeout_AndNoGlobalTimeout_PassesThrough()
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var command = new TestTimeoutCommand(null);
 
         var result = await interceptor
             .HandleAsync(command, (_, _) => Task.FromResult("passed-through"))
@@ -101,27 +118,27 @@ public sealed class TimeoutRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithNonTimeoutRequest_AndGlobalTimeout_WhenCompletesWithinDeadline_ReturnsResult()
+    public async Task HandleAsync_WithTimeoutRequest_NullTimeout_AndGlobalTimeout_WhenCompletesWithinDeadline_ReturnsResult()
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
-        var interceptor = new TimeoutRequestInterceptor<TestCommand, string>(options);
-        var command = new TestCommand();
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var command = new TestTimeoutCommand(null);
 
         var result = await interceptor
-            .HandleAsync(command, (_, _) => Task.FromResult("global-success"))
+            .HandleAsync(command, (_, _) => Task.FromResult("global-fallback-success"))
             .ConfigureAwait(false);
 
-        _ = await Assert.That(result).IsEqualTo("global-success");
+        _ = await Assert.That(result).IsEqualTo("global-fallback-success");
     }
 
     [Test]
-    public async Task HandleAsync_WithNonTimeoutRequest_AndGlobalTimeout_WhenExceedsDeadline_ThrowsTimeoutException()
+    public async Task HandleAsync_WithTimeoutRequest_NullTimeout_AndGlobalTimeout_WhenExceedsDeadline_ThrowsTimeoutException()
     {
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(50) }
         );
-        var interceptor = new TimeoutRequestInterceptor<TestCommand, string>(options);
-        var command = new TestCommand();
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var command = new TestTimeoutCommand(null);
 
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
             await interceptor
@@ -137,11 +154,11 @@ public sealed class TimeoutRequestInterceptorTests
         );
 
         _ = await Assert.That(exception).IsNotNull();
-        _ = await Assert.That(exception!.Message).Contains("TestCommand");
+        _ = await Assert.That(exception!.Message).Contains("TestTimeoutCommand");
     }
 
     [Test]
-    public async Task HandleAsync_WithTimeoutRequest_TimeoutOverridesGlobalTimeout()
+    public async Task HandleAsync_WithTimeoutRequest_ExplicitTimeoutOverridesGlobalTimeout()
     {
         // Per-request timeout (50ms) should take precedence over global (5s),
         // so the request should time out.
@@ -182,7 +199,7 @@ public sealed class TimeoutRequestInterceptorTests
         // This test simply verifies the interceptor completes without resource-leak exceptions.
     }
 
-    private sealed record TestTimeoutCommand(TimeSpan Timeout) : ICommand<string>, ITimeoutRequest
+    private sealed record TestTimeoutCommand(TimeSpan? Timeout) : ICommand<string>, ITimeoutRequest
     {
         public string? CorrelationId { get; set; }
     }

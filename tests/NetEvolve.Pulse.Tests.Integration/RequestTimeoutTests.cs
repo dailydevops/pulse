@@ -75,73 +75,100 @@ public sealed class RequestTimeoutTests
     }
 
     [Test]
-    public async Task SendAsync_WithGlobalTimeout_WhenNonTimeoutRequestCompletesWithinDeadline_ReturnsResult()
+    public async Task SendAsync_WithNonTimeoutRequest_AlwaysPassesThrough_EvenWithGlobalTimeout()
+    {
+        var services = CreateServiceCollection();
+        // GlobalTimeout of 1ms — but PlainCommand doesn't implement ITimeoutRequest, so it should pass through.
+        _ = services
+            .AddPulse(config => config.AddRequestTimeout(TimeSpan.FromMilliseconds(1)))
+            .AddScoped<ICommandHandler<PlainCommand, string>, PlainCommandHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        var command = new PlainCommand();
+        var result = await mediator.SendAsync<PlainCommand, string>(command).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("plain-result");
+    }
+
+    [Test]
+    public async Task SendAsync_WithTimeoutRequest_NullTimeout_AndGlobalTimeout_WhenCompletesWithinDeadline_ReturnsResult()
     {
         var services = CreateServiceCollection();
         _ = services
             .AddPulse(config => config.AddRequestTimeout(TimeSpan.FromSeconds(5)))
-            .AddScoped<ICommandHandler<PlainCommand, string>, PlainCommandHandler>();
+            .AddScoped<ICommandHandler<NullTimeoutCommand, string>, NullTimeoutCommandHandler>();
 
         await using var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        var command = new PlainCommand();
-        var result = await mediator.SendAsync<PlainCommand, string>(command).ConfigureAwait(false);
+        var command = new NullTimeoutCommand();
+        var result = await mediator.SendAsync<NullTimeoutCommand, string>(command).ConfigureAwait(false);
 
-        _ = await Assert.That(result).IsEqualTo("plain-result");
+        _ = await Assert.That(result).IsEqualTo("null-timeout-result");
     }
 
     [Test]
-    public async Task SendAsync_WithGlobalTimeout_WhenNonTimeoutRequestExceedsDeadline_ThrowsTimeoutException()
+    public async Task SendAsync_WithTimeoutRequest_NullTimeout_AndGlobalTimeout_WhenExceedsDeadline_ThrowsTimeoutException()
     {
         var services = CreateServiceCollection();
         _ = services
             .AddPulse(config => config.AddRequestTimeout(TimeSpan.FromMilliseconds(50)))
-            .AddScoped<ICommandHandler<SlowPlainCommand, string>, SlowPlainCommandHandler>();
+            .AddScoped<ICommandHandler<SlowNullTimeoutCommand, string>, SlowNullTimeoutCommandHandler>();
 
         await using var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        var command = new SlowPlainCommand();
+        var command = new SlowNullTimeoutCommand();
 
         _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
-            await mediator.SendAsync<SlowPlainCommand, string>(command).ConfigureAwait(false)
+            await mediator.SendAsync<SlowNullTimeoutCommand, string>(command).ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task SendAsync_WithNoTimeoutConfigured_ForNonTimeoutRequest_PassesThrough()
+    public async Task SendAsync_WithTimeoutRequest_NullTimeout_AndNoGlobalTimeout_PassesThrough()
     {
         var services = CreateServiceCollection();
         _ = services
             .AddPulse(config => config.AddRequestTimeout())
-            .AddScoped<ICommandHandler<PlainCommand, string>, PlainCommandHandler>();
+            .AddScoped<ICommandHandler<NullTimeoutCommand, string>, NullTimeoutCommandHandler>();
 
         await using var provider = services.BuildServiceProvider();
         var mediator = provider.GetRequiredService<IMediator>();
 
-        var command = new PlainCommand();
-        var result = await mediator.SendAsync<PlainCommand, string>(command).ConfigureAwait(false);
+        var command = new NullTimeoutCommand();
+        var result = await mediator.SendAsync<NullTimeoutCommand, string>(command).ConfigureAwait(false);
 
-        _ = await Assert.That(result).IsEqualTo("plain-result");
+        _ = await Assert.That(result).IsEqualTo("null-timeout-result");
     }
 
-    private sealed record FastTimeoutCommand(TimeSpan Timeout) : ICommand<string>, ITimeoutRequest
+    private sealed record FastTimeoutCommand(TimeSpan? Timeout) : ICommand<string>, ITimeoutRequest
     {
         public string? CorrelationId { get; set; }
     }
 
-    private sealed record SlowTimeoutCommand(TimeSpan Timeout) : ICommand<string>, ITimeoutRequest
+    private sealed record SlowTimeoutCommand(TimeSpan? Timeout) : ICommand<string>, ITimeoutRequest
     {
         public string? CorrelationId { get; set; }
+    }
+
+    private sealed record NullTimeoutCommand : ICommand<string>, ITimeoutRequest
+    {
+        public string? CorrelationId { get; set; }
+
+        public TimeSpan? Timeout => null;
+    }
+
+    private sealed record SlowNullTimeoutCommand : ICommand<string>, ITimeoutRequest
+    {
+        public string? CorrelationId { get; set; }
+
+        public TimeSpan? Timeout => null;
     }
 
     private sealed record PlainCommand : ICommand<string>
-    {
-        public string? CorrelationId { get; set; }
-    }
-
-    private sealed record SlowPlainCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }
     }
@@ -161,18 +188,27 @@ public sealed class RequestTimeoutTests
         }
     }
 
+    private sealed class NullTimeoutCommandHandler : ICommandHandler<NullTimeoutCommand, string>
+    {
+        public Task<string> HandleAsync(NullTimeoutCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult("null-timeout-result");
+    }
+
+    private sealed class SlowNullTimeoutCommandHandler : ICommandHandler<SlowNullTimeoutCommand, string>
+    {
+        public async Task<string> HandleAsync(
+            SlowNullTimeoutCommand command,
+            CancellationToken cancellationToken = default
+        )
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
+            return "slow-null-timeout-result";
+        }
+    }
+
     private sealed class PlainCommandHandler : ICommandHandler<PlainCommand, string>
     {
         public Task<string> HandleAsync(PlainCommand command, CancellationToken cancellationToken = default) =>
             Task.FromResult("plain-result");
-    }
-
-    private sealed class SlowPlainCommandHandler : ICommandHandler<SlowPlainCommand, string>
-    {
-        public async Task<string> HandleAsync(SlowPlainCommand command, CancellationToken cancellationToken = default)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
-            return "slow-plain-result";
-        }
     }
 }
