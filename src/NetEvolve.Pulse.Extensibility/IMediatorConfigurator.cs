@@ -143,6 +143,34 @@ public interface IMediatorConfigurator
     IMediatorConfigurator AddActivityAndMetrics();
 
     /// <summary>
+    /// Registers the distributed cache interceptor for queries.
+    /// Queries implementing <see cref="ICacheableQuery{TResponse}"/> are transparently served from
+    /// <c>IDistributedCache</c> when a cache entry exists,
+    /// or stored after a cache miss.
+    /// </summary>
+    /// <returns>The current configurator instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Opt-In:</strong></para>
+    /// Only queries that implement <see cref="ICacheableQuery{TResponse}"/> participate in caching.
+    /// All other queries pass through to the handler unchanged.
+    /// <para><strong>Prerequisite:</strong></para>
+    /// An <c>IDistributedCache</c> implementation must be
+    /// registered in the DI container (e.g. via <c>services.AddDistributedMemoryCache()</c>).
+    /// When no cache is registered the interceptor falls through without error.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddDistributedMemoryCache();
+    /// services.AddPulse(config =>
+    /// {
+    ///     config.AddQueryCaching();
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="ICacheableQuery{TResponse}"/>
+    IMediatorConfigurator AddQueryCaching();
+
+    /// <summary>
     /// Configures a custom event dispatcher to control how events are dispatched to their handlers.
     /// This allows customization of the execution strategy (parallel, sequential, rate-limited, etc.).
     /// </summary>

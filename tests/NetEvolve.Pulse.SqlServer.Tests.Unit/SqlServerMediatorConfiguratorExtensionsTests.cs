@@ -168,6 +168,8 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
 
         public IMediatorConfigurator AddActivityAndMetrics() => throw new NotImplementedException();
 
+        public IMediatorConfigurator AddQueryCaching() => throw new NotImplementedException();
+
         public IMediatorConfigurator UseDefaultEventDispatcher<TDispatcher>(
             ServiceLifetime lifetime = ServiceLifetime.Singleton
         )
