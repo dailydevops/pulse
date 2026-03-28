@@ -16,6 +16,10 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - **NetEvolve.Pulse** — Mediator implementation with interceptor pipeline, outbox pattern support, and DI integration ([src/NetEvolve.Pulse/README.md](src/NetEvolve.Pulse/README.md))
 - **NetEvolve.Pulse.Extensibility** — Contracts and abstractions for commands, queries, events, handlers, and configurators ([src/NetEvolve.Pulse.Extensibility/README.md](src/NetEvolve.Pulse.Extensibility/README.md))
 
+### Integration Libraries
+
+- **NetEvolve.Pulse.AspNetCore** — ASP.NET Core Minimal API integration: `IEndpointRouteBuilder` extension methods that map mediator commands and queries directly to HTTP endpoints using the `CommandHttpMethod` enum (`Post`, `Put`, `Patch`, `Delete`) ([src/NetEvolve.Pulse.AspNetCore/README.md](src/NetEvolve.Pulse.AspNetCore/README.md))
+
 ### Provider Libraries
 
 - **NetEvolve.Pulse.Dapr** — Dapr pub/sub transport for the outbox pattern, publishing messages to any Dapr-supported broker via `DaprClient` ([src/NetEvolve.Pulse.Dapr/README.md](src/NetEvolve.Pulse.Dapr/README.md))
@@ -27,6 +31,8 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 
 - **NetEvolve.Pulse.Tests.Unit** — Unit coverage for mediator behaviors ([tests/NetEvolve.Pulse.Tests.Unit](tests/NetEvolve.Pulse.Tests.Unit))
 - **NetEvolve.Pulse.Tests.Integration** — Integration scenarios and pipeline validation ([tests/NetEvolve.Pulse.Tests.Integration](tests/NetEvolve.Pulse.Tests.Integration))
+- **NetEvolve.Pulse.AspNetCore.Tests.Unit** — Unit tests for Minimal API endpoint mapping ([tests/NetEvolve.Pulse.AspNetCore.Tests.Unit](tests/NetEvolve.Pulse.AspNetCore.Tests.Unit))
+- **NetEvolve.Pulse.AspNetCore.Tests.Integration** — End-to-end HTTP dispatch tests via `TestServer` ([tests/NetEvolve.Pulse.AspNetCore.Tests.Integration](tests/NetEvolve.Pulse.AspNetCore.Tests.Integration))
 - **NetEvolve.Pulse.EntityFramework.Tests.Integration** — Entity Framework outbox integration tests ([tests/NetEvolve.Pulse.EntityFramework.Tests.Integration](tests/NetEvolve.Pulse.EntityFramework.Tests.Integration))
 - **NetEvolve.Pulse.SqlServer.Tests.Integration** — SQL Server outbox integration tests ([tests/NetEvolve.Pulse.SqlServer.Tests.Integration](tests/NetEvolve.Pulse.SqlServer.Tests.Integration))
 - **NetEvolve.Pulse.Polly.Tests.Unit** — Polly integration unit tests ([tests/NetEvolve.Pulse.Polly.Tests.Unit](tests/NetEvolve.Pulse.Polly.Tests.Unit))
@@ -40,6 +46,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - OpenTelemetry-friendly hooks through `AddActivityAndMetrics()` and TimeProvider-aware flows for deterministic testing and scheduling
 - Minimal DI setup with `services.AddPulse(...)`, scoped lifetimes, and opt-in configurators per application
 - Contracts in `NetEvolve.Pulse.Extensibility` for framework-agnostic use or deep integration with ASP.NET Core
+- **ASP.NET Core Minimal API integration** via `NetEvolve.Pulse.AspNetCore`: map commands and queries directly to HTTP endpoints with `MapCommand<TCommand, TResponse>()`, `MapCommand<TCommand>()`, and `MapQuery<TQuery, TResponse>()` — no boilerplate lambdas needed
 - Parallel event dispatch with cancellation support to keep handlers responsive under load
 - Built-in primitives like `Void` to simplify command semantics without return values
 - **Multiple persistence providers**: Entity Framework Core (provider-agnostic) and SQL Server ADO.NET
@@ -142,6 +149,7 @@ dotnet test tests/NetEvolve.Pulse.Tests.Unit
 ```text
 src/                 # Production libraries
 ├── NetEvolve.Pulse
+├── NetEvolve.Pulse.AspNetCore
 ├── NetEvolve.Pulse.Dapr
 ├── NetEvolve.Pulse.Extensibility
 ├── NetEvolve.Pulse.EntityFramework
@@ -151,6 +159,8 @@ src/                 # Production libraries
 tests/               # Test projects
 ├── NetEvolve.Pulse.Tests.Unit
 ├── NetEvolve.Pulse.Tests.Integration
+├── NetEvolve.Pulse.AspNetCore.Tests.Unit
+├── NetEvolve.Pulse.AspNetCore.Tests.Integration
 ├── NetEvolve.Pulse.EntityFramework.Tests.Integration
 ├── NetEvolve.Pulse.SqlServer.Tests.Integration
 ├── NetEvolve.Pulse.Polly.Tests.Unit
@@ -174,6 +184,7 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report
 ## Documentation
 
 - [NetEvolve.Pulse project docs](src/NetEvolve.Pulse/README.md) for mediator and outbox usage
+- [NetEvolve.Pulse.AspNetCore docs](src/NetEvolve.Pulse.AspNetCore/README.md) for Minimal API endpoint mapping
 - [NetEvolve.Pulse.Dapr docs](src/NetEvolve.Pulse.Dapr/README.md) for Dapr pub/sub transport
 - [NetEvolve.Pulse.Extensibility docs](src/NetEvolve.Pulse.Extensibility/README.md) for contract details
 - [NetEvolve.Pulse.EntityFramework docs](src/NetEvolve.Pulse.EntityFramework/README.md) for Entity Framework outbox persistence
