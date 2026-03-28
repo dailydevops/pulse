@@ -1,5 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration;
 
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -71,6 +73,35 @@ public sealed class PulseMediatorTests
             _ = await Assert.That(result).IsNotNull();
             _ = await Assert.That(result.Id).IsEqualTo("Order456");
             _ = await Assert.That(result.Status).IsEqualTo("Completed");
+        }
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithQuery_YieldsExpectedItems()
+    {
+        var services = CreateServiceCollection();
+        _ = services
+            .AddPulse()
+            .AddScoped<IStreamQueryHandler<GetOrderItemsStreamQuery, string>, GetOrderItemsStreamQueryHandler>();
+
+        await using var provider = services.BuildServiceProvider();
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        var query = new GetOrderItemsStreamQuery("Order789", ["ItemA", "ItemB", "ItemC"]);
+        var results = new List<string>();
+        await foreach (
+            var item in mediator.StreamQueryAsync<GetOrderItemsStreamQuery, string>(query).ConfigureAwait(false)
+        )
+        {
+            results.Add(item);
+        }
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(results).Count().IsEqualTo(3);
+            _ = await Assert.That(results[0]).IsEqualTo("ItemA");
+            _ = await Assert.That(results[1]).IsEqualTo("ItemB");
+            _ = await Assert.That(results[2]).IsEqualTo("ItemC");
         }
     }
 
@@ -219,6 +250,11 @@ public sealed class PulseMediatorTests
         public string? CorrelationId { get; set; }
     }
 
+    private sealed record GetOrderItemsStreamQuery(string OrderId, IReadOnlyList<string> Items) : IStreamQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
     private sealed record OrderResult(string OrderId, decimal Total, bool Success);
 
     private sealed record OrderDto(string Id, string Status);
@@ -251,6 +287,22 @@ public sealed class PulseMediatorTests
     {
         public Task<OrderDto> HandleAsync(GetOrderQuery query, CancellationToken cancellationToken = default) =>
             Task.FromResult(new OrderDto(query.OrderId, "Completed"));
+    }
+
+    private sealed class GetOrderItemsStreamQueryHandler : IStreamQueryHandler<GetOrderItemsStreamQuery, string>
+    {
+        public async IAsyncEnumerable<string> HandleAsync(
+            GetOrderItemsStreamQuery query,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            foreach (var item in query.Items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return item;
+                await Task.Yield();
+            }
+        }
     }
 
     private sealed class OrderCreatedEvent : IEvent
