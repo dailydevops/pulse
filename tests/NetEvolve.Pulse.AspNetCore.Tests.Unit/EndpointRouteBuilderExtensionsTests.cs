@@ -5,13 +5,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
-using PulseEndpoints = global::NetEvolve.Pulse.EndpointRouteBuilderExtensions;
+using PulseEndpoints = EndpointRouteBuilderExtensions;
 
 public sealed class EndpointRouteBuilderExtensionsTests
 {
     // Represents an undefined CommandHttpMethod value used to verify validation behaviour.
-    private const global::NetEvolve.Pulse.CommandHttpMethod UndefinedHttpMethod =
-        (global::NetEvolve.Pulse.CommandHttpMethod)99;
+    private const CommandHttpMethod UndefinedHttpMethod = (CommandHttpMethod)99;
 
     // MapCommand<TCommand, TResponse> — null-argument guards
 
@@ -58,11 +57,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(
-            endpoints,
-            "/test",
-            global::NetEvolve.Pulse.CommandHttpMethod.Put
-        );
+        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", CommandHttpMethod.Put);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -72,11 +67,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(
-            endpoints,
-            "/test",
-            global::NetEvolve.Pulse.CommandHttpMethod.Patch
-        );
+        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", CommandHttpMethod.Patch);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -86,11 +77,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(
-            endpoints,
-            "/test",
-            global::NetEvolve.Pulse.CommandHttpMethod.Delete
-        );
+        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", CommandHttpMethod.Delete);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -138,11 +125,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(
-            endpoints,
-            "/test",
-            global::NetEvolve.Pulse.CommandHttpMethod.Delete
-        );
+        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", CommandHttpMethod.Delete);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -152,11 +135,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(
-            endpoints,
-            "/test",
-            global::NetEvolve.Pulse.CommandHttpMethod.Put
-        );
+        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", CommandHttpMethod.Put);
 
         _ = await Assert.That(builder).IsNotNull();
     }

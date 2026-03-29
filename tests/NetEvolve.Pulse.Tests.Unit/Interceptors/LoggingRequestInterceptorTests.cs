@@ -24,10 +24,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WithCommand_LogsBeginAndEndAtDebugLevel()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(
-            logger,
-            new LoggingInterceptorOptions { LogLevel = LogLevel.Debug }
-        );
+        var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var command = new TestCommand { CorrelationId = "corr-123" };
 
         var result = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("ok")).ConfigureAwait(false);
@@ -45,10 +42,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WithCommand_LogsBeginAndEndAtInformationLevel()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(
-            logger,
-            new LoggingInterceptorOptions { LogLevel = LogLevel.Information }
-        );
+        var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var command = new TestCommand();
 
         _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("ok")).ConfigureAwait(false);
@@ -65,7 +59,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WithQuery_LogsQueryInMessage()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestQuery, int>>();
-        var interceptor = CreateInterceptor<TestQuery, int>(logger);
+        var interceptor = CreateInterceptor(logger);
         var query = new TestQuery();
 
         _ = await interceptor.HandleAsync(query, (_, _) => Task.FromResult(42)).ConfigureAwait(false);
@@ -81,7 +75,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WithGenericRequest_LogsRequestInMessage()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestRequest, bool>>();
-        var interceptor = CreateInterceptor<TestRequest, bool>(logger);
+        var interceptor = CreateInterceptor(logger);
         var request = new TestRequest();
 
         _ = await interceptor.HandleAsync(request, (_, _) => Task.FromResult(true)).ConfigureAwait(false);
@@ -93,7 +87,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WithSlowRequest_LogsWarning()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(
+        var interceptor = CreateInterceptor(
             logger,
             new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.FromMilliseconds(1) }
         );
@@ -119,10 +113,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WithDisabledSlowRequestThreshold_DoesNotLogWarning()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(
-            logger,
-            new LoggingInterceptorOptions { SlowRequestThreshold = null }
-        );
+        var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var command = new TestCommand();
 
         _ = await interceptor
@@ -144,7 +135,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(logger);
+        var interceptor = CreateInterceptor(logger);
         var command = new TestCommand();
         var expectedException = new InvalidOperationException("test error");
 
@@ -166,7 +157,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_LogsCorrelationId()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(logger);
+        var interceptor = CreateInterceptor(logger);
         var command = new TestCommand { CorrelationId = "my-correlation-id" };
 
         _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("ok")).ConfigureAwait(false);
@@ -178,7 +169,7 @@ public class LoggingRequestInterceptorTests
     public async Task HandleAsync_InvokesHandlerWithCorrectRequest()
     {
         var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
-        var interceptor = CreateInterceptor<TestCommand, string>(logger);
+        var interceptor = CreateInterceptor(logger);
         var command = new TestCommand();
         TestCommand? received = null;
 

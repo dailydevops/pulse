@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(_TestTargetFrameworks)</TargetFrameworks>
+    <NoWarn>$(NoWarn);CA1812;</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="NetEvolve.Extensions.TUnit" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Verify.TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SourceGeneration\NetEvolve.Pulse.SourceGeneration.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Attributes\NetEvolve.Pulse.Attributes.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="NetEvolve.Extensions.TUnit.UnitTestAttribute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\templates\Predefined.cs" Link="Predefined.cs" />
+  </ItemGroup>
+</Project>

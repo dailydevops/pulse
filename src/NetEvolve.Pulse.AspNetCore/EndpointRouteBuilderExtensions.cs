@@ -102,7 +102,7 @@ public static class EndpointRouteBuilderExtensions
             [httpMethod.ToHttpMethodString()],
             async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
             {
-                await mediator.SendAsync<TCommand>(command, cancellationToken).ConfigureAwait(false);
+                await mediator.SendAsync(command, cancellationToken).ConfigureAwait(false);
                 return TypedResults.NoContent();
             }
         );

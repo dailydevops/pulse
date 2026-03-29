@@ -4,7 +4,6 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
-using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 

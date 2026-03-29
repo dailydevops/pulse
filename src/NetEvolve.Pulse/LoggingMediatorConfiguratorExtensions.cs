@@ -59,7 +59,7 @@ public static class LoggingMediatorConfiguratorExtensions
 
         if (configure is not null)
         {
-            _ = configurator.Services.Configure<LoggingInterceptorOptions>(configure);
+            _ = configurator.Services.Configure(configure);
         }
 
         configurator.Services.TryAddSingleton<
