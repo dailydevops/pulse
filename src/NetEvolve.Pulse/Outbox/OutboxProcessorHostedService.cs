@@ -451,13 +451,17 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             return null;
         }
 
-        var delayTicks = (long)(options.BaseRetryDelay.Ticks * Math.Pow(options.BackoffMultiplier, currentRetryCount));
-        var delay = TimeSpan.FromTicks(delayTicks);
+        var maxDelayTicks = (double)options.MaxRetryDelay.Ticks;
+        var rawDelayTicks = options.BaseRetryDelay.Ticks * Math.Pow(options.BackoffMultiplier, currentRetryCount);
+
+        // Clamp in double space before casting to avoid long overflow
+        var delayTicks = rawDelayTicks >= maxDelayTicks ? maxDelayTicks : rawDelayTicks;
+        var delay = TimeSpan.FromTicks((long)delayTicks);
 
         if (options.AddJitter)
         {
 #pragma warning disable CA5394 // Random is an insecure random number generator — intentional; jitter does not require cryptographic randomness
-            var jitterTicks = (long)(delay.Ticks * 0.2 * Random.Shared.NextDouble());
+            var jitterTicks = (long)(delayTicks * 0.2 * Random.Shared.NextDouble());
 #pragma warning restore CA5394
             delay = delay.Add(TimeSpan.FromTicks(jitterTicks));
         }
