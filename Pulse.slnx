@@ -28,6 +28,7 @@
     <Project Path="src/NetEvolve.Pulse.AspNetCore/NetEvolve.Pulse.AspNetCore.csproj" />
     <Project Path="src/NetEvolve.Pulse.EntityFramework/NetEvolve.Pulse.EntityFramework.csproj" />
     <Project Path="src/NetEvolve.Pulse.Dapr/NetEvolve.Pulse.Dapr.csproj" />
+    <Project Path="src/NetEvolve.Pulse.PostgreSql/NetEvolve.Pulse.PostgreSql.csproj" />
     <Project Path="src/NetEvolve.Pulse.SqlServer/NetEvolve.Pulse.SqlServer.csproj" />
     <Project Path="src/NetEvolve.Pulse.Polly/NetEvolve.Pulse.Polly.csproj" />
     <Project Path="src/NetEvolve.Pulse.HttpCorrelation/NetEvolve.Pulse.HttpCorrelation.csproj" />
@@ -37,6 +38,8 @@
     <Project Path="tests/NetEvolve.Pulse.AspNetCore.Tests.Integration/NetEvolve.Pulse.AspNetCore.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.AspNetCore.Tests.Unit/NetEvolve.Pulse.AspNetCore.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.EntityFramework.Tests.Integration/NetEvolve.Pulse.EntityFramework.Tests.Integration.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.PostgreSql.Tests.Integration/NetEvolve.Pulse.PostgreSql.Tests.Integration.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.PostgreSql.Tests.Unit/NetEvolve.Pulse.PostgreSql.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SqlServer.Tests.Integration/NetEvolve.Pulse.SqlServer.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.EntityFramework.Tests.Unit/NetEvolve.Pulse.EntityFramework.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Polly.Tests.Integration/NetEvolve.Pulse.Polly.Tests.Integration.csproj" />
