@@ -99,7 +99,7 @@ public sealed class PostgreSqlEventOutbox : IEventOutbox
             message.GetType().AssemblyQualifiedName
             ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {message.GetType()}");
 
-        if (eventType.Length > OutboxMessageSchema.MaxLengths.EventType)
+        if (eventType is { Length: > OutboxMessageSchema.MaxLengths.EventType })
         {
             throw new InvalidOperationException(
                 $"Event type identifier exceeds the EventType column maximum length of {OutboxMessageSchema.MaxLengths.EventType} characters. "

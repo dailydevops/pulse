@@ -47,6 +47,10 @@ public sealed class PostgreSqlContainerFixture : IAsyncInitializer, IAsyncDispos
         }
     }
 
+    /// <summary>
+    /// Waits for the PostgreSQL container to become ready for connections with retry logic.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task WaitUntilPostgreSqlIsReadyAsync()
     {
         for (var attempt = 0; attempt < 10; attempt++)
@@ -172,6 +176,9 @@ public sealed class PostgreSqlContainerFixture : IAsyncInitializer, IAsyncDispos
         var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "OutboxMessage.sql");
         var script = await File.ReadAllTextAsync(scriptPath, cancellationToken).ConfigureAwait(false);
 
+        // Process psql variable substitutions to make the script compatible with Npgsql
+        script = PreprocessPsqlScript(script);
+
         await using var connection = new NpgsqlConnection(GetConnectionString(databaseName));
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -179,6 +186,77 @@ public sealed class PostgreSqlContainerFixture : IAsyncInitializer, IAsyncDispos
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 #pragma warning restore CA2100
+
+    /// <summary>
+    /// Line separator characters used for splitting SQL script lines.
+    /// </summary>
+    private static readonly char[] LineSeparators = ['\r', '\n'];
+
+    /// <summary>
+    /// Preprocesses a PostgreSQL script to make psql-specific variable syntax compatible with Npgsql.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method handles the conversion of psql-style variable definitions and references
+    /// (e.g., <c>\set schema_name 'pulse'</c> and <c>:schema_name</c>) to plain text substitution
+    /// that can be executed by Npgsql's SQL command handler.
+    /// </para>
+    /// <para>
+    /// The preprocessing performs the following steps:
+    /// <list type="number">
+    /// <item>Extracts <c>\set variable_name 'value'</c> declarations.</item>
+    /// <item>Removes the <c>\set</c> lines from the script.</item>
+    /// <item>Replaces variable references (<c>:"variable_name"</c> and <c>:variable_name</c>) with their values.</item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    /// <param name="script">The PostgreSQL script to preprocess.</param>
+    /// <returns>The preprocessed script with variable substitutions applied.</returns>
+    private static string PreprocessPsqlScript(string script)
+    {
+        var variables = new Dictionary<string, string>();
+
+        // Extract psql variable definitions (\set variable_name 'value')
+        var lines = script.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
+        var processedLines = new List<string>();
+
+        foreach (var line in lines)
+        {
+            // Match \set variable_name 'value' pattern
+            if (line.TrimStart().StartsWith(@"\set ", StringComparison.Ordinal))
+            {
+                var parts = line.TrimStart()[5..].Split(' ', 2);
+                if (parts.Length == 2)
+                {
+                    var varName = parts[0];
+                    var varValue = parts[1].Trim('\'');
+                    variables[varName] = varValue;
+                }
+                // Skip the \set line - don't include in output
+                continue;
+            }
+
+            processedLines.Add(line);
+        }
+
+        // Join back the processed lines
+        var result = string.Join("\n", processedLines);
+
+        // Replace variable references with their values
+        // Order matters: first replace :"variable_name" (quoted), then :variable_name (unquoted)
+        foreach (var kvp in variables)
+        {
+            // Replace :"variable_name" (quoted) - this is the primary psql syntax
+            var quotedVar = $":\"{kvp.Key}\"";
+            result = result.Replace(quotedVar, kvp.Value, StringComparison.Ordinal);
+
+            // Replace :variable_name (unquoted) as fallback
+            var unquotedVar = $":{kvp.Key}";
+            result = result.Replace(unquotedVar, kvp.Value, StringComparison.Ordinal);
+        }
+
+        return result;
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() => await _container.DisposeAsync().ConfigureAwait(false);

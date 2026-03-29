@@ -16,53 +16,36 @@
 -- ============================================================================
 -- Configuration
 -- ============================================================================
-DO $$
-DECLARE
-    schema_name TEXT := 'pulse';
-    table_name  TEXT := 'OutboxMessage';
-BEGIN
+\set schema_name 'pulse'
+\set table_name 'OutboxMessage'
 
 -- Create schema if it doesn't exist
-EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);
+CREATE SCHEMA IF NOT EXISTS :schema_name;
 
 -- Create table if it doesn't exist
-IF NOT EXISTS (
-    SELECT 1
-    FROM information_schema.tables
-    WHERE table_schema = schema_name
-      AND table_name = table_name
-) THEN
-    EXECUTE format('
-        CREATE TABLE %I.%I (
-            "Id"            UUID            NOT NULL,
-            "EventType"     VARCHAR(500)    NOT NULL,
-            "Payload"       TEXT            NOT NULL,
-            "CorrelationId" VARCHAR(100)    NULL,
-            "CreatedAt"     TIMESTAMPTZ     NOT NULL,
-            "UpdatedAt"     TIMESTAMPTZ     NOT NULL,
-            "ProcessedAt"   TIMESTAMPTZ     NULL,
-            "RetryCount"    INTEGER         NOT NULL DEFAULT 0,
-            "Error"         TEXT            NULL,
-            "Status"        INTEGER         NOT NULL DEFAULT 0,
-            CONSTRAINT "PK_%s" PRIMARY KEY ("Id")
-        )', schema_name, table_name, table_name);
+CREATE TABLE IF NOT EXISTS ":schema_name".":table_name" (
+    "Id"            UUID            NOT NULL,
+    "EventType"     VARCHAR(500)    NOT NULL,
+    "Payload"       TEXT            NOT NULL,
+    "CorrelationId" VARCHAR(100)    NULL,
+    "CreatedAt"     TIMESTAMPTZ     NOT NULL,
+    "UpdatedAt"     TIMESTAMPTZ     NOT NULL,
+    "ProcessedAt"   TIMESTAMPTZ     NULL,
+    "RetryCount"    INTEGER         NOT NULL DEFAULT 0,
+    "Error"         TEXT            NULL,
+    "Status"        INTEGER         NOT NULL DEFAULT 0,
+    CONSTRAINT "PK_:schema_name" PRIMARY KEY ("Id")
+);
 
-    -- Index for efficient polling of pending messages
-    EXECUTE format('
-        CREATE INDEX "IX_%s_Status_CreatedAt"
-        ON %I.%I ("Status", "CreatedAt")
-        WHERE "Status" IN (0, 3)
-    ', table_name, schema_name, table_name);
+-- Index for efficient polling of pending messages
+CREATE INDEX IF NOT EXISTS "IX_:schema_name_Status_CreatedAt"
+ON ":schema_name".":table_name" ("Status", "CreatedAt")
+WHERE "Status" IN (0, 3);
 
-    -- Index for cleanup of completed messages
-    EXECUTE format('
-        CREATE INDEX "IX_%s_Status_ProcessedAt"
-        ON %I.%I ("Status", "ProcessedAt")
-        WHERE "Status" = 2
-    ', table_name, schema_name, table_name);
-END IF;
-
-END $$;
+-- Index for cleanup of completed messages
+CREATE INDEX IF NOT EXISTS "IX_:schema_name_Status_ProcessedAt"
+ON ":schema_name".":table_name" ("Status", "ProcessedAt")
+WHERE "Status" = 2;
 
 -- ============================================================================
 -- Stored Functions
@@ -70,7 +53,7 @@ END $$;
 
 -- get_pending_outbox_messages: Retrieves and locks pending messages for processing
 -- Uses FOR UPDATE SKIP LOCKED for concurrent polling safety
-CREATE OR REPLACE FUNCTION "pulse".get_pending_outbox_messages(
+CREATE OR REPLACE FUNCTION ":schema_name".get_pending_outbox_messages(
     batch_size INTEGER
 )
 RETURNS TABLE (
@@ -91,13 +74,13 @@ BEGIN
     RETURN QUERY
     WITH cte AS (
         SELECT om."Id"
-        FROM "pulse"."OutboxMessage" om
+        FROM ":schema_name".":table_name" om
         WHERE om."Status" = 0 -- Pending
         ORDER BY om."CreatedAt"
         LIMIT batch_size
         FOR UPDATE SKIP LOCKED
     )
-    UPDATE "pulse"."OutboxMessage" msg
+    UPDATE ":schema_name".":table_name" msg
     SET
         "Status" = 1, -- Processing
         "UpdatedAt" = NOW()
@@ -118,7 +101,7 @@ END;
 $$;
 
 -- get_failed_outbox_messages_for_retry: Retrieves failed messages eligible for retry
-CREATE OR REPLACE FUNCTION "pulse".get_failed_outbox_messages_for_retry(
+CREATE OR REPLACE FUNCTION ":schema_name".get_failed_outbox_messages_for_retry(
     max_retry_count INTEGER,
     batch_size INTEGER
 )
@@ -140,14 +123,14 @@ BEGIN
     RETURN QUERY
     WITH cte AS (
         SELECT om."Id"
-        FROM "pulse"."OutboxMessage" om
+        FROM ":schema_name".":table_name" om
         WHERE om."Status" = 3 -- Failed
           AND om."RetryCount" < max_retry_count
         ORDER BY om."UpdatedAt"
         LIMIT batch_size
         FOR UPDATE SKIP LOCKED
     )
-    UPDATE "pulse"."OutboxMessage" msg
+    UPDATE ":schema_name".":table_name" msg
     SET
         "Status" = 1, -- Processing
         "UpdatedAt" = NOW()
@@ -168,14 +151,14 @@ END;
 $$;
 
 -- mark_outbox_message_completed: Marks a message as successfully processed
-CREATE OR REPLACE FUNCTION "pulse".mark_outbox_message_completed(
+CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_completed(
     message_id UUID
 )
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    UPDATE "pulse"."OutboxMessage"
+    UPDATE ":schema_name".":table_name"
     SET
         "Status" = 2, -- Completed
         "ProcessedAt" = NOW(),
@@ -186,7 +169,7 @@ END;
 $$;
 
 -- mark_outbox_message_failed: Marks a message as failed with error details
-CREATE OR REPLACE FUNCTION "pulse".mark_outbox_message_failed(
+CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_failed(
     message_id UUID,
     error TEXT
 )
@@ -194,7 +177,7 @@ RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    UPDATE "pulse"."OutboxMessage"
+    UPDATE ":schema_name".":table_name"
     SET
         "Status" = 3, -- Failed
         "RetryCount" = "RetryCount" + 1,
@@ -206,7 +189,7 @@ END;
 $$;
 
 -- mark_outbox_message_dead_letter: Moves a message to dead letter status
-CREATE OR REPLACE FUNCTION "pulse".mark_outbox_message_dead_letter(
+CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_dead_letter(
     message_id UUID,
     error TEXT
 )
@@ -214,7 +197,7 @@ RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    UPDATE "pulse"."OutboxMessage"
+    UPDATE ":schema_name".":table_name"
     SET
         "Status" = 4, -- DeadLetter
         "Error" = error,
@@ -225,7 +208,7 @@ END;
 $$;
 
 -- delete_completed_outbox_messages: Removes old completed messages
-CREATE OR REPLACE FUNCTION "pulse".delete_completed_outbox_messages(
+CREATE OR REPLACE FUNCTION ":schema_name".delete_completed_outbox_messages(
     older_than_utc TIMESTAMPTZ
 )
 RETURNS INTEGER
@@ -234,7 +217,7 @@ AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
-    DELETE FROM "pulse"."OutboxMessage"
+    DELETE FROM ":schema_name".":table_name"
     WHERE "Status" = 2 -- Completed
       AND "ProcessedAt" < older_than_utc;
 
@@ -248,7 +231,7 @@ $$;
 -- ============================================================================
 
 -- get_dead_letter_outbox_messages: Returns a paginated list of dead-letter messages
-CREATE OR REPLACE FUNCTION "pulse".get_dead_letter_outbox_messages(
+CREATE OR REPLACE FUNCTION ":schema_name".get_dead_letter_outbox_messages(
     page_size INTEGER,
     page INTEGER
 )
@@ -279,7 +262,7 @@ BEGIN
         om."RetryCount",
         om."Error",
         om."Status"
-    FROM "pulse"."OutboxMessage" om
+    FROM ":schema_name".":table_name" om
     WHERE om."Status" = 4 -- DeadLetter
     ORDER BY om."UpdatedAt" DESC
     LIMIT page_size
@@ -288,7 +271,7 @@ END;
 $$;
 
 -- get_dead_letter_outbox_message: Returns a single dead-letter message by Id
-CREATE OR REPLACE FUNCTION "pulse".get_dead_letter_outbox_message(
+CREATE OR REPLACE FUNCTION ":schema_name".get_dead_letter_outbox_message(
     message_id UUID
 )
 RETURNS TABLE (
@@ -318,28 +301,28 @@ BEGIN
         om."RetryCount",
         om."Error",
         om."Status"
-    FROM "pulse"."OutboxMessage" om
+    FROM ":schema_name".":table_name" om
     WHERE om."Id" = message_id
       AND om."Status" = 4; -- DeadLetter
 END;
 $$;
 
 -- get_dead_letter_outbox_message_count: Returns the count of dead-letter messages
-CREATE OR REPLACE FUNCTION "pulse".get_dead_letter_outbox_message_count()
+CREATE OR REPLACE FUNCTION ":schema_name".get_dead_letter_outbox_message_count()
 RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN (
         SELECT COUNT(*)
-        FROM "pulse"."OutboxMessage"
+        FROM ":schema_name".":table_name"
         WHERE "Status" = 4 -- DeadLetter
     );
 END;
 $$;
 
 -- replay_outbox_message: Resets a dead-letter message to Pending for reprocessing
-CREATE OR REPLACE FUNCTION "pulse".replay_outbox_message(
+CREATE OR REPLACE FUNCTION ":schema_name".replay_outbox_message(
     message_id UUID
 )
 RETURNS INTEGER
@@ -348,7 +331,7 @@ AS $$
 DECLARE
     updated_count INTEGER;
 BEGIN
-    UPDATE "pulse"."OutboxMessage"
+    UPDATE ":schema_name".":table_name"
     SET
         "Status"     = 0, -- Pending
         "RetryCount" = 0,
@@ -363,14 +346,14 @@ END;
 $$;
 
 -- replay_all_dead_letter_outbox_messages: Resets all dead-letter messages to Pending
-CREATE OR REPLACE FUNCTION "pulse".replay_all_dead_letter_outbox_messages()
+CREATE OR REPLACE FUNCTION ":schema_name".replay_all_dead_letter_outbox_messages()
 RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
     updated_count INTEGER;
 BEGIN
-    UPDATE "pulse"."OutboxMessage"
+    UPDATE ":schema_name".":table_name"
     SET
         "Status"     = 0, -- Pending
         "RetryCount" = 0,
@@ -384,7 +367,7 @@ END;
 $$;
 
 -- get_outbox_statistics: Returns message counts grouped by status
-CREATE OR REPLACE FUNCTION "pulse".get_outbox_statistics()
+CREATE OR REPLACE FUNCTION ":schema_name".get_outbox_statistics()
 RETURNS TABLE (
     "Pending"    BIGINT,
     "Processing" BIGINT,
@@ -393,15 +376,16 @@ RETURNS TABLE (
     "DeadLetter" BIGINT
 )
 LANGUAGE plpgsql
+STABLE
 AS $$
 BEGIN
     RETURN QUERY
     SELECT
-        SUM(CASE WHEN "Status" = 0 THEN 1::BIGINT ELSE 0 END) AS "Pending",
-        SUM(CASE WHEN "Status" = 1 THEN 1::BIGINT ELSE 0 END) AS "Processing",
-        SUM(CASE WHEN "Status" = 2 THEN 1::BIGINT ELSE 0 END) AS "Completed",
-        SUM(CASE WHEN "Status" = 3 THEN 1::BIGINT ELSE 0 END) AS "Failed",
-        SUM(CASE WHEN "Status" = 4 THEN 1::BIGINT ELSE 0 END) AS "DeadLetter"
-    FROM "pulse"."OutboxMessage";
+        COALESCE(SUM(CASE WHEN "Status" = 0 THEN 1::BIGINT ELSE 0 END), 0::BIGINT)::BIGINT AS "Pending",
+        COALESCE(SUM(CASE WHEN "Status" = 1 THEN 1::BIGINT ELSE 0 END), 0::BIGINT)::BIGINT AS "Processing",
+        COALESCE(SUM(CASE WHEN "Status" = 2 THEN 1::BIGINT ELSE 0 END), 0::BIGINT)::BIGINT AS "Completed",
+        COALESCE(SUM(CASE WHEN "Status" = 3 THEN 1::BIGINT ELSE 0 END), 0::BIGINT)::BIGINT AS "Failed",
+        COALESCE(SUM(CASE WHEN "Status" = 4 THEN 1::BIGINT ELSE 0 END), 0::BIGINT)::BIGINT AS "DeadLetter"
+    FROM ":schema_name".":table_name";
 END;
 $$;

@@ -163,21 +163,11 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
 
         return new OutboxStatistics
         {
-            Pending = await reader.IsDBNullAsync(ordPending, cancellationToken).ConfigureAwait(false)
-                ? 0
-                : reader.GetInt64(ordPending),
-            Processing = await reader.IsDBNullAsync(ordProcessing, cancellationToken).ConfigureAwait(false)
-                ? 0
-                : reader.GetInt64(ordProcessing),
-            Completed = await reader.IsDBNullAsync(ordCompleted, cancellationToken).ConfigureAwait(false)
-                ? 0
-                : reader.GetInt64(ordCompleted),
-            Failed = await reader.IsDBNullAsync(ordFailed, cancellationToken).ConfigureAwait(false)
-                ? 0
-                : reader.GetInt64(ordFailed),
-            DeadLetter = await reader.IsDBNullAsync(ordDeadLetter, cancellationToken).ConfigureAwait(false)
-                ? 0
-                : reader.GetInt64(ordDeadLetter),
+            Pending = reader.GetInt64(ordPending),
+            Processing = reader.GetInt64(ordProcessing),
+            Completed = reader.GetInt64(ordCompleted),
+            Failed = reader.GetInt64(ordFailed),
+            DeadLetter = reader.GetInt64(ordDeadLetter),
         };
     }
 
