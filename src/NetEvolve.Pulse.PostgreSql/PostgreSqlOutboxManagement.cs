@@ -85,7 +85,9 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         await using var command = new NpgsqlCommand(_getDeadLetterMessagesSql, connection);
 
         _ = command.Parameters.AddWithValue("page_size", pageSize);
+#pragma warning disable RCS1015 // Use nameof operator
         _ = command.Parameters.AddWithValue("page", page);
+#pragma warning restore RCS1015 // Use nameof operator
 
         return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -210,6 +212,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
         var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
         var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
         var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
@@ -227,6 +230,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
                     ordCreatedAt,
                     ordUpdatedAt,
                     ordProcessedAt,
+                    ordNextRetryAt,
                     ordRetryCount,
                     ordError,
                     ordStatus
@@ -249,6 +253,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     /// <param name="ordCreatedAt">Pre-resolved ordinal for the CreatedAt column.</param>
     /// <param name="ordUpdatedAt">Pre-resolved ordinal for the UpdatedAt column.</param>
     /// <param name="ordProcessedAt">Pre-resolved ordinal for the ProcessedAt column.</param>
+    /// <param name="ordNextRetryAt">Pre-resolved ordinal for the NextRetryAt column.</param>
     /// <param name="ordRetryCount">Pre-resolved ordinal for the RetryCount column.</param>
     /// <param name="ordError">Pre-resolved ordinal for the Error column.</param>
     /// <param name="ordStatus">Pre-resolved ordinal for the Status column.</param>
@@ -262,6 +267,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         int ordCreatedAt,
         int ordUpdatedAt,
         int ordProcessedAt,
+        int ordNextRetryAt,
         int ordRetryCount,
         int ordError,
         int ordStatus
@@ -275,6 +281,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
             CreatedAt = reader.GetFieldValue<DateTimeOffset>(ordCreatedAt),
             UpdatedAt = reader.GetFieldValue<DateTimeOffset>(ordUpdatedAt),
             ProcessedAt = reader.IsDBNull(ordProcessedAt) ? null : reader.GetFieldValue<DateTimeOffset>(ordProcessedAt),
+            NextRetryAt = reader.IsDBNull(ordNextRetryAt) ? null : reader.GetFieldValue<DateTimeOffset>(ordNextRetryAt),
             RetryCount = reader.GetInt32(ordRetryCount),
             Error = reader.IsDBNull(ordError) ? null : reader.GetString(ordError),
             Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),

@@ -30,6 +30,11 @@ using Npgsql;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "Stored function names are constructed from validated OutboxOptions.Schema property, not user input."
 )]
+[SuppressMessage(
+    "Roslynator",
+    "RCS1084:Use coalesce expression instead of conditional expression",
+    Justification = "NextRetryAt and ProcessedAt properties require explicit conditional checks."
+)]
 internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
 {
     /// <summary>The PostgreSQL connection string used to open new connections for each repository operation.</summary>
@@ -91,7 +96,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         _getFailedForRetrySql =
             $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size)";
         _markCompletedSql = $"SELECT \"{schema}\".mark_outbox_message_completed(@message_id)";
-        _markFailedSql = $"SELECT \"{schema}\".mark_outbox_message_failed(@message_id, @error)";
+        _markFailedSql = $"SELECT \"{schema}\".mark_outbox_message_failed(@message_id, @error, @next_retry_at)";
         _markDeadLetterSql = $"SELECT \"{schema}\".mark_outbox_message_dead_letter(@message_id, @error)";
         _deleteCompletedSql = $"SELECT \"{schema}\".delete_completed_outbox_messages(@older_than_utc)";
 
@@ -104,11 +109,12 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                  "{OutboxMessageSchema.Columns.CreatedAt}",
                  "{OutboxMessageSchema.Columns.UpdatedAt}",
                  "{OutboxMessageSchema.Columns.ProcessedAt}",
+                 "{OutboxMessageSchema.Columns.NextRetryAt}",
                  "{OutboxMessageSchema.Columns.RetryCount}",
                  "{OutboxMessageSchema.Columns.Error}",
                  "{OutboxMessageSchema.Columns.Status}")
             VALUES
-                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @RetryCount, @Error, @Status)
+                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @NextRetryAt, @RetryCount, @Error, @Status)
             """;
     }
 
@@ -193,6 +199,25 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
 
         _ = command.Parameters.AddWithValue("message_id", messageId);
         _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
+
+        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAsFailedAsync(
+        Guid messageId,
+        string errorMessage,
+        DateTimeOffset? nextRetryAt,
+        CancellationToken cancellationToken = default
+    )
+    {
+        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(_markFailedSql, connection);
+
+        _ = command.Parameters.AddWithValue("message_id", messageId);
+        _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("next_retry_at", nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -266,7 +291,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <summary>
     /// Adds all <see cref="OutboxMessage"/> property values as typed parameters to a <see cref="NpgsqlCommand"/>.
     /// Null-valued optional columns (<see cref="OutboxMessage.CorrelationId"/>, <see cref="OutboxMessage.Error"/>,
-    /// <see cref="OutboxMessage.ProcessedAt"/>) are mapped to <see cref="DBNull.Value"/>.
+    /// <see cref="OutboxMessage.ProcessedAt"/>, <see cref="OutboxMessage.NextRetryAt"/>) are mapped to <see cref="DBNull.Value"/>.
     /// </summary>
     /// <param name="command">The command to which parameters are added.</param>
     /// <param name="message">The outbox message providing parameter values.</param>
@@ -281,6 +306,10 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         _ = command.Parameters.AddWithValue(
             "ProcessedAt",
             message.ProcessedAt.HasValue ? message.ProcessedAt.Value : DBNull.Value
+        );
+        _ = command.Parameters.AddWithValue(
+            "NextRetryAt",
+            message.NextRetryAt.HasValue ? message.NextRetryAt.Value : DBNull.Value
         );
         _ = command.Parameters.AddWithValue("RetryCount", message.RetryCount);
         _ = command.Parameters.AddWithValue("Error", (object?)message.Error ?? DBNull.Value);
@@ -317,6 +346,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
         var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
         var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
         var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
@@ -333,6 +363,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                     ordCreatedAt,
                     ordUpdatedAt,
                     ordProcessedAt,
+                    ordNextRetryAt,
                     ordRetryCount,
                     ordError,
                     ordStatus
@@ -355,6 +386,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <param name="ordCreatedAt">Pre-resolved ordinal for the CreatedAt column.</param>
     /// <param name="ordUpdatedAt">Pre-resolved ordinal for the UpdatedAt column.</param>
     /// <param name="ordProcessedAt">Pre-resolved ordinal for the ProcessedAt column.</param>
+    /// <param name="ordNextRetryAt">Pre-resolved ordinal for the NextRetryAt column.</param>
     /// <param name="ordRetryCount">Pre-resolved ordinal for the RetryCount column.</param>
     /// <param name="ordError">Pre-resolved ordinal for the Error column.</param>
     /// <param name="ordStatus">Pre-resolved ordinal for the Status column.</param>
@@ -368,6 +400,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         int ordCreatedAt,
         int ordUpdatedAt,
         int ordProcessedAt,
+        int ordNextRetryAt,
         int ordRetryCount,
         int ordError,
         int ordStatus
@@ -381,6 +414,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             CreatedAt = reader.GetFieldValue<DateTimeOffset>(ordCreatedAt),
             UpdatedAt = reader.GetFieldValue<DateTimeOffset>(ordUpdatedAt),
             ProcessedAt = reader.IsDBNull(ordProcessedAt) ? null : reader.GetFieldValue<DateTimeOffset>(ordProcessedAt),
+            NextRetryAt = reader.IsDBNull(ordNextRetryAt) ? null : reader.GetFieldValue<DateTimeOffset>(ordNextRetryAt),
             RetryCount = reader.GetInt32(ordRetryCount),
             Error = reader.IsDBNull(ordError) ? null : reader.GetString(ordError),
             Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),

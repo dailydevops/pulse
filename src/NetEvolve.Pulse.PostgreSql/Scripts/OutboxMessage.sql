@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS ":schema_name".":table_name" (
     "CreatedAt"     TIMESTAMPTZ     NOT NULL,
     "UpdatedAt"     TIMESTAMPTZ     NOT NULL,
     "ProcessedAt"   TIMESTAMPTZ     NULL,
+    "NextRetryAt"   TIMESTAMPTZ     NULL,
     "RetryCount"    INTEGER         NOT NULL DEFAULT 0,
     "Error"         TEXT            NULL,
     "Status"        INTEGER         NOT NULL DEFAULT 0,
@@ -64,6 +65,7 @@ RETURNS TABLE (
     "CreatedAt"     TIMESTAMPTZ,
     "UpdatedAt"     TIMESTAMPTZ,
     "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
     "RetryCount"    INTEGER,
     "Error"         TEXT,
     "Status"        INTEGER
@@ -94,6 +96,7 @@ BEGIN
         msg."CreatedAt",
         msg."UpdatedAt",
         msg."ProcessedAt",
+        msg."NextRetryAt",
         msg."RetryCount",
         msg."Error",
         msg."Status";
@@ -113,6 +116,7 @@ RETURNS TABLE (
     "CreatedAt"     TIMESTAMPTZ,
     "UpdatedAt"     TIMESTAMPTZ,
     "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
     "RetryCount"    INTEGER,
     "Error"         TEXT,
     "Status"        INTEGER
@@ -144,6 +148,7 @@ BEGIN
         msg."CreatedAt",
         msg."UpdatedAt",
         msg."ProcessedAt",
+        msg."NextRetryAt",
         msg."RetryCount",
         msg."Error",
         msg."Status";
@@ -171,7 +176,8 @@ $$;
 -- mark_outbox_message_failed: Marks a message as failed with error details
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_failed(
     message_id UUID,
-    error TEXT
+    error TEXT,
+    next_retry_at TIMESTAMPTZ
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -182,6 +188,7 @@ BEGIN
         "Status" = 3, -- Failed
         "RetryCount" = "RetryCount" + 1,
         "Error" = error,
+        "NextRetryAt" = next_retry_at,
         "UpdatedAt" = NOW()
     WHERE "Id" = message_id
       AND "Status" = 1; -- Processing
@@ -243,6 +250,7 @@ RETURNS TABLE (
     "CreatedAt"     TIMESTAMPTZ,
     "UpdatedAt"     TIMESTAMPTZ,
     "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
     "RetryCount"    INTEGER,
     "Error"         TEXT,
     "Status"        INTEGER
@@ -259,6 +267,7 @@ BEGIN
         om."CreatedAt",
         om."UpdatedAt",
         om."ProcessedAt",
+        om."NextRetryAt",
         om."RetryCount",
         om."Error",
         om."Status"
@@ -282,6 +291,7 @@ RETURNS TABLE (
     "CreatedAt"     TIMESTAMPTZ,
     "UpdatedAt"     TIMESTAMPTZ,
     "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
     "RetryCount"    INTEGER,
     "Error"         TEXT,
     "Status"        INTEGER
@@ -298,6 +308,7 @@ BEGIN
         om."CreatedAt",
         om."UpdatedAt",
         om."ProcessedAt",
+        om."NextRetryAt",
         om."RetryCount",
         om."Error",
         om."Status"
@@ -336,6 +347,7 @@ BEGIN
         "Status"     = 0, -- Pending
         "RetryCount" = 0,
         "Error"      = NULL,
+        "NextRetryAt" = NULL,
         "UpdatedAt"  = NOW()
     WHERE "Id" = message_id
       AND "Status" = 4; -- DeadLetter
@@ -358,6 +370,7 @@ BEGIN
         "Status"     = 0, -- Pending
         "RetryCount" = 0,
         "Error"      = NULL,
+        "NextRetryAt" = NULL,
         "UpdatedAt"  = NOW()
     WHERE "Status" = 4; -- DeadLetter
 
