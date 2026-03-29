@@ -35,9 +35,6 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <summary>The PostgreSQL connection string used to open new connections for each repository operation.</summary>
     private readonly string _connectionString;
 
-    /// <summary>The resolved outbox options controlling table name, schema, and serialization settings.</summary>
-    private readonly OutboxOptions _options;
-
     /// <summary>The optional transaction scope providing an ambient <see cref="NpgsqlTransaction"/> for <see cref="AddAsync"/>.</summary>
     private readonly IOutboxTransactionScope? _transactionScope;
 
@@ -62,6 +59,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <summary>Cached SQL for calling the delete_completed_outbox_messages function.</summary>
     private readonly string _deleteCompletedSql;
 
+    /// <summary>Cached SQL for inserting into Outbox Table.</summary>
+    private readonly string _insertSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlOutboxRepository"/> class.
     /// </summary>
@@ -81,11 +81,12 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = connectionString;
-        _options = options.Value;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
 
-        var schema = string.IsNullOrWhiteSpace(_options.Schema) ? "public" : _options.Schema;
+        var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
+            ? OutboxMessageSchema.DefaultSchema
+            : options.Value.Schema;
         _getPendingSql = $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size)";
         _getFailedForRetrySql =
             $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size)";
@@ -93,15 +94,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         _markFailedSql = $"SELECT \"{schema}\".mark_outbox_message_failed(@message_id, @error)";
         _markDeadLetterSql = $"SELECT \"{schema}\".mark_outbox_message_dead_letter(@message_id, @error)";
         _deleteCompletedSql = $"SELECT \"{schema}\".delete_completed_outbox_messages(@older_than_utc)";
-    }
 
-    /// <inheritdoc />
-    public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(message);
-
-        var sql = $"""
-            INSERT INTO {_options.FullTableName}
+        _insertSql = $"""
+            INSERT INTO {options.Value.FullTableName}
                 ("{OutboxMessageSchema.Columns.Id}",
                  "{OutboxMessageSchema.Columns.EventType}",
                  "{OutboxMessageSchema.Columns.Payload}",
@@ -115,6 +110,12 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             VALUES
                 (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @RetryCount, @Error, @Status)
             """;
+    }
+
+    /// <inheritdoc />
+    public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
 
         var transaction = GetCurrentTransaction();
 
@@ -125,7 +126,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
-            await using var command = new NpgsqlCommand(sql, connection, transaction);
+            await using var command = new NpgsqlCommand(_insertSql, connection, transaction);
             AddMessageParameters(command, message);
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -133,7 +134,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         {
             // Create a new connection when no ambient transaction exists
             await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = new NpgsqlCommand(sql, connection);
+            await using var command = new NpgsqlCommand(_insertSql, connection);
             AddMessageParameters(command, message);
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
