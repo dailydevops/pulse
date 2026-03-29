@@ -16,6 +16,7 @@
 /// </remarks>
 /// <example>
 /// <code>
+/// // Register with default Scoped lifetime
 /// [PulseHandler]
 /// public class CreateOrderCommandHandler
 ///     : ICommandHandler&lt;CreateOrderCommand, OrderResult&gt;
@@ -23,7 +24,23 @@
 ///     public Task&lt;OrderResult&gt; HandleAsync(
 ///         CreateOrderCommand command, CancellationToken cancellationToken) =&gt; ...;
 /// }
+///
+/// // Register with explicit Singleton lifetime
+/// [PulseHandler(Lifetime = PulseServiceLifetime.Singleton)]
+/// public class GetCachedDataQueryHandler
+///     : IQueryHandler&lt;GetCachedDataQuery, CachedData&gt;
+/// {
+///     public Task&lt;CachedData&gt; HandleAsync(
+///         GetCachedDataQuery query, CancellationToken cancellationToken) =&gt; ...;
+/// }
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class PulseHandlerAttribute : Attribute;
+public sealed class PulseHandlerAttribute : Attribute
+{
+    /// <summary>
+    /// Gets or sets the service lifetime for the handler registration.
+    /// Defaults to <see cref="PulseServiceLifetime.Scoped"/>.
+    /// </summary>
+    public PulseServiceLifetime Lifetime { get; set; } = PulseServiceLifetime.Scoped;
+}

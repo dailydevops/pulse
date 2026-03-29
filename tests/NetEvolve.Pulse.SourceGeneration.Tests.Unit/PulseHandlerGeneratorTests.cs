@@ -229,6 +229,99 @@ public class PulseHandlerGeneratorTests
         _ = await Assert.That(generatedSources).IsEmpty();
     }
 
+    [Test]
+    public async Task WhenSingletonLifetimeSpecifiedThenAddSingletonIsGenerated()
+    {
+        var source = """
+            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyQuery(string Id) : IQuery<string>;
+
+            [PulseHandler(Lifetime = PulseServiceLifetime.Singleton)]
+            public class MyQueryHandler : IQueryHandler<MyQuery, string>
+            {
+                public Task<string> HandleAsync(MyQuery request, CancellationToken cancellationToken = default)
+                    => Task.FromResult(request.Id);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        _ = await Assert.That(diagnostics).IsEmpty();
+        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
+
+        var generatedCode = generatedSources[0].SourceText.ToString();
+        _ = await Assert.That(generatedCode).Contains("AddSingleton");
+        _ = await Assert.That(generatedCode).Contains("MyQueryHandler");
+    }
+
+    [Test]
+    public async Task WhenTransientLifetimeSpecifiedThenAddTransientIsGenerated()
+    {
+        var source = """
+            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            public record MyEvent : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler(Lifetime = PulseServiceLifetime.Transient)]
+            public class MyEventHandler : IEventHandler<MyEvent>
+            {
+                public Task HandleAsync(MyEvent message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        _ = await Assert.That(diagnostics).IsEmpty();
+        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
+
+        var generatedCode = generatedSources[0].SourceText.ToString();
+        _ = await Assert.That(generatedCode).Contains("AddTransient");
+        _ = await Assert.That(generatedCode).Contains("MyEventHandler");
+    }
+
+    [Test]
+    public async Task WhenScopedLifetimeExplicitlySpecifiedThenAddScopedIsGenerated()
+    {
+        var source = """
+            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler(Lifetime = PulseServiceLifetime.Scoped)]
+            public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+
+        _ = await Assert.That(diagnostics).IsEmpty();
+        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
+
+        var generatedCode = generatedSources[0].SourceText.ToString();
+        _ = await Assert.That(generatedCode).Contains("AddScoped");
+        _ = await Assert.That(generatedCode).Contains("MyCommandHandler");
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<GeneratedSourceResult> Sources) RunGenerator(
         string source
     )

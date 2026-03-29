@@ -20,6 +20,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
     private const string CommandHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.ICommandHandler`2";
 
+    private const string CommandHandlerSingleInterfaceName = "NetEvolve.Pulse.Extensibility.ICommandHandler`1";
+
     private const string QueryHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IQueryHandler`2";
 
     private const string EventHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IEventHandler`1";
@@ -55,6 +57,19 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
+        // Read the Lifetime property from the attribute (default: Scoped = 1).
+        var lifetime = 1; // PulseServiceLifetime.Scoped
+        foreach (var attr in ctx.Attributes)
+        {
+            foreach (var namedArg in attr.NamedArguments)
+            {
+                if (string.Equals(namedArg.Key, "Lifetime", StringComparison.Ordinal) && !namedArg.Value.IsNull)
+                {
+                    lifetime = (int)namedArg.Value.Value!;
+                }
+            }
+        }
+
         var registrations = new List<HandlerRegistration>();
         var location = ctx.TargetNode.GetLocation();
 
@@ -65,7 +80,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
             HandlerKind? kind = null;
 
-            if (string.Equals(metadataName, CommandHandlerInterfaceName, StringComparison.Ordinal))
+            if (
+                string.Equals(metadataName, CommandHandlerInterfaceName, StringComparison.Ordinal)
+                || string.Equals(metadataName, CommandHandlerSingleInterfaceName, StringComparison.Ordinal)
+            )
             {
                 kind = HandlerKind.Command;
             }
@@ -84,7 +102,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                     new HandlerRegistration(
                         handlerTypeName: GetFullyQualifiedName(classSymbol),
                         serviceTypeName: GetFullyQualifiedName(iface),
-                        kind: kind.Value
+                        kind: kind.Value,
+                        lifetime: lifetime
                     )
                 );
             }
@@ -205,8 +224,9 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         foreach (var reg in registrations)
         {
+            var methodName = GetLifetimeMethodName(reg.Lifetime);
             _ = sb.AppendLine(
-                $"            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddScoped<{reg.ServiceTypeName}, {reg.HandlerTypeName}>(services);"
+                $"            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.{methodName}<{reg.ServiceTypeName}, {reg.HandlerTypeName}>(services);"
             );
         }
 
@@ -218,6 +238,17 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Maps a <c>PulseServiceLifetime</c> integer value to the corresponding DI registration method name.
+    /// </summary>
+    private static string GetLifetimeMethodName(int lifetime) =>
+        lifetime switch
+        {
+            0 => "AddSingleton",
+            2 => "AddTransient",
+            _ => "AddScoped",
+        };
 
     /// <summary>
     /// Returns the fully qualified name of a type symbol using the <c>global::</c> prefix,

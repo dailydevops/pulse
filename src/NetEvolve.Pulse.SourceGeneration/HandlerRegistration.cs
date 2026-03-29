@@ -16,17 +16,22 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
     /// <summary>The kind of handler (command, query, or event).</summary>
     public HandlerKind Kind { get; }
 
-    public HandlerRegistration(string handlerTypeName, string serviceTypeName, HandlerKind kind)
+    /// <summary>The service lifetime for the registration (0 = Singleton, 1 = Scoped, 2 = Transient).</summary>
+    public int Lifetime { get; }
+
+    public HandlerRegistration(string handlerTypeName, string serviceTypeName, HandlerKind kind, int lifetime)
     {
         HandlerTypeName = handlerTypeName;
         ServiceTypeName = serviceTypeName;
         Kind = kind;
+        Lifetime = lifetime;
     }
 
     public bool Equals(HandlerRegistration other) =>
         string.Equals(HandlerTypeName, other.HandlerTypeName, StringComparison.Ordinal)
         && string.Equals(ServiceTypeName, other.ServiceTypeName, StringComparison.Ordinal)
-        && Kind == other.Kind;
+        && Kind == other.Kind
+        && Lifetime == other.Lifetime;
 
     public override bool Equals(object obj) => obj is HandlerRegistration other && Equals(other);
 
@@ -38,6 +43,7 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
             hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(HandlerTypeName);
             hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(ServiceTypeName);
             hash = (hash * 31) + (int)Kind;
+            hash = (hash * 31) + Lifetime;
             return hash;
         }
     }
