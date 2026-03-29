@@ -45,8 +45,21 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
     /// Covers <see cref="OutboxMessageStatus.Pending"/> and <see cref="OutboxMessageStatus.Failed"/> rows.
     /// Return <see langword="null"/> when the target database does not support filtered indexes
     /// (e.g. MySQL) — EF Core will omit the filter clause entirely.
+    /// The default implementation returns <see langword="null"/>, which is suitable for databases
+    /// that do not support filtered/partial indexes.
     /// </summary>
-    protected abstract string? PendingMessagesFilter { get; }
+    protected virtual string? PendingMessagesFilter => null;
+
+    /// <summary>
+    /// Gets the raw SQL filter expression used for the retry-scheduled messages index.
+    /// Covers <see cref="OutboxMessageStatus.Failed"/> rows with non-null <see cref="OutboxMessage.NextRetryAt"/>.
+    /// Used when exponential backoff is enabled to efficiently query messages scheduled for retry.
+    /// Return <see langword="null"/> when the target database does not support filtered indexes
+    /// (e.g. MySQL) — EF Core will omit the filter clause entirely.
+    /// The default implementation returns <see langword="null"/>, which is suitable for databases
+    /// that do not support filtered/partial indexes.
+    /// </summary>
+    protected virtual string? RetryScheduledMessagesFilter => null;
 
     /// <summary>
     /// Applies provider-specific column type overrides to the entity mapping.
@@ -66,8 +79,10 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
     /// Covers <see cref="OutboxMessageStatus.Completed"/> rows.
     /// Return <see langword="null"/> when the target database does not support filtered indexes
     /// (e.g. MySQL) — EF Core will omit the filter clause entirely.
+    /// The default implementation returns <see langword="null"/>, which is suitable for databases
+    /// that do not support filtered/partial indexes.
     /// </summary>
-    protected abstract string? CompletedMessagesFilter { get; }
+    protected virtual string? CompletedMessagesFilter => null;
 
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)
@@ -140,6 +155,12 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
             .HasIndex(m => new { m.Status, m.CreatedAt })
             .HasFilter(PendingMessagesFilter)
             .HasDatabaseName("IX_OutboxMessage_Status_CreatedAt");
+
+        // Index for retry-scheduled message polling (with exponential backoff)
+        _ = builder
+            .HasIndex(m => new { m.Status, m.NextRetryAt })
+            .HasFilter(RetryScheduledMessagesFilter)
+            .HasDatabaseName("IX_OutboxMessage_Status_NextRetryAt");
 
         // Index for completed message cleanup
         _ = builder

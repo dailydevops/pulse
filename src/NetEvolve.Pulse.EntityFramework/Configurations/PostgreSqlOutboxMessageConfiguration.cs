@@ -55,6 +55,10 @@ internal sealed class PostgreSqlOutboxMessageConfiguration : OutboxMessageConfig
         $"\"{OutboxMessageSchema.Columns.Status}\" IN ({(int)OutboxMessageStatus.Pending}, {(int)OutboxMessageStatus.Failed})";
 
     /// <inheritdoc />
+    protected override string RetryScheduledMessagesFilter =>
+        $"\"{OutboxMessageSchema.Columns.Status}\" = {(int)OutboxMessageStatus.Failed} AND \"{OutboxMessageSchema.Columns.NextRetryAt}\" IS NOT NULL";
+
+    /// <inheritdoc />
     protected override string CompletedMessagesFilter =>
         $"\"{OutboxMessageSchema.Columns.Status}\" = {(int)OutboxMessageStatus.Completed}";
 
@@ -71,6 +75,7 @@ internal sealed class PostgreSqlOutboxMessageConfiguration : OutboxMessageConfig
         _ = builder.Property(m => m.CreatedAt).HasColumnType("timestamp with time zone");
         _ = builder.Property(m => m.UpdatedAt).HasColumnType("timestamp with time zone");
         _ = builder.Property(m => m.ProcessedAt).HasColumnType("timestamp with time zone");
+        _ = builder.Property(m => m.NextRetryAt).HasColumnType("timestamp with time zone");
         _ = builder.Property(m => m.RetryCount).HasColumnType("integer");
         _ = builder.Property(m => m.Error).HasColumnType("text");
         _ = builder.Property(m => m.Status).HasColumnType("integer");

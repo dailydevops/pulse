@@ -57,6 +57,10 @@ internal sealed class SqliteOutboxMessageConfiguration : OutboxMessageConfigurat
         $"\"{OutboxMessageSchema.Columns.Status}\" IN ({(int)OutboxMessageStatus.Pending}, {(int)OutboxMessageStatus.Failed})";
 
     /// <inheritdoc />
+    protected override string RetryScheduledMessagesFilter =>
+        $"\"{OutboxMessageSchema.Columns.Status}\" = {(int)OutboxMessageStatus.Failed} AND \"{OutboxMessageSchema.Columns.NextRetryAt}\" IS NOT NULL";
+
+    /// <inheritdoc />
     protected override string CompletedMessagesFilter =>
         $"\"{OutboxMessageSchema.Columns.Status}\" = {(int)OutboxMessageStatus.Completed}";
 
@@ -74,6 +78,7 @@ internal sealed class SqliteOutboxMessageConfiguration : OutboxMessageConfigurat
         _ = builder.Property(m => m.CreatedAt).HasColumnType("TEXT");
         _ = builder.Property(m => m.UpdatedAt).HasColumnType("TEXT");
         _ = builder.Property(m => m.ProcessedAt).HasColumnType("TEXT");
+        _ = builder.Property(m => m.NextRetryAt).HasColumnType("TEXT");
         _ = builder.Property(m => m.RetryCount).HasColumnType("INTEGER");
         _ = builder.Property(m => m.Error).HasColumnType("TEXT");
         _ = builder.Property(m => m.Status).HasColumnType("INTEGER");

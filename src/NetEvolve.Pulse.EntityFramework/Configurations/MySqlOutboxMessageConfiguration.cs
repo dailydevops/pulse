@@ -22,8 +22,8 @@ using NetEvolve.Pulse.Outbox;
 /// </list>
 /// <para><strong>Filtered Indexes:</strong></para>
 /// MySQL does not support partial/filtered indexes with a <c>WHERE</c> clause.
-/// <see cref="PendingMessagesFilter"/> and <see cref="CompletedMessagesFilter"/> return
-/// <see langword="null"/>, causing EF Core to emit plain (unfiltered) indexes.
+/// All filter properties inherit <see langword="null"/> from the base class,
+/// causing EF Core to emit plain (unfiltered) indexes.
 /// <para><strong>Usage:</strong></para>
 /// Either instantiate this class directly or use <see cref="OutboxMessageConfigurationFactory.Create(string,Microsoft.Extensions.Options.IOptions{OutboxOptions})"/>
 /// with a MySQL provider name.
@@ -59,14 +59,6 @@ internal sealed class MySqlOutboxMessageConfiguration : OutboxMessageConfigurati
         : base(options) { }
 
     /// <inheritdoc />
-    /// <remarks>MySQL does not support filtered indexes — returns <see langword="null"/>.</remarks>
-    protected override string? PendingMessagesFilter => null;
-
-    /// <inheritdoc />
-    /// <remarks>MySQL does not support filtered indexes — returns <see langword="null"/>.</remarks>
-    protected override string? CompletedMessagesFilter => null;
-
-    /// <inheritdoc />
     protected override void ApplyColumnTypes(EntityTypeBuilder<OutboxMessage> builder)
     {
         // char(36) is the canonical UUID string format used by Pomelo and Oracle MySQL provider
@@ -79,6 +71,7 @@ internal sealed class MySqlOutboxMessageConfiguration : OutboxMessageConfigurati
         _ = builder.Property(m => m.CreatedAt).HasColumnType("datetime(6)");
         _ = builder.Property(m => m.UpdatedAt).HasColumnType("datetime(6)");
         _ = builder.Property(m => m.ProcessedAt).HasColumnType("datetime(6)");
+        _ = builder.Property(m => m.NextRetryAt).HasColumnType("datetime(6)");
         _ = builder.Property(m => m.RetryCount).HasColumnType("int");
         _ = builder.Property(m => m.Error).HasColumnType("longtext");
         _ = builder.Property(m => m.Status).HasColumnType("int");

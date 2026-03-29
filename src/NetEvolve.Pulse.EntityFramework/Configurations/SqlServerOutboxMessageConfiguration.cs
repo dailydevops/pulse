@@ -58,6 +58,10 @@ internal sealed class SqlServerOutboxMessageConfiguration : OutboxMessageConfigu
         $"[{OutboxMessageSchema.Columns.Status}] IN ({(int)OutboxMessageStatus.Pending}, {(int)OutboxMessageStatus.Failed})";
 
     /// <inheritdoc />
+    protected override string RetryScheduledMessagesFilter =>
+        $"[{OutboxMessageSchema.Columns.Status}] = {(int)OutboxMessageStatus.Failed} AND [{OutboxMessageSchema.Columns.NextRetryAt}] IS NOT NULL";
+
+    /// <inheritdoc />
     protected override string CompletedMessagesFilter =>
         $"[{OutboxMessageSchema.Columns.Status}] = {(int)OutboxMessageStatus.Completed}";
 
@@ -71,6 +75,7 @@ internal sealed class SqlServerOutboxMessageConfiguration : OutboxMessageConfigu
         _ = builder.Property(m => m.CreatedAt).HasColumnType("datetimeoffset");
         _ = builder.Property(m => m.UpdatedAt).HasColumnType("datetimeoffset");
         _ = builder.Property(m => m.ProcessedAt).HasColumnType("datetimeoffset");
+        _ = builder.Property(m => m.NextRetryAt).HasColumnType("datetimeoffset");
         _ = builder.Property(m => m.RetryCount).HasColumnType("int");
         _ = builder.Property(m => m.Error).HasColumnType("nvarchar(max)");
         _ = builder.Property(m => m.Status).HasColumnType("int");
