@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Internals;
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -113,6 +114,27 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <inheritdoc />
     /// <remarks>
+    /// This method resolves a single streaming query handler from the service provider and executes it through any registered interceptors.
+    /// Streaming query interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns.
+    /// Items are yielded incrementally; the caller must enumerate the result to trigger execution.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the streaming query type.</exception>
+    public IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+        [NotNull] TQuery query,
+        CancellationToken cancellationToken = default
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // Resolve the appropriate handler for the streaming query
+        var handler = _serviceProvider.GetRequiredService<IStreamQueryHandler<TQuery, TResponse>>();
+
+        return ExecuteStreamAsync(query, handler.HandleAsync, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// This method resolves a single command handler from the service provider and executes it through any registered interceptors.
     /// Command interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns like validation or auditing.
     /// </remarks>
@@ -217,6 +239,50 @@ internal sealed partial class PulseMediator : IMediator
         }
 
         return next(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Builds and executes an interceptor pipeline for streaming query handling.
+    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// can perform actions before iterating the next interceptor or final handler.
+    /// </summary>
+    /// <typeparam name="TQuery">The type of streaming query being processed.</typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded.</typeparam>
+    /// <param name="query">The streaming query to process.</param>
+    /// <param name="handler">The final handler to execute after all interceptors.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>An asynchronous sequence of result items produced by the pipeline.</returns>
+    private IAsyncEnumerable<TResponse> ExecuteStreamAsync<TQuery, TResponse>(
+        TQuery query,
+        Func<TQuery, CancellationToken, IAsyncEnumerable<TResponse>> handler,
+        CancellationToken cancellationToken
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        // Retrieve all registered stream query interceptors and reverse for correct pipeline order
+        var interceptors = _serviceProvider
+            .GetServices<IStreamQueryInterceptor<TQuery, TResponse>>()
+            .Reverse()
+            .ToArray();
+
+        if (interceptors.Length == 0)
+        {
+            // No interceptors registered, execute handler directly
+            return handler(query, cancellationToken);
+        }
+
+        // Build the interceptor chain from innermost (handler) to outermost (first interceptor)
+        var next = handler;
+
+        foreach (var interceptor in interceptors)
+        {
+            var currentInterceptor = interceptor;
+            var nextCopy = next;
+            // Wrap the next action with the current interceptor
+            next = (req, token) => currentInterceptor.HandleAsync(req, nextCopy, token);
+        }
+
+        return next(query, cancellationToken);
     }
 
     /// <summary>

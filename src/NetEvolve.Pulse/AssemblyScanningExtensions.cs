@@ -407,6 +407,7 @@ public static class AssemblyScanningExtensions
                 typeof(ICommandHandler<,>),
                 typeof(IQueryHandler<,>),
                 typeof(IEventHandler<>),
+                typeof(IStreamQueryHandler<,>),
             };
 
             // Get all types that are:

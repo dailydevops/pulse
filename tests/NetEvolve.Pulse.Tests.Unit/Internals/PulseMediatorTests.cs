@@ -1,12 +1,14 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
-public class PulseMediatorTests
+public partial class PulseMediatorTests
 {
     [Test]
     public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
@@ -471,6 +473,147 @@ public class PulseMediatorTests
         {
             InterceptedEvents.Add(message);
             await handler(message, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // Streaming query test helpers
+    private sealed class TestStreamQuery : IStreamQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class TestStreamQueryHandler : IStreamQueryHandler<TestStreamQuery, string>
+    {
+        private readonly IEnumerable<string> _items;
+        public List<TestStreamQuery> HandledQueries { get; } = [];
+
+        public TestStreamQueryHandler(IEnumerable<string> items) => _items = items;
+
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery request,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            HandledQueries.Add(request);
+            foreach (var item in _items)
+            {
+                yield return item;
+            }
+        }
+    }
+
+    private sealed class TestStreamQueryInterceptor : IStreamQueryInterceptor<TestStreamQuery, string>
+    {
+        public List<TestStreamQuery> InterceptedQueries { get; } = [];
+
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery request,
+            Func<TestStreamQuery, CancellationToken, IAsyncEnumerable<string>> handler,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            InterceptedQueries.Add(request);
+            await foreach (var item in handler(request, cancellationToken).WithCancellation(cancellationToken))
+            {
+                yield return item;
+            }
+        }
+    }
+}
+
+// StreamQueryAsync tests
+public partial class PulseMediatorTests
+{
+    [Test]
+    public async Task StreamQueryAsync_WithNullQuery_ThrowsArgumentNullException()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+
+        _ = Assert.Throws<ArgumentNullException>(
+            "query",
+            () => mediator.StreamQueryAsync<TestStreamQuery, string>(null!)
+        );
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithNoHandler_ThrowsInvalidOperationException()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+        var query = new TestStreamQuery();
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var _ in mediator.StreamQueryAsync<TestStreamQuery, string>(query))
+            {
+                // consume
+            }
+        });
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithHandler_YieldsAllItems()
+    {
+        var expectedItems = new[] { "first", "second", "third" };
+        var handler = new TestStreamQueryHandler(expectedItems);
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(handler);
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+        var query = new TestStreamQuery();
+
+        var results = new List<string>();
+        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query))
+        {
+            results.Add(item);
+        }
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(results).IsEquivalentTo(expectedItems);
+            _ = await Assert.That(handler.HandledQueries).HasSingleItem();
+        }
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithInterceptor_InvokesInterceptorAndYieldsAllItems()
+    {
+        var expectedItems = new[] { "alpha", "beta" };
+        var handler = new TestStreamQueryHandler(expectedItems);
+        var interceptor = new TestStreamQueryInterceptor();
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(handler);
+        _ = services.AddSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>(interceptor);
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+        var query = new TestStreamQuery();
+
+        var results = new List<string>();
+        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query))
+        {
+            results.Add(item);
+        }
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(results).IsEquivalentTo(expectedItems);
+            _ = await Assert.That(interceptor.InterceptedQueries).HasSingleItem();
+            _ = await Assert.That(handler.HandledQueries).HasSingleItem();
         }
     }
 }

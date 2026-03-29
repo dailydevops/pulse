@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Testing.Tests.Unit;
 
+using System.Collections.Generic;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
 
@@ -265,6 +266,106 @@ public class FakeMediatorTests
         );
     }
 
+    [Test]
+    public async Task StreamQueryAsync_WithConfiguredItems_YieldsSetupItems()
+    {
+        var mediator = new FakeMediator();
+        var expected = new[] { new TestStreamResponse("item-1"), new TestStreamResponse("item-2") };
+        _ = mediator.SetupStreamQuery<TestStreamQuery, TestStreamResponse>().Returns(expected);
+
+        var results = new List<TestStreamResponse>();
+        await foreach (
+            var item in mediator.StreamQueryAsync<TestStreamQuery, TestStreamResponse>(new TestStreamQuery("all"))
+        )
+        {
+            results.Add(item);
+        }
+
+        _ = await Assert.That(results).IsEquivalentTo(expected);
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithUnconfiguredQuery_ThrowsInvalidOperationException()
+    {
+        var mediator = new FakeMediator();
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (
+                var _ in mediator.StreamQueryAsync<TestStreamQuery, TestStreamResponse>(new TestStreamQuery("all"))
+            )
+            {
+                // consume
+            }
+        });
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithSetupToThrow_ThrowsConfiguredException()
+    {
+        var mediator = new FakeMediator();
+        _ = mediator
+            .SetupStreamQuery<TestStreamQuery, TestStreamResponse>()
+            .Throws(new InvalidOperationException("stream fail"));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (
+                var _ in mediator.StreamQueryAsync<TestStreamQuery, TestStreamResponse>(new TestStreamQuery("all"))
+            )
+            {
+                // consume
+            }
+        });
+
+        _ = await Assert.That(exception!.Message).IsEqualTo("stream fail");
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithSetupToThrowGeneric_ThrowsConfiguredException()
+    {
+        var mediator = new FakeMediator();
+        _ = mediator.SetupStreamQuery<TestStreamQuery, TestStreamResponse>().Throws<InvalidOperationException>();
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (
+                var _ in mediator.StreamQueryAsync<TestStreamQuery, TestStreamResponse>(new TestStreamQuery("all"))
+            )
+            {
+                // consume
+            }
+        });
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_IncrementsInvocationCount()
+    {
+        var mediator = new FakeMediator();
+        _ = mediator.SetupStreamQuery<TestStreamQuery, TestStreamResponse>().Returns(new TestStreamResponse("item-1"));
+
+        await foreach (
+            var _ in mediator.StreamQueryAsync<TestStreamQuery, TestStreamResponse>(new TestStreamQuery("all"))
+        )
+        {
+            // consume
+        }
+
+        mediator.Verify<TestStreamQuery>(1);
+    }
+
+    [Test]
+    public async Task SetupStreamQuery_Fluent_ReturnsMediator()
+    {
+        var mediator = new FakeMediator();
+
+        var result = mediator
+            .SetupStreamQuery<TestStreamQuery, TestStreamResponse>()
+            .Returns(new TestStreamResponse("ok"));
+
+        _ = await Assert.That(result).IsSameReferenceAs(mediator);
+    }
+
     private sealed record TestCommand(string ItemId) : ICommand<TestCommandResponse>
     {
         public string? CorrelationId { get; set; }
@@ -283,6 +384,13 @@ public class FakeMediatorTests
     }
 
     private sealed record TestQueryResponse(string Name);
+
+    private sealed record TestStreamQuery(string Filter) : IStreamQuery<TestStreamResponse>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed record TestStreamResponse(string Value);
 
     private sealed class TestEvent : IEvent
     {

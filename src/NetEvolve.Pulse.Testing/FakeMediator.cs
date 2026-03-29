@@ -1,7 +1,11 @@
 namespace NetEvolve.Pulse.Testing;
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -27,6 +31,7 @@ public sealed class FakeMediator : IMediator
     private readonly ConcurrentDictionary<Type, int> _invocationCounts = new();
     private readonly ConcurrentDictionary<Type, ConcurrentQueue<object>> _publishedEvents = new();
     private readonly ConcurrentDictionary<Type, bool> _configuredEvents = new();
+    private readonly ConcurrentDictionary<Type, IEnumerable<object>> _streamResponses = new();
 
     /// <summary>
     /// Configures a canned response or exception for a command of type <typeparamref name="TCommand"/>
@@ -47,6 +52,16 @@ public sealed class FakeMediator : IMediator
     /// <returns>A <see cref="RequestSetup{TResponse}"/> fluent builder for configuring the response or exception.</returns>
     public RequestSetup<TResponse> SetupQuery<TQuery, TResponse>()
         where TQuery : IQuery<TResponse> => new(this, typeof(TQuery));
+
+    /// <summary>
+    /// Configures canned streaming items or exception for a streaming query of type <typeparamref name="TQuery"/>
+    /// yielding items of type <typeparamref name="TResponse"/>.
+    /// </summary>
+    /// <typeparam name="TQuery">The streaming query type to configure.</typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded.</typeparam>
+    /// <returns>A <see cref="StreamQuerySetup{TResponse}"/> fluent builder for configuring the items or exception.</returns>
+    public StreamQuerySetup<TResponse> SetupStreamQuery<TQuery, TResponse>()
+        where TQuery : IStreamQuery<TResponse> => new(this, typeof(TQuery));
 
     /// <summary>
     /// Registers an event type for capture during <see cref="PublishAsync{TEvent}"/>.
@@ -105,6 +120,46 @@ public sealed class FakeMediator : IMediator
         throw new InvalidOperationException(
             $"No setup configured for query type '{requestType.Name}'. Call SetupQuery<{requestType.Name}, {typeof(TResponse).Name}>() before querying."
         );
+    }
+
+    /// <inheritdoc />
+    public IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+        [NotNull] TQuery query,
+        CancellationToken cancellationToken = default
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var requestType = typeof(TQuery);
+        _ = _invocationCounts.AddOrUpdate(requestType, 1, (_, count) => count + 1);
+
+        if (_exceptions.TryGetValue(requestType, out var exception))
+        {
+            throw exception;
+        }
+
+        if (_streamResponses.TryGetValue(requestType, out var items))
+        {
+            return StreamItemsAsync<TResponse>(items, cancellationToken);
+        }
+
+        throw new InvalidOperationException(
+            $"No setup configured for streaming query type '{requestType.Name}'. Call SetupStreamQuery<{requestType.Name}, {typeof(TResponse).Name}>() before querying."
+        );
+    }
+
+    private static async IAsyncEnumerable<T> StreamItemsAsync<T>(
+        IEnumerable<object> items,
+        [EnumeratorCancellation] CancellationToken cancellationToken
+    )
+    {
+        foreach (var item in items)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return (T)item;
+        }
     }
 
     /// <inheritdoc />
@@ -180,10 +235,18 @@ public sealed class FakeMediator : IMediator
         _ = _exceptions.TryRemove(requestType, out _);
     }
 
+    internal void RegisterStreamResponse(Type requestType, IEnumerable<object> items)
+    {
+        _streamResponses[requestType] = items;
+        // Clear any previously registered exception for this type
+        _ = _exceptions.TryRemove(requestType, out _);
+    }
+
     internal void RegisterException(Type requestType, Exception exception)
     {
         _exceptions[requestType] = exception;
         // Clear any previously registered response for this type
         _ = _responses.TryRemove(requestType, out _);
+        _ = _streamResponses.TryRemove(requestType, out _);
     }
 }
