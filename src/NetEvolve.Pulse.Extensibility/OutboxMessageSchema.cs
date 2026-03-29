@@ -77,6 +77,11 @@ public static class OutboxMessageSchema
         /// The Status column name.
         /// </summary>
         public const string Status = "Status";
+
+        /// <summary>
+        /// The NextRetryAt column name.
+        /// </summary>
+        public const string NextRetryAt = "NextRetryAt";
     }
 
     /// <summary>

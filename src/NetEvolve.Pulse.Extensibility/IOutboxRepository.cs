@@ -73,12 +73,21 @@ public interface IOutboxRepository
     /// </summary>
     /// <param name="messageId">The ID of the message that failed.</param>
     /// <param name="errorMessage">The error message or exception details.</param>
+    /// <param name="nextRetryAt">
+    /// The earliest timestamp at which the message may be retried.
+    /// When <see langword="null"/>, the message will be eligible for retry on the next polling cycle.
+    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
     /// Implementations SHOULD increment the retry count and update the status accordingly.
     /// </remarks>
-    Task MarkAsFailedAsync(Guid messageId, string errorMessage, CancellationToken cancellationToken = default);
+    Task MarkAsFailedAsync(
+        Guid messageId,
+        string errorMessage,
+        DateTimeOffset? nextRetryAt = null,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>
     /// Marks multiple messages as failed and records the error for each.
@@ -99,7 +108,7 @@ public interface IOutboxRepository
             .ForEachAsync(
                 messageIds,
                 cancellationToken,
-                async (id, token) => await MarkAsFailedAsync(id, errorMessage, token).ConfigureAwait(false)
+                async (id, token) => await MarkAsFailedAsync(id, errorMessage, null, token).ConfigureAwait(false)
             )
             .ConfigureAwait(false);
 

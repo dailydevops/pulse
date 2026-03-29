@@ -74,6 +74,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>The logger used for diagnostic output during processing cycles.</summary>
     private readonly ILogger<OutboxProcessorHostedService> _logger;
 
+    /// <summary>The time provider used to compute backoff timestamps and "now" values.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>Cached count of pending outbox messages, refreshed each polling cycle.</summary>
     private long _pendingCount;
 
@@ -84,11 +87,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="transport">The transport for sending messages.</param>
     /// <param name="options">The processor configuration options.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
+    /// <param name="timeProvider">The time provider for computing backoff timestamps. Defaults to <see cref="TimeProvider.System"/> when <see langword="null"/>.</param>
     public OutboxProcessorHostedService(
         IOutboxRepository repository,
         IMessageTransport transport,
         IOptions<OutboxProcessorOptions> options,
-        ILogger<OutboxProcessorHostedService> logger
+        ILogger<OutboxProcessorHostedService> logger,
+        TimeProvider? timeProvider = null
     )
     {
         ArgumentNullException.ThrowIfNull(repository);
@@ -100,6 +105,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         _transport = transport;
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         _ = Defaults.Meter.CreateObservableGauge<long>(
             "pulse.outbox.pending",
@@ -307,7 +313,10 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             }
             else
             {
-                await _repository.MarkAsFailedAsync(message.Id, ex.Message, cancellationToken).ConfigureAwait(false);
+                var nextRetryAt = ComputeNextRetryAt(_options, message.RetryCount, _timeProvider.GetUtcNow());
+                await _repository
+                    .MarkAsFailedAsync(message.Id, ex.Message, nextRetryAt, cancellationToken)
+                    .ConfigureAwait(false);
 
                 try
                 {
@@ -365,23 +374,33 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             // Batch implementations should be atomic (all-or-nothing), but if partial success
             // occurred, falling back to individual processing would re-send already-delivered messages.
             // Instead, mark all as failed and let the retry mechanism handle them on next poll.
-            var deadLetterMessages = messages
-                .Where(m => m.RetryCount + 1 >= _options.MaxRetryCount)
-                .Select(m => m.Id)
-                .ToArray();
-            var failedMessages = messages
-                .Where(m => m.RetryCount + 1 < _options.MaxRetryCount)
-                .Select(m => m.Id)
+            var deadLetterMessages = messages.Where(m => m.RetryCount + 1 >= _options.MaxRetryCount).ToArray();
+            var failedMessages = messages.Where(m => m.RetryCount + 1 < _options.MaxRetryCount).ToArray();
+
+            var now = _timeProvider.GetUtcNow();
+            var markFailedTasks = failedMessages
+                .Select(m =>
+                    _repository.MarkAsFailedAsync(
+                        m.Id,
+                        ex.Message,
+                        ComputeNextRetryAt(_options, m.RetryCount, now),
+                        cancellationToken
+                    )
+                )
                 .ToArray();
 
             await Task.WhenAll(
-                    _repository.MarkAsFailedAsync(failedMessages, ex.Message, cancellationToken),
-                    _repository.MarkAsDeadLetterAsync(deadLetterMessages, ex.Message, cancellationToken),
+                    Task.WhenAll(markFailedTasks),
+                    _repository.MarkAsDeadLetterAsync(
+                        deadLetterMessages.Select(m => m.Id).ToArray(),
+                        ex.Message,
+                        cancellationToken
+                    ),
                     Parallel.ForEachAsync(
                         deadLetterMessages,
-                        (messageId, _) =>
+                        (message, _) =>
                         {
-                            LogMessageMovedToDeadLetter(_logger, messageId, _options.MaxRetryCount);
+                            LogMessageMovedToDeadLetter(_logger, message.Id, _options.MaxRetryCount);
                             return ValueTask.CompletedTask;
                         }
                     )
@@ -405,6 +424,50 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 LogMetricRecordingWarning(_logger, metricEx);
             }
         }
+    }
+
+    /// <summary>
+    /// Computes the <see cref="OutboxMessage.NextRetryAt"/> timestamp for a failed message using
+    /// exponential backoff, or returns <see langword="null"/> when backoff is disabled.
+    /// </summary>
+    /// <param name="options">The processor options containing backoff configuration.</param>
+    /// <param name="currentRetryCount">
+    /// The message's <see cref="OutboxMessage.RetryCount"/> before the current failure increment.
+    /// Used as the exponent: delay = <c>BaseRetryDelay * BackoffMultiplier^currentRetryCount</c>.
+    /// </param>
+    /// <param name="now">The current UTC timestamp used as the base for the computed retry time.</param>
+    /// <returns>
+    /// The earliest timestamp at which the message may be retried, or <see langword="null"/> when
+    /// <see cref="OutboxProcessorOptions.EnableExponentialBackoff"/> is <see langword="false"/>.
+    /// </returns>
+    internal static DateTimeOffset? ComputeNextRetryAt(
+        OutboxProcessorOptions options,
+        int currentRetryCount,
+        DateTimeOffset now
+    )
+    {
+        if (!options.EnableExponentialBackoff)
+        {
+            return null;
+        }
+
+        var delayTicks = (long)(options.BaseRetryDelay.Ticks * Math.Pow(options.BackoffMultiplier, currentRetryCount));
+        var delay = TimeSpan.FromTicks(delayTicks);
+
+        if (options.AddJitter)
+        {
+#pragma warning disable CA5394 // Random is an insecure random number generator — intentional; jitter does not require cryptographic randomness
+            var jitterTicks = (long)(delay.Ticks * 0.2 * Random.Shared.NextDouble());
+#pragma warning restore CA5394
+            delay = delay.Add(TimeSpan.FromTicks(jitterTicks));
+        }
+
+        if (delay > options.MaxRetryDelay)
+        {
+            delay = options.MaxRetryDelay;
+        }
+
+        return now.Add(delay);
     }
 
     /// <summary>Logs that the outbox processor has started with its configured <paramref name="pollingInterval"/> and <paramref name="batchSize"/>.</summary>

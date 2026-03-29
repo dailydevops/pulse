@@ -20,6 +20,7 @@
 /// <item><description><see cref="RetryCount"/>: INT, NOT NULL, DEFAULT 0 - Number of processing attempts</description></item>
 /// <item><description><see cref="Error"/>: NVARCHAR(MAX), NULL - Last error message</description></item>
 /// <item><description><see cref="Status"/>: INT, NOT NULL, DEFAULT 0 - Processing status enum value</description></item>
+/// <item><description><see cref="NextRetryAt"/>: DATETIMEOFFSET, NULL - Earliest retry timestamp (exponential backoff)</description></item>
 /// </list>
 /// </remarks>
 public sealed class OutboxMessage
@@ -81,4 +82,11 @@ public sealed class OutboxMessage
     /// Gets or sets the current processing status.
     /// </summary>
     public OutboxMessageStatus Status { get; set; } = OutboxMessageStatus.Pending;
+
+    /// <summary>
+    /// Gets or sets the earliest timestamp at which this message may be retried.
+    /// When set, the outbox processor will not pick up this message for retry before this time.
+    /// Set by the processor when exponential backoff is enabled; <see langword="null"/> otherwise.
+    /// </summary>
+    public DateTimeOffset? NextRetryAt { get; set; }
 }

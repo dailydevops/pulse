@@ -513,8 +513,13 @@ public sealed class OutboxProcessorHostedServiceTests
         {
             lock (_lock)
             {
+                var now = DateTimeOffset.UtcNow;
                 var messages = _messages
-                    .Where(m => m.Status == OutboxMessageStatus.Failed && m.RetryCount < maxRetryCount)
+                    .Where(m =>
+                        m.Status == OutboxMessageStatus.Failed
+                        && m.RetryCount < maxRetryCount
+                        && (m.NextRetryAt is null || m.NextRetryAt <= now)
+                    )
                     .Take(batchSize)
                     .ToList();
 
@@ -586,6 +591,7 @@ public sealed class OutboxProcessorHostedServiceTests
         public Task MarkAsFailedAsync(
             Guid messageId,
             string errorMessage,
+            DateTimeOffset? nextRetryAt = null,
             CancellationToken cancellationToken = default
         )
         {
@@ -598,6 +604,7 @@ public sealed class OutboxProcessorHostedServiceTests
                     message.Status = OutboxMessageStatus.Failed;
                     message.Error = errorMessage;
                     message.RetryCount++;
+                    message.NextRetryAt = nextRetryAt;
                 }
             }
 

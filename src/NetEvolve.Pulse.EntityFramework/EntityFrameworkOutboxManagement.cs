@@ -106,6 +106,7 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
                     m.SetProperty(m => m.Status, OutboxMessageStatus.Pending)
                         .SetProperty(m => m.RetryCount, 0)
                         .SetProperty(m => m.Error, (string?)null)
+                        .SetProperty(m => m.NextRetryAt, (DateTimeOffset?)null)
                         .SetProperty(m => m.UpdatedAt, now),
                 cancellationToken
             )
@@ -126,6 +127,7 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
                     m.SetProperty(m => m.Status, OutboxMessageStatus.Pending)
                         .SetProperty(m => m.RetryCount, 0)
                         .SetProperty(m => m.Error, (string?)null)
+                        .SetProperty(m => m.NextRetryAt, (DateTimeOffset?)null)
                         .SetProperty(m => m.UpdatedAt, now),
                 cancellationToken
             )

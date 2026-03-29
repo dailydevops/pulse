@@ -41,6 +41,7 @@ BEGIN
         [RetryCount] INT NOT NULL CONSTRAINT [DF_$(TableName)_RetryCount] DEFAULT (0),
         [Error] NVARCHAR(MAX) NULL,
         [Status] INT NOT NULL CONSTRAINT [DF_$(TableName)_Status] DEFAULT (0),
+        [NextRetryAt] DATETIMEOFFSET NULL,
         CONSTRAINT [PK_$(TableName)] PRIMARY KEY CLUSTERED ([Id])
     );
 
@@ -54,6 +55,21 @@ BEGIN
     CREATE NONCLUSTERED INDEX [IX_$(TableName)_Status_ProcessedAt]
         ON [$(SchemaName)].[$(TableName)] ([Status], [ProcessedAt])
         WHERE [Status] = 2; -- Completed
+END
+GO
+
+-- ============================================================================
+-- Migration: Add NextRetryAt column if it does not already exist
+-- ============================================================================
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.columns
+    WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[$(TableName)]')
+      AND [name] = N'NextRetryAt'
+)
+BEGIN
+    ALTER TABLE [$(SchemaName)].[$(TableName)]
+    ADD [NextRetryAt] DATETIMEOFFSET NULL;
 END
 GO
 
@@ -85,7 +101,8 @@ BEGIN
             [ProcessedAt],
             [RetryCount],
             [Error],
-            [Status]
+            [Status],
+            [NextRetryAt]
         FROM [$(SchemaName)].[$(TableName)] WITH (ROWLOCK, READPAST)
         WHERE [Status] = 0 -- Pending
         ORDER BY [CreatedAt]
@@ -104,7 +121,8 @@ BEGIN
         INSERTED.[ProcessedAt],
         INSERTED.[RetryCount],
         INSERTED.[Error],
-        INSERTED.[Status];
+        INSERTED.[Status],
+        INSERTED.[NextRetryAt];
 END
 GO
 
@@ -133,10 +151,12 @@ BEGIN
             [ProcessedAt],
             [RetryCount],
             [Error],
-            [Status]
+            [Status],
+            [NextRetryAt]
         FROM [$(SchemaName)].[$(TableName)] WITH (ROWLOCK, READPAST)
         WHERE [Status] = 3 -- Failed
           AND [RetryCount] < @maxRetryCount
+          AND ([NextRetryAt] IS NULL OR [NextRetryAt] <= SYSDATETIMEOFFSET())
         ORDER BY [UpdatedAt]
     )
     UPDATE CTE
@@ -153,7 +173,8 @@ BEGIN
         INSERTED.[ProcessedAt],
         INSERTED.[RetryCount],
         INSERTED.[Error],
-        INSERTED.[Status];
+        INSERTED.[Status],
+        INSERTED.[NextRetryAt];
 END
 GO
 
@@ -189,7 +210,8 @@ GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_MarkOutboxMessageFailed]
     @messageId UNIQUEIDENTIFIER,
-    @error NVARCHAR(MAX)
+    @error NVARCHAR(MAX),
+    @nextRetryAt DATETIMEOFFSET = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -199,7 +221,8 @@ BEGIN
         [Status] = 3, -- Failed
         [RetryCount] = [RetryCount] + 1,
         [Error] = @error,
-        [UpdatedAt] = SYSDATETIMEOFFSET()
+        [UpdatedAt] = SYSDATETIMEOFFSET(),
+        [NextRetryAt] = @nextRetryAt
     WHERE [Id] = @messageId
       AND [Status] = 1; -- Processing
 END
@@ -278,7 +301,8 @@ BEGIN
         [ProcessedAt],
         [RetryCount],
         [Error],
-        [Status]
+        [Status],
+        [NextRetryAt]
     FROM [$(SchemaName)].[OutboxMessage]
     WHERE [Status] = 4 -- DeadLetter
     ORDER BY [UpdatedAt] DESC
@@ -310,7 +334,8 @@ BEGIN
         [ProcessedAt],
         [RetryCount],
         [Error],
-        [Status]
+        [Status],
+        [NextRetryAt]
     FROM [$(SchemaName)].[OutboxMessage]
     WHERE [Id] = @messageId
       AND [Status] = 4; -- DeadLetter
@@ -350,10 +375,11 @@ BEGIN
 
     UPDATE [$(SchemaName)].[OutboxMessage]
     SET
-        [Status]     = 0, -- Pending
-        [RetryCount] = 0,
-        [Error]      = NULL,
-        [UpdatedAt]  = SYSDATETIMEOFFSET()
+        [Status]      = 0, -- Pending
+        [RetryCount]  = 0,
+        [Error]       = NULL,
+        [NextRetryAt] = NULL,
+        [UpdatedAt]   = SYSDATETIMEOFFSET()
     WHERE [Id] = @messageId
       AND [Status] = 4; -- DeadLetter
 
@@ -375,10 +401,11 @@ BEGIN
 
     UPDATE [$(SchemaName)].[OutboxMessage]
     SET
-        [Status]     = 0, -- Pending
-        [RetryCount] = 0,
-        [Error]      = NULL,
-        [UpdatedAt]  = SYSDATETIMEOFFSET()
+        [Status]      = 0, -- Pending
+        [RetryCount]  = 0,
+        [Error]       = NULL,
+        [NextRetryAt] = NULL,
+        [UpdatedAt]   = SYSDATETIMEOFFSET()
     WHERE [Status] = 4; -- DeadLetter
 
     SELECT @@ROWCOUNT AS [UpdatedCount];

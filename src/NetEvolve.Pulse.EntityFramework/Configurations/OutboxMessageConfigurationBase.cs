@@ -16,8 +16,7 @@ using NetEvolve.Pulse.Outbox;
 /// Derived classes must supply raw SQL filter strings that match the quoting conventions
 /// of their target database:
 /// <list type="bullet">
-/// <item><description>SQL Server: bracket-quoted identifiers, e.g. <c>[Status]</c></description></item>
-/// <item><description>PostgreSQL: double-quoted identifiers, e.g. <c>"Status"</c></description></item>
+/// <item><description>SQL Server: bracket-quoted identifiers, e.g. <c>[Status]</c></description></item>/// <item><description>PostgreSQL: double-quoted identifiers, e.g. <c>"Status"</c></description></item>
 /// <item><description>SQLite: double-quoted identifiers, e.g. <c>"Status"</c></description></item>
 /// </list>
 /// <para><strong>Provider-specific column types:</strong></para>
@@ -127,6 +126,9 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
             .HasColumnName(OutboxMessageSchema.Columns.Status)
             .HasDefaultValue(OutboxMessageStatus.Pending)
             .IsRequired();
+
+        // NextRetryAt column
+        _ = builder.Property(m => m.NextRetryAt).HasColumnName(OutboxMessageSchema.Columns.NextRetryAt);
 
         // Provider-specific column type overrides
         ApplyColumnTypes(builder);

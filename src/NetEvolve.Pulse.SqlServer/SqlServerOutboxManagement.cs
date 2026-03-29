@@ -242,6 +242,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
+        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
 
         var messages = new List<OutboxMessage>();
         do
@@ -258,7 +259,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
                     ordProcessedAt,
                     ordRetryCount,
                     ordError,
-                    ordStatus
+                    ordStatus,
+                    ordNextRetryAt
                 )
             );
         } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
@@ -281,6 +283,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <param name="ordRetryCount">Pre-resolved ordinal for the RetryCount column.</param>
     /// <param name="ordError">Pre-resolved ordinal for the Error column.</param>
     /// <param name="ordStatus">Pre-resolved ordinal for the Status column.</param>
+    /// <param name="ordNextRetryAt">Pre-resolved ordinal for the NextRetryAt column.</param>
     /// <returns>A populated <see cref="OutboxMessage"/>.</returns>
     private static OutboxMessage MapToMessage(
         SqlDataReader reader,
@@ -293,7 +296,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         int ordProcessedAt,
         int ordRetryCount,
         int ordError,
-        int ordStatus
+        int ordStatus,
+        int ordNextRetryAt
     ) =>
         new OutboxMessage
         {
@@ -307,5 +311,6 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
             RetryCount = reader.GetInt32(ordRetryCount),
             Error = reader.IsDBNull(ordError) ? null : reader.GetString(ordError),
             Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),
+            NextRetryAt = reader.IsDBNull(ordNextRetryAt) ? null : reader.GetDateTimeOffset(ordNextRetryAt),
         };
 }
