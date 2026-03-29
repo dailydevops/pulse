@@ -64,7 +64,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddPulse(configurator =>
-            configurator.AddPollyRequestPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)))
+            configurator.AddPollyCommandPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)))
         );
 
         var provider = services.BuildServiceProvider();
@@ -211,8 +211,8 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         var services = new ServiceCollection();
         _ = services.AddPulse(configurator =>
             configurator
-                .AddPollyRequestPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(10)))
-                .AddPollyRequestPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)))
+                .AddPollyCommandPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(10)))
+                .AddPollyCommandPolicies<VoidCommand>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)))
         );
 
         var provider = services.BuildServiceProvider();
@@ -422,6 +422,101 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         _ = await Assert.That(interceptors.Count).IsEqualTo(1);
 
         var pipeline = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestQuery));
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyCommandPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+        // Act & Assert
+        _ = await Assert
+            .That(() =>
+                PollyMediatorConfiguratorExtensions.AddPollyCommandPolicies<TestCommand, string>(null!, _ => { })
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPollyCommandPolicies_NullConfigure_ThrowsArgumentNullException() =>
+        // Act & Assert
+        _ = await Assert
+            .That(() =>
+                PollyMediatorConfiguratorExtensions.AddPollyCommandPolicies<TestCommand, string>(
+                    new MediatorConfiguratorStub(),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPollyCommandPolicies_RegistersPipelineAndInterceptor()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyCommandPolicies<TestCommand, string>(pipeline =>
+                pipeline.AddRetry(
+                    new RetryStrategyOptions<string> { MaxRetryAttempts = 3, Delay = TimeSpan.FromMilliseconds(10) }
+                )
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert
+        var pipelineInstance = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
+        _ = await Assert.That(pipelineInstance).IsNotNull();
+
+        var interceptors = provider.GetServices<IRequestInterceptor<TestCommand, string>>();
+        _ = await Assert.That(interceptors).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyCommandPolicies_WithDifferentLifetimes_RespectsLifetime()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyCommandPolicies<TestCommand, string>(
+                pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)),
+                ServiceLifetime.Scoped
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert - Create two scopes and verify different instances
+        using var scope1 = provider.CreateScope();
+        using var scope2 = provider.CreateScope();
+
+        var pipeline1 = scope1.ServiceProvider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
+        var pipeline2 = scope2.ServiceProvider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
+
+        _ = await Assert.That(pipeline1).IsNotNull();
+        _ = await Assert.That(pipeline2).IsNotNull();
+        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
+    }
+
+    [Test]
+    public async Task AddPollyCommandPolicies_CalledTwice_ReplacesExistingRegistration()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyCommandPolicies<TestCommand, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 3 })
+                )
+                .AddPollyCommandPolicies<TestCommand, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 5 })
+                )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert - Should have only one registration (the second one)
+        var interceptors = provider.GetServices<IRequestInterceptor<TestCommand, string>>().ToList();
+        _ = await Assert.That(interceptors.Count).IsEqualTo(1);
+
+        var pipeline = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
         _ = await Assert.That(pipeline).IsNotNull();
     }
 

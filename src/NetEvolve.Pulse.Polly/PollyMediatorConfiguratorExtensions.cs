@@ -30,7 +30,7 @@ using Polly;
 /// config
 ///     .AddCommandHandler&lt;CreateOrder, Result, CreateOrderHandler&gt;()
 ///     .AddValidationInterceptor&lt;CreateOrder, Result&gt;()  // Executes third (innermost)
-///     .AddPollyRequestPolicies&lt;CreateOrder, Result&gt;(...)       // Executes second
+///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)       // Executes second
 ///     .AddActivityAndMetrics();                            // Executes first (outermost)
 /// </code>
 /// <para><strong>Performance Considerations:</strong></para>
@@ -155,6 +155,40 @@ public static class PollyMediatorConfiguratorExtensions
     }
 
     /// <summary>
+    /// Adds Polly resilience policies for a specific command type with a typed response.
+    /// </summary>
+    /// <typeparam name="TCommand">The command type that implements <see cref="ICommand{TResponse}"/>.</typeparam>
+    /// <typeparam name="TResponse">The response type produced by the command handler.</typeparam>
+    /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <returns>The configurator for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// This is a convenience overload for command types that expresses the semantic intent of protecting a command.
+    /// Internally delegates to <see cref="AddPollyRequestPolicies{TRequest, TResponse}"/>.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// config.AddPollyCommandPolicies&lt;CreateOrderCommand, OrderResult&gt;(pipeline => pipeline
+    ///     .AddRetry(new RetryStrategyOptions
+    ///     {
+    ///         MaxRetryAttempts = 3,
+    ///         Delay = TimeSpan.FromSeconds(1),
+    ///         BackoffType = DelayBackoffType.Exponential
+    ///     })
+    ///     .AddTimeout(TimeSpan.FromSeconds(10)));
+    /// </code>
+    /// </example>
+    public static IMediatorConfigurator AddPollyCommandPolicies<TCommand, TResponse>(
+        this IMediatorConfigurator configurator,
+        Action<ResiliencePipelineBuilder<TResponse>> configure,
+        ServiceLifetime lifetime = ServiceLifetime.Singleton
+    )
+        where TCommand : ICommand<TResponse> =>
+        configurator.AddPollyRequestPolicies<TCommand, TResponse>(configure, lifetime);
+
+    /// <summary>
     /// Adds Polly resilience policies for a specific command type that does not return a response.
     /// </summary>
     /// <typeparam name="TCommand">The command type that implements <see cref="ICommand{TResponse}"/> with <see cref="Void"/> as the response.</typeparam>
@@ -165,11 +199,11 @@ public static class PollyMediatorConfiguratorExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// This is a convenience overload for void commands that don't return a response.
-    /// Internally delegates to <see cref="AddPollyRequestPolicies{TRequest, TResponse}"/> with <see cref="Void"/> as the response type.
+    /// Internally delegates to <see cref="AddPollyCommandPolicies{TCommand, TResponse}"/> with <see cref="Void"/> as the response type.
     /// </remarks>
     /// <example>
     /// <code>
-    /// config.AddPollyRequestPolicies&lt;DeleteOrderCommand&gt;(pipeline => pipeline
+    /// config.AddPollyCommandPolicies&lt;DeleteOrderCommand&gt;(pipeline => pipeline
     ///     .AddRetry(new RetryStrategyOptions
     ///     {
     ///         MaxRetryAttempts = 2,
@@ -178,12 +212,12 @@ public static class PollyMediatorConfiguratorExtensions
     ///     .AddTimeout(TimeSpan.FromSeconds(10)));
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddPollyRequestPolicies<TCommand>(
+    public static IMediatorConfigurator AddPollyCommandPolicies<TCommand>(
         this IMediatorConfigurator configurator,
         Action<ResiliencePipelineBuilder<Void>> configure,
         ServiceLifetime lifetime = ServiceLifetime.Singleton
     )
-        where TCommand : ICommand<Void> => configurator.AddPollyRequestPolicies<TCommand, Void>(configure, lifetime);
+        where TCommand : ICommand<Void> => configurator.AddPollyCommandPolicies<TCommand, Void>(configure, lifetime);
 
     /// <summary>
     /// Adds Polly resilience policies for a specific query type.

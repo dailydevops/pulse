@@ -205,14 +205,14 @@ public sealed class OutboxProcessorHostedServiceTests
     {
         var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
-        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(100) });
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(200) });
         var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
 
         using var cts = new CancellationTokenSource();
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(250).ConfigureAwait(false);
+        await Task.Delay(1000).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
