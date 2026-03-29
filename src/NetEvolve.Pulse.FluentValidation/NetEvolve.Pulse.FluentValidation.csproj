@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>FluentValidation interceptor for the Pulse CQRS mediator library. Automatically validates commands and queries before they reach their handler using FluentValidation validators registered in the DI container, enforcing business invariants at the pipeline boundary without duplicating validation logic inside handlers.</Description>
+    <PackageTags>$(PackageTags);fluentvalidation;validation;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>
