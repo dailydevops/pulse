@@ -53,11 +53,33 @@ public sealed class OutboxProcessorBackoffTests
             AddJitter = false,
         };
 
-        // RetryCount = 0: delay = 10s * 2^0 = 10s
+        // newRetryCount = 0: delay = 10s * 2^0 = 10s
         var result = OutboxProcessorHostedService.ComputeNextRetryAt(options, 0, FixedNow);
 
         _ = await Assert.That(result).IsNotNull();
         _ = await Assert.That(result!.Value).IsEqualTo(FixedNow.AddSeconds(10));
+    }
+
+    [Test]
+    public async Task ComputeNextRetryAt_FirstFailure_UsesPostIncrementRetryCount()
+    {
+        // A message with RetryCount = 0 fails for the first time.
+        // The caller passes RetryCount + 1 = 1, so the exponent is 1.
+        var options = new OutboxProcessorOptions
+        {
+            EnableExponentialBackoff = true,
+            BaseRetryDelay = TimeSpan.FromSeconds(10),
+            BackoffMultiplier = 2.0,
+            MaxRetryDelay = TimeSpan.FromMinutes(10),
+            AddJitter = false,
+        };
+
+        // Simulates what ProcessMessageAsync passes: message.RetryCount + 1 = 0 + 1 = 1
+        // delay = 10s * 2^1 = 20s
+        var result = OutboxProcessorHostedService.ComputeNextRetryAt(options, 1, FixedNow);
+
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Value).IsEqualTo(FixedNow.AddSeconds(20));
     }
 
     [Test]
@@ -72,7 +94,7 @@ public sealed class OutboxProcessorBackoffTests
             AddJitter = false,
         };
 
-        // RetryCount = 1: delay = 10s * 2^1 = 20s
+        // newRetryCount = 1: delay = 10s * 2^1 = 20s
         var result = OutboxProcessorHostedService.ComputeNextRetryAt(options, 1, FixedNow);
 
         _ = await Assert.That(result).IsNotNull();
@@ -91,7 +113,7 @@ public sealed class OutboxProcessorBackoffTests
             AddJitter = false,
         };
 
-        // RetryCount = 2: delay = 5s * 2^2 = 20s
+        // newRetryCount = 2: delay = 5s * 2^2 = 20s
         var result = OutboxProcessorHostedService.ComputeNextRetryAt(options, 2, FixedNow);
 
         _ = await Assert.That(result).IsNotNull();
@@ -110,7 +132,7 @@ public sealed class OutboxProcessorBackoffTests
             AddJitter = false,
         };
 
-        // RetryCount = 2: delay = 3s * 3^2 = 27s
+        // newRetryCount = 2: delay = 3s * 3^2 = 27s
         var result = OutboxProcessorHostedService.ComputeNextRetryAt(options, 2, FixedNow);
 
         _ = await Assert.That(result).IsNotNull();
@@ -133,7 +155,7 @@ public sealed class OutboxProcessorBackoffTests
             AddJitter = false,
         };
 
-        // RetryCount = 5: delay = 10s * 2^5 = 320s → clamped to 30s
+        // newRetryCount = 5: delay = 10s * 2^5 = 320s → clamped to 30s
         var result = OutboxProcessorHostedService.ComputeNextRetryAt(options, 5, FixedNow);
 
         _ = await Assert.That(result).IsNotNull();

@@ -313,7 +313,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             }
             else
             {
-                var nextRetryAt = ComputeNextRetryAt(_options, message.RetryCount, _timeProvider.GetUtcNow());
+                var nextRetryAt = ComputeNextRetryAt(_options, message.RetryCount + 1, _timeProvider.GetUtcNow());
                 await _repository
                     .MarkAsFailedAsync(message.Id, ex.Message, nextRetryAt, cancellationToken)
                     .ConfigureAwait(false);
@@ -383,7 +383,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     _repository.MarkAsFailedAsync(
                         m.Id,
                         ex.Message,
-                        ComputeNextRetryAt(_options, m.RetryCount, now),
+                        ComputeNextRetryAt(_options, m.RetryCount + 1, now),
                         cancellationToken
                     )
                 )
@@ -431,9 +431,10 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// exponential backoff, or returns <see langword="null"/> when backoff is disabled.
     /// </summary>
     /// <param name="options">The processor options containing backoff configuration.</param>
-    /// <param name="currentRetryCount">
-    /// The message's <see cref="OutboxMessage.RetryCount"/> before the current failure increment.
-    /// Used as the exponent: delay = <c>BaseRetryDelay * BackoffMultiplier^currentRetryCount</c>.
+    /// <param name="newRetryCount">
+    /// The message's <see cref="OutboxMessage.RetryCount"/> after the current failure increment.
+    /// Used as the exponent: delay = <c>BaseRetryDelay * BackoffMultiplier^newRetryCount</c>.
+    /// Pass <c>message.RetryCount + 1</c> (the value that will be stored by the repository).
     /// </param>
     /// <param name="now">The current UTC timestamp used as the base for the computed retry time.</param>
     /// <returns>
@@ -442,7 +443,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// </returns>
     internal static DateTimeOffset? ComputeNextRetryAt(
         OutboxProcessorOptions options,
-        int currentRetryCount,
+        int newRetryCount,
         DateTimeOffset now
     )
     {
@@ -452,7 +453,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         }
 
         var maxDelayTicks = (double)options.MaxRetryDelay.Ticks;
-        var rawDelayTicks = options.BaseRetryDelay.Ticks * Math.Pow(options.BackoffMultiplier, currentRetryCount);
+        var rawDelayTicks = options.BaseRetryDelay.Ticks * Math.Pow(options.BackoffMultiplier, newRetryCount);
 
         // Clamp in double space before casting to avoid long overflow
         var delayTicks = rawDelayTicks >= maxDelayTicks ? maxDelayTicks : rawDelayTicks;
