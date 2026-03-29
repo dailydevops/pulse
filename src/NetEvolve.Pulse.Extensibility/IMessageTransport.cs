@@ -58,13 +58,32 @@ public interface IMessageTransport
         return SendBatchInternalAsync(messages, cancellationToken);
     }
 
-    private async Task SendBatchInternalAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken)
-    {
-        foreach (var message in messages)
-        {
-            await SendAsync(message, cancellationToken).ConfigureAwait(false);
-        }
-    }
+    /// <summary>
+    /// Internal implementation of batch sending that dispatches each message concurrently via <see cref="SendAsync"/>.
+    /// Uses <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, CancellationToken, Func{TSource, CancellationToken, ValueTask})"/> to maximize throughput while respecting the provided cancellation token.
+    /// </summary>
+    /// <remarks>
+    /// <para><strong>Concurrency Model:</strong></para>
+    /// Messages are processed in parallel (not sequentially), which may improve throughput significantly.
+    /// The degree of parallelism is determined by the system's thread pool.
+    /// <para><strong>Error Handling:</strong></para>
+    /// If any message send fails, the exception propagates and cancels remaining concurrent operations.
+    /// Partial delivery may occur; it is the responsibility of the transport contract to handle idempotency.
+    /// </remarks>
+    /// <param name="messages">The collection of messages to send concurrently.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the concurrent send operation.</returns>
+    private async Task SendBatchInternalAsync(
+        IEnumerable<OutboxMessage> messages,
+        CancellationToken cancellationToken
+    ) =>
+        await Parallel
+            .ForEachAsync(
+                messages,
+                cancellationToken,
+                async (message, token) => await SendAsync(message, token).ConfigureAwait(false)
+            )
+            .ConfigureAwait(false);
 
     /// <summary>
     /// Checks if the transport is healthy and ready to send messages.

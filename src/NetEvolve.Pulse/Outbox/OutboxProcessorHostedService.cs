@@ -188,10 +188,23 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
     /// <summary>
     /// Retrieves and processes a single batch of pending or retriable outbox messages.
-    /// Messages are grouped by event type; each group is then dispatched via
+    /// Messages are grouped by event type; each group is then dispatched concurrently via
     /// <see cref="ProcessBatchSendAsync"/> or <see cref="ProcessIndividuallyAsync"/> based on the
     /// effective <see cref="OutboxProcessorOptions.EnableBatchSending"/> value for that event type.
     /// </summary>
+    /// <remarks>
+    /// <para><strong>Processing Strategy:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>Retrieves up to <see cref="OutboxProcessorOptions.BatchSize"/> pending messages</description></item>
+    /// <item><description>Fills remaining capacity with failed messages eligible for retry</description></item>
+    /// <item><description>Groups messages by event type to apply per-type configuration overrides</description></item>
+    /// <item><description>Processes each group concurrently using <see cref="Parallel.ForEachAsync"/></description></item>
+    /// <item><description>Respects cancellation requests for graceful shutdown</description></item>
+    /// </list>
+    /// <para><strong>Concurrency:</strong></para>
+    /// Event type groups are processed in parallel to maximize throughput. However, messages within
+    /// a group are processed according to the group's <see cref="OutboxProcessorOptions.EnableBatchSending"/> setting.
+    /// </remarks>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The number of messages processed in this batch; <c>0</c> when no messages are available.</returns>
     private async Task<int> ProcessBatchAsync(CancellationToken cancellationToken)
@@ -219,23 +232,29 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         LogProcessingMessages(_logger, messages.Count);
 
         // Group by event type so per-type EnableBatchSending overrides can be applied
-        var messagesByEventType = messages.GroupBy(m => m.EventType);
-        foreach (var group in messagesByEventType)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
+        var messagesByEventType = messages.GroupBy(m => m.EventType).ToDictionary(m => m.Key, m => m.ToArray());
 
-            var groupMessages = (IReadOnlyList<OutboxMessage>)group.ToList();
-            if (!_options.GetEffectiveEnableBatchSending(group.Key))
-            {
-                await ProcessIndividuallyAsync(groupMessages, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
+        await Parallel
+            .ForEachAsync(
+                messagesByEventType,
+                cancellationToken,
+                async (messageGroup, token) =>
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
 
-            await ProcessBatchSendAsync(groupMessages, cancellationToken).ConfigureAwait(false);
-        }
+                    if (!_options.GetEffectiveEnableBatchSending(messageGroup.Key))
+                    {
+                        await ProcessIndividuallyAsync(messageGroup.Value, token).ConfigureAwait(false);
+                        return;
+                    }
+
+                    await ProcessBatchSendAsync(messageGroup.Value, token).ConfigureAwait(false);
+                }
+            )
+            .ConfigureAwait(false);
 
         return messages.Count;
     }
@@ -244,13 +263,19 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// Sends each message in the batch individually via <see cref="IMessageTransport.SendAsync"/>,
     /// stopping early if the cancellation token is triggered.
     /// </summary>
-    /// <param name="messages">The ordered list of outbox messages to process.</param>
+    /// <remarks>
+    /// <para><strong>Processing Model:</strong></para>
+    /// Messages are processed sequentially (not concurrently) in the order provided.
+    /// Each message's success or failure is tracked independently; failure of one message
+    /// does not prevent processing of subsequent messages.
+    /// <para><strong>Cancellation Behavior:</strong></para>
+    /// Processing stops immediately when the cancellation token is triggered, leaving
+    /// remaining messages unprocessed. These messages will be re-polled and processed in subsequent cycles.
+    /// </remarks>
+    /// <param name="messages">The ordered array of outbox messages to process sequentially.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ProcessIndividuallyAsync(
-        IReadOnlyList<OutboxMessage> messages,
-        CancellationToken cancellationToken
-    )
+    private async Task ProcessIndividuallyAsync(OutboxMessage[] messages, CancellationToken cancellationToken)
     {
         foreach (var message in messages)
         {
@@ -338,12 +363,29 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>
     /// Sends all messages in the batch atomically via <see cref="IMessageTransport.SendBatchAsync"/>.
     /// On success, marks every message as completed. On failure, marks every message as failed or
-    /// dead-lettered so they are retried on subsequent polling cycles.
+    /// dead-lettered based on individual retry counts and per-type <see cref="OutboxProcessorOptions.MaxRetryCount"/> overrides.
     /// </summary>
-    /// <param name="messages">The ordered list of outbox messages to send as a batch.</param>
+    /// <remarks>
+    /// <para><strong>Atomicity Assumptions:</strong></para>
+    /// The batch send operation is assumed to be atomic (all-or-nothing). If the transport supports
+    /// true atomic delivery, either all messages succeed or all fail. This design avoids the need
+    /// to track partial batch success and prevents duplicate message delivery.
+    /// <para><strong>Error Handling:</strong></para>
+    /// If batch send fails, the processor:
+    /// <list type="number">
+    /// <item><description>Marks messages exceeding their per-type retry limit as dead-letter</description></item>
+    /// <item><description>Marks remaining messages as failed for future retry</description></item>
+    /// <item><description>Logs dead-letter transitions for each affected message</description></item>
+    /// <item><description>Records metrics for failed and dead-lettered message counts</description></item>
+    /// </list>
+    /// <para><strong>Timeout Handling:</strong></para>
+    /// A per-batch timeout is applied using the global <see cref="OutboxProcessorOptions.ProcessingTimeout"/>,
+    /// not per-message timeouts.
+    /// </remarks>
+    /// <param name="messages">The ordered array of outbox messages to send as a batch.</param>
     /// <param name="cancellationToken">A token to monitor for external cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ProcessBatchSendAsync(IReadOnlyList<OutboxMessage> messages, CancellationToken cancellationToken)
+    private async Task ProcessBatchSendAsync(OutboxMessage[] messages, CancellationToken cancellationToken)
     {
         try
         {
@@ -356,11 +398,11 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             var ids = messages.Select(static m => m.Id).ToArray();
             await _repository.MarkAsCompletedAsync(ids, cancellationToken).ConfigureAwait(false);
 
-            LogBatchProcessed(_logger, messages.Count);
+            LogBatchProcessed(_logger, messages.Length);
 
             try
             {
-                ProcessedCounter.Add(messages.Count);
+                ProcessedCounter.Add(messages.Length);
             }
             catch (Exception ex)
             {
