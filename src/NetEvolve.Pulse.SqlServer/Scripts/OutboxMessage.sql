@@ -290,7 +290,7 @@ BEGIN
         [RetryCount],
         [Error],
         [Status]
-    FROM [$(SchemaName)].[OutboxMessage]
+    FROM [$(SchemaName)].[$(TableName)]
     WHERE [Status] = 4 -- DeadLetter
     ORDER BY [UpdatedAt] DESC
     OFFSET (@page * @pageSize) ROWS
@@ -322,7 +322,7 @@ BEGIN
         [RetryCount],
         [Error],
         [Status]
-    FROM [$(SchemaName)].[OutboxMessage]
+    FROM [$(SchemaName)].[$(TableName)]
     WHERE [Id] = @messageId
       AND [Status] = 4; -- DeadLetter
 END
@@ -341,7 +341,7 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT COUNT_BIG(1) AS [DeadLetterCount]
-    FROM [$(SchemaName)].[OutboxMessage]
+    FROM [$(SchemaName)].[$(TableName)]
     WHERE [Status] = 4; -- DeadLetter
 END
 GO
@@ -359,7 +359,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    UPDATE [$(SchemaName)].[OutboxMessage]
+    UPDATE [$(SchemaName)].[$(TableName)]
     SET
         [Status]     = 0, -- Pending
         [RetryCount] = 0,
@@ -385,7 +385,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    UPDATE [$(SchemaName)].[OutboxMessage]
+    UPDATE [$(SchemaName)].[$(TableName)]
     SET
         [Status]     = 0, -- Pending
         [RetryCount] = 0,
@@ -411,11 +411,11 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT
-        SUM(CASE WHEN [Status] = 0 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Pending],
-        SUM(CASE WHEN [Status] = 1 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Processing],
-        SUM(CASE WHEN [Status] = 2 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Completed],
-        SUM(CASE WHEN [Status] = 3 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [Failed],
-        SUM(CASE WHEN [Status] = 4 THEN CAST(1 AS BIGINT) ELSE 0 END) AS [DeadLetter]
-    FROM [$(SchemaName)].[OutboxMessage];
+        COALESCE(SUM(CASE WHEN [Status] = 0 THEN CAST(1 AS BIGINT) ELSE 0 END), CAST(0 AS BIGINT)) AS [Pending],
+        COALESCE(SUM(CASE WHEN [Status] = 1 THEN CAST(1 AS BIGINT) ELSE 0 END), CAST(0 AS BIGINT)) AS [Processing],
+        COALESCE(SUM(CASE WHEN [Status] = 2 THEN CAST(1 AS BIGINT) ELSE 0 END), CAST(0 AS BIGINT)) AS [Completed],
+        COALESCE(SUM(CASE WHEN [Status] = 3 THEN CAST(1 AS BIGINT) ELSE 0 END), CAST(0 AS BIGINT)) AS [Failed],
+        COALESCE(SUM(CASE WHEN [Status] = 4 THEN CAST(1 AS BIGINT) ELSE 0 END), CAST(0 AS BIGINT)) AS [DeadLetter]
+    FROM [$(SchemaName)].[$(TableName)];
 END
 GO
