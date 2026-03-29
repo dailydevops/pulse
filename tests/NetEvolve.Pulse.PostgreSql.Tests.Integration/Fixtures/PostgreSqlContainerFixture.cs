@@ -24,9 +24,7 @@ public sealed class PostgreSqlContainerFixture : IAsyncInitializer, IAsyncDispos
     /// Initializes a new instance of the <see cref="PostgreSqlContainerFixture"/> class.
     /// </summary>
     public PostgreSqlContainerFixture() =>
-        _container = new PostgreSqlBuilder("postgres:16-alpine")
-            .WithPassword("Test@Password123!")
-            .Build();
+        _container = new PostgreSqlBuilder("postgres:16-alpine").WithPassword("Test@Password123!").Build();
 
     /// <summary>
     /// Starts the PostgreSQL container.
