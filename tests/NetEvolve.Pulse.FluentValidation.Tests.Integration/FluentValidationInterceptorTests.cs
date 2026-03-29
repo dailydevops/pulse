@@ -4,8 +4,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentValidation;
 using global::FluentValidation;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Assertions;
@@ -196,7 +196,11 @@ public sealed class FluentValidationInterceptorTests
 
     private sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
     {
-        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Validator is used by FluentValidation interceptor.")]
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Validator is used by FluentValidation interceptor."
+        )]
         public CreateOrderCommandValidator()
         {
             _ = RuleFor(x => x.OrderId).NotEmpty().WithMessage("OrderId must not be empty.");
@@ -204,10 +208,13 @@ public sealed class FluentValidationInterceptorTests
         }
     }
 
-    private sealed class AdditionalCreateOrderCommandValidator
-        : AbstractValidator<CreateOrderCommand>
+    private sealed class AdditionalCreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
     {
-        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Validator is used by FluentValidation interceptor.")]
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Validator is used by FluentValidation interceptor."
+        )]
         public AdditionalCreateOrderCommandValidator() =>
             RuleFor(x => x.OrderId)
                 .MaximumLength(50)
@@ -216,7 +223,11 @@ public sealed class FluentValidationInterceptorTests
 
     private sealed class GetOrderQueryValidator : AbstractValidator<GetOrderQuery>
     {
-        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Validator is used by FluentValidation interceptor.")]
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Validator is used by FluentValidation interceptor."
+        )]
         public GetOrderQueryValidator() => RuleFor(x => x.OrderId).NotEmpty().WithMessage("OrderId must not be empty.");
     }
 

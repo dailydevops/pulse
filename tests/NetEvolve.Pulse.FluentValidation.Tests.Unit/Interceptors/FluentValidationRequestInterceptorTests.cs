@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.FluentValidation.Tests.Unit.Interceptors;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using global::FluentValidation;
@@ -23,7 +24,7 @@ public sealed class FluentValidationRequestInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(() => interceptor.HandleAsync(new TestCommand("valid"), null!, CancellationToken.None))
+            .That(() => interceptor.HandleAsync(new TestCommand("valid"), null!, CancellationToken.None)!)
             .Throws<ArgumentNullException>();
     }
 
@@ -107,7 +108,7 @@ public sealed class FluentValidationRequestInterceptorTests
                         return Task.FromResult("should not reach");
                     },
                     CancellationToken.None
-                )
+                )!
             )
             .Throws<ValidationException>();
 
@@ -132,7 +133,7 @@ public sealed class FluentValidationRequestInterceptorTests
                     new TestCommand("invalid"),
                     (_, _) => Task.FromResult("should not reach"),
                     CancellationToken.None
-                )
+                )!
             )
             .Throws<ValidationException>();
 
@@ -158,7 +159,7 @@ public sealed class FluentValidationRequestInterceptorTests
                     new TestCommand("input"),
                     (_, _) => Task.FromResult("should not reach"),
                     CancellationToken.None
-                )
+                )!
             )
             .Throws<ValidationException>();
     }
@@ -170,17 +171,32 @@ public sealed class FluentValidationRequestInterceptorTests
 
     private sealed class AlwaysValidValidator : AbstractValidator<TestCommand>
     {
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Validator is used by FluentValidation interceptor."
+        )]
         public AlwaysValidValidator() => RuleFor(x => x.Value).NotEmpty();
     }
 
     private sealed class AlwaysInvalidValidator : AbstractValidator<TestCommand>
     {
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Validator is used by FluentValidation interceptor."
+        )]
         public AlwaysInvalidValidator() =>
             RuleFor(x => x.Value).Must(_ => false).WithMessage("AlwaysInvalid: validation failed.");
     }
 
     private sealed class AnotherInvalidValidator : AbstractValidator<TestCommand>
     {
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Validator is used by FluentValidation interceptor."
+        )]
         public AnotherInvalidValidator() =>
             RuleFor(x => x.Value).Must(_ => false).WithMessage("AnotherInvalid: another validation failed.");
     }
