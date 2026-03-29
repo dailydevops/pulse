@@ -228,14 +228,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             }
 
             var groupMessages = (IReadOnlyList<OutboxMessage>)group.ToList();
-            if (_options.GetEffectiveEnableBatchSending(group.Key))
-            {
-                await ProcessBatchSendAsync(groupMessages, cancellationToken).ConfigureAwait(false);
-            }
-            else
+            if (!_options.GetEffectiveEnableBatchSending(group.Key))
             {
                 await ProcessIndividuallyAsync(groupMessages, cancellationToken).ConfigureAwait(false);
+                continue;
             }
+
+            await ProcessBatchSendAsync(groupMessages, cancellationToken).ConfigureAwait(false);
         }
 
         return messages.Count;
