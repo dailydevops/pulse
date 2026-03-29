@@ -19,7 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageVersion Include="Azure.Identity" Version="1.19.0" />
-    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.18.4" />
+    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
     <PackageVersion Include="Dapr.Client" Version="1.17.7" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
