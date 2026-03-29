@@ -14,7 +14,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenCommandHandlerAnnotatedThenRegistrationIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -45,7 +45,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenQueryHandlerAnnotatedThenRegistrationIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -76,7 +76,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenEventHandlerAnnotatedThenRegistrationIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -113,7 +113,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenMultipleInterfacesImplementedThenAllRegistered()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -154,7 +154,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenNoHandlerInterfaceImplementedThenPulse001Reported()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
 
             [PulseHandler]
             public class NotAHandler
@@ -174,7 +174,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenNoHandlerInterfaceImplementedThenPulse001MessageContainsTypeName()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
 
             [PulseHandler]
             public class NotAHandler
@@ -194,7 +194,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenDuplicateCommandHandlersThenPulse002Reported()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -231,7 +231,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenDuplicateCommandHandlersThenPulse002MessageContainsBothHandlerNames()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -266,7 +266,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenDuplicateQueryHandlersThenPulse002Reported()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -300,7 +300,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenMultipleEventHandlersForSameEventThenNoPulse002()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -365,7 +365,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenSingletonLifetimeSpecifiedThenTryAddSingletonIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -394,7 +394,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenTransientLifetimeSpecifiedThenTryAddTransientIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -429,7 +429,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenScopedLifetimeExplicitlySpecifiedThenTryAddScopedIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -458,7 +458,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenRootNamespaceProvidedThenGeneratedCodeUsesIt()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -486,7 +486,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenNoRootNamespaceProvidedThenDefaultNamespaceIsUsed()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -514,7 +514,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenDottedAssemblyNameThenMethodNameRemovesDots()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -542,7 +542,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenGeneratedCodeEmittedThenItContainsAutoGeneratedComment()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -569,7 +569,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenGeneratedCodeEmittedThenItUsesFullyQualifiedServiceCollectionDescriptorExtensions()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -598,7 +598,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenPrioritizedEventHandlerAnnotatedThenRegisteredAsIEventHandler()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -635,7 +635,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenCommandHandlerVoidAnnotatedThenRegistrationIsGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -664,7 +664,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenMultipleHandlerClassesThenAllRegistered()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -701,7 +701,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenHandlersHaveDifferentLifetimesThenEachUsesItsOwn()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -738,7 +738,7 @@ public class PulseHandlerGeneratorTests
     public async Task WhenNoHandlerInterfaceThenNoSourceGenerated()
     {
         var source = """
-            using NetEvolve.Pulse.SourceGeneration;
+            using NetEvolve.Pulse.Attributes;
 
             [PulseHandler]
             public class NotAHandler
@@ -811,9 +811,7 @@ public class PulseHandlerGeneratorTests
             MetadataReference.CreateFromFile(typeof(NetEvolve.Pulse.Extensibility.ICommand<>).Assembly.Location)
         );
         runtimeReferences.Add(
-            MetadataReference.CreateFromFile(
-                typeof(NetEvolve.Pulse.SourceGeneration.PulseHandlerAttribute).Assembly.Location
-            )
+            MetadataReference.CreateFromFile(typeof(NetEvolve.Pulse.Attributes.PulseHandlerAttribute).Assembly.Location)
         );
 
         return runtimeReferences.ToArray();

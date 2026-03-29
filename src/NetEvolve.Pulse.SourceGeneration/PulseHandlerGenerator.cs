@@ -16,7 +16,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 [Generator(LanguageNames.CSharp)]
 public sealed class PulseHandlerGenerator : IIncrementalGenerator
 {
-    private const string PulseHandlerAttributeFullName = "NetEvolve.Pulse.SourceGeneration.PulseHandlerAttribute";
+    private const string PulseHandlerAttributeFullName = "NetEvolve.Pulse.Attributes.PulseHandlerAttribute";
 
     private const string CommandHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.ICommandHandler`2";
 

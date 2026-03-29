@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SourceGeneration\NetEvolve.Pulse.SourceGeneration.csproj" />
-    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SourceGeneration.Abstractions\NetEvolve.Pulse.SourceGeneration.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Attributes\NetEvolve.Pulse.Attributes.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
   </ItemGroup>
 

@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.SourceGeneration;
+﻿namespace NetEvolve.Pulse.Attributes;
 
 /// <summary>
 /// Specifies the lifetime of a service registered by the Pulse source generator.
