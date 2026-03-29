@@ -67,12 +67,18 @@ public interface IMessageTransport
     /// Messages are processed in parallel (not sequentially), which may improve throughput significantly.
     /// The degree of parallelism is determined by the system's thread pool.
     /// <para><strong>Error Handling:</strong></para>
-    /// If any message send fails, the exception propagates and cancels remaining concurrent operations.
-    /// Partial delivery may occur; it is the responsibility of the transport contract to handle idempotency.
+    /// Individual message send failures are silently ignored and do not interrupt the batch operation.
+    /// This allows all messages in the batch to be attempted concurrently. Failures are expected to be
+    /// handled at a higher level which processes
+    /// each message's result independently and applies retry or dead-letter logic accordingly.
+    /// <para><strong>Cancellation:</strong></para>
+    /// If the cancellation token is triggered, all remaining concurrent operations are cancelled,
+    /// and the task completes. Already-attempted messages may have partial results depending on
+    /// the transport's concurrency model.
     /// </remarks>
     /// <param name="messages">The collection of messages to send concurrently.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the concurrent send operation.</returns>
+    /// <returns>A task representing the concurrent send operation that completes when all messages have been attempted.</returns>
     private async Task SendBatchInternalAsync(
         IEnumerable<OutboxMessage> messages,
         CancellationToken cancellationToken
@@ -81,7 +87,18 @@ public interface IMessageTransport
             .ForEachAsync(
                 messages,
                 cancellationToken,
-                async (message, token) => await SendAsync(message, token).ConfigureAwait(false)
+                async (message, token) =>
+                {
+                    try
+                    {
+                        await SendAsync(message, token).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Silently ignore individual message failures.
+                        // Error handling and retry logic is managed at the OutboxProcessorHostedService level.
+                    }
+                }
             )
             .ConfigureAwait(false);
 

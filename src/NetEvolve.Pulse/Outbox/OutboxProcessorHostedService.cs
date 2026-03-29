@@ -198,7 +198,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <item><description>Retrieves up to <see cref="OutboxProcessorOptions.BatchSize"/> pending messages</description></item>
     /// <item><description>Fills remaining capacity with failed messages eligible for retry</description></item>
     /// <item><description>Groups messages by event type to apply per-type configuration overrides</description></item>
-    /// <item><description>Processes each group concurrently using <see cref="Parallel.ForEachAsync"/></description></item>
+    /// <item><description>Processes each group concurrently using <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, CancellationToken, Func{TSource, CancellationToken, ValueTask})"/></description></item>
     /// <item><description>Respects cancellation requests for graceful shutdown</description></item>
     /// </list>
     /// <para><strong>Concurrency:</strong></para>

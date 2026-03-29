@@ -45,7 +45,7 @@ public sealed class OutboxProcessorOptions
     /// <remarks>
     /// <para><strong>Concurrency Guarantees:</strong></para>
     /// The property uses <see cref="ConcurrentDictionary{TKey,TValue}"/> for thread-safe access.
-    /// This is required because the dictionary may be read concurrently during <see cref="ProcessBatchAsync"/>
+    /// This is required because the dictionary may be read concurrently during <see cref="OutboxProcessorHostedService.ProcessBatchAsync(CancellationToken)"/>
     /// while being modified externally through code or dependency injection configuration.
     /// <para><strong>Dictionary Key Format:</strong></para>
     /// The dictionary key must match the <see cref="OutboxMessage.EventType"/> value of the messages
