@@ -30,7 +30,7 @@ using Polly;
 /// <code>
 /// services.AddPulse(config => config
 ///     .AddCommandHandler&lt;CreateOrder, Result, CreateOrderHandler&gt;()
-///     .AddPollyRequestPolicies&lt;CreateOrder, Result&gt;(...)  // Executes second
+///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)  // Executes second
 ///     .AddActivityAndMetrics());                      // Executes first (outermost)
 /// </code>
 /// <para><strong>Best Practices:</strong></para>
@@ -47,7 +47,7 @@ using Polly;
 /// <code>
 /// services.AddPulse(config => config
 ///     .AddCommandHandler&lt;CreateOrder, OrderResult, CreateOrderHandler&gt;()
-///     .AddPollyRequestPolicies&lt;CreateOrder, OrderResult&gt;(pipeline => pipeline
+///     .AddPollyCommandPolicies&lt;CreateOrder, OrderResult&gt;(pipeline => pipeline
 ///         .AddRetry(new RetryStrategyOptions
 ///         {
 ///             MaxRetryAttempts = 3,
@@ -59,7 +59,7 @@ using Polly;
 /// <code>
 /// services.AddPulse(config => config
 ///     .AddQueryHandler&lt;GetUserQuery, User, GetUserQueryHandler&gt;()
-///     .AddPollyRequestPolicies&lt;GetUserQuery, User&gt;(pipeline => pipeline
+///     .AddPollyCommandPolicies&lt;GetUserQuery, User&gt;(pipeline => pipeline
 ///         .AddTimeout(TimeSpan.FromSeconds(30))
 ///         .AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 3 })
 ///         .AddCircuitBreaker(new CircuitBreakerStrategyOptions
