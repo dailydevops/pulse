@@ -33,6 +33,7 @@
     <Project Path="src/NetEvolve.Pulse.Polly/NetEvolve.Pulse.Polly.csproj" />
     <Project Path="src/NetEvolve.Pulse.HttpCorrelation/NetEvolve.Pulse.HttpCorrelation.csproj" />
     <Project Path="src/NetEvolve.Pulse.Testing/NetEvolve.Pulse.Testing.csproj" />
+    <Project Path="src/NetEvolve.Pulse.AzureServiceBus/NetEvolve.Pulse.AzureServiceBus.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/NetEvolve.Pulse.AspNetCore.Tests.Integration/NetEvolve.Pulse.AspNetCore.Tests.Integration.csproj" />
@@ -50,5 +51,7 @@
     <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Testing.Tests.Unit/NetEvolve.Pulse.Testing.Tests.Unit.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.AzureServiceBus.Tests.Unit/NetEvolve.Pulse.AzureServiceBus.Tests.Unit.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.AzureServiceBus.Tests.Integration/NetEvolve.Pulse.AzureServiceBus.Tests.Integration.csproj" />
   </Folder>
 </Solution>
