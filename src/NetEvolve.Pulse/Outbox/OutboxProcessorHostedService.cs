@@ -34,6 +34,7 @@ using NetEvolve.Pulse.Outbox;
 /// </remarks>
 internal sealed partial class OutboxProcessorHostedService : BackgroundService
 {
+#pragma warning disable IDE1006 // Naming rule violation - matching existing static metric field naming conventions
     /// <summary>Counter tracking the total number of successfully processed outbox messages.</summary>
     private static readonly Counter<long> ProcessedCounter = Defaults.Meter.CreateCounter<long>(
         "pulse.outbox.processed.total",
@@ -61,6 +62,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         "ms",
         "Duration of each outbox processing batch in milliseconds."
     );
+#pragma warning restore IDE1006
 
     /// <summary>The repository for reading and updating outbox message state.</summary>
     private readonly IOutboxRepository _repository;
@@ -346,7 +348,15 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             }
             else
             {
-                await _repository.MarkAsFailedAsync(message.Id, ex.Message, cancellationToken).ConfigureAwait(false);
+                DateTimeOffset? nextRetryAt = null;
+                if (_options.EnableExponentialBackoff)
+                {
+                    nextRetryAt = _options.ComputeNextRetryAt(DateTimeOffset.UtcNow, message.RetryCount);
+                }
+
+                await _repository
+                    .MarkAsFailedAsync(message.Id, ex.Message, nextRetryAt, cancellationToken)
+                    .ConfigureAwait(false);
 
                 try
                 {
@@ -428,11 +438,38 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 .ToArray();
             var failedMessages = messages
                 .Where(m => m.RetryCount + 1 < _options.GetEffectiveMaxRetryCount(m.EventType))
-                .Select(m => m.Id)
                 .ToArray();
 
+            // Compute NextRetryAt for failed messages if exponential backoff is enabled
+            var failedMessageIds = failedMessages.Select(m => m.Id).ToArray();
+            if (_options.EnableExponentialBackoff && failedMessageIds.Length > 0)
+            {
+                var now = DateTimeOffset.UtcNow;
+                var failedWithRetryTime = failedMessages
+                    .Select(m => (messageId: m.Id, nextRetryAt: _options.ComputeNextRetryAt(now, m.RetryCount)))
+                    .ToArray();
+
+                // Mark failed messages with backoff scheduling
+                await Parallel
+                    .ForEachAsync(
+                        failedWithRetryTime,
+                        cancellationToken,
+                        async (item, token) =>
+                            await _repository
+                                .MarkAsFailedAsync(item.messageId, ex.Message, item.nextRetryAt, token)
+                                .ConfigureAwait(false)
+                    )
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                // Mark failed messages without backoff scheduling
+                await _repository
+                    .MarkAsFailedAsync(failedMessageIds, ex.Message, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             await Task.WhenAll(
-                    _repository.MarkAsFailedAsync(failedMessages, ex.Message, cancellationToken),
                     _repository.MarkAsDeadLetterAsync(deadLetterMessages, ex.Message, cancellationToken),
                     Parallel.ForEachAsync(
                         messages.Where(m => m.RetryCount + 1 >= _options.GetEffectiveMaxRetryCount(m.EventType)),

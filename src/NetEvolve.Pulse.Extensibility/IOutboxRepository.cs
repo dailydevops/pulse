@@ -81,6 +81,26 @@ public interface IOutboxRepository
     Task MarkAsFailedAsync(Guid messageId, string errorMessage, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Marks a message as failed, records the error, and sets the next retry time for exponential backoff.
+    /// </summary>
+    /// <param name="messageId">The ID of the message that failed.</param>
+    /// <param name="errorMessage">The error message or exception details.</param>
+    /// <param name="nextRetryAt">The scheduled timestamp for the next retry attempt, or null to disable retry scheduling.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// Implementations SHOULD increment the retry count and update the status accordingly.
+    /// When <paramref name="nextRetryAt"/> is not null, implementations SHOULD store this value
+    /// for use in filtering pending messages.
+    /// </remarks>
+    virtual Task MarkAsFailedAsync(
+        Guid messageId,
+        string errorMessage,
+        DateTimeOffset? nextRetryAt,
+        CancellationToken cancellationToken = default
+    ) => MarkAsFailedAsync(messageId, errorMessage, cancellationToken);
+
+    /// <summary>
     /// Marks multiple messages as failed and records the error for each.
     /// </summary>
     /// <param name="messageIds">The IDs of the messages that failed.</param>

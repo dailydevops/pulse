@@ -20,6 +20,7 @@
 /// <item><description><see cref="RetryCount"/>: INT, NOT NULL, DEFAULT 0 - Number of processing attempts</description></item>
 /// <item><description><see cref="Error"/>: NVARCHAR(MAX), NULL - Last error message</description></item>
 /// <item><description><see cref="Status"/>: INT, NOT NULL, DEFAULT 0 - Processing status enum value</description></item>
+/// <item><description><see cref="NextRetryAt"/>: DATETIMEOFFSET, NULL - Scheduled retry timestamp when exponential backoff is enabled</description></item>
 /// </list>
 /// </remarks>
 public sealed class OutboxMessage
@@ -66,6 +67,17 @@ public sealed class OutboxMessage
     /// Null if not yet processed or if processing failed.
     /// </summary>
     public DateTimeOffset? ProcessedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the scheduled timestamp for the next retry attempt when exponential backoff is enabled.
+    /// Null when exponential backoff is disabled or the message is not in failed status.
+    /// </summary>
+    /// <remarks>
+    /// When <c>EnableExponentialBackoff</c> is true, this value is set when a message transitions
+    /// to Failed status. The processor filters out messages where <see cref="NextRetryAt"/> &gt; current time
+    /// from pending queries.
+    /// </remarks>
+    public DateTimeOffset? NextRetryAt { get; set; }
 
     /// <summary>
     /// Gets or sets the number of times processing has been attempted.

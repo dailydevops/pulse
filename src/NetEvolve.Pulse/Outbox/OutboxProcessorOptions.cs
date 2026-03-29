@@ -1,7 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -40,6 +40,58 @@ public sealed class OutboxProcessorOptions
     public bool EnableBatchSending { get; set; }
 
     /// <summary>
+    /// Gets or sets whether to enable exponential backoff with jitter for failed message retries.
+    /// When enabled, failed messages are not retried before their scheduled <see cref="OutboxMessage.NextRetryAt"/> time.
+    /// Default: false.
+    /// </summary>
+    public bool EnableExponentialBackoff { get; set; }
+
+    /// <summary>
+    /// Gets or sets the base delay for the first retry attempt when exponential backoff is enabled.
+    /// Default: 5 seconds.
+    /// </summary>
+    /// <remarks>
+    /// The actual retry delay is computed as: <c>BaseRetryDelay * (BackoffMultiplier ^ RetryCount) + jitter</c>,
+    /// clamped to <see cref="MaxRetryDelay"/>.
+    /// </remarks>
+    public TimeSpan BaseRetryDelay { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Gets or sets the maximum delay between retry attempts when exponential backoff is enabled.
+    /// Default: 5 minutes.
+    /// </summary>
+    /// <remarks>
+    /// Computed retry delays are clamped to not exceed this value, preventing indefinite growth.
+    /// </remarks>
+    public TimeSpan MaxRetryDelay { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Gets or sets the multiplier applied to the delay for each retry iteration when exponential backoff is enabled.
+    /// Default: 2.0 (doubles the delay each time).
+    /// </summary>
+    /// <remarks>
+    /// For example, with <see cref="BaseRetryDelay"/> of 5 seconds and <see cref="BackoffMultiplier"/> of 2.0:
+    /// <list type="bullet">
+    /// <item><description>Retry 0: 5 seconds</description></item>
+    /// <item><description>Retry 1: 10 seconds</description></item>
+    /// <item><description>Retry 2: 20 seconds</description></item>
+    /// <item><description>Retry 3+: clamped to <see cref="MaxRetryDelay"/></description></item>
+    /// </list>
+    /// </remarks>
+    public double BackoffMultiplier { get; set; } = 2.0;
+
+    /// <summary>
+    /// Gets or sets whether to add random jitter to computed backoff delays.
+    /// When enabled, adds up to 20% jitter to help avoid thundering herd problems.
+    /// Default: true.
+    /// </summary>
+    /// <remarks>
+    /// Jitter is computed as a random value up to 20% of the computed base delay.
+    /// This helps prevent multiple instances from retrying simultaneously after a service recovery.
+    /// </remarks>
+    public bool AddJitter { get; set; } = true;
+
+    /// <summary>
     /// Gets per-event-type configuration overrides via a thread-safe concurrent dictionary.
     /// </summary>
     /// <remarks>
@@ -55,10 +107,6 @@ public sealed class OutboxProcessorOptions
     /// precedence over the corresponding global default for messages of that event type.
     /// Properties left as <c>null</c> fall back to the global default.
     /// <para><strong>Stored but Unapplied Properties:</strong></para>
-    /// Note: <see cref="OutboxEventTypeOptions.BatchSize"/> and
-    /// <see cref="OutboxEventTypeOptions.PollingInterval"/> are stored for completeness but are
-    /// currently not applied at per-event-type level by the processor, which uses a single polling
-    /// cycle for all event types.
     /// </remarks>
     public ConcurrentDictionary<string, OutboxEventTypeOptions> EventTypeOverrides { get; } =
         new ConcurrentDictionary<string, OutboxEventTypeOptions>(StringComparer.Ordinal);
@@ -95,4 +143,58 @@ public sealed class OutboxProcessorOptions
         EventTypeOverrides.TryGetValue(eventType, out var overrides) && overrides.EnableBatchSending.HasValue
             ? overrides.EnableBatchSending.Value
             : EnableBatchSending;
+
+    /// <summary>
+    /// Computes the next retry timestamp for a failed message using exponential backoff with optional jitter.
+    /// </summary>
+    /// <param name="now">The current timestamp.</param>
+    /// <param name="retryCount">The number of retries already attempted (0-based).</param>
+    /// <returns>The computed <see cref="DateTimeOffset"/> for the next retry attempt.</returns>
+    /// <remarks>
+    /// <para><strong>Formula:</strong></para>
+    /// <c>now + min(BaseRetryDelay * BackoffMultiplier^RetryCount + jitter, MaxRetryDelay)</c>
+    /// <para><strong>Jitter:</strong></para>
+    /// When <see cref="AddJitter"/> is true, adds a random value up to 20% of the computed base delay.
+    /// </remarks>
+    internal DateTimeOffset ComputeNextRetryAt(DateTimeOffset now, int retryCount)
+    {
+        try
+        {
+            // Compute base delay: BaseRetryDelay * (BackoffMultiplier ^ RetryCount)
+            var baseDelayMs = BaseRetryDelay.TotalMilliseconds * Math.Pow(BackoffMultiplier, retryCount);
+
+            // Guard against overflow
+            if (double.IsInfinity(baseDelayMs) || baseDelayMs > MaxRetryDelay.TotalMilliseconds)
+            {
+                baseDelayMs = MaxRetryDelay.TotalMilliseconds;
+            }
+
+            var baseDelay = TimeSpan.FromMilliseconds(baseDelayMs);
+
+            // Clamp to MaxRetryDelay
+            var clampedDelay = baseDelay > MaxRetryDelay ? MaxRetryDelay : baseDelay;
+
+            // Add jitter if enabled (up to 20% of computed delay)
+            if (AddJitter)
+            {
+                var jitterMs = GetJitterMilliseconds(clampedDelay);
+                clampedDelay = clampedDelay.Add(TimeSpan.FromMilliseconds(jitterMs));
+            }
+
+            return now.Add(clampedDelay);
+        }
+        catch (OverflowException)
+        {
+            // In case of overflow, just use MaxRetryDelay
+            return now.Add(MaxRetryDelay);
+        }
+    }
+
+    [SuppressMessage(
+        "Security",
+        "CA5394:Do not use insecure randomness",
+        Justification = "Jitter is used for backoff timing and does not require cryptographic randomness."
+    )]
+    private static double GetJitterMilliseconds(TimeSpan clampedDelay) =>
+        clampedDelay.TotalMilliseconds * 0.2 * Random.Shared.NextDouble();
 }

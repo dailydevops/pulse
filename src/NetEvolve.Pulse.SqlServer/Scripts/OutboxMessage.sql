@@ -38,6 +38,7 @@ BEGIN
         [CreatedAt] DATETIMEOFFSET NOT NULL,
         [UpdatedAt] DATETIMEOFFSET NOT NULL,
         [ProcessedAt] DATETIMEOFFSET NULL,
+        [NextRetryAt] DATETIMEOFFSET NULL,
         [RetryCount] INT NOT NULL CONSTRAINT [DF_$(TableName)_RetryCount] DEFAULT (0),
         [Error] NVARCHAR(MAX) NULL,
         [Status] INT NOT NULL CONSTRAINT [DF_$(TableName)_Status] DEFAULT (0),
@@ -69,7 +70,8 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_GetPendingOutboxMessages]
-    @batchSize INT
+    @batchSize INT,
+    @nowUtc DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -83,11 +85,13 @@ BEGIN
             [CreatedAt],
             [UpdatedAt],
             [ProcessedAt],
+            [NextRetryAt],
             [RetryCount],
             [Error],
             [Status]
         FROM [$(SchemaName)].[$(TableName)] WITH (ROWLOCK, READPAST)
         WHERE [Status] = 0 -- Pending
+          AND ([NextRetryAt] IS NULL OR [NextRetryAt] <= @nowUtc)
         ORDER BY [CreatedAt]
     )
     UPDATE CTE
@@ -102,6 +106,7 @@ BEGIN
         INSERTED.[CreatedAt],
         INSERTED.[UpdatedAt],
         INSERTED.[ProcessedAt],
+        INSERTED.[NextRetryAt],
         INSERTED.[RetryCount],
         INSERTED.[Error],
         INSERTED.[Status];
@@ -117,7 +122,8 @@ GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_GetFailedOutboxMessagesForRetry]
     @maxRetryCount INT,
-    @batchSize INT
+    @batchSize INT,
+    @nowUtc DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -131,12 +137,14 @@ BEGIN
             [CreatedAt],
             [UpdatedAt],
             [ProcessedAt],
+            [NextRetryAt],
             [RetryCount],
             [Error],
             [Status]
         FROM [$(SchemaName)].[$(TableName)] WITH (ROWLOCK, READPAST)
         WHERE [Status] = 3 -- Failed
           AND [RetryCount] < @maxRetryCount
+          AND ([NextRetryAt] IS NULL OR [NextRetryAt] <= @nowUtc)
         ORDER BY [UpdatedAt]
     )
     UPDATE CTE
@@ -151,6 +159,7 @@ BEGIN
         INSERTED.[CreatedAt],
         INSERTED.[UpdatedAt],
         INSERTED.[ProcessedAt],
+        INSERTED.[NextRetryAt],
         INSERTED.[RetryCount],
         INSERTED.[Error],
         INSERTED.[Status];
@@ -189,7 +198,8 @@ GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_MarkOutboxMessageFailed]
     @messageId UNIQUEIDENTIFIER,
-    @error NVARCHAR(MAX)
+    @error NVARCHAR(MAX),
+    @nextRetryAt DATETIMEOFFSET = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -199,6 +209,7 @@ BEGIN
         [Status] = 3, -- Failed
         [RetryCount] = [RetryCount] + 1,
         [Error] = @error,
+        [NextRetryAt] = @nextRetryAt,
         [UpdatedAt] = SYSDATETIMEOFFSET()
     WHERE [Id] = @messageId
       AND [Status] = 1; -- Processing
@@ -353,6 +364,7 @@ BEGIN
         [Status]     = 0, -- Pending
         [RetryCount] = 0,
         [Error]      = NULL,
+        [NextRetryAt] = NULL,
         [UpdatedAt]  = SYSDATETIMEOFFSET()
     WHERE [Id] = @messageId
       AND [Status] = 4; -- DeadLetter
@@ -378,6 +390,7 @@ BEGIN
         [Status]     = 0, -- Pending
         [RetryCount] = 0,
         [Error]      = NULL,
+        [NextRetryAt] = NULL,
         [UpdatedAt]  = SYSDATETIMEOFFSET()
     WHERE [Status] = 4; -- DeadLetter
 

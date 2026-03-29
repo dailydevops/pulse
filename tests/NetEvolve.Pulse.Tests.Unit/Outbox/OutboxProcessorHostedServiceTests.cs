@@ -860,6 +860,167 @@ public sealed class OutboxProcessorHostedServiceTests
 
     #endregion
 
+    #region Exponential Backoff Tests
+
+    [Test]
+    public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAt()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                MaxRetryCount = 3,
+                EnableExponentialBackoff = true,
+                BaseRetryDelay = TimeSpan.FromSeconds(1),
+                AddJitter = false,
+            }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        var message = CreateMessage();
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        try
+        {
+            await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown
+        }
+
+        // Get the failed message from the repository
+        var failedMessage = repository._messages.FirstOrDefault(m => m.Status == OutboxMessageStatus.Failed);
+
+        _ = await Assert.That(failedMessage).IsNotNull();
+        _ = await Assert.That(failedMessage!.NextRetryAt).IsNotNull();
+        // NextRetryAt should be approximately 1 second in the future (allow 500-1500ms range for test execution time)
+        _ = await Assert
+            .That(failedMessage.NextRetryAt!.Value)
+            .IsGreaterThan(DateTimeOffset.UtcNow.AddMilliseconds(500));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithExponentialBackoffDisabled_DoesNotSetNextRetryAt()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                MaxRetryCount = 3,
+                EnableExponentialBackoff = false, // Disabled
+            }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        var message = CreateMessage();
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(300).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        try
+        {
+            await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown
+        }
+
+        // Get the failed message from the repository
+        var failedMessage = repository._messages.FirstOrDefault(m => m.Status == OutboxMessageStatus.Failed);
+
+        // If a message was processed and failed, it should not have NextRetryAt set
+        if (failedMessage is not null)
+        {
+            _ = await Assert.That(failedMessage.NextRetryAt).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WithFutureNextRetryAt_ExcludesMessage()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var futureTime = DateTimeOffset.UtcNow.AddSeconds(10);
+
+        var message = CreateMessage();
+        message.NextRetryAt = futureTime;
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        var pending = await repository.GetPendingAsync(batchSize: 10).ConfigureAwait(false);
+
+        _ = await Assert.That(pending.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WithPastNextRetryAt_IncludesMessage()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var pastTime = DateTimeOffset.UtcNow.AddSeconds(-10);
+
+        var message = CreateMessage();
+        message.NextRetryAt = pastTime;
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        var pending = await repository.GetPendingAsync(batchSize: 10).ConfigureAwait(false);
+
+        _ = await Assert.That(pending.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GetFailedForRetryAsync_WithFutureNextRetryAt_ExcludesMessage()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var futureTime = DateTimeOffset.UtcNow.AddSeconds(10);
+
+        var message = CreateMessage();
+        message.Status = OutboxMessageStatus.Failed;
+        message.RetryCount = 1;
+        message.NextRetryAt = futureTime;
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        var failedForRetry = await repository
+            .GetFailedForRetryAsync(maxRetryCount: 3, batchSize: 10)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(failedForRetry.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task GetFailedForRetryAsync_WithPastNextRetryAt_IncludesMessage()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var pastTime = DateTimeOffset.UtcNow.AddSeconds(-10);
+
+        var message = CreateMessage();
+        message.Status = OutboxMessageStatus.Failed;
+        message.RetryCount = 1;
+        message.NextRetryAt = pastTime;
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        var failedForRetry = await repository
+            .GetFailedForRetryAsync(maxRetryCount: 3, batchSize: 10)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(failedForRetry.Count).IsEqualTo(1);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static ILogger<OutboxProcessorHostedService> CreateLogger() =>
@@ -885,7 +1046,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed class InMemoryOutboxRepository : IOutboxRepository
     {
-        private readonly List<OutboxMessage> _messages = [];
+        internal readonly List<OutboxMessage> _messages = [];
         private readonly object _lock = new();
 
         public List<Guid> CompletedMessageIds { get; } = [];
@@ -922,10 +1083,15 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            var now = DateTimeOffset.UtcNow;
             lock (_lock)
             {
                 var messages = _messages
-                    .Where(m => m.Status == OutboxMessageStatus.Failed && m.RetryCount < maxRetryCount)
+                    .Where(m =>
+                        m.Status == OutboxMessageStatus.Failed
+                        && m.RetryCount < maxRetryCount
+                        && (m.NextRetryAt == null || m.NextRetryAt <= now)
+                    )
                     .Take(batchSize)
                     .ToList();
 
@@ -943,12 +1109,18 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            var now = DateTimeOffset.UtcNow;
             lock (_lock)
             {
                 GetPendingCallCount++;
                 LastBatchSizeRequested = batchSize;
 
-                var messages = _messages.Where(m => m.Status == OutboxMessageStatus.Pending).Take(batchSize).ToList();
+                var messages = _messages
+                    .Where(m =>
+                        m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now)
+                    )
+                    .Take(batchSize)
+                    .ToList();
 
                 foreach (var msg in messages)
                 {
@@ -1010,6 +1182,29 @@ public sealed class OutboxProcessorHostedServiceTests
                     message.Status = OutboxMessageStatus.Failed;
                     message.Error = errorMessage;
                     message.RetryCount++;
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task MarkAsFailedAsync(
+            Guid messageId,
+            string errorMessage,
+            DateTimeOffset? nextRetryAt,
+            CancellationToken cancellationToken = default
+        )
+        {
+            lock (_lock)
+            {
+                FailedMessageIds.Add(messageId);
+                var message = _messages.FirstOrDefault(m => m.Id == messageId);
+                if (message is not null)
+                {
+                    message.Status = OutboxMessageStatus.Failed;
+                    message.Error = errorMessage;
+                    message.RetryCount++;
+                    message.NextRetryAt = nextRetryAt;
                 }
             }
 

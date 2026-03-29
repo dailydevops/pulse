@@ -111,6 +111,9 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         // ProcessedAt column
         _ = builder.Property(m => m.ProcessedAt).HasColumnName(OutboxMessageSchema.Columns.ProcessedAt);
 
+        // NextRetryAt column
+        _ = builder.Property(m => m.NextRetryAt).HasColumnName(OutboxMessageSchema.Columns.NextRetryAt);
+
         // RetryCount column
         _ = builder
             .Property(m => m.RetryCount)

@@ -15,18 +15,6 @@ using NetEvolve.Pulse.Extensibility;
 public sealed class OutboxEventTypeOptions
 {
     /// <summary>
-    /// Gets or sets the maximum number of messages to process in a single batch.
-    /// When <c>null</c>, the global <see cref="OutboxProcessorOptions.BatchSize"/> is used.
-    /// </summary>
-    public int? BatchSize { get; set; }
-
-    /// <summary>
-    /// Gets or sets the delay between processing cycles when no messages are found.
-    /// When <c>null</c>, the global <see cref="OutboxProcessorOptions.PollingInterval"/> is used.
-    /// </summary>
-    public TimeSpan? PollingInterval { get; set; }
-
-    /// <summary>
     /// Gets or sets the maximum number of retry attempts before moving to dead letter.
     /// When <c>null</c>, the global <see cref="OutboxProcessorOptions.MaxRetryCount"/> is used.
     /// </summary>
