@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>Azure Service Bus transport for the Pulse CQRS mediator outbox. Publishes outbox messages directly to Azure Service Bus queues or topics via the Azure.Messaging.ServiceBus SDK, enabling reliable event delivery without requiring Dapr. Supports single message sending, batch sending via ServiceBusMessageBatch, health checks via ServiceBusAdministrationClient, and authentication with either a connection string or DefaultAzureCredential for Managed Identity.</Description>
+    <PackageTags>$(PackageTags);azure;servicebus;transport;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>
