@@ -30,13 +30,15 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "Stored procedure names are constructed from validated OutboxOptions.Schema property, not user input."
 )]
+[SuppressMessage(
+    "Roslynator",
+    "RCS1084:Use coalesce expression instead of conditional expression",
+    Justification = "NextRetryAt and ProcessedAt properties require explicit conditional checks."
+)]
 internal sealed class SqlServerOutboxRepository : IOutboxRepository
 {
     /// <summary>The SQL Server connection string used to open new connections for each repository operation.</summary>
     private readonly string _connectionString;
-
-    /// <summary>The resolved outbox options controlling table name, schema, and serialization settings.</summary>
-    private readonly OutboxOptions _options;
 
     /// <summary>The optional transaction scope providing an ambient <see cref="SqlTransaction"/> for <see cref="AddAsync"/>.</summary>
     private readonly IOutboxTransactionScope? _transactionScope;
@@ -62,6 +64,9 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <summary>Cached stored procedure name for deleting completed outbox messages.</summary>
     private readonly string _deleteCompletedSql;
 
+    /// <summary>Cached SQL command text for inserting a new outbox message when no ambient transaction is present.</summary>
+    private readonly string _insertSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerOutboxRepository"/> class.
     /// </summary>
@@ -81,26 +86,21 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = connectionString;
-        _options = options.Value;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
 
-        var schema = string.IsNullOrWhiteSpace(_options.Schema) ? "dbo" : _options.Schema;
+        var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
+            ? OutboxMessageSchema.DefaultSchema
+            : options.Value.Schema;
         _getPendingSql = $"[{schema}].[usp_GetPendingOutboxMessages]";
         _getFailedForRetrySql = $"[{schema}].[usp_GetFailedOutboxMessagesForRetry]";
         _markCompletedSql = $"[{schema}].[usp_MarkOutboxMessageCompleted]";
         _markFailedSql = $"[{schema}].[usp_MarkOutboxMessageFailed]";
         _markDeadLetterSql = $"[{schema}].[usp_MarkOutboxMessageDeadLetter]";
         _deleteCompletedSql = $"[{schema}].[usp_DeleteCompletedOutboxMessages]";
-    }
 
-    /// <inheritdoc />
-    public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(message);
-
-        var sql = $"""
-            INSERT INTO {_options.FullTableName}
+        _insertSql = $"""
+            INSERT INTO {options.Value.FullTableName}
                 ([{OutboxMessageSchema.Columns.Id}],
                  [{OutboxMessageSchema.Columns.EventType}],
                  [{OutboxMessageSchema.Columns.Payload}],
@@ -108,12 +108,19 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
                  [{OutboxMessageSchema.Columns.CreatedAt}],
                  [{OutboxMessageSchema.Columns.UpdatedAt}],
                  [{OutboxMessageSchema.Columns.ProcessedAt}],
+                 [{OutboxMessageSchema.Columns.NextRetryAt}],
                  [{OutboxMessageSchema.Columns.RetryCount}],
                  [{OutboxMessageSchema.Columns.Error}],
                  [{OutboxMessageSchema.Columns.Status}])
             VALUES
-                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @RetryCount, @Error, @Status)
+                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @NextRetryAt, @RetryCount, @Error, @Status)
             """;
+    }
+
+    /// <inheritdoc />
+    public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
 
         var transaction = GetCurrentTransaction();
 
@@ -124,7 +131,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
                 transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
-            await using var command = new SqlCommand(sql, connection, transaction);
+            await using var command = new SqlCommand(_insertSql, connection, transaction);
             AddMessageParameters(command, message);
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -132,7 +139,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         {
             // Create a new connection when no ambient transaction exists
             await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = new SqlCommand(sql, connection);
+            await using var command = new SqlCommand(_insertSql, connection);
             AddMessageParameters(command, message);
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -144,6 +151,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(_getPendingSql, connection)
         {
@@ -151,6 +160,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         };
 
         _ = command.Parameters.AddWithValue("@batchSize", batchSize);
+        _ = command.Parameters.AddWithValue("@nowUtc", now);
 
         return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -162,6 +172,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(_getFailedForRetrySql, connection)
         {
@@ -170,6 +182,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
         _ = command.Parameters.AddWithValue("@maxRetryCount", maxRetryCount);
         _ = command.Parameters.AddWithValue("@batchSize", batchSize);
+        _ = command.Parameters.AddWithValue("@nowUtc", now);
 
         return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -220,6 +233,27 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
                 async (id, token) => await MarkAsFailedAsync(id, errorMessage, token).ConfigureAwait(false)
             )
             .ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task MarkAsFailedAsync(
+        Guid messageId,
+        string errorMessage,
+        DateTimeOffset? nextRetryAt,
+        CancellationToken cancellationToken = default
+    )
+    {
+        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(_markFailedSql, connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+        };
+
+        _ = command.Parameters.AddWithValue("@messageId", messageId);
+        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("@nextRetryAt", nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value);
+
+        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async Task MarkAsDeadLetterAsync(
@@ -281,7 +315,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <summary>
     /// Adds all <see cref="OutboxMessage"/> property values as typed parameters to a <see cref="SqlCommand"/>.
     /// Null-valued optional columns (<see cref="OutboxMessage.CorrelationId"/>, <see cref="OutboxMessage.Error"/>,
-    /// <see cref="OutboxMessage.ProcessedAt"/>) are mapped to <see cref="DBNull.Value"/>.
+    /// <see cref="OutboxMessage.ProcessedAt"/>, <see cref="OutboxMessage.NextRetryAt"/>) are mapped to <see cref="DBNull.Value"/>.
     /// </summary>
     /// <param name="command">The command to which parameters are added.</param>
     /// <param name="message">The outbox message providing parameter values.</param>
@@ -296,6 +330,10 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         _ = command.Parameters.AddWithValue(
             "@ProcessedAt",
             message.ProcessedAt.HasValue ? message.ProcessedAt.Value : DBNull.Value
+        );
+        _ = command.Parameters.AddWithValue(
+            "@NextRetryAt",
+            message.NextRetryAt.HasValue ? message.NextRetryAt.Value : DBNull.Value
         );
         _ = command.Parameters.AddWithValue("@RetryCount", message.RetryCount);
         _ = command.Parameters.AddWithValue("@Error", (object?)message.Error ?? DBNull.Value);
@@ -332,6 +370,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
         var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
         var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
         var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
@@ -348,6 +387,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
                     ordCreatedAt,
                     ordUpdatedAt,
                     ordProcessedAt,
+                    ordNextRetryAt,
                     ordRetryCount,
                     ordError,
                     ordStatus
@@ -370,6 +410,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <param name="ordCreatedAt">Pre-resolved ordinal for the CreatedAt column.</param>
     /// <param name="ordUpdatedAt">Pre-resolved ordinal for the UpdatedAt column.</param>
     /// <param name="ordProcessedAt">Pre-resolved ordinal for the ProcessedAt column.</param>
+    /// <param name="ordNextRetryAt">Pre-resolved ordinal for the NextRetryAt column.</param>
     /// <param name="ordRetryCount">Pre-resolved ordinal for the RetryCount column.</param>
     /// <param name="ordError">Pre-resolved ordinal for the Error column.</param>
     /// <param name="ordStatus">Pre-resolved ordinal for the Status column.</param>
@@ -383,6 +424,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         int ordCreatedAt,
         int ordUpdatedAt,
         int ordProcessedAt,
+        int ordNextRetryAt,
         int ordRetryCount,
         int ordError,
         int ordStatus
@@ -396,6 +438,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
             CreatedAt = reader.GetDateTimeOffset(ordCreatedAt),
             UpdatedAt = reader.GetDateTimeOffset(ordUpdatedAt),
             ProcessedAt = reader.IsDBNull(ordProcessedAt) ? null : reader.GetDateTimeOffset(ordProcessedAt),
+            NextRetryAt = reader.IsDBNull(ordNextRetryAt) ? null : reader.GetDateTimeOffset(ordNextRetryAt),
             RetryCount = reader.GetInt32(ordRetryCount),
             Error = reader.IsDBNull(ordError) ? null : reader.GetString(ordError),
             Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),

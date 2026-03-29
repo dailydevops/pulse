@@ -103,10 +103,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(
-                    null!,
-                    (Func<IServiceProvider, string>)(_ => "Server=.;Encrypt=true;")
-                )
+                SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(null!, _ => "Server=.;Encrypt=true;")
             )
             .Throws<ArgumentNullException>();
 

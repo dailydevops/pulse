@@ -21,25 +21,37 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>Pre-compiled pending ID-selection query; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<TContext, int, IAsyncEnumerable<Guid>> _getPendingIdsQuery = EF.CompileAsyncQuery(
-        (TContext ctx, int batchSize) =>
-            ctx
-                .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending)
-                .OrderBy(m => m.CreatedAt)
-                .Take(batchSize)
-                .Select(m => m.Id)
-    );
-
-    /// <summary>Pre-compiled failed-for-retry ID-selection query; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<TContext, int, int, IAsyncEnumerable<Guid>> _getFailedForRetryIdsQuery =
+    private static readonly Func<TContext, int, DateTimeOffset, IAsyncEnumerable<Guid>> _getPendingIdsQuery =
         EF.CompileAsyncQuery(
-            (TContext ctx, int maxRetryCount, int batchSize) =>
+            (TContext ctx, int batchSize, DateTimeOffset now) =>
                 ctx
-                    .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Failed && m.RetryCount < maxRetryCount)
-                    .OrderBy(m => m.UpdatedAt)
+                    .OutboxMessages.Where(m =>
+                        m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now)
+                    )
+                    .OrderBy(m => m.CreatedAt)
                     .Take(batchSize)
                     .Select(m => m.Id)
         );
+
+    /// <summary>Pre-compiled failed-for-retry ID-selection query; eliminates expression-tree overhead on every call.</summary>
+    private static readonly Func<
+        TContext,
+        int,
+        int,
+        DateTimeOffset,
+        IAsyncEnumerable<Guid>
+    > _getFailedForRetryIdsQuery = EF.CompileAsyncQuery(
+        (TContext ctx, int maxRetryCount, int batchSize, DateTimeOffset now) =>
+            ctx
+                .OutboxMessages.Where(m =>
+                    m.Status == OutboxMessageStatus.Failed
+                    && m.RetryCount < maxRetryCount
+                    && (m.NextRetryAt == null || m.NextRetryAt <= now)
+                )
+                .OrderBy(m => m.UpdatedAt)
+                .Take(batchSize)
+                .Select(m => m.Id)
+    );
 
     /// <summary>The DbContext used for all LINQ-to-SQL query and update operations.</summary>
     private readonly TContext _context;
@@ -80,7 +92,9 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var ids = new List<Guid>(batchSize);
         await foreach (
-            var id in _getPendingIdsQuery(_context, batchSize).WithCancellation(cancellationToken).ConfigureAwait(false)
+            var id in _getPendingIdsQuery(_context, batchSize, now)
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false)
         )
         {
             ids.Add(id);
@@ -117,7 +131,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var ids = new List<Guid>(batchSize);
         await foreach (
-            var id in _getFailedForRetryIdsQuery(_context, maxRetryCount, batchSize)
+            var id in _getFailedForRetryIdsQuery(_context, maxRetryCount, batchSize, now)
                 .WithCancellation(cancellationToken)
                 .ConfigureAwait(false)
         )
@@ -204,6 +218,30 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
                         .SetProperty(m => m.Error, errorMessage)
                         .SetProperty(m => m.UpdatedAt, now)
                         .SetProperty(m => m.RetryCount, m => m.RetryCount + 1),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAsFailedAsync(
+        Guid messageId,
+        string errorMessage,
+        DateTimeOffset? nextRetryAt,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var now = _timeProvider.GetUtcNow();
+
+        _ = await _context
+            .OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing)
+            .ExecuteUpdateAsync(
+                m =>
+                    m.SetProperty(m => m.Status, OutboxMessageStatus.Failed)
+                        .SetProperty(m => m.Error, errorMessage)
+                        .SetProperty(m => m.UpdatedAt, now)
+                        .SetProperty(m => m.RetryCount, m => m.RetryCount + 1)
+                        .SetProperty(m => m.NextRetryAt, nextRetryAt),
                 cancellationToken
             )
             .ConfigureAwait(false);

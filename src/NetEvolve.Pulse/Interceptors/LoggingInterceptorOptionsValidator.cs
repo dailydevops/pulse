@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Interceptors;
 
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 /// <summary>

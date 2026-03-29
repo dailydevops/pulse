@@ -64,6 +64,11 @@ public static class OutboxMessageSchema
         public const string ProcessedAt = "ProcessedAt";
 
         /// <summary>
+        /// The NextRetryAt column name.
+        /// </summary>
+        public const string NextRetryAt = "NextRetryAt";
+
+        /// <summary>
         /// The RetryCount column name.
         /// </summary>
         public const string RetryCount = "RetryCount";

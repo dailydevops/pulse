@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
-using static System.Net.WebRequestMethods;
 
 /// <summary>
 /// Provides extension methods for <see cref="IServiceCollection"/> to register the Pulse mediator and its dependencies.
