@@ -88,13 +88,7 @@ public class LoggingEventInterceptorTests
         var testEvent = new TestEvent();
 
         await interceptor
-            .HandleAsync(
-                testEvent,
-                async (_, ct) =>
-                {
-                    await Task.Delay(50, ct).ConfigureAwait(false);
-                }
-            )
+            .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false))
             .ConfigureAwait(false);
 
         var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
@@ -110,13 +104,7 @@ public class LoggingEventInterceptorTests
         var testEvent = new TestEvent();
 
         await interceptor
-            .HandleAsync(
-                testEvent,
-                async (_, ct) =>
-                {
-                    await Task.Delay(50, ct).ConfigureAwait(false);
-                }
-            )
+            .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false))
             .ConfigureAwait(false);
 
         var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();

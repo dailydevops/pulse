@@ -1,5 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Extensibility;
 
+using NetEvolve.Pulse.Extensibility.Outbox;
+
 /// <summary>
 /// Defines the contract for dispatching events to their registered handlers.
 /// Implementations determine the execution strategy (parallel, sequential, rate-limited, prioritized, transactional).

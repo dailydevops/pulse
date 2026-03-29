@@ -1,6 +1,6 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
-using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using TUnit.Core;
 
 public sealed class OutboxStatisticsTests

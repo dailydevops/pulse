@@ -5,6 +5,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;

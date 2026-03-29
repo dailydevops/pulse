@@ -3,6 +3,7 @@
 using System.Threading.Tasks;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using TUnit.Core;
 
 /// <summary>

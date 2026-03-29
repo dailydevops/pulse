@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Internals;
 using TUnit.Assertions;

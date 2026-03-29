@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Core;
 

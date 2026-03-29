@@ -1,6 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
-using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Per-event-type configuration overrides for the outbox background processor.

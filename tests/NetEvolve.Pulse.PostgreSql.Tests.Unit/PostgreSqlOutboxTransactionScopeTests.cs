@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.PostgreSql.Tests.Unit;
 
 using System.Threading.Tasks;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
 public sealed class PostgreSqlOutboxTransactionScopeTests

@@ -56,10 +56,7 @@ public sealed class FluentValidationMediatorConfiguratorExtensionsTests
         // Arrange
         var services = new ServiceCollection();
         IMediatorConfigurator? result = null;
-        _ = services.AddPulse(configurator =>
-        {
-            result = configurator.AddFluentValidation();
-        });
+        _ = services.AddPulse(configurator => result = configurator.AddFluentValidation());
 
         // Assert
         _ = await Assert.That(result).IsNotNull();

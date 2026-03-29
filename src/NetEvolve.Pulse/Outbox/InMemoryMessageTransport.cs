@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Default message transport that dispatches outbox messages through the mediator.

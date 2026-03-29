@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Extensibility;
 
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Pulse.Extensibility.Caching;
 
 /// <summary>
 /// Provides a fluent interface for configuring the Pulse mediator with additional capabilities and interceptors.

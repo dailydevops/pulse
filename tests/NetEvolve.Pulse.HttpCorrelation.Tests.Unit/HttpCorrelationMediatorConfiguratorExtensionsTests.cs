@@ -93,10 +93,7 @@ public sealed class HttpCorrelationMediatorConfiguratorExtensionsTests
         // Arrange
         var services = new ServiceCollection();
         IMediatorConfigurator? result = null;
-        _ = services.AddPulse(configurator =>
-        {
-            result = configurator.AddHttpCorrelationEnrichment();
-        });
+        _ = services.AddPulse(configurator => result = configurator.AddHttpCorrelationEnrichment());
 
         // Assert
         _ = await Assert.That(result).IsNotNull();

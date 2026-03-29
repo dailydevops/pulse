@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
 /// Request interceptor that enforces idempotency for commands implementing

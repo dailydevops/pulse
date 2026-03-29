@@ -8,6 +8,7 @@ using global::Polly.Retry;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Caching;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
