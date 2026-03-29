@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureServiceBus\NetEvolve.Pulse.AzureServiceBus.csproj" />
   </ItemGroup>
 

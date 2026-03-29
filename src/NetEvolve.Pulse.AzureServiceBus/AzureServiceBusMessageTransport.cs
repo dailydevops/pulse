@@ -82,18 +82,16 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     {
         try
         {
-            if (
-                await _administrationClientAdapter
-                    .TryGetQueueRuntimePropertiesAsync(_options.EntityPath, cancellationToken)
-                    .ConfigureAwait(false)
-            )
+            return _options.EntityType switch
             {
-                return true;
-            }
-
-            return await _administrationClientAdapter
-                .TryGetTopicRuntimePropertiesAsync(_options.EntityPath, cancellationToken)
-                .ConfigureAwait(false);
+                AzureServiceBusEntityType.Queue => await _administrationClientAdapter
+                    .TryGetQueueRuntimePropertiesAsync(_options.EntityPath, cancellationToken)
+                    .ConfigureAwait(false),
+                AzureServiceBusEntityType.Topic => await _administrationClientAdapter
+                    .TryGetTopicRuntimePropertiesAsync(_options.EntityPath, cancellationToken)
+                    .ConfigureAwait(false),
+                _ => false,
+            };
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {

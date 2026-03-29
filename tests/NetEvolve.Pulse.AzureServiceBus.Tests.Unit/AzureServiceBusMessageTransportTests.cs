@@ -71,34 +71,47 @@ public sealed class AzureServiceBusMessageTransportTests
     public async Task IsHealthyAsync_When_queue_unavailable_returns_false()
     {
         await using var sender = new FakeServiceBusSenderAdapter();
-        var admin = new FakeAdministrationClientAdapter { QueueHealthy = false, TopicHealthy = false };
+        var admin = new FakeAdministrationClientAdapter { QueueHealthy = false };
         await using var transport = CreateTransport(sender, admin);
 
         var healthy = await transport.IsHealthyAsync();
 
         _ = await Assert.That(healthy).IsFalse();
         _ = await Assert.That(admin.QueueCalls).IsEqualTo(1);
-        _ = await Assert.That(admin.TopicCalls).IsEqualTo(1);
     }
 
     [Test]
-    public async Task IsHealthyAsync_When_queue_healthy_returns_true_without_topic_call()
+    public async Task IsHealthyAsync_When_queue_healthy_returns_true()
     {
         await using var sender = new FakeServiceBusSenderAdapter();
-        var admin = new FakeAdministrationClientAdapter { QueueHealthy = true, TopicHealthy = false };
+        var admin = new FakeAdministrationClientAdapter { QueueHealthy = true };
         await using var transport = CreateTransport(sender, admin);
 
         var healthy = await transport.IsHealthyAsync();
 
         _ = await Assert.That(healthy).IsTrue();
         _ = await Assert.That(admin.QueueCalls).IsEqualTo(1);
-        _ = await Assert.That(admin.TopicCalls).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task IsHealthyAsync_When_entity_type_is_topic_checks_topic()
+    {
+        await using var sender = new FakeServiceBusSenderAdapter();
+        var admin = new FakeAdministrationClientAdapter { TopicHealthy = true };
+        await using var transport = CreateTransport(sender, admin, entityType: AzureServiceBusEntityType.Topic);
+
+        var healthy = await transport.IsHealthyAsync();
+
+        _ = await Assert.That(healthy).IsTrue();
+        _ = await Assert.That(admin.TopicCalls).IsEqualTo(1);
+        _ = await Assert.That(admin.QueueCalls).IsEqualTo(0);
     }
 
     private static AzureServiceBusMessageTransport CreateTransport(
         IServiceBusSenderAdapter sender,
         IServiceBusAdministrationClientAdapter admin,
-        bool enableBatching = true
+        bool enableBatching = true,
+        AzureServiceBusEntityType entityType = AzureServiceBusEntityType.Queue
     )
     {
         var options = Options.Create(
@@ -108,6 +121,7 @@ public sealed class AzureServiceBusMessageTransportTests
                     "Endpoint=sb://localhost/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Fake=",
                 EntityPath = "queue",
                 EnableBatching = enableBatching,
+                EntityType = entityType,
             }
         );
 

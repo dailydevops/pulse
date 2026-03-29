@@ -6,19 +6,36 @@ using Azure.Messaging.ServiceBus.Administration;
 
 internal sealed class ServiceBusAdministrationClientAdapter : IServiceBusAdministrationClientAdapter
 {
-    private readonly ServiceBusAdministrationClient _client;
+    private readonly Func<string, CancellationToken, Task> _getQueueRuntimePropertiesAsync;
+    private readonly Func<string, CancellationToken, Task> _getTopicRuntimePropertiesAsync;
 
     public ServiceBusAdministrationClientAdapter(ServiceBusAdministrationClient client)
     {
         ArgumentNullException.ThrowIfNull(client);
-        _client = client;
+
+        _getQueueRuntimePropertiesAsync = (entityPath, cancellationToken) =>
+            client.GetQueueRuntimePropertiesAsync(entityPath, cancellationToken);
+        _getTopicRuntimePropertiesAsync = (entityPath, cancellationToken) =>
+            client.GetTopicRuntimePropertiesAsync(entityPath, cancellationToken);
+    }
+
+    internal ServiceBusAdministrationClientAdapter(
+        Func<string, CancellationToken, Task> getQueueRuntimePropertiesAsync,
+        Func<string, CancellationToken, Task> getTopicRuntimePropertiesAsync
+    )
+    {
+        ArgumentNullException.ThrowIfNull(getQueueRuntimePropertiesAsync);
+        ArgumentNullException.ThrowIfNull(getTopicRuntimePropertiesAsync);
+
+        _getQueueRuntimePropertiesAsync = getQueueRuntimePropertiesAsync;
+        _getTopicRuntimePropertiesAsync = getTopicRuntimePropertiesAsync;
     }
 
     public async Task<bool> TryGetQueueRuntimePropertiesAsync(string entityPath, CancellationToken cancellationToken)
     {
         try
         {
-            _ = await _client.GetQueueRuntimePropertiesAsync(entityPath, cancellationToken).ConfigureAwait(false);
+            await _getQueueRuntimePropertiesAsync(entityPath, cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (RequestFailedException)
@@ -35,7 +52,7 @@ internal sealed class ServiceBusAdministrationClientAdapter : IServiceBusAdminis
     {
         try
         {
-            _ = await _client.GetTopicRuntimePropertiesAsync(entityPath, cancellationToken).ConfigureAwait(false);
+            await _getTopicRuntimePropertiesAsync(entityPath, cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (RequestFailedException)
