@@ -13,6 +13,7 @@ Native Azure Service Bus transport for Pulse outbox delivery with batching, mana
 - **Batching**: Toggle batch sending per outbox batch to reduce broker calls.
 - **Health Checks**: Uses Service Bus runtime properties to report entity availability.
 - **Dependency Injection**: Single call `UseAzureServiceBusTransport` wires clients, sender, and health adapters.
+- **Env/Emulator Friendly**: Works with Azure-hosted namespaces, dev tunnels, or local emulator connection strings.
 
 ## Installation
 
@@ -45,6 +46,17 @@ services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 }));
 ```
 
+### Managed Identity Example
+
+```csharp
+services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
+{
+    options.FullyQualifiedNamespace = "contoso.servicebus.windows.net";
+    options.EntityPath = "outbox-topic";
+    options.EntityType = AzureServiceBusEntityType.Topic;
+}));
+```
+
 ## Choosing Queue vs. Topic
 
 - Use **Queue** (`EntityType = Queue`) for point-to-point delivery where a single processor handles each message.
@@ -60,3 +72,12 @@ services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 | `EntityPath` | Queue or topic name that receives outbox messages. |
 | `EntityType` | Target entity kind (`Queue` or `Topic`). Defaults to `Queue`. |
 | `EnableBatching` | Enables batch sending per outbox batch. Defaults to `true`. |
+
+## Health Checks
+
+`AzureServiceBusMessageTransport.IsHealthyAsync` probes the configured entity type:
+
+- For **queues**, it calls `GetQueueRuntimePropertiesAsync`.
+- For **topics**, it calls `GetTopicRuntimePropertiesAsync`.
+
+Any exception other than cancellation returns `false`, allowing the outbox processor to surface transport availability.
