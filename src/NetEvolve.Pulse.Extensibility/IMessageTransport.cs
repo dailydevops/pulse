@@ -67,10 +67,8 @@ public interface IMessageTransport
     /// Messages are processed in parallel (not sequentially), which may improve throughput significantly.
     /// The degree of parallelism is determined by the system's thread pool.
     /// <para><strong>Error Handling:</strong></para>
-    /// Individual message send failures are silently ignored and do not interrupt the batch operation.
-    /// This allows all messages in the batch to be attempted concurrently. Failures are expected to be
-    /// handled at a higher level which processes
-    /// each message's result independently and applies retry or dead-letter logic accordingly.
+    /// Individual message send failures propagate as exceptions and interrupt batch processing.
+    /// The first exception encountered will be thrown, terminating the batch operation.
     /// <para><strong>Cancellation:</strong></para>
     /// If the cancellation token is triggered, all remaining concurrent operations are cancelled,
     /// and the task completes. Already-attempted messages may have partial results depending on
@@ -87,18 +85,7 @@ public interface IMessageTransport
             .ForEachAsync(
                 messages,
                 cancellationToken,
-                async (message, token) =>
-                {
-                    try
-                    {
-                        await SendAsync(message, token).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        // Silently ignore individual message failures.
-                        // Error handling and retry logic is managed at the OutboxProcessorHostedService level.
-                    }
-                }
+                async (message, token) => await SendAsync(message, token).ConfigureAwait(false)
             )
             .ConfigureAwait(false);
 
