@@ -26,6 +26,11 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
     private const string EventHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IEventHandler`1";
 
+    /// <summary>
+    /// Default service lifetime value matching <c>PulseServiceLifetime.Scoped</c>.
+    /// </summary>
+    private const int DefaultLifetime = 1; // PulseServiceLifetime.Scoped
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -57,14 +62,15 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Read the Lifetime property from the attribute (default: Scoped = 1).
-        var lifetime = 1; // PulseServiceLifetime.Scoped
+        // Read the Lifetime property from the attribute.
+        var lifetime = DefaultLifetime;
         foreach (var attr in ctx.Attributes)
         {
             foreach (var namedArg in attr.NamedArguments)
             {
                 if (string.Equals(namedArg.Key, "Lifetime", StringComparison.Ordinal) && !namedArg.Value.IsNull)
                 {
+                    // When IsNull is false, Value is guaranteed to be non-null by the Roslyn API contract.
                     lifetime = (int)namedArg.Value.Value!;
                 }
             }
