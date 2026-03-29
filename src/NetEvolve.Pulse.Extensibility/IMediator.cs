@@ -1,6 +1,9 @@
 ﻿namespace NetEvolve.Pulse.Extensibility;
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 
 /// <summary>
 /// Defines the mediator pattern implementation for decoupling request/response and event publishing.
@@ -59,6 +62,26 @@ public interface IMediator
     /// </remarks>
     Task<TResponse> QueryAsync<TQuery, TResponse>([NotNull] TQuery query, CancellationToken cancellationToken = default)
         where TQuery : IQuery<TResponse>;
+
+    /// <summary>
+    /// Executes a streaming query and returns an asynchronous sequence of items.
+    /// Streaming queries are read-only operations that yield results incrementally without buffering the entire result set in memory.
+    /// </summary>
+    /// <typeparam name="TQuery">The type of streaming query to execute.</typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded by the streaming query.</typeparam>
+    /// <param name="query">The streaming query to execute.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>An asynchronous sequence of result items.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the streaming query type.</exception>
+    /// <remarks>
+    /// ⚠️ Exactly one handler must be registered for each streaming query type.
+    /// Items are yielded incrementally; the caller must enumerate the result to trigger execution.
+    /// </remarks>
+    IAsyncEnumerable<TResponse> StreamQueryAsync<TQuery, TResponse>(
+        [NotNull] TQuery query,
+        CancellationToken cancellationToken = default
+    )
+        where TQuery : IStreamQuery<TResponse>;
 
     /// <summary>
     /// Asynchronously sends a command for execution and returns the result.

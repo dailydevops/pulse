@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit;
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
@@ -701,5 +702,177 @@ public class HandlerRegistrationExtensionsTests
             Func<TestEvent, CancellationToken, Task> handler,
             CancellationToken cancellationToken = default
         ) => handler(message, cancellationToken);
+    }
+
+    // Stream query handler registration tests
+    [Test]
+    public void AddStreamQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>()
+        );
+    }
+
+    [Test]
+    public async Task AddStreamQueryHandler_RegistersHandlerWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>()
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IStreamQueryHandler<TestStreamQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestStreamQueryHandler));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryHandler_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>(ServiceLifetime.Singleton)
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IStreamQueryHandler<TestStreamQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestStreamQueryHandler));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryHandler_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    [Test]
+    public void AddStreamQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
+    {
+        IMediatorConfigurator? configurator = null;
+
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            configurator!.AddStreamQueryInterceptor<TestStreamQuery, string, TestStreamQueryInterceptor>()
+        );
+    }
+
+    [Test]
+    public async Task AddStreamQueryInterceptor_RegistersInterceptorWithScopedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddStreamQueryInterceptor<TestStreamQuery, string, TestStreamQueryInterceptor>()
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IStreamQueryInterceptor<TestStreamQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestStreamQueryInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse(config =>
+            config.AddStreamQueryInterceptor<TestStreamQuery, string, TestStreamQueryInterceptor>(
+                ServiceLifetime.Singleton
+            )
+        );
+
+        var descriptor = services.FirstOrDefault(x =>
+            x.ServiceType == typeof(IStreamQueryInterceptor<TestStreamQuery, string>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestStreamQueryInterceptor));
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryInterceptor_ReturnsConfigurator()
+    {
+        var services = new ServiceCollection();
+        IMediatorConfigurator? capturedConfig = null;
+        IMediatorConfigurator? result = null;
+
+        _ = services.AddPulse(config =>
+        {
+            capturedConfig = config;
+            result = config.AddStreamQueryInterceptor<TestStreamQuery, string, TestStreamQueryInterceptor>();
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedConfig).IsNotNull();
+            _ = await Assert.That(result).IsSameReferenceAs(capturedConfig);
+        }
+    }
+
+    private sealed partial record TestStreamQuery(string Value) : IStreamQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed partial class TestStreamQueryHandler : IStreamQueryHandler<TestStreamQuery, string>
+    {
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery query,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            yield return query.Value;
+        }
+    }
+
+    private sealed partial class TestStreamQueryInterceptor : IStreamQueryInterceptor<TestStreamQuery, string>
+    {
+        public IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery request,
+            Func<TestStreamQuery, CancellationToken, IAsyncEnumerable<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request, cancellationToken);
     }
 }
