@@ -1,8 +1,10 @@
 namespace NetEvolve.Pulse.FluentValidation.Tests.Integration;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentValidation;
 using global::FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
@@ -72,7 +74,7 @@ public sealed class FluentValidationInterceptorTests
 
         // Act & Assert — empty name should fail validation
         _ = await Assert
-            .That(() => mediator.SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand(string.Empty, 0)))
+            .That(() => mediator.SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand(string.Empty, 0))!)
             .Throws<ValidationException>();
 
         _ = await Assert.That(handlerCalled).IsFalse();
@@ -125,7 +127,7 @@ public sealed class FluentValidationInterceptorTests
         // Act — use an OrderId exceeding 50 chars with negative quantity so both validators fail
         var exception = await Assert
             .That(() =>
-                mediator.SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand(new string('X', 51), -1))
+                mediator.SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand(new string('X', 51), -1))!
             )
             .Throws<ValidationException>();
 
@@ -172,7 +174,7 @@ public sealed class FluentValidationInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(() => mediator.QueryAsync<GetOrderQuery, OrderResult>(new GetOrderQuery(string.Empty)))
+            .That(() => mediator.QueryAsync<GetOrderQuery, OrderResult>(new GetOrderQuery(string.Empty))!)
             .Throws<ValidationException>();
     }
 
@@ -192,26 +194,29 @@ public sealed class FluentValidationInterceptorTests
 
     // --- Validators ---
 
-    private sealed class CreateOrderCommandValidator : global::FluentValidation.AbstractValidator<CreateOrderCommand>
+    private sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderCommand>
     {
+        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Validator is used by FluentValidation interceptor.")]
         public CreateOrderCommandValidator()
         {
-            RuleFor(x => x.OrderId).NotEmpty().WithMessage("OrderId must not be empty.");
-            RuleFor(x => x.Quantity).GreaterThan(0).WithMessage("Quantity must be greater than zero.");
+            _ = RuleFor(x => x.OrderId).NotEmpty().WithMessage("OrderId must not be empty.");
+            _ = RuleFor(x => x.Quantity).GreaterThan(0).WithMessage("Quantity must be greater than zero.");
         }
     }
 
     private sealed class AdditionalCreateOrderCommandValidator
-        : global::FluentValidation.AbstractValidator<CreateOrderCommand>
+        : AbstractValidator<CreateOrderCommand>
     {
+        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Validator is used by FluentValidation interceptor.")]
         public AdditionalCreateOrderCommandValidator() =>
             RuleFor(x => x.OrderId)
                 .MaximumLength(50)
                 .WithMessage("OrderId must not exceed 50 characters (additional validator).");
     }
 
-    private sealed class GetOrderQueryValidator : global::FluentValidation.AbstractValidator<GetOrderQuery>
+    private sealed class GetOrderQueryValidator : AbstractValidator<GetOrderQuery>
     {
+        [SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Validator is used by FluentValidation interceptor.")]
         public GetOrderQueryValidator() => RuleFor(x => x.OrderId).NotEmpty().WithMessage("OrderId must not be empty.");
     }
 

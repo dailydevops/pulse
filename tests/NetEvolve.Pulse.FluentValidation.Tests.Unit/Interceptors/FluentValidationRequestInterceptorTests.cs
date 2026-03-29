@@ -168,18 +168,18 @@ public sealed class FluentValidationRequestInterceptorTests
         public string? CorrelationId { get; set; }
     }
 
-    private sealed class AlwaysValidValidator : global::FluentValidation.AbstractValidator<TestCommand>
+    private sealed class AlwaysValidValidator : AbstractValidator<TestCommand>
     {
         public AlwaysValidValidator() => RuleFor(x => x.Value).NotEmpty();
     }
 
-    private sealed class AlwaysInvalidValidator : global::FluentValidation.AbstractValidator<TestCommand>
+    private sealed class AlwaysInvalidValidator : AbstractValidator<TestCommand>
     {
         public AlwaysInvalidValidator() =>
             RuleFor(x => x.Value).Must(_ => false).WithMessage("AlwaysInvalid: validation failed.");
     }
 
-    private sealed class AnotherInvalidValidator : global::FluentValidation.AbstractValidator<TestCommand>
+    private sealed class AnotherInvalidValidator : AbstractValidator<TestCommand>
     {
         public AnotherInvalidValidator() =>
             RuleFor(x => x.Value).Must(_ => false).WithMessage("AnotherInvalid: another validation failed.");
