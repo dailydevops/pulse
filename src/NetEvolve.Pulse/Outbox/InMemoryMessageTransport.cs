@@ -27,7 +27,7 @@ internal sealed class InMemoryMessageTransport : IMessageTransport
     private static readonly ConcurrentDictionary<
         Type,
         Func<IMediator, IEvent, CancellationToken, Task>
-    > _publishDelegates = new();
+    > PublishDelegates = new();
 
     /// <summary>The mediator used to publish deserialized events in-process.</summary>
     private readonly IMediator _mediator;
@@ -80,12 +80,14 @@ internal sealed class InMemoryMessageTransport : IMessageTransport
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous publish operation.</returns>
     private Task PublishEventAsync(IEvent @event, CancellationToken cancellationToken) =>
-        _publishDelegates.GetOrAdd(@event.GetType(), CreatePublishDelegate)(_mediator, @event, cancellationToken);
+        PublishDelegates.GetOrAdd(@event.GetType(), CreatePublishDelegate)(_mediator, @event, cancellationToken);
 
     /// <summary>
     /// Builds a compiled expression-tree delegate that calls <see cref="IMediator.PublishAsync{TEvent}"/>
     /// with the given concrete <paramref name="eventType"/>. Called once per event type and cached.
     /// </summary>
+    /// <param name="eventType">The concrete event type for which to create a publish delegate.</param>
+    /// <returns>A compiled delegate that can publish events of the specified type through the mediator.</returns>
     private static Func<IMediator, IEvent, CancellationToken, Task> CreatePublishDelegate(Type eventType)
     {
         var mediatorParam = Expression.Parameter(typeof(IMediator), "mediator");

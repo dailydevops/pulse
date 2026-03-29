@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// </summary>
 /// <remarks>
 /// <para><strong>Topic Resolution:</strong></para>
-/// Each message is published to a topic resolved by <see cref="DaprMessageTransportOptions.TopicNameResolver"/>.
+/// Each message is published to a topic resolved by <see cref="ITopicNameResolver"/>.
 /// By default, the simple class name of the event type is used (e.g., <c>"OrderCreated"</c>).
 /// <para><strong>Payload:</strong></para>
 /// The raw JSON payload from <see cref="OutboxMessage.Payload"/> is published as the CloudEvent data.
@@ -23,20 +23,30 @@ internal sealed class DaprMessageTransport : IMessageTransport
     /// <summary>The Dapr client used to publish events to the configured pub/sub component.</summary>
     private readonly DaprClient _daprClient;
 
-    /// <summary>The resolved transport options controlling the pub/sub component name and topic resolution.</summary>
+    /// <summary>The resolved transport options controlling the pub/sub component name.</summary>
     private readonly DaprMessageTransportOptions _options;
+
+    /// <summary>The topic name resolver used to determine the Dapr topic name from an outbox message.</summary>
+    private readonly ITopicNameResolver _topicNameResolver;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DaprMessageTransport"/> class.
     /// </summary>
     /// <param name="daprClient">The Dapr client for publishing events.</param>
+    /// <param name="topicNameResolver">The topic name resolver for determining topic names from outbox messages.</param>
     /// <param name="options">The transport options.</param>
-    public DaprMessageTransport(DaprClient daprClient, IOptions<DaprMessageTransportOptions> options)
+    public DaprMessageTransport(
+        DaprClient daprClient,
+        ITopicNameResolver topicNameResolver,
+        IOptions<DaprMessageTransportOptions> options
+    )
     {
         ArgumentNullException.ThrowIfNull(daprClient);
+        ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
 
         _daprClient = daprClient;
+        _topicNameResolver = topicNameResolver;
         _options = options.Value;
     }
 
@@ -45,7 +55,7 @@ internal sealed class DaprMessageTransport : IMessageTransport
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var topicName = _options.TopicNameResolver(message);
+        var topicName = _topicNameResolver.Resolve(message);
         var payload = JsonSerializer.Deserialize<JsonElement>(message.Payload);
 
         await _daprClient

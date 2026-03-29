@@ -1,10 +1,11 @@
-﻿namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Extension methods for configuring outbox services on <see cref="IMediatorConfigurator"/>.
@@ -25,7 +26,8 @@ public static class OutboxMediatorConfiguratorExtensions
     /// <item><description><see cref="OutboxOptions"/> - Configuration options (Singleton)</description></item>
     /// <item><description><see cref="OutboxProcessorOptions"/> - Processor options (Singleton)</description></item>
     /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
-    /// <item><description><see cref="IMessageTransport"/> as <see cref="InMemoryMessageTransport"/> (Scoped)</description></item>
+    /// <item><description><see cref="IMessageTransport"/> as <see cref="InMemoryMessageTransport"/> (Singleton)</description></item>
+    /// <item><description><see cref="ITopicNameResolver"/> as <see cref="DefaultTopicNameResolver"/> (Singleton)</description></item>
     /// <item><description><see cref="OutboxProcessorHostedService"/> (Hosted service)</description></item>
     /// <item><description><see cref="TimeProvider"/> - System time provider (Singleton)</description></item>
     /// </list>
@@ -63,6 +65,7 @@ public static class OutboxMediatorConfiguratorExtensions
         // Register core services
         services.TryAddScoped<IEventOutbox, OutboxEventStore>();
         services.TryAddSingleton<IMessageTransport, InMemoryMessageTransport>();
+        services.TryAddSingleton<ITopicNameResolver, DefaultTopicNameResolver>();
 
         // Register background processor (TryAddEnumerable prevents duplicate registrations)
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, OutboxProcessorHostedService>());
