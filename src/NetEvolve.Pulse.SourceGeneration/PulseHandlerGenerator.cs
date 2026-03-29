@@ -233,7 +233,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     {
         var parts = new List<string>();
         var current = symbol;
-        while (current != null)
+        while (current is not null)
         {
             parts.Add(current.MetadataName);
             current = current.ContainingType;
@@ -243,7 +243,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var typePart = string.Join("+", parts);
 
         var ns = symbol.ContainingNamespace;
-        if (ns != null && !ns.IsGlobalNamespace)
+        if (ns is not null && !ns.IsGlobalNamespace)
         {
             return ns.ToDisplayString() + "." + typePart;
         }
