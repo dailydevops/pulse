@@ -171,15 +171,15 @@ public sealed class OutboxProcessorOptions
 
             var baseDelay = TimeSpan.FromMilliseconds(baseDelayMs);
 
-            // Clamp to MaxRetryDelay
-            var clampedDelay = baseDelay > MaxRetryDelay ? MaxRetryDelay : baseDelay;
-
             // Add jitter if enabled (up to 20% of computed delay)
             if (AddJitter)
             {
-                var jitterMs = GetJitterMilliseconds(clampedDelay);
-                clampedDelay = clampedDelay.Add(TimeSpan.FromMilliseconds(jitterMs));
+                var jitterMs = GetJitterMilliseconds(baseDelay);
+                baseDelay = baseDelay.Add(TimeSpan.FromMilliseconds(jitterMs));
             }
+
+            // Clamp to MaxRetryDelay
+            var clampedDelay = baseDelay > MaxRetryDelay ? MaxRetryDelay : baseDelay;
 
             return now.Add(clampedDelay);
         }
