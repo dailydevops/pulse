@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
-using Void = NetEvolve.Pulse.Extensibility.Void;
+using Void = Extensibility.Void;
 
 public sealed class MinimalApiTests
 {

@@ -34,7 +34,7 @@ internal sealed class TestAnalyzerConfigOptions : AnalyzerConfigOptions
 
     public TestAnalyzerConfigOptions(string? rootNamespace)
     {
-        _options = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+        _options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (rootNamespace is not null)
         {
             _options["build_property.RootNamespace"] = rootNamespace;

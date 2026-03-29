@@ -59,7 +59,7 @@ public sealed class HttpCorrelationMediatorConfiguratorExtensionsTests
             .Where(d =>
                 d.ServiceType == typeof(IRequestInterceptor<,>)
                 && d.ImplementationType?.GetGenericTypeDefinition()
-                    == typeof(NetEvolve.Pulse.Interceptors.HttpCorrelationRequestInterceptor<,>)
+                    == typeof(Pulse.Interceptors.HttpCorrelationRequestInterceptor<,>)
             )
             .ToList();
 
@@ -80,7 +80,7 @@ public sealed class HttpCorrelationMediatorConfiguratorExtensionsTests
             .Where(d =>
                 d.ServiceType == typeof(IEventInterceptor<>)
                 && d.ImplementationType?.GetGenericTypeDefinition()
-                    == typeof(NetEvolve.Pulse.Interceptors.HttpCorrelationEventInterceptor<>)
+                    == typeof(Pulse.Interceptors.HttpCorrelationEventInterceptor<>)
             )
             .ToList();
 

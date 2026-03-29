@@ -25,7 +25,7 @@ using NetEvolve.Pulse.Outbox;
 /// All filter properties inherit <see langword="null"/> from the base class,
 /// causing EF Core to emit plain (unfiltered) indexes.
 /// <para><strong>Usage:</strong></para>
-/// Either instantiate this class directly or use <see cref="OutboxMessageConfigurationFactory.Create(string,Microsoft.Extensions.Options.IOptions{OutboxOptions})"/>
+/// Either instantiate this class directly or use <see cref="OutboxMessageConfigurationFactory.Create(string,IOptions{OutboxOptions})"/>
 /// with a MySQL provider name.
 /// <para><strong>Customization:</strong></para>
 /// Override schema and table names via <see cref="OutboxOptions"/> before applying this configuration.

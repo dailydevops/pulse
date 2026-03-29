@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Diagnostics;
 using TUnit.Core;
 
 public class PulseHandlerGeneratorTests
@@ -13,7 +12,7 @@ public class PulseHandlerGeneratorTests
     [Test]
     public async Task WhenCommandHandlerAnnotatedThenRegistrationIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -30,21 +29,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("AddTestAssemblyHandlers");
-        _ = await Assert.That(generatedCode).Contains("TryAddScoped");
-        _ = await Assert.That(generatedCode).Contains("ICommandHandler");
-        _ = await Assert.That(generatedCode).Contains("MyCommandHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenQueryHandlerAnnotatedThenRegistrationIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -61,21 +52,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("AddTestAssemblyHandlers");
-        _ = await Assert.That(generatedCode).Contains("TryAddScoped");
-        _ = await Assert.That(generatedCode).Contains("IQueryHandler");
-        _ = await Assert.That(generatedCode).Contains("MyQueryHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenEventHandlerAnnotatedThenRegistrationIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -98,21 +81,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("AddTestAssemblyHandlers");
-        _ = await Assert.That(generatedCode).Contains("TryAddScoped");
-        _ = await Assert.That(generatedCode).Contains("IEventHandler");
-        _ = await Assert.That(generatedCode).Contains("MyEventHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenMultipleInterfacesImplementedThenAllRegistered()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -140,20 +115,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("ICommandHandler");
-        _ = await Assert.That(generatedCode).Contains("IEventHandler");
-        _ = await Assert.That(generatedCode).Contains("MultiHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenNoHandlerInterfaceImplementedThenPulse001Reported()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
 
             [PulseHandler]
@@ -162,18 +130,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, _) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).Count().IsEqualTo(1);
-
-        _ = await Assert.That(diagnostics[0].Id).IsEqualTo("PULSE001");
-        _ = await Assert.That(diagnostics[0].Severity).IsEqualTo(DiagnosticSeverity.Error);
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenNoHandlerInterfaceImplementedThenPulse001MessageContainsTypeName()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
 
             [PulseHandler]
@@ -182,18 +146,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, _) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).Count().IsEqualTo(1);
-
-        var message = diagnostics[0].GetMessage(System.Globalization.CultureInfo.InvariantCulture);
-        _ = await Assert.That(message).Contains("NotAHandler");
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenDuplicateCommandHandlersThenPulse002Reported()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -217,20 +177,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        // Should still generate registrations but also report the warning.
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var warningDiagnostics = diagnostics.Where(d => d.Id == "PULSE002").ToImmutableArray();
-
-        _ = await Assert.That(warningDiagnostics).Count().IsEqualTo(1);
-        _ = await Assert.That(warningDiagnostics[0].Severity).IsEqualTo(DiagnosticSeverity.Warning);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenDuplicateCommandHandlersThenPulse002MessageContainsBothHandlerNames()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -253,19 +206,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, _) = RunGenerator(source);
-
-        var warningDiagnostic = diagnostics.Single(d => d.Id == "PULSE002");
-        var message = warningDiagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
-
-        _ = await Assert.That(message).Contains("HandlerA");
-        _ = await Assert.That(message).Contains("HandlerB");
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenDuplicateQueryHandlersThenPulse002Reported()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -288,18 +236,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, _) = RunGenerator(source);
-
-        var warningDiagnostics = diagnostics.Where(d => d.Id == "PULSE002").ToImmutableArray();
-
-        _ = await Assert.That(warningDiagnostics).Count().IsEqualTo(1);
-        _ = await Assert.That(warningDiagnostics[0].Severity).IsEqualTo(DiagnosticSeverity.Warning);
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenMultipleEventHandlersForSameEventThenNoPulse002()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -329,19 +273,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("EventHandlerA");
-        _ = await Assert.That(generatedCode).Contains("EventHandlerB");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenNoPulseHandlerClassesThenNoOutputGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
             using System.Threading.Tasks;
@@ -356,15 +294,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).IsEmpty();
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenSingletonLifetimeSpecifiedThenTryAddSingletonIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -381,19 +317,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("TryAddSingleton");
-        _ = await Assert.That(generatedCode).Contains("MyQueryHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenTransientLifetimeSpecifiedThenTryAddTransientIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -416,19 +346,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("TryAddTransient");
-        _ = await Assert.That(generatedCode).Contains("MyEventHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenScopedLifetimeExplicitlySpecifiedThenTryAddScopedIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -445,19 +369,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("TryAddScoped");
-        _ = await Assert.That(generatedCode).Contains("MyCommandHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenRootNamespaceProvidedThenGeneratedCodeUsesIt()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -473,19 +391,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedSources) = RunGenerator(source, rootNamespace: "MyApp.Custom");
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("namespace MyApp.Custom");
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenNoRootNamespaceProvidedThenDefaultNamespaceIsUsed()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -501,19 +414,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedSources) = RunGenerator(source, rootNamespace: null);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("namespace NetEvolve.Pulse.Generated");
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenDottedAssemblyNameThenMethodNameRemovesDots()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -529,19 +437,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedSources) = RunGenerator(source, assemblyName: "NetEvolve.Pulse");
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("AddNetEvolvePulseHandlers");
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenGeneratedCodeEmittedThenItContainsAutoGeneratedComment()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -557,18 +460,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (_, generatedSources) = RunGenerator(source);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("// <auto-generated />");
-        _ = await Assert.That(generatedCode).Contains("GeneratedCode");
-        _ = await Assert.That(generatedCode).Contains("PulseHandlerRegistrationExtensions");
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenGeneratedCodeEmittedThenItUsesFullyQualifiedServiceCollectionDescriptorExtensions()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -584,20 +483,14 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (_, generatedSources) = RunGenerator(source);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert
-            .That(generatedCode)
-            .Contains(
-                "global::Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddScoped"
-            );
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenPrioritizedEventHandlerAnnotatedThenRegisteredAsIEventHandler()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -622,19 +515,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("IEventHandler");
-        _ = await Assert.That(generatedCode).Contains("MyPrioritizedHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenCommandHandlerVoidAnnotatedThenRegistrationIsGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -651,19 +538,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("ICommandHandler");
-        _ = await Assert.That(generatedCode).Contains("MyVoidCommandHandler");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenMultipleHandlerClassesThenAllRegistered()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -688,19 +569,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("HandlerA");
-        _ = await Assert.That(generatedCode).Contains("HandlerB");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenHandlersHaveDifferentLifetimesThenEachUsesItsOwn()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
             using NetEvolve.Pulse.Extensibility;
             using System.Threading;
@@ -725,19 +600,13 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(diagnostics).IsEmpty();
-        _ = await Assert.That(generatedSources).Count().IsEqualTo(1);
-
-        var generatedCode = generatedSources[0].SourceText.ToString();
-        _ = await Assert.That(generatedCode).Contains("TryAddSingleton");
-        _ = await Assert.That(generatedCode).Contains("TryAddTransient");
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
     [Test]
     public async Task WhenNoHandlerInterfaceThenNoSourceGenerated()
     {
-        var source = """
+        const string source = """
             using NetEvolve.Pulse.Attributes;
 
             [PulseHandler]
@@ -746,12 +615,11 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (_, generatedSources) = RunGenerator(source);
-
-        _ = await Assert.That(generatedSources).IsEmpty();
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
     }
 
-    private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<GeneratedSourceResult> Sources) RunGenerator(
+    private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
         string? rootNamespace = "TestAssembly",
         string assemblyName = "TestAssembly"
@@ -783,22 +651,25 @@ public class PulseHandlerGeneratorTests
 
         // Only return generator-specific diagnostics (PULSE*), not compilation diagnostics.
         var pulseDiagnostics = generatorDiagnostics
-            .Where(d => d.Id.StartsWith("PULSE", System.StringComparison.Ordinal))
+            .Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))
             .ToImmutableArray();
 
-        return (pulseDiagnostics, generatorResult.GeneratedSources);
+        return (
+            pulseDiagnostics,
+            generatorResult.GeneratedSources.Select(x => x.SourceText.ToString()).ToImmutableArray()
+        );
     }
 
     private static MetadataReference[] GetMetadataReferences()
     {
         // Core runtime references
-        var trustedAssemblies = System.AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
+        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
         var runtimeReferences = trustedAssemblies!
-            .Split(System.IO.Path.PathSeparator)
+            .Split(Path.PathSeparator)
             .Where(p =>
             {
-                var fileName = System.IO.Path.GetFileName(p);
-                return fileName.StartsWith("System.", System.StringComparison.Ordinal)
+                var fileName = Path.GetFileName(p);
+                return fileName.StartsWith("System.", StringComparison.Ordinal)
                     || fileName == "mscorlib.dll"
                     || fileName == "netstandard.dll";
             })
@@ -807,13 +678,11 @@ public class PulseHandlerGeneratorTests
             .ToList();
 
         // Add the Pulse assemblies
+        runtimeReferences.Add(MetadataReference.CreateFromFile(typeof(Extensibility.ICommand<>).Assembly.Location));
         runtimeReferences.Add(
-            MetadataReference.CreateFromFile(typeof(NetEvolve.Pulse.Extensibility.ICommand<>).Assembly.Location)
-        );
-        runtimeReferences.Add(
-            MetadataReference.CreateFromFile(typeof(NetEvolve.Pulse.Attributes.PulseHandlerAttribute).Assembly.Location)
+            MetadataReference.CreateFromFile(typeof(Attributes.PulseHandlerAttribute).Assembly.Location)
         );
 
-        return runtimeReferences.ToArray();
+        return [.. runtimeReferences];
     }
 }

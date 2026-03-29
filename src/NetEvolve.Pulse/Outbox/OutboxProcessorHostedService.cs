@@ -103,7 +103,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         _options = options.Value;
         _logger = logger;
 
-        _ = Defaults.Meter.CreateObservableGauge<long>(
+        _ = Defaults.Meter.CreateObservableGauge(
             "pulse.outbox.pending",
             observeValue: () => Volatile.Read(ref _pendingCount),
             unit: "messages",

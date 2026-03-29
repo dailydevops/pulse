@@ -16,7 +16,7 @@ public static class TimeoutMediatorConfiguratorExtensions
 {
     /// <summary>
     /// Registers the built-in <c>TimeoutRequestInterceptor</c> that enforces per-request deadlines
-    /// using a linked <see cref="System.Threading.CancellationTokenSource"/>.
+    /// using a linked <see cref="CancellationTokenSource"/>.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="globalTimeout">
@@ -38,8 +38,8 @@ public static class TimeoutMediatorConfiguratorExtensions
     /// </list>
     /// Requests that do not implement <see cref="ITimeoutRequest"/> are always passed through.
     /// <para><strong>Cancellation Semantics:</strong></para>
-    /// A <see cref="System.TimeoutException"/> is thrown only when the deadline is exceeded.
-    /// Caller-initiated cancellations propagate as <see cref="System.OperationCanceledException"/> as usual.
+    /// A <see cref="TimeoutException"/> is thrown only when the deadline is exceeded.
+    /// Caller-initiated cancellations propagate as <see cref="OperationCanceledException"/> as usual.
     /// </remarks>
     /// <example>
     /// <para><strong>Without global timeout (only ITimeoutRequest requests with a non-null Timeout are affected):</strong></para>

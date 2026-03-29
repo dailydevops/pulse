@@ -24,10 +24,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_LogsBeginAndEndAtDebugLevel()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(
-            logger,
-            new LoggingInterceptorOptions { LogLevel = LogLevel.Debug }
-        );
+        var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var testEvent = new TestEvent { CorrelationId = "corr-123" };
         var handlerCalled = false;
 
@@ -55,10 +52,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_LogsBeginAndEndAtInformationLevel()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(
-            logger,
-            new LoggingInterceptorOptions { LogLevel = LogLevel.Information }
-        );
+        var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var testEvent = new TestEvent();
 
         await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
@@ -75,7 +69,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_LogsEventNameInMessage()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(logger);
+        var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
 
         await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
@@ -87,7 +81,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_WithSlowEvent_LogsWarning()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(
+        var interceptor = CreateInterceptor(
             logger,
             new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.FromMilliseconds(1) }
         );
@@ -112,10 +106,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_WithDisabledSlowThreshold_DoesNotLogWarning()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(
-            logger,
-            new LoggingInterceptorOptions { SlowRequestThreshold = null }
-        );
+        var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var testEvent = new TestEvent();
 
         await interceptor
@@ -136,7 +127,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(logger);
+        var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
         var expectedException = new InvalidOperationException("event error");
 
@@ -158,7 +149,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_LogsCorrelationId()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(logger);
+        var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent { CorrelationId = "event-correlation-id" };
 
         await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
@@ -170,7 +161,7 @@ public class LoggingEventInterceptorTests
     public async Task HandleAsync_InvokesHandlerWithCorrectEvent()
     {
         var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
-        var interceptor = CreateInterceptor<TestEvent>(logger);
+        var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
         TestEvent? received = null;
 

@@ -1,6 +1,5 @@
 ﻿namespace NetEvolve.Pulse;
 
-using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
