@@ -407,6 +407,217 @@ public sealed class OutboxProcessorHostedServiceTests
 
     #endregion
 
+    #region Per-Event-Type Override Tests
+
+    [Test]
+    public async Task ExecuteAsync_WithPerEventTypeMaxRetryCount_UsesOverrideForMatchingEventType()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                MaxRetryCount = 5, // Global: 5 retries
+                EventTypeOverrides =
+                {
+                    ["CriticalEvent"] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 retry
+                },
+            }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        // Message of type CriticalEvent should use override (MaxRetryCount = 1)
+        var message = CreateMessage("CriticalEvent");
+        message.RetryCount = 0; // First attempt
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        // With MaxRetryCount=1, retryCount+1 (1) >= 1, so it should be dead-lettered
+        _ = await Assert.That(repository.DeadLetterMessageIds).Contains(message.Id);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithPerEventTypeMaxRetryCount_FallsBackToGlobalForOtherEventTypes()
+    {
+        var options = new OutboxProcessorOptions
+        {
+            MaxRetryCount = 3, // Global default
+            EventTypeOverrides = { ["CriticalEvent"] = new OutboxEventTypeOptions { MaxRetryCount = 1 } },
+        };
+
+        using (Assert.Multiple())
+        {
+            // "CriticalEvent" uses the override
+            _ = await Assert.That(options.GetEffectiveMaxRetryCount("CriticalEvent")).IsEqualTo(1);
+            // Other event types fall back to the global default
+            _ = await Assert.That(options.GetEffectiveMaxRetryCount("StandardEvent")).IsEqualTo(3);
+            _ = await Assert.That(options.GetEffectiveMaxRetryCount("UnknownEvent")).IsEqualTo(3);
+        }
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithPerEventTypeProcessingTimeout_UsesOverride()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var transport = new SlowMessageTransport(delay: TimeSpan.FromMilliseconds(200));
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                ProcessingTimeout = TimeSpan.FromSeconds(30), // Global: plenty of time
+                MaxRetryCount = 1,
+                EventTypeOverrides =
+                {
+                    ["SlowEvent"] = new OutboxEventTypeOptions
+                    {
+                        ProcessingTimeout = TimeSpan.FromMilliseconds(50), // Override: very short timeout
+                    },
+                },
+            }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        // SlowEvent message should time out and be marked as failed/dead-lettered
+        var message = CreateMessage("SlowEvent");
+        await repository.AddAsync(message).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(400).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        // The message should not have been sent successfully
+        _ = await Assert.That(transport.SentMessages).IsEmpty();
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithPerEventTypeBatchSending_UsesOverrideForMatchingEventType()
+    {
+        var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                EnableBatchSending = false, // Global: individual sending
+                EventTypeOverrides = { ["BatchEvent"] = new OutboxEventTypeOptions { EnableBatchSending = true } },
+            }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
+
+        // Add two messages of the overridden type: should be batch-sent
+        var message1 = CreateMessage("BatchEvent");
+        var message2 = CreateMessage("BatchEvent");
+        await repository.AddAsync(message1).ConfigureAwait(false);
+        await repository.AddAsync(message2).ConfigureAwait(false);
+
+        using var cts = new CancellationTokenSource();
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        await Task.Delay(200).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(CancellationToken.None).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(transport.BatchSendCallCount).IsGreaterThanOrEqualTo(1);
+            _ = await Assert.That(repository.CompletedMessageIds).Count().IsEqualTo(2);
+        }
+    }
+
+    [Test]
+    public async Task OutboxEventTypeOptions_WithNoOverrides_UsesGlobalDefaults()
+    {
+        var globalOptions = new OutboxProcessorOptions
+        {
+            BatchSize = 50,
+            PollingInterval = TimeSpan.FromSeconds(10),
+            MaxRetryCount = 5,
+            ProcessingTimeout = TimeSpan.FromSeconds(60),
+            EnableBatchSending = true,
+        };
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("AnyEvent")).IsEqualTo(5);
+            _ = await Assert
+                .That(globalOptions.GetEffectiveProcessingTimeout("AnyEvent"))
+                .IsEqualTo(TimeSpan.FromSeconds(60));
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("AnyEvent")).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task OutboxEventTypeOptions_WithPartialOverride_MergesWithGlobalDefaults()
+    {
+        var globalOptions = new OutboxProcessorOptions
+        {
+            MaxRetryCount = 5,
+            ProcessingTimeout = TimeSpan.FromSeconds(60),
+            EnableBatchSending = false,
+            EventTypeOverrides =
+            {
+                ["PriorityEvent"] = new OutboxEventTypeOptions
+                {
+                    MaxRetryCount = 10, // Only override MaxRetryCount
+                    EnableBatchSending = true, // Override batch sending for this type
+                    // ProcessingTimeout left as null -> uses global
+                },
+            },
+        };
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("PriorityEvent")).IsEqualTo(10);
+            _ = await Assert
+                .That(globalOptions.GetEffectiveProcessingTimeout("PriorityEvent"))
+                .IsEqualTo(TimeSpan.FromSeconds(60));
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("PriorityEvent")).IsTrue();
+            // Non-overridden event type uses global defaults
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("OtherEvent")).IsEqualTo(5);
+            _ = await Assert
+                .That(globalOptions.GetEffectiveProcessingTimeout("OtherEvent"))
+                .IsEqualTo(TimeSpan.FromSeconds(60));
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("OtherEvent")).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task OutboxEventTypeOptions_WithNullOverrideProperties_FallsBackToGlobalDefaults()
+    {
+        var globalOptions = new OutboxProcessorOptions
+        {
+            MaxRetryCount = 7,
+            ProcessingTimeout = TimeSpan.FromSeconds(45),
+            EnableBatchSending = true,
+            EventTypeOverrides =
+            {
+                // Override entry exists but all properties are null -> all fall back to global
+                ["NullOverrideEvent"] = new OutboxEventTypeOptions(),
+            },
+        };
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("NullOverrideEvent")).IsEqualTo(7);
+            _ = await Assert
+                .That(globalOptions.GetEffectiveProcessingTimeout("NullOverrideEvent"))
+                .IsEqualTo(TimeSpan.FromSeconds(45));
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("NullOverrideEvent")).IsTrue();
+        }
+    }
+
+    #endregion
+
     #region Metrics Tests
 
     [Test]
@@ -657,11 +868,11 @@ public sealed class OutboxProcessorHostedServiceTests
             .BuildServiceProvider()
             .GetRequiredService<ILogger<OutboxProcessorHostedService>>();
 
-    private static OutboxMessage CreateMessage() =>
+    private static OutboxMessage CreateMessage(string eventType = "TestEvent") =>
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = "TestEvent",
+            EventType = eventType,
             Payload = """{"data":"test"}""",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -863,6 +1074,26 @@ public sealed class OutboxProcessorHostedServiceTests
             IEnumerable<OutboxMessage> messages,
             CancellationToken cancellationToken = default
         ) => throw new InvalidOperationException("Batch send failed");
+    }
+
+    private sealed class SlowMessageTransport : IMessageTransport
+    {
+        private readonly TimeSpan _delay;
+
+        public List<OutboxMessage> SentMessages { get; } = [];
+
+        public SlowMessageTransport(TimeSpan delay) => _delay = delay;
+
+        public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
+            SentMessages.Add(message);
+        }
+
+        public Task SendBatchAsync(
+            IEnumerable<OutboxMessage> messages,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
     }
 
     #endregion

@@ -188,8 +188,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
     /// <summary>
     /// Retrieves and processes a single batch of pending or retriable outbox messages.
-    /// Delegates to <see cref="ProcessBatchSendAsync"/> or <see cref="ProcessIndividuallyAsync"/> based on
-    /// <see cref="OutboxProcessorOptions.EnableBatchSending"/>.
+    /// Messages are grouped by event type; each group is then dispatched via
+    /// <see cref="ProcessBatchSendAsync"/> or <see cref="ProcessIndividuallyAsync"/> based on the
+    /// effective <see cref="OutboxProcessorOptions.EnableBatchSending"/> value for that event type.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The number of messages processed in this batch; <c>0</c> when no messages are available.</returns>
@@ -217,13 +218,24 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         LogProcessingMessages(_logger, messages.Count);
 
-        if (_options.EnableBatchSending)
+        // Group by event type so per-type EnableBatchSending overrides can be applied
+        var messagesByEventType = messages.GroupBy(m => m.EventType);
+        foreach (var group in messagesByEventType)
         {
-            await ProcessBatchSendAsync(messages, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            await ProcessIndividuallyAsync(messages, cancellationToken).ConfigureAwait(false);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            var groupMessages = (IReadOnlyList<OutboxMessage>)group.ToList();
+            if (_options.GetEffectiveEnableBatchSending(group.Key))
+            {
+                await ProcessBatchSendAsync(groupMessages, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await ProcessIndividuallyAsync(groupMessages, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return messages.Count;
@@ -262,10 +274,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ProcessMessageAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
+        var maxRetryCount = _options.GetEffectiveMaxRetryCount(message.EventType);
+        var processingTimeout = _options.GetEffectiveProcessingTimeout(message.EventType);
+
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(_options.ProcessingTimeout);
+            timeoutCts.CancelAfter(processingTimeout);
 
             await _transport.SendAsync(message, timeoutCts.Token).ConfigureAwait(false);
             await _repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
@@ -287,14 +302,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         }
         catch (Exception ex)
         {
-            LogMessageProcessingFailed(_logger, ex, message.Id, message.RetryCount + 1, _options.MaxRetryCount);
+            LogMessageProcessingFailed(_logger, ex, message.Id, message.RetryCount + 1, maxRetryCount);
 
-            if (message.RetryCount + 1 >= _options.MaxRetryCount)
+            if (message.RetryCount + 1 >= maxRetryCount)
             {
                 await _repository
                     .MarkAsDeadLetterAsync(message.Id, ex.Message, cancellationToken)
                     .ConfigureAwait(false);
-                LogMessageMovedToDeadLetter(_logger, message.Id, _options.MaxRetryCount);
+                LogMessageMovedToDeadLetter(_logger, message.Id, maxRetryCount);
 
                 try
                 {
@@ -365,12 +380,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             // Batch implementations should be atomic (all-or-nothing), but if partial success
             // occurred, falling back to individual processing would re-send already-delivered messages.
             // Instead, mark all as failed and let the retry mechanism handle them on next poll.
+            // Respect per-event-type MaxRetryCount overrides when determining dead-letter eligibility.
             var deadLetterMessages = messages
-                .Where(m => m.RetryCount + 1 >= _options.MaxRetryCount)
+                .Where(m => m.RetryCount + 1 >= _options.GetEffectiveMaxRetryCount(m.EventType))
                 .Select(m => m.Id)
                 .ToArray();
             var failedMessages = messages
-                .Where(m => m.RetryCount + 1 < _options.MaxRetryCount)
+                .Where(m => m.RetryCount + 1 < _options.GetEffectiveMaxRetryCount(m.EventType))
                 .Select(m => m.Id)
                 .ToArray();
 
@@ -378,10 +394,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     _repository.MarkAsFailedAsync(failedMessages, ex.Message, cancellationToken),
                     _repository.MarkAsDeadLetterAsync(deadLetterMessages, ex.Message, cancellationToken),
                     Parallel.ForEachAsync(
-                        deadLetterMessages,
-                        (messageId, _) =>
+                        messages.Where(m => m.RetryCount + 1 >= _options.GetEffectiveMaxRetryCount(m.EventType)),
+                        (message, _) =>
                         {
-                            LogMessageMovedToDeadLetter(_logger, messageId, _options.MaxRetryCount);
+                            LogMessageMovedToDeadLetter(
+                                _logger,
+                                message.Id,
+                                _options.GetEffectiveMaxRetryCount(message.EventType)
+                            );
                             return ValueTask.CompletedTask;
                         }
                     )

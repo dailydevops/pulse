@@ -209,6 +209,24 @@ services.AddPulse(config => config
 );
 ```
 
+#### Per-Event-Type Overrides
+
+You can tune processing behaviour for individual event types using `EventTypeOverrides`. The dictionary key matches the `EventType` field of stored outbox messages. Any `null` property falls back to the global default:
+
+```csharp
+processorOptions.EventTypeOverrides["MyNamespace.CriticalEvent"] = new OutboxEventTypeOptions
+{
+    MaxRetryCount = 10,                         // More retries for critical events
+    ProcessingTimeout = TimeSpan.FromSeconds(10), // Tighter timeout
+};
+
+processorOptions.EventTypeOverrides["MyNamespace.BulkEvent"] = new OutboxEventTypeOptions
+{
+    MaxRetryCount = 1,                          // Fewer retries for low-priority bulk events
+    ProcessingTimeout = TimeSpan.FromMinutes(2), // Longer timeout for large payloads
+};
+```
+
 See [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) or [NetEvolve.Pulse.SqlServer](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) for persistence provider setup.
 
 ## Requirements
