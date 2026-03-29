@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 

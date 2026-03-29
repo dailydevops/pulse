@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Dispatchers;
 
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Event dispatcher that stores events in an outbox for reliable, transactional processing.

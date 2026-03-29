@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.SqlServer.Tests.Integration.Fixtures;
 using TUnit.Core;

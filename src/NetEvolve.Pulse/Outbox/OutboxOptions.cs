@@ -1,7 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Text.Json;
-using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Configuration options for the outbox pattern implementation.

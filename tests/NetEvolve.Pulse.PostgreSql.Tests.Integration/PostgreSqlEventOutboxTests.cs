@@ -2,8 +2,8 @@
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.PostgreSql.Tests.Integration.Fixtures;
 using Npgsql;

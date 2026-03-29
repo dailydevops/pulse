@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Caching;
 using TUnit.Core;
 
 public sealed class DistributedCacheQueryInterceptorTests
@@ -156,12 +157,7 @@ public sealed class DistributedCacheQueryInterceptorTests
         _ = services.AddLogging();
         _ = services.AddDistributedMemoryCache();
         _ = services
-            .AddPulse(config =>
-                config.AddQueryCaching(options =>
-                {
-                    options.ExpirationMode = CacheExpirationMode.Sliding;
-                })
-            )
+            .AddPulse(config => config.AddQueryCaching(options => options.ExpirationMode = CacheExpirationMode.Sliding))
             .AddScoped<IQueryHandler<CachedValueQueryWithExpiry, string>, CachedValueQueryWithExpiryHandler>();
 
         await using var provider = services.BuildServiceProvider();
@@ -196,12 +192,7 @@ public sealed class DistributedCacheQueryInterceptorTests
         _ = services.AddLogging();
         _ = services.AddDistributedMemoryCache();
         _ = services
-            .AddPulse(config =>
-                config.AddQueryCaching(options =>
-                {
-                    options.DefaultExpiry = TimeSpan.FromMinutes(5);
-                })
-            )
+            .AddPulse(config => config.AddQueryCaching(options => options.DefaultExpiry = TimeSpan.FromMinutes(5)))
             .AddScoped<IQueryHandler<CachedValueQuery, string>, CachedValueQueryHandler>();
 
         await using var provider = services.BuildServiceProvider();

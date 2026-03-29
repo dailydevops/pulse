@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Interceptors;
 
 /// <summary>

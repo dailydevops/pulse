@@ -3,7 +3,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using NetEvolve.Pulse;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
 public sealed class EntityFrameworkOutboxTransactionScopeTests

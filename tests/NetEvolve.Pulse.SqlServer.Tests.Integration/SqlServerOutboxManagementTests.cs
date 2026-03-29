@@ -3,7 +3,7 @@ namespace NetEvolve.Pulse.SqlServer.Tests.Integration;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
-using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.SqlServer.Tests.Integration.Fixtures;
 using TUnit.Core;

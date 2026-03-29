@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 public class PulseHandlerGeneratorTests

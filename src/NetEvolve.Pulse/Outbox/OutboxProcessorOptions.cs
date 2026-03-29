@@ -2,7 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Configuration options for the outbox background processor.

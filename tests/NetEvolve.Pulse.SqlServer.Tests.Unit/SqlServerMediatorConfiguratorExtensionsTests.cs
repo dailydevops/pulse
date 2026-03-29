@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Caching;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 

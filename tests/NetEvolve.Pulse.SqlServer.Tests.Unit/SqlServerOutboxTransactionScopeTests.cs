@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.SqlServer.Tests.Unit;
 
 using System.Threading.Tasks;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
 public sealed class SqlServerOutboxTransactionScopeTests

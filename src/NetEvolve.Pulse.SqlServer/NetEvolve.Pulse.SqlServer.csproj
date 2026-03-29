@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
     <Description>SQL Server persistence provider for the Pulse outbox pattern using plain ADO.NET. Provides SqlServerOutboxRepository implementing IOutboxRepository with optimized T-SQL queries, transaction support via SqlTransaction enlistment, and schema scripts for table creation. Supports configurable schema and table names for multi-tenant scenarios. Uses the canonical outbox schema ensuring interchangeability with Entity Framework provider. Designed for high-performance microservices requiring reliable event delivery with SQL Server as the backing store.</Description>

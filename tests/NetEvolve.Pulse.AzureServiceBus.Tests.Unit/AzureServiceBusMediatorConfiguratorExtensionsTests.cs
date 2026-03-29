@@ -3,8 +3,9 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
-using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 

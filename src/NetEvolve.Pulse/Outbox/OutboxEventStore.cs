@@ -3,6 +3,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Implementation of <see cref="IEventOutbox"/> that stores events using <see cref="IOutboxRepository"/>.
