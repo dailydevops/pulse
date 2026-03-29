@@ -186,6 +186,39 @@ public static class PollyMediatorConfiguratorExtensions
         where TCommand : ICommand<Void> => configurator.AddPollyRequestPolicies<TCommand, Void>(configure, lifetime);
 
     /// <summary>
+    /// Adds Polly resilience policies for a specific query type.
+    /// </summary>
+    /// <typeparam name="TQuery">The query type that implements <see cref="IQuery{TResponse}"/>.</typeparam>
+    /// <typeparam name="TResponse">The response type produced by the query handler.</typeparam>
+    /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <returns>The configurator for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// This is a convenience overload for query types that expresses the semantic intent of protecting a query.
+    /// Internally delegates to <see cref="AddPollyRequestPolicies{TRequest, TResponse}"/>.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// config.AddPollyQueryPolicies&lt;GetOrderQuery, OrderResult&gt;(pipeline => pipeline
+    ///     .AddRetry(new RetryStrategyOptions
+    ///     {
+    ///         MaxRetryAttempts = 3,
+    ///         Delay = TimeSpan.FromSeconds(1)
+    ///     })
+    ///     .AddTimeout(TimeSpan.FromSeconds(10)));
+    /// </code>
+    /// </example>
+    public static IMediatorConfigurator AddPollyQueryPolicies<TQuery, TResponse>(
+        this IMediatorConfigurator configurator,
+        Action<ResiliencePipelineBuilder<TResponse>> configure,
+        ServiceLifetime lifetime = ServiceLifetime.Singleton
+    )
+        where TQuery : IQuery<TResponse> =>
+        configurator.AddPollyRequestPolicies<TQuery, TResponse>(configure, lifetime);
+
+    /// <summary>
     /// Adds Polly resilience policies for a specific event type.
     /// </summary>
     /// <typeparam name="TEvent">The event type that implements <see cref="IEvent"/>.</typeparam>

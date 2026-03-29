@@ -358,12 +358,84 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         _ = await Assert.That(pipeline).IsNotNull();
     }
 
+    [Test]
+    public async Task AddPollyQueryPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+        // Act & Assert
+        _ = await Assert
+            .That(() => PollyMediatorConfiguratorExtensions.AddPollyQueryPolicies<TestQuery, string>(null!, _ => { }))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPollyQueryPolicies_NullConfigure_ThrowsArgumentNullException() =>
+        // Act & Assert
+        _ = await Assert
+            .That(() =>
+                PollyMediatorConfiguratorExtensions.AddPollyQueryPolicies<TestQuery, string>(
+                    new MediatorConfiguratorStub(),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPollyQueryPolicies_RegistersPipelineAndInterceptor()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyQueryPolicies<TestQuery, string>(pipeline =>
+                pipeline.AddRetry(
+                    new RetryStrategyOptions<string> { MaxRetryAttempts = 3, Delay = TimeSpan.FromMilliseconds(10) }
+                )
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert
+        var pipelineInstance = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestQuery));
+        _ = await Assert.That(pipelineInstance).IsNotNull();
+
+        var interceptors = provider.GetServices<IRequestInterceptor<TestQuery, string>>();
+        _ = await Assert.That(interceptors).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyQueryPolicies_CalledTwice_ReplacesExistingRegistration()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyQueryPolicies<TestQuery, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 3 })
+                )
+                .AddPollyQueryPolicies<TestQuery, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 5 })
+                )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert - Should have only one registration (the second one)
+        var interceptors = provider.GetServices<IRequestInterceptor<TestQuery, string>>().ToList();
+        _ = await Assert.That(interceptors.Count).IsEqualTo(1);
+
+        var pipeline = provider.GetKeyedService<ResiliencePipeline<string>>(typeof(TestQuery));
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
     private sealed record TestCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }
     }
 
     private sealed record VoidCommand : ICommand<Extensibility.Void>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed record TestQuery : IQuery<string>
     {
         public string? CorrelationId { get; set; }
     }
