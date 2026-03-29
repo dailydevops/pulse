@@ -32,6 +32,7 @@
     <Project Path="src/NetEvolve.Pulse.SqlServer/NetEvolve.Pulse.SqlServer.csproj" />
     <Project Path="src/NetEvolve.Pulse.Polly/NetEvolve.Pulse.Polly.csproj" />
     <Project Path="src/NetEvolve.Pulse.HttpCorrelation/NetEvolve.Pulse.HttpCorrelation.csproj" />
+    <Project Path="src/NetEvolve.Pulse.FluentValidation/NetEvolve.Pulse.FluentValidation.csproj" />
     <Project Path="src/NetEvolve.Pulse.Testing/NetEvolve.Pulse.Testing.csproj" />
     <Project Path="src/NetEvolve.Pulse.Attributes/NetEvolve.Pulse.Attributes.csproj" />
     <Project Path="src/NetEvolve.Pulse.SourceGeneration/NetEvolve.Pulse.SourceGeneration.csproj" />
@@ -49,6 +50,8 @@
     <Project Path="tests/NetEvolve.Pulse.Polly.Tests.Unit/NetEvolve.Pulse.Polly.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.HttpCorrelation.Tests.Unit/NetEvolve.Pulse.HttpCorrelation.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.HttpCorrelation.Tests.Integration/NetEvolve.Pulse.HttpCorrelation.Tests.Integration.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.FluentValidation.Tests.Unit/NetEvolve.Pulse.FluentValidation.Tests.Unit.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.FluentValidation.Tests.Integration/NetEvolve.Pulse.FluentValidation.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SqlServer.Tests.Unit/NetEvolve.Pulse.SqlServer.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj" />

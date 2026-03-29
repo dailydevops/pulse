@@ -222,10 +222,10 @@ public sealed class FakeMediator : IMediator
     {
         if (_publishedEvents.TryGetValue(typeof(TEvent), out var queue))
         {
-            return queue.ToArray().Cast<TEvent>().ToList().AsReadOnly();
+            return queue.Cast<TEvent>().ToArray().AsReadOnly();
         }
 
-        return Array.Empty<TEvent>();
+        return [];
     }
 
     internal void RegisterResponse(Type requestType, object? value)
