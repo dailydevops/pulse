@@ -83,12 +83,14 @@ public static class AzureServiceBusMediatorConfiguratorExtensions
         TokenCredential? credential
     )
     {
+        ArgumentNullException.ThrowIfNull(credential);
+
         if (!string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             return new ServiceBusClient(options.ConnectionString);
         }
 
-        return new ServiceBusClient(options.FullyQualifiedNamespace!, credential ?? new DefaultAzureCredential());
+        return new ServiceBusClient(options.FullyQualifiedNamespace!, credential);
     }
 
     private static ServiceBusAdministrationClient CreateAdministrationClient(
@@ -96,15 +98,14 @@ public static class AzureServiceBusMediatorConfiguratorExtensions
         TokenCredential? credential
     )
     {
+        ArgumentNullException.ThrowIfNull(credential);
+
         if (!string.IsNullOrWhiteSpace(options.ConnectionString))
         {
             return new ServiceBusAdministrationClient(options.ConnectionString);
         }
 
-        return new ServiceBusAdministrationClient(
-            options.FullyQualifiedNamespace!,
-            credential ?? new DefaultAzureCredential()
-        );
+        return new ServiceBusAdministrationClient(options.FullyQualifiedNamespace!, credential);
     }
 
     private static void ValidateOptions(AzureServiceBusTransportOptions options)
