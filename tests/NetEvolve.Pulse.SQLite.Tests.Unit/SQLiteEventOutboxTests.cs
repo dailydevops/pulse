@@ -108,6 +108,7 @@ public sealed class SQLiteEventOutboxTests
                     "CreatedAt" TEXT NOT NULL,
                     "UpdatedAt" TEXT NOT NULL,
                     "ProcessedAt" TEXT NULL,
+                    "NextRetryAt" TEXT NULL,
                     "RetryCount" INTEGER NOT NULL DEFAULT 0,
                     "Error" TEXT NULL,
                     "Status" INTEGER NOT NULL DEFAULT 0,
@@ -168,6 +169,7 @@ public sealed class SQLiteEventOutboxTests
                     "CreatedAt" TEXT NOT NULL,
                     "UpdatedAt" TEXT NOT NULL,
                     "ProcessedAt" TEXT NULL,
+                    "NextRetryAt" TEXT NULL,
                     "RetryCount" INTEGER NOT NULL DEFAULT 0,
                     "Error" TEXT NULL,
                     "Status" INTEGER NOT NULL DEFAULT 0,
@@ -206,8 +208,8 @@ public sealed class SQLiteEventOutboxTests
 
     private static IEvent CreateLongTypeEvent()
     {
-        var asmName = new AssemblyName($"DynEvt_{Guid.NewGuid():N}");
-        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+        var assemblyName = new AssemblyName($"DynEvt_{Guid.NewGuid():N}");
+        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         var moduleBuilder = assemblyBuilder.DefineDynamicModule("dyn");
         var typeName = new string('E', OutboxMessageSchema.MaxLengths.EventType + 10);
         var typeBuilder = moduleBuilder.DefineType(

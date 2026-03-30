@@ -13,14 +13,14 @@ using TUnit.Core;
 /// </summary>
 public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
 {
-    private readonly string _dbName = $"mgmt_{Guid.NewGuid():N}";
+    private readonly string _dbIdentifier = $"mgmt_{Guid.NewGuid():N}";
     private readonly SqliteConnection _keepAlive;
     private readonly string _connectionString;
     private readonly TimeProvider _timeProvider = TimeProvider.System;
 
     public SQLiteOutboxManagementDatabaseTests()
     {
-        _connectionString = $"Data Source={_dbName};Mode=Memory;Cache=Shared";
+        _connectionString = $"Data Source={_dbIdentifier};Mode=Memory;Cache=Shared";
         _keepAlive = new SqliteConnection(_connectionString);
         _keepAlive.Open();
         ApplySchema();
