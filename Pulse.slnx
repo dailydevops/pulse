@@ -35,6 +35,7 @@
     <Project Path="src/NetEvolve.Pulse.FluentValidation/NetEvolve.Pulse.FluentValidation.csproj" />
     <Project Path="src/NetEvolve.Pulse.Testing/NetEvolve.Pulse.Testing.csproj" />
     <Project Path="src/NetEvolve.Pulse.Attributes/NetEvolve.Pulse.Attributes.csproj" />
+    <Project Path="src/NetEvolve.Pulse.RabbitMQ/NetEvolve.Pulse.RabbitMQ.csproj" />
     <Project Path="src/NetEvolve.Pulse.SourceGeneration/NetEvolve.Pulse.SourceGeneration.csproj" />
     <Project Path="src/NetEvolve.Pulse.AzureServiceBus/NetEvolve.Pulse.AzureServiceBus.csproj" />
     <Project Path="src/NetEvolve.Pulse.SQLite/NetEvolve.Pulse.SQLite.csproj" />
@@ -60,6 +61,7 @@
     <Project Path="tests/NetEvolve.Pulse.Testing.Tests.Unit/NetEvolve.Pulse.Testing.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.AzureServiceBus.Tests.Unit/NetEvolve.Pulse.AzureServiceBus.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.AzureServiceBus.Tests.Integration/NetEvolve.Pulse.AzureServiceBus.Tests.Integration.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.RabbitMQ.Tests.Unit/NetEvolve.Pulse.RabbitMQ.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Kafka.Tests.Unit/NetEvolve.Pulse.Kafka.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Kafka.Tests.Integration/NetEvolve.Pulse.Kafka.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit/NetEvolve.Pulse.SourceGeneration.Tests.Unit.csproj" />
