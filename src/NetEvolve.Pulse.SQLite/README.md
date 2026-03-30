@@ -4,17 +4,16 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.SQLite.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.SQLite/)
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/blob/main/LICENSE)
 
-SQLite persistence provider for the Pulse outbox pattern using plain ADO.NET. Enables the outbox pattern with zero infrastructure dependencies — ideal for embedded applications, CLI tools, IoT/edge services, and local development environments.
+SQLite persistence provider for the Pulse outbox pattern using plain ADO.NET. Designed for embedded, edge, and CLI scenarios where you need outbox reliability without external infrastructure.
 
 ## Features
 
-- **Zero Infrastructure**: Single-file embedded database, no server required
-- **Plain ADO.NET**: Direct SQLite access via `Microsoft.Data.Sqlite`
-- **Concurrent Safety**: Uses `BEGIN IMMEDIATE` transactions to prevent duplicate message pickup
-- **WAL Mode**: Optional Write-Ahead Logging for concurrent read access during writes
-- **Dead Letter Management**: Built-in support for inspecting, replaying, and monitoring dead-letter messages via `IOutboxManagement`
-- **Configurable Table Name**: Customize the table name for your deployment
-- **In-Memory Support**: Use `Data Source=:memory:` for testing scenarios without file I/O
+- Embedded, single-file storage with no server dependency
+- ADO.NET implementation using `Microsoft.Data.Sqlite`
+- Safe concurrent polling via `BEGIN IMMEDIATE` transactions
+- Optional Write-Ahead Logging (WAL) for read/write concurrency
+- Outbox management APIs for inspecting, replaying, and cleaning messages
+- Configurable table name and connection string (file or in-memory)
 
 ## Installation
 
@@ -30,26 +29,51 @@ Install-Package NetEvolve.Pulse.SQLite
 dotnet add package NetEvolve.Pulse.SQLite
 ```
 
-## Prerequisites
+### PackageReference
 
-Execute the DDL migration script `Scripts/001_CreateOutboxTable.sql` once against your SQLite database before starting the application:
+```xml
+<PackageReference Include="NetEvolve.Pulse.SQLite" />
+```
 
-```bash
-sqlite3 outbox.db < 001_CreateOutboxTable.sql
+## Quick Start
+
+```csharp
+using NetEvolve.Pulse;
+using NetEvolve.Pulse.SQLite;
+
+services.AddPulse(config => config
+    .AddOutbox()
+    .UseSQLiteOutbox("Data Source=outbox.db"));
 ```
 
 ## Usage
 
-### Basic Setup
+### Basic Example
 
 ```csharp
 services.AddPulse(config => config
     .AddOutbox()
-    .UseSQLiteOutbox("Data Source=outbox.db")
-);
+    .UseSQLiteOutbox(opts =>
+    {
+        opts.ConnectionString = "Data Source=outbox.db";
+        opts.EnableWalMode = true;
+    }));
 ```
 
-### Custom Options
+### Advanced Example (In-Memory / Custom Table)
+
+```csharp
+services.AddPulse(config => config
+    .AddOutbox()
+    .UseSQLiteOutbox(opts =>
+    {
+        opts.ConnectionString = $"Data Source=testdb_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+        opts.TableName = "OutboxMessage";
+        opts.EnableWalMode = false; // WAL unsupported for in-memory
+    }));
+```
+
+## Configuration
 
 ```csharp
 services.AddPulse(config => config
@@ -59,32 +83,43 @@ services.AddPulse(config => config
         opts.ConnectionString = "Data Source=outbox.db";
         opts.TableName = "OutboxMessage";
         opts.EnableWalMode = true;
-    })
-);
+        opts.JsonSerializerOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+    }));
 ```
 
-### Testing with In-Memory Database
+## Requirements
 
-```csharp
-services.AddPulse(config => config
-    .AddOutbox()
-    .UseSQLiteOutbox(opts =>
-    {
-        opts.ConnectionString = $"Data Source=testdb_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
-        opts.EnableWalMode = false; // WAL mode not supported for in-memory databases
-    })
-);
-```
+- .NET 8.0 or higher (net8.0, net9.0, net10.0 targets)
+- SQLite database file access or in-memory connection string
 
-## Configuration Options
+## Related Packages
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ConnectionString` | `string` | `"Data Source=outbox.db"` | SQLite connection string |
-| `TableName` | `string` | `"OutboxMessage"` | Table name for outbox messages |
-| `EnableWalMode` | `bool` | `true` | Enable WAL journal mode for concurrent reads |
-| `JsonSerializerOptions` | `JsonSerializerOptions?` | `null` | JSON options for event serialization |
+- [**NetEvolve.Pulse.SqlServer**](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) – SQL Server outbox provider
+- [**NetEvolve.Pulse.PostgreSql**](https://www.nuget.org/packages/NetEvolve.Pulse.PostgreSql/) – PostgreSQL outbox provider
+- [**NetEvolve.Pulse**](https://www.nuget.org/packages/NetEvolve.Pulse/) – Core Pulse mediator and abstractions
+
+## Documentation
+
+For complete documentation, please visit the [official documentation](https://github.com/dailydevops/pulse/blob/main/README.md).
+
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guidelines](https://github.com/dailydevops/pulse/blob/main/CONTRIBUTING.md) before submitting a pull request.
+
+## Support
+
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/dailydevops/pulse/issues)
+- **Documentation**: Read the full documentation at [https://github.com/dailydevops/pulse](https://github.com/dailydevops/pulse)
 
 ## License
 
-This project is licensed under the [MIT License](https://github.com/dailydevops/pulse/blob/main/LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/dailydevops/pulse/blob/main/LICENSE) file for details.
+
+---
+
+> [!NOTE]
+> **Made with ❤️ by the NetEvolve Team**
+> Visit us at [https://www.daily-devops.net](https://www.daily-devops.net) for more information about our services and solutions.
