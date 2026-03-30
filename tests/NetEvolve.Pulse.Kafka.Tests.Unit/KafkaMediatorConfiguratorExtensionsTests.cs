@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Kafka.Tests.Unit;
 
+using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
@@ -15,18 +16,11 @@ public sealed class KafkaMediatorConfiguratorExtensionsTests
     public async Task UseKafkaTransport_Registers_transport_and_adapters()
     {
         IServiceCollection services = new ServiceCollection();
-        _ = services.AddPulse(config =>
-            config.UseKafkaTransport(options =>
-            {
-                options.BootstrapServers = "localhost:9092";
-                options.DefaultTopic = "outbox-events";
-            })
-        );
+        _ = services.AddPulse(config => config.UseKafkaTransport());
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
         _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(KafkaMessageTransport));
 
-        // Adapters should be registered
         var producerAdapterDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IKafkaProducerAdapter));
         _ = await Assert.That(producerAdapterDescriptor).IsNotNull();
 
@@ -39,13 +33,7 @@ public sealed class KafkaMediatorConfiguratorExtensionsTests
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
-        _ = services.AddPulse(config =>
-            config.UseKafkaTransport(options =>
-            {
-                options.BootstrapServers = "localhost:9092";
-                options.DefaultTopic = "outbox-events";
-            })
-        );
+        _ = services.AddPulse(config => config.UseKafkaTransport());
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
         _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(KafkaMessageTransport));
@@ -60,29 +48,21 @@ public sealed class KafkaMediatorConfiguratorExtensionsTests
         _ = services.AddPulse(config =>
         {
             captured = config;
-            var result = config.UseKafkaTransport(options =>
-            {
-                options.BootstrapServers = "localhost:9092";
-                options.DefaultTopic = "outbox-events";
-            });
-            _ = result.UseKafkaTransport(options =>
-            {
-                options.BootstrapServers = "localhost:9092";
-                options.DefaultTopic = "outbox-events";
-            });
+            _ = config.UseKafkaTransport().UseKafkaTransport();
         });
 
         _ = await Assert.That(captured).IsNotNull();
     }
 
     [Test]
-    public void UseKafkaTransport_Validates_missing_bootstrap_servers()
+    public void UseKafkaTransport_Requires_IProducer_to_be_registered_by_caller()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseKafkaTransport());
 
         using var provider = services.BuildServiceProvider();
 
+        // KafkaProducerAdapter depends on IProducer<string, string> which the user must provide.
         _ = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<IKafkaProducerAdapter>());
     }
 

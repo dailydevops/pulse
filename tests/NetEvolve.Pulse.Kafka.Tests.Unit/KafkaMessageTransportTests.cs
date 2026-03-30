@@ -1,7 +1,6 @@
 namespace NetEvolve.Pulse.Kafka.Tests.Unit;
 
 using Confluent.Kafka;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
@@ -49,11 +48,11 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_Uses_topic_resolver_when_provided()
+    public async Task SendAsync_Uses_topic_name_resolver_to_determine_topic()
     {
         using var producer = new FakeKafkaProducerAdapter();
         var admin = new FakeKafkaAdminAdapter { BrokerCount = 1 };
-        using var transport = CreateTransport(producer, admin, topicResolver: _ => "resolved-topic");
+        using var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage);
@@ -62,11 +61,11 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_Falls_back_to_DefaultTopic_when_no_resolver()
+    public async Task SendAsync_Routes_to_topic_from_resolver()
     {
         using var producer = new FakeKafkaProducerAdapter();
         var admin = new FakeKafkaAdminAdapter { BrokerCount = 1 };
-        using var transport = CreateTransport(producer, admin);
+        using var transport = CreateTransport(producer, admin, topicName: "test-topic");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage);
@@ -143,20 +142,8 @@ public sealed class KafkaMessageTransportTests
     private static KafkaMessageTransport CreateTransport(
         IKafkaProducerAdapter producer,
         IKafkaAdminAdapter admin,
-        Func<OutboxMessage, string>? topicResolver = null
-    )
-    {
-        var options = Options.Create(
-            new KafkaTransportOptions
-            {
-                BootstrapServers = "localhost:9092",
-                DefaultTopic = "test-topic",
-                TopicResolver = topicResolver,
-            }
-        );
-
-        return new KafkaMessageTransport(producer, admin, options);
-    }
+        string topicName = "test-topic"
+    ) => new(producer, admin, new FixedTopicNameResolver(topicName));
 
     private static OutboxMessage CreateOutboxMessage() =>
         new()
@@ -174,6 +161,11 @@ public sealed class KafkaMessageTransportTests
     {
         var header = message.Headers.FirstOrDefault(h => h.Key == key);
         return header is null ? string.Empty : System.Text.Encoding.UTF8.GetString(header.GetValueBytes());
+    }
+
+    private sealed class FixedTopicNameResolver(string topic) : ITopicNameResolver
+    {
+        public string Resolve(OutboxMessage message) => topic;
     }
 
     private sealed class FakeKafkaProducerAdapter : IKafkaProducerAdapter

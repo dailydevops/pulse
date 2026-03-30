@@ -2,44 +2,43 @@
 
 Apache Kafka transport for the [NetEvolve.Pulse](https://github.com/dailydevops/pulse) outbox processor.
 
-Delivers outbox messages directly to Kafka topics using the [Confluent.Kafka](https://github.com/confluentinc/confluent-kafka-dotnet) producer with `Acks.All` for durability guarantees.
+Delivers outbox messages directly to Kafka topics using the [Confluent.Kafka](https://github.com/confluentinc/confluent-kafka-dotnet) producer.
 
 ## Getting Started
 
+Register the Confluent.Kafka producer and admin client in DI, then call `UseKafkaTransport()`:
+
 ```csharp
-services.AddPulse(config =>
-    config.UseKafkaTransport(options =>
-    {
-        options.BootstrapServers = "localhost:9092";
-        options.DefaultTopic = "outbox-events";
-    })
-);
+// 1. Register the Confluent.Kafka producer (user's responsibility)
+services.AddSingleton<IProducer<string, string>>(sp =>
+    new ProducerBuilder<string, string>(
+        new ProducerConfig { BootstrapServers = "localhost:9092", Acks = Acks.All })
+    .Build());
+
+// 2. Register the admin client (used for health checks)
+services.AddSingleton<IAdminClient>(sp =>
+    new AdminClientBuilder(
+        new AdminClientConfig { BootstrapServers = "localhost:9092" })
+    .Build());
+
+// 3. Register the Pulse Kafka transport
+services.AddPulse(config => config.AddOutbox().UseKafkaTransport());
 ```
 
-## Configuration
+## Topic Routing
 
-| Property | Description |
-|---|---|
-| `BootstrapServers` | Comma-separated list of broker addresses (required). |
-| `DefaultTopic` | Default Kafka topic for outbox messages. |
-| `TopicResolver` | Optional delegate to resolve the topic per message (overrides `DefaultTopic`). |
-| `ProducerConfig` | Optional passthrough for advanced Confluent.Kafka producer settings. |
+Topic names are resolved by the registered `ITopicNameResolver`. The default implementation
+(registered by `AddOutbox()`) extracts the simple class name from `OutboxMessage.EventType`,
+e.g. `"MyApp.Events.OrderCreated, MyApp"` → `"OrderCreated"`.
 
-## Topic Resolution
-
-Supply a `TopicResolver` delegate to route messages to different topics based on event type:
+Register a custom `ITopicNameResolver` **before** calling `UseKafkaTransport()` to override:
 
 ```csharp
-options.TopicResolver = message => message.EventType switch
-{
-    "OrderCreated" => "orders",
-    "PaymentProcessed" => "payments",
-    _ => options.DefaultTopic,
-};
+services.AddSingleton<ITopicNameResolver, MyCustomTopicNameResolver>();
+services.AddPulse(config => config.AddOutbox().UseKafkaTransport());
 ```
 
 ## Notes
 
-- `BootstrapServers` always overrides the same property in `ProducerConfig`.
-- `Acks` is always forced to `Acks.All` for durability.
+- `IProducer<string, string>` and `IAdminClient` must be registered by the caller.
 - `IsHealthyAsync` queries cluster metadata; returns `false` when the broker is unreachable.

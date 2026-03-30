@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse.Kafka.Tests.Integration;
 
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
@@ -43,11 +42,7 @@ public sealed class KafkaTransportIntegrationTests : IAsyncDisposable
 
         using var producer = BuildProducerAdapter(_bootstrapServers);
         using var admin = BuildAdminAdapter(_bootstrapServers);
-        using var transport = new KafkaMessageTransport(
-            producer,
-            admin,
-            Options.Create(new KafkaTransportOptions { BootstrapServers = _bootstrapServers, DefaultTopic = TopicName })
-        );
+        using var transport = new KafkaMessageTransport(producer, admin, new FixedTopicNameResolver(TopicName));
 
         var message = new OutboxMessage
         {
@@ -63,8 +58,8 @@ public sealed class KafkaTransportIntegrationTests : IAsyncDisposable
 
         var received = await ConsumeOneMessageAsync(_bootstrapServers, TopicName);
         _ = await Assert.That(received).IsNotNull();
-        _ = await Assert.That(received!.Value).IsEqualTo(message.Payload);
-        _ = await Assert.That(received.Key).IsEqualTo(message.Id.ToString("D"));
+        _ = await Assert.That(received!.Message.Value).IsEqualTo(message.Payload);
+        _ = await Assert.That(received.Message.Key).IsEqualTo(message.Id.ToString("D"));
     }
 
     [Test]
@@ -80,13 +75,7 @@ public sealed class KafkaTransportIntegrationTests : IAsyncDisposable
 
         using var producer = BuildProducerAdapter(_bootstrapServers);
         using var admin = BuildAdminAdapter(_bootstrapServers);
-        using var transport = new KafkaMessageTransport(
-            producer,
-            admin,
-            Options.Create(
-                new KafkaTransportOptions { BootstrapServers = _bootstrapServers, DefaultTopic = batchTopic }
-            )
-        );
+        using var transport = new KafkaMessageTransport(producer, admin, new FixedTopicNameResolver(batchTopic));
 
         var messages = Enumerable
             .Range(0, 3)
@@ -116,11 +105,7 @@ public sealed class KafkaTransportIntegrationTests : IAsyncDisposable
 
         using var producer = BuildProducerAdapter(_bootstrapServers);
         using var admin = BuildAdminAdapter(_bootstrapServers);
-        using var transport = new KafkaMessageTransport(
-            producer,
-            admin,
-            Options.Create(new KafkaTransportOptions { BootstrapServers = _bootstrapServers, DefaultTopic = TopicName })
-        );
+        using var transport = new KafkaMessageTransport(producer, admin, new FixedTopicNameResolver(TopicName));
 
         var healthy = await transport.IsHealthyAsync();
 
@@ -132,11 +117,7 @@ public sealed class KafkaTransportIntegrationTests : IAsyncDisposable
     {
         using var producer = BuildProducerAdapter("localhost:9099");
         using var admin = BuildAdminAdapter("localhost:9099");
-        using var transport = new KafkaMessageTransport(
-            producer,
-            admin,
-            Options.Create(new KafkaTransportOptions { BootstrapServers = "localhost:9099", DefaultTopic = TopicName })
-        );
+        using var transport = new KafkaMessageTransport(producer, admin, new FixedTopicNameResolver(TopicName));
 
         var healthy = await transport.IsHealthyAsync();
 
@@ -255,5 +236,10 @@ public sealed class KafkaTransportIntegrationTests : IAsyncDisposable
         }
 
         return await Task.FromResult(results);
+    }
+
+    private sealed class FixedTopicNameResolver(string topic) : ITopicNameResolver
+    {
+        public string Resolve(OutboxMessage message) => topic;
     }
 }

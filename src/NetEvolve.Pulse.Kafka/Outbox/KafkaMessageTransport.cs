@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using Confluent.Kafka;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 
@@ -12,25 +11,36 @@ using NetEvolve.Pulse.Internals;
 /// Apache Kafka transport that delivers outbox messages to Kafka topics using the Confluent.Kafka
 /// producer with <c>Acks.All</c> for durability.
 /// </summary>
+/// <remarks>
+/// The Confluent.Kafka <see cref="IProducer{TKey,TValue}" /> and <see cref="IAdminClient" /> must be
+/// registered in the DI container by the caller before using this transport.
+/// Topic routing is determined by the registered <see cref="ITopicNameResolver" />.
+/// </remarks>
 public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
 {
     private readonly IKafkaProducerAdapter _producer;
     private readonly IKafkaAdminAdapter _adminClient;
-    private readonly KafkaTransportOptions _options;
+    private readonly ITopicNameResolver _topicNameResolver;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="KafkaMessageTransport" />.
+    /// </summary>
+    /// <param name="producer">The Kafka producer adapter.</param>
+    /// <param name="adminClient">The Kafka admin client adapter used for health checks.</param>
+    /// <param name="topicNameResolver">The resolver that maps each outbox message to a Kafka topic name.</param>
     internal KafkaMessageTransport(
         IKafkaProducerAdapter producer,
         IKafkaAdminAdapter adminClient,
-        IOptions<KafkaTransportOptions> options
+        ITopicNameResolver topicNameResolver
     )
     {
         ArgumentNullException.ThrowIfNull(producer);
         ArgumentNullException.ThrowIfNull(adminClient);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(topicNameResolver);
 
         _producer = producer;
         _adminClient = adminClient;
-        _options = options.Value;
+        _topicNameResolver = topicNameResolver;
     }
 
     /// <inheritdoc />
@@ -38,7 +48,7 @@ public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var topic = ResolveTopic(message);
+        var topic = _topicNameResolver.Resolve(message);
         var kafkaMessage = CreateKafkaMessage(message);
 
         _ = await _producer.ProduceAsync(topic, kafkaMessage, cancellationToken).ConfigureAwait(false);
@@ -53,7 +63,7 @@ public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
 
         foreach (var message in messages)
         {
-            var topic = ResolveTopic(message);
+            var topic = _topicNameResolver.Resolve(message);
             var kafkaMessage = CreateKafkaMessage(message);
 
             try
@@ -102,16 +112,6 @@ public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
 
     /// <inheritdoc />
     public void Dispose() => _producer.Dispose();
-
-    private string ResolveTopic(OutboxMessage message)
-    {
-        if (_options.TopicResolver is not null)
-        {
-            return _options.TopicResolver(message);
-        }
-
-        return _options.DefaultTopic;
-    }
 
     private static Message<string, string> CreateKafkaMessage(OutboxMessage message)
     {
