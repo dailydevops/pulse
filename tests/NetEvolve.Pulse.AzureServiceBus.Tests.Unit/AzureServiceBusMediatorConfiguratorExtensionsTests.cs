@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -66,20 +65,24 @@ public sealed class AzureServiceBusMediatorConfiguratorExtensionsTests
     }
 
     [Test]
-    public void UseAzureServiceBusTransport_validates_required_options()
+    public async Task UseAzureServiceBusTransport_validates_required_options()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseAzureServiceBusTransport());
 
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         _ = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<ServiceBusClient>());
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_with_fully_qualified_namespace_does_not_throw_on_validation()
+    public async Task UseAzureServiceBusTransport_with_fully_qualified_namespace_creates_ServiceBusClient()
     {
         IServiceCollection services = new ServiceCollection();
+
+        // Register a fake credential so we don't depend on DefaultAzureCredential
+        _ = services.AddSingleton<TokenCredential>(new FakeTokenCredential());
+
         _ = services.AddPulse(config =>
             config.UseAzureServiceBusTransport(options =>
             {
@@ -87,17 +90,28 @@ public sealed class AzureServiceBusMediatorConfiguratorExtensionsTests
             })
         );
 
-        // Options are valid when FullyQualifiedNamespace is set – no exception expected during build
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
-        // ServiceBusClient registration itself should not throw during validation
-        // (It requires a TokenCredential, which DefaultAzureCredential provides at runtime)
-        var descriptor = services.Single(d => d.ServiceType == typeof(ServiceBusClient));
-        _ = await Assert.That(descriptor).IsNotNull();
-
-        // New: Actually resolve ServiceBusClient to ensure factory runs and validation occurs
         var client = provider.GetRequiredService<ServiceBusClient>();
-        Assert.That(client, Is.Not.Null);
+        _ = await Assert.That(client).IsNotNull();
+        _ = await Assert.That(client.FullyQualifiedNamespace).IsEqualTo("contoso.servicebus.windows.net");
+    }
+
+    [Test]
+    public async Task UseAzureServiceBusTransport_with_connection_string_creates_ServiceBusClient()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.UseAzureServiceBusTransport(options =>
+            {
+                options.ConnectionString = FakeConnectionString;
+            })
+        );
+
+        await using var provider = services.BuildServiceProvider();
+
+        var client = provider.GetRequiredService<ServiceBusClient>();
+        _ = await Assert.That(client).IsNotNull();
     }
 
     [Test]

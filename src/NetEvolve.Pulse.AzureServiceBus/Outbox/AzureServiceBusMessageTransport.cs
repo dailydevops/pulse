@@ -2,7 +2,6 @@
 
 using System.Globalization;
 using Azure.Messaging.ServiceBus;
-using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -83,22 +82,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
             var sender = _client.CreateSender(group.Key);
             await using (sender.ConfigureAwait(false))
             {
-                var batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
-                using (batch)
-                {
-                    foreach (var message in group)
-                    {
-                        var serviceBusMessage = CreateServiceBusMessage(message);
-                        if (!batch.TryAddMessage(serviceBusMessage))
-                        {
-                            throw new InvalidOperationException(
-                                $"The message with id '{message.Id}' exceeded the maximum batch size for Azure Service Bus."
-                            );
-                        }
-                    }
-
-                    await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
-                }
+                var serviceBusMessages = group.Select(CreateServiceBusMessage).ToList();
+                await sender.SendMessagesAsync(serviceBusMessages, cancellationToken).ConfigureAwait(false);
             }
         }
     }
