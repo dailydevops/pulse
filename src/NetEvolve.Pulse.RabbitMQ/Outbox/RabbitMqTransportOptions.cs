@@ -8,36 +8,6 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 public sealed class RabbitMqTransportOptions
 {
     /// <summary>
-    /// Gets or sets the RabbitMQ host name.
-    /// </summary>
-    /// <remarks>Defaults to <c>"localhost"</c>.</remarks>
-    public string HostName { get; set; } = "localhost";
-
-    /// <summary>
-    /// Gets or sets the RabbitMQ port.
-    /// </summary>
-    /// <remarks>Defaults to <c>5672</c>.</remarks>
-    public int Port { get; set; } = 5672;
-
-    /// <summary>
-    /// Gets or sets the RabbitMQ virtual host.
-    /// </summary>
-    /// <remarks>Defaults to <c>"/"</c>.</remarks>
-    public string VirtualHost { get; set; } = "/";
-
-    /// <summary>
-    /// Gets or sets the user name for RabbitMQ authentication.
-    /// </summary>
-    /// <remarks>Defaults to <c>"guest"</c>.</remarks>
-    public string UserName { get; set; } = "guest";
-
-    /// <summary>
-    /// Gets or sets the password for RabbitMQ authentication.
-    /// </summary>
-    /// <remarks>Defaults to <c>"guest"</c>.</remarks>
-    public string Password { get; set; } = "guest";
-
-    /// <summary>
     /// Gets or sets the target exchange name for publishing messages.
     /// </summary>
     /// <remarks>

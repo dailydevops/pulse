@@ -15,42 +15,18 @@ using TUnit.Core;
 public sealed class RabbitMqMessageTransportTests
 {
     [Test]
-    public async Task Options_Are_properly_configured()
+    public async Task Options_ExchangeName_can_be_configured()
     {
-        var options = new RabbitMqTransportOptions
-        {
-            HostName = "test-host",
-            Port = 5673,
-            VirtualHost = "/test",
-            UserName = "test-user",
-            Password = "test-pass",
-            ExchangeName = "test-exchange",
-        };
+        var options = new RabbitMqTransportOptions { ExchangeName = "test-exchange" };
 
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(options.HostName).IsEqualTo("test-host");
-            _ = await Assert.That(options.Port).IsEqualTo(5673);
-            _ = await Assert.That(options.VirtualHost).IsEqualTo("/test");
-            _ = await Assert.That(options.UserName).IsEqualTo("test-user");
-            _ = await Assert.That(options.Password).IsEqualTo("test-pass");
-            _ = await Assert.That(options.ExchangeName).IsEqualTo("test-exchange");
-        }
+        _ = await Assert.That(options.ExchangeName).IsEqualTo("test-exchange");
     }
 
     [Test]
-    public async Task Options_Default_values_are_correct()
+    public async Task Options_Default_ExchangeName_is_empty_string()
     {
         var options = new RabbitMqTransportOptions();
 
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(options.HostName).IsEqualTo("localhost");
-            _ = await Assert.That(options.Port).IsEqualTo(5672);
-            _ = await Assert.That(options.VirtualHost).IsEqualTo("/");
-            _ = await Assert.That(options.UserName).IsEqualTo("guest");
-            _ = await Assert.That(options.Password).IsEqualTo("guest");
-            _ = await Assert.That(options.ExchangeName).IsEqualTo("outbox");
-        }
+        _ = await Assert.That(options.ExchangeName).IsEqualTo(string.Empty);
     }
 }

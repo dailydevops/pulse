@@ -22,20 +22,34 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Registers_IConnection_as_singleton()
+    public async Task UseRabbitMqTransport_Configures_options()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
             config.UseRabbitMqTransport(options =>
             {
-                options.HostName = "localhost";
-                options.Port = 5672;
+                options.ExchangeName = "test-exchange";
             })
         );
 
-        var descriptor = services.Single(d => d.ServiceType == typeof(IConnection));
-        _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
-        _ = await Assert.That(descriptor.ImplementationFactory).IsNotNull();
+        await using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
+
+        _ = await Assert.That(options.Value.ExchangeName).IsEqualTo("test-exchange");
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config => config.UseRabbitMqTransport());
+
+        await using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
+
+        // Verify default options are accessible
+        _ = await Assert.That(options.Value).IsNotNull();
+        _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(string.Empty);
     }
 
     [Test]
@@ -52,75 +66,6 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
             _ = await Assert.That(descriptors.Count).IsEqualTo(1);
             _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
         }
-    }
-
-    [Test]
-    public async Task UseRabbitMqTransport_Configures_options()
-    {
-        IServiceCollection services = new ServiceCollection();
-        _ = services.AddPulse(config =>
-            config.UseRabbitMqTransport(options =>
-            {
-                options.HostName = "test-host";
-                options.Port = 5673;
-                options.ExchangeName = "test-exchange";
-            })
-        );
-
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
-
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(options.Value.HostName).IsEqualTo("test-host");
-            _ = await Assert.That(options.Value.Port).IsEqualTo(5673);
-            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo("test-exchange");
-        }
-    }
-
-    [Test]
-    public async Task UseRabbitMqTransport_Configures_all_connection_options()
-    {
-        IServiceCollection services = new ServiceCollection();
-        _ = services.AddPulse(config =>
-            config.UseRabbitMqTransport(options =>
-            {
-                options.HostName = "custom-host";
-                options.Port = 5673;
-                options.VirtualHost = "/custom";
-                options.UserName = "custom-user";
-                options.Password = "custom-pass";
-                options.ExchangeName = "custom-exchange";
-            })
-        );
-
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
-
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(options.Value.HostName).IsEqualTo("custom-host");
-            _ = await Assert.That(options.Value.Port).IsEqualTo(5673);
-            _ = await Assert.That(options.Value.VirtualHost).IsEqualTo("/custom");
-            _ = await Assert.That(options.Value.UserName).IsEqualTo("custom-user");
-            _ = await Assert.That(options.Value.Password).IsEqualTo("custom-pass");
-            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo("custom-exchange");
-        }
-    }
-
-    [Test]
-    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
-    {
-        IServiceCollection services = new ServiceCollection();
-        _ = services.AddPulse(config => config.UseRabbitMqTransport());
-
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
-
-        // Verify default options are accessible
-        _ = await Assert.That(options.Value).IsNotNull();
-        _ = await Assert.That(options.Value.HostName).IsEqualTo("localhost");
-        _ = await Assert.That(options.Value.Port).IsEqualTo(5672);
     }
 
     [Test]

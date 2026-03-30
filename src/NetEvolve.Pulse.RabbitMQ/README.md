@@ -36,13 +36,34 @@ dotnet add package NetEvolve.Pulse.RabbitMQ
 
 ## Quick Start
 
-### 1. Register services
+### 1. Add the RabbitMQ client package
+
+```bash
+dotnet add package RabbitMQ.Client
+```
+
+### 2. Register services
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
+using RabbitMQ.Client;
 
 var services = new ServiceCollection();
+
+// Register RabbitMQ connection before UseRabbitMqTransport
+services.AddSingleton<IConnection>(sp =>
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = "localhost",
+        Port = 5672,
+        VirtualHost = "/",
+        UserName = "guest",
+        Password = "guest"
+    };
+    return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+});
 
 services.AddPulse(config => config
     .AddOutbox(
@@ -50,15 +71,11 @@ services.AddPulse(config => config
         processorOptions => processorOptions.BatchSize = 100)
     .UseRabbitMqTransport(options =>
     {
-        options.HostName = "localhost";
-        options.Port = 5672;
-        options.UserName = "guest";
-        options.Password = "guest";
         options.ExchangeName = "events";
     }));
 ```
 
-### 2. Store events via IEventOutbox
+### 3. Store events via IEventOutbox
 
 Use `IEventOutbox` to store events reliably. The outbox processor picks them up and publishes each one to the configured RabbitMQ exchange:
 
@@ -138,14 +155,9 @@ public class OrderService
 
 ### `RabbitMqTransportOptions`
 
-| Property       | Type     | Default       | Description                                    |
-| -------------- | -------- | ------------- | ---------------------------------------------- |
-| `HostName`     | `string` | `"localhost"` | RabbitMQ server hostname                       |
-| `Port`         | `int`    | `5672`        | RabbitMQ server port                           |
-| `VirtualHost`  | `string` | `"/"`         | RabbitMQ virtual host                          |
-| `UserName`     | `string` | `"guest"`     | Authentication username                        |
-| `Password`     | `string` | `"guest"`     | Authentication password                        |
-| `ExchangeName` | `string` | `""`          | Target exchange for publishing (**required**)  |
+| Property       | Type     | Default | Description                                   |
+| -------------- | -------- | ------- | --------------------------------------------- |
+| `ExchangeName` | `string` | `""`    | Target exchange for publishing (**required**) |
 
 ### Routing Key Resolution
 
@@ -164,7 +176,6 @@ services.AddSingleton<ITopicNameResolver, MyCustomTopicNameResolver>();
 services.AddPulse(config => config
     .UseRabbitMqTransport(options =>
     {
-        options.HostName = "rabbitmq.example.com";
         options.ExchangeName = "events";
     }));
 ```
@@ -263,9 +274,9 @@ Configure batch size and polling interval based on your throughput requirements:
 })
 ```
 
-### Singleton Connection
+### Connection Management
 
-The RabbitMQ connection is registered as a singleton and shared across all message sends. The client library is thread-safe and designed for concurrent use.
+Register `IConnection` as a singleton in your DI container. The RabbitMQ client library is thread-safe and designed for concurrent use, so a single shared connection is recommended.
 
 ### Channel Management
 
