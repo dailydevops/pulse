@@ -97,22 +97,22 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
+    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             if (_connectionAdapter?.IsOpen != true || _channel?.IsOpen != true)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             // Perform a lightweight check by verifying channel is still open
             // RabbitMQ client maintains the connection state internally
-            return await Task.FromResult(_channel.IsOpen).ConfigureAwait(false);
+            return Task.FromResult(_channel.IsOpen);
         }
-        catch
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
-            return false;
+            return Task.FromResult(false);
         }
     }
 
