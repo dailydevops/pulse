@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.RabbitMQ.Tests.Unit;
 
+using global::RabbitMQ.Client;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -17,6 +18,24 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
         _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
+        _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Registers_IConnection_as_singleton()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.UseRabbitMqTransport(options =>
+            {
+                options.HostName = "localhost";
+                options.Port = 5672;
+            })
+        );
+
+        var descriptor = services.Single(d => d.ServiceType == typeof(IConnection));
+        _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        _ = await Assert.That(descriptor.ImplementationFactory).IsNotNull();
     }
 
     [Test]
@@ -60,6 +79,51 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
     }
 
     [Test]
+    public async Task UseRabbitMqTransport_Configures_all_connection_options()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.UseRabbitMqTransport(options =>
+            {
+                options.HostName = "custom-host";
+                options.Port = 5673;
+                options.VirtualHost = "/custom";
+                options.UserName = "custom-user";
+                options.Password = "custom-pass";
+                options.ExchangeName = "custom-exchange";
+            })
+        );
+
+        await using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(options.Value.HostName).IsEqualTo("custom-host");
+            _ = await Assert.That(options.Value.Port).IsEqualTo(5673);
+            _ = await Assert.That(options.Value.VirtualHost).IsEqualTo("/custom");
+            _ = await Assert.That(options.Value.UserName).IsEqualTo("custom-user");
+            _ = await Assert.That(options.Value.Password).IsEqualTo("custom-pass");
+            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo("custom-exchange");
+        }
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config => config.UseRabbitMqTransport());
+
+        await using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
+
+        // Verify default options are accessible
+        _ = await Assert.That(options.Value).IsNotNull();
+        _ = await Assert.That(options.Value.HostName).IsEqualTo("localhost");
+        _ = await Assert.That(options.Value.Port).IsEqualTo(5672);
+    }
+
+    [Test]
     public async Task UseRabbitMqTransport_When_configurator_null_throws()
     {
         IMediatorConfigurator configurator = null!;
@@ -68,6 +132,20 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
 
         _ = await Assert.That(exception).IsNotNull();
         _ = await Assert.That(exception!.ParamName).IsEqualTo("configurator");
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Returns_configurator_for_chaining()
+    {
+        IServiceCollection services = new ServiceCollection();
+        IMediatorConfigurator? returnedConfigurator = null;
+
+        _ = services.AddPulse(config =>
+        {
+            returnedConfigurator = config.UseRabbitMqTransport();
+        });
+
+        _ = await Assert.That(returnedConfigurator).IsNotNull();
     }
 
 #pragma warning disable CA1812 // Avoid uninstantiated internal classes - instantiated via DI container
