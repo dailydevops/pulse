@@ -47,20 +47,13 @@ public sealed class RabbitMqTransportOptions
     public string ExchangeName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the default routing key for messages.
+    /// Gets or sets the routing key prefix for messages.
     /// </summary>
     /// <remarks>
-    /// This routing key is used by default unless overridden by a custom routing key resolver.
-    /// Can be empty for fanout exchanges.
+    /// If set, this prefix is prepended to the resolved topic name (event type) to form the final routing key.
+    /// For example, if <c>RoutingKey = "events"</c> and the topic name is <c>"OrderCreated"</c>,
+    /// the final routing key will be <c>"events.OrderCreated"</c>.
+    /// Can be empty for fanout exchanges or when no prefix is desired.
     /// </remarks>
     public string RoutingKey { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets an optional delegate to resolve the routing key from an outbox message.
-    /// </summary>
-    /// <remarks>
-    /// If provided, this delegate is called to determine the routing key for each message.
-    /// If null, <see cref="RoutingKey"/> is used for all messages.
-    /// </remarks>
-    public Func<OutboxMessage, string>? RoutingKeyResolver { get; set; }
 }

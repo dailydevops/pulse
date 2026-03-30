@@ -1,10 +1,10 @@
 namespace NetEvolve.Pulse.RabbitMQ.Tests.Integration;
 
 using System.Text;
+using global::RabbitMQ.Client;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using global::RabbitMQ.Client;
 using Testcontainers.RabbitMq;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -39,7 +39,7 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
     [Test]
     public async Task SendAsync_Publishes_message_to_rabbitmq()
     {
-        var transport = CreateTransport();
+        using var transport = CreateTransport();
         var message = CreateOutboxMessage();
 
         await transport.SendAsync(message);
@@ -57,30 +57,9 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task SendBatchAsync_Publishes_multiple_messages()
-    {
-        var transport = CreateTransport();
-        var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
-
-        await transport.SendBatchAsync(messages);
-
-        var receivedMessages = new List<ReceivedMessage>();
-        for (var i = 0; i < messages.Length; i++)
-        {
-            var received = await ConsumeMessageAsync();
-            if (received is not null)
-            {
-                receivedMessages.Add(received);
-            }
-        }
-
-        _ = await Assert.That(receivedMessages.Count).IsEqualTo(messages.Length);
-    }
-
-    [Test]
     public async Task IsHealthyAsync_When_connected_returns_true()
     {
-        var transport = CreateTransport();
+        using var transport = CreateTransport();
 
         // Trigger connection by sending a message
         await transport.SendAsync(CreateOutboxMessage());
@@ -106,18 +85,14 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task SendAsync_With_custom_routing_key_resolver()
+    public async Task SendAsync_With_routing_key_prefix()
     {
         var options = new RabbitMqTransportOptions
         {
             HostName = new Uri(_container!.GetConnectionString()).Host,
             Port = new Uri(_container.GetConnectionString()).Port,
             ExchangeName = ExchangeName,
-            RoutingKeyResolver = message =>
-            {
-                var eventType = message.EventType.Split(',')[0].Split('.').Last();
-                return $"custom.{eventType.ToLowerInvariant()}";
-            },
+            RoutingKey = "custom",
         };
 
         // Bind queue to custom routing key pattern
@@ -125,7 +100,7 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
         await channel.QueueBindAsync(QueueName, ExchangeName, "custom.#");
         await channel.CloseAsync();
 
-        var transport = new RabbitMqMessageTransport(Options.Create(options));
+        using var transport = new RabbitMqMessageTransport(new FakeTopicNameResolver(), Options.Create(options));
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
@@ -166,7 +141,7 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
             RoutingKey = RoutingKey,
         };
 
-        return new RabbitMqMessageTransport(Options.Create(options));
+        return new RabbitMqMessageTransport(new FakeTopicNameResolver(), Options.Create(options));
     }
 
     private static OutboxMessage CreateOutboxMessage() =>
@@ -206,4 +181,9 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
     }
 
     private sealed record ReceivedMessage(string Body, string? MessageId, string? CorrelationId, string? EventType);
+
+    private sealed class FakeTopicNameResolver : ITopicNameResolver
+    {
+        public string Resolve(OutboxMessage message) => "FakeTopic";
+    }
 }

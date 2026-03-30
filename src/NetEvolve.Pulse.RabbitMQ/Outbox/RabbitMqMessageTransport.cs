@@ -13,8 +13,9 @@ using RabbitMQ.Client;
 /// This transport maintains a single connection and channel for publishing messages.
 /// The connection is opened lazily on first use and kept alive for the lifetime of the transport.
 /// <para><strong>Routing Key Resolution:</strong></para>
-/// Each message is published with a routing key determined by <see cref="RabbitMqTransportOptions.RoutingKeyResolver"/>
-/// if configured, otherwise <see cref="RabbitMqTransportOptions.RoutingKey"/> is used.
+/// Each message is published with a routing key resolved by <see cref="ITopicNameResolver"/>.
+/// By default, the simple class name of the event type is used (e.g., <c>"OrderCreated"</c>).
+/// If <see cref="RabbitMqTransportOptions.RoutingKey"/> is configured, it is used as a prefix.
 /// <para><strong>Payload:</strong></para>
 /// The raw JSON payload from <see cref="OutboxMessage.Payload"/> is published as the message body.
 /// <para><strong>Health Checks:</strong></para>
@@ -24,6 +25,9 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
 {
     /// <summary>The resolved transport options controlling the RabbitMQ connection and exchange settings.</summary>
     private readonly RabbitMqTransportOptions _options;
+
+    /// <summary>The topic name resolver used to determine the routing key from an outbox message.</summary>
+    private readonly ITopicNameResolver _topicNameResolver;
 
     /// <summary>Lazy-initialized RabbitMQ connection.</summary>
     private IConnection? _connection;
@@ -40,11 +44,14 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="RabbitMqMessageTransport"/> class.
     /// </summary>
+    /// <param name="topicNameResolver">The topic name resolver for determining routing keys from outbox messages.</param>
     /// <param name="options">The transport options.</param>
-    public RabbitMqMessageTransport(IOptions<RabbitMqTransportOptions> options)
+    public RabbitMqMessageTransport(ITopicNameResolver topicNameResolver, IOptions<RabbitMqTransportOptions> options)
     {
+        ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
 
+        _topicNameResolver = topicNameResolver;
         _options = options.Value;
     }
 
@@ -160,12 +167,15 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <returns>The resolved routing key.</returns>
     private string ResolveRoutingKey(OutboxMessage message)
     {
-        if (_options.RoutingKeyResolver is not null)
+        var topicName = _topicNameResolver.Resolve(message);
+
+        // If a routing key prefix is configured, prepend it to the topic name
+        if (!string.IsNullOrEmpty(_options.RoutingKey))
         {
-            return _options.RoutingKeyResolver(message);
+            return $"{_options.RoutingKey}.{topicName}";
         }
 
-        return _options.RoutingKey;
+        return topicName;
     }
 
     /// <inheritdoc />

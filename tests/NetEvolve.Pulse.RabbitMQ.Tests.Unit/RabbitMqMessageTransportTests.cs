@@ -9,12 +9,31 @@ using TUnit.Core;
 public sealed class RabbitMqMessageTransportTests
 {
     [Test]
+    public async Task Constructor_When_topicNameResolver_null_throws()
+    {
+        ITopicNameResolver topicNameResolver = null!;
+        var options = Options.Create(new RabbitMqTransportOptions());
+
+#pragma warning disable CA1806 // Do not ignore method results
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new RabbitMqMessageTransport(topicNameResolver, options)
+        );
+#pragma warning restore CA1806
+
+        _ = await Assert.That(exception).IsNotNull();
+        _ = await Assert.That(exception!.ParamName).IsEqualTo("topicNameResolver");
+    }
+
+    [Test]
     public async Task Constructor_When_options_null_throws()
     {
+        var topicNameResolver = new FakeTopicNameResolver();
         IOptions<RabbitMqTransportOptions> options = null!;
 
 #pragma warning disable CA1806 // Do not ignore method results
-        var exception = Assert.Throws<ArgumentNullException>(() => new RabbitMqMessageTransport(options));
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new RabbitMqMessageTransport(topicNameResolver, options)
+        );
 #pragma warning restore CA1806
 
         _ = await Assert.That(exception).IsNotNull();
@@ -69,20 +88,6 @@ public sealed class RabbitMqMessageTransportTests
         }
     }
 
-    [Test]
-    public async Task RoutingKeyResolver_Can_be_set_and_used()
-    {
-        var options = new RabbitMqTransportOptions
-        {
-            RoutingKeyResolver = message => $"custom.{message.EventType.Split(',')[0].Split('.').Last()}",
-        };
-
-        var message = new OutboxMessage { EventType = "MyApp.Events.OrderCreated, MyApp" };
-        var routingKey = options.RoutingKeyResolver(message);
-
-        _ = await Assert.That(routingKey).IsEqualTo("custom.OrderCreated");
-    }
-
     private static RabbitMqMessageTransport CreateTransport(RabbitMqTransportOptions? options = null)
     {
         options ??= new RabbitMqTransportOptions
@@ -92,6 +97,11 @@ public sealed class RabbitMqMessageTransportTests
             ExchangeName = "test-exchange",
         };
 
-        return new RabbitMqMessageTransport(Options.Create(options));
+        return new RabbitMqMessageTransport(new FakeTopicNameResolver(), Options.Create(options));
+    }
+
+    private sealed class FakeTopicNameResolver : ITopicNameResolver
+    {
+        public string Resolve(OutboxMessage message) => "FakeTopic";
     }
 }

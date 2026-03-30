@@ -37,6 +37,8 @@ services.AddPulse(config =>
 
 ### Custom Routing Key Resolution
 
+The transport uses `ITopicNameResolver` to extract the event type name (e.g., `OrderCreated` from `MyApp.Events.OrderCreated`). You can optionally prefix this with a routing key:
+
 ```csharp
 services.AddPulse(config =>
 {
@@ -45,12 +47,24 @@ services.AddPulse(config =>
         options.HostName = "rabbitmq.example.com";
         options.ExchangeName = "events";
         
-        // Resolve routing key from event type
-        options.RoutingKeyResolver = message =>
-        {
-            var eventType = message.EventType.Split(',')[0].Split('.').Last();
-            return $"events.{eventType.ToLowerInvariant()}";
-        };
+        // Prefix all routing keys with "outbox"
+        // Result: "outbox.OrderCreated", "outbox.UserRegistered", etc.
+        options.RoutingKey = "outbox";
+    });
+});
+```
+
+To customize topic name resolution, register a custom `ITopicNameResolver` implementation:
+
+```csharp
+services.AddSingleton<ITopicNameResolver, MyCustomTopicNameResolver>();
+
+services.AddPulse(config =>
+{
+    config.UseRabbitMqTransport(options =>
+    {
+        options.ExchangeName = "events";
+        options.RoutingKey = "prefix"; // Optional prefix
     });
 });
 ```
@@ -65,8 +79,7 @@ services.AddPulse(config =>
 | `UserName` | `string` | `"guest"` | Authentication username |
 | `Password` | `string` | `"guest"` | Authentication password |
 | `ExchangeName` | `string` | `""` | Target exchange for publishing (required) |
-| `RoutingKey` | `string` | `""` | Default routing key |
-| `RoutingKeyResolver` | `Func<OutboxMessage, string>?` | `null` | Custom routing key resolution |
+| `RoutingKey` | `string` | `""` | Routing key prefix (prepended to event type) |
 
 ## Prerequisites
 
