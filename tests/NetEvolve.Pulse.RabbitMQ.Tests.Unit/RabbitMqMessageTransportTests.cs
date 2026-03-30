@@ -8,10 +8,16 @@ using TUnit.Core;
 
 /// <summary>
 /// Unit tests for RabbitMqMessageTransport.
-/// Note: Due to the complexity of RabbitMQ.Client interfaces, most behavioral tests
-/// are in RabbitMqTransportIntegrationTests using Testcontainers.
-/// These unit tests focus on constructor validation and options configuration.
+/// These tests focus on constructor validation, argument validation, and basic behavioral contracts.
+/// Full end-to-end behavior including message publishing, channel management, and health checks
+/// is validated in RabbitMqTransportIntegrationTests using Testcontainers with real RabbitMQ.
 /// </summary>
+/// <remarks>
+/// Note: Creating comprehensive fake implementations of IConnection and IChannel from RabbitMQ.Client 7.1.0
+/// is impractical due to the complexity of these interfaces (numerous async methods, events, and properties).
+/// This approach follows the pattern used by other transport packages where integration tests validate
+/// the actual client library integration, while unit tests focus on input validation and configuration.
+/// </remarks>
 public sealed class RabbitMqMessageTransportTests
 {
     [Test]
