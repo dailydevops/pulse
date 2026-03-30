@@ -26,8 +26,13 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
 
-        var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
-        _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
+        var descriptors = services.Where(d => d.ServiceType == typeof(IMessageTransport)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+            _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
+        }
     }
 
     [Test]
