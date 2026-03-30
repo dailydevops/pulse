@@ -2,10 +2,8 @@ namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
@@ -48,9 +46,6 @@ public static class KafkaMediatorConfiguratorExtensions
         ArgumentNullException.ThrowIfNull(configurator);
 
         var services = configurator.Services;
-
-        services.TryAddSingleton<IKafkaProducerAdapter, KafkaProducerAdapter>();
-        services.TryAddSingleton<IKafkaAdminAdapter, KafkaAdminAdapter>();
 
         var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));
         if (existing is not null)

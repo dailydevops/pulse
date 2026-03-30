@@ -1,11 +1,11 @@
 namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using Confluent.Kafka;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Internals;
 
 /// <summary>
 /// Apache Kafka transport that delivers outbox messages to Kafka topics using the Confluent.Kafka
@@ -16,21 +16,21 @@ using NetEvolve.Pulse.Internals;
 /// registered in the DI container by the caller before using this transport.
 /// Topic routing is determined by the registered <see cref="ITopicNameResolver" />.
 /// </remarks>
-public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
+public sealed class KafkaMessageTransport : IMessageTransport
 {
-    private readonly IKafkaProducerAdapter _producer;
-    private readonly IKafkaAdminAdapter _adminClient;
+    private readonly IProducer<string, string> _producer;
+    private readonly IAdminClient _adminClient;
     private readonly ITopicNameResolver _topicNameResolver;
 
     /// <summary>
     /// Initializes a new instance of <see cref="KafkaMessageTransport" />.
     /// </summary>
-    /// <param name="producer">The Kafka producer adapter.</param>
-    /// <param name="adminClient">The Kafka admin client adapter used for health checks.</param>
+    /// <param name="producer">The Kafka producer, registered in DI by the caller.</param>
+    /// <param name="adminClient">The Kafka admin client, registered in DI by the caller.</param>
     /// <param name="topicNameResolver">The resolver that maps each outbox message to a Kafka topic name.</param>
-    internal KafkaMessageTransport(
-        IKafkaProducerAdapter producer,
-        IKafkaAdminAdapter adminClient,
+    public KafkaMessageTransport(
+        IProducer<string, string> producer,
+        IAdminClient adminClient,
         ITopicNameResolver topicNameResolver
     )
     {
@@ -55,6 +55,11 @@ public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
     }
 
     /// <inheritdoc />
+    [SuppressMessage(
+        "Performance",
+        "CA1849:Call async methods when in an async method",
+        Justification = "Intentional fire-and-forget batch pattern. Produce() enqueues messages with a delivery-report callback; awaiting ProduceAsync() per message would serialize delivery and defeat the purpose of batching."
+    )]
     public Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -109,9 +114,6 @@ public sealed class KafkaMessageTransport : IMessageTransport, IDisposable
             return Task.FromResult(false);
         }
     }
-
-    /// <inheritdoc />
-    public void Dispose() => _producer.Dispose();
 
     private static Message<string, string> CreateKafkaMessage(OutboxMessage message)
     {
