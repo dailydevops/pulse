@@ -1,7 +1,6 @@
 namespace NetEvolve.Pulse.Kafka.Tests.Unit;
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -185,7 +184,7 @@ public sealed class KafkaMessageTransportTests
         public Error? DeliveryError { get; init; }
 
         public string Name => "fake-producer";
-        public Handle Handle => default;
+        public Handle Handle => default!;
 
         public Task<DeliveryResult<string, string>> ProduceAsync(
             string topic,
@@ -294,7 +293,7 @@ public sealed class KafkaMessageTransportTests
         public int GetMetadataCallCount { get; private set; }
 
         public string Name => "fake-admin";
-        public Handle Handle => default;
+        public Handle Handle => default!;
 
         public Metadata GetMetadata(TimeSpan timeout)
         {

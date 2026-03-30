@@ -123,7 +123,7 @@ public sealed class KafkaMessageTransport : IMessageTransport
             { "contentType", "application/json"u8.ToArray() },
         };
 
-        if (message.CorrelationId is not null)
+        if (!string.IsNullOrWhiteSpace(message.CorrelationId))
         {
             headers.Add("correlationId", Encoding.UTF8.GetBytes(message.CorrelationId));
         }
