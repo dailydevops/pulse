@@ -61,6 +61,14 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         return new SQLiteOutboxRepository(options, TimeProvider.System);
     }
 
+    private SQLiteOutboxRepository CreateRepositoryWithScope(IOutboxTransactionScope scope)
+    {
+        var options = Options.Create(
+            new SQLiteOutboxOptions { ConnectionString = _connectionString, EnableWalMode = false }
+        );
+        return new SQLiteOutboxRepository(options, TimeProvider.System, scope);
+    }
+
     private static OutboxMessage CreateMessage(string eventType = "TestEvent") =>
         new OutboxMessage
         {
@@ -235,5 +243,34 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         var nextRetryValue = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
 
         _ = await Assert.That(nextRetryValue).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddAsync_UsesAmbientTransactionScope()
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
+
+        var scope = new StubTransactionScope(transaction);
+        var repository = CreateRepositoryWithScope(scope);
+        var message = CreateMessage("scoped");
+
+        await repository.AddAsync(message).ConfigureAwait(false);
+        await transaction.RollbackAsync().ConfigureAwait(false);
+
+        await using var cmd = new SqliteCommand(
+            "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
+            _keepAlive
+        );
+        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+        var count = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
+
+        _ = await Assert.That(count).IsEqualTo(0L);
+    }
+
+    private sealed class StubTransactionScope(SqliteTransaction transaction) : IOutboxTransactionScope
+    {
+        public object? GetCurrentTransaction() => transaction;
     }
 }
