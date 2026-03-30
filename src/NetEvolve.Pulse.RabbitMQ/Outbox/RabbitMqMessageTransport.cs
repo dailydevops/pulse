@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Outbox;
 using System.Text;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Internals;
 using RabbitMQ.Client;
 
 /// <summary>
@@ -10,7 +11,7 @@ using RabbitMQ.Client;
 /// </summary>
 /// <remarks>
 /// <para><strong>Connection Management:</strong></para>
-/// This transport uses an injected <see cref="IConnection"/> and creates channels on demand.
+/// This transport uses an injected connection adapter and creates channels on demand.
 /// The connection lifetime is managed externally via dependency injection.
 /// <para><strong>Routing Key Resolution:</strong></para>
 /// Each message is published with a routing key resolved by <see cref="ITopicNameResolver"/>.
@@ -28,11 +29,11 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <summary>The topic name resolver used to determine the routing key from an outbox message.</summary>
     private readonly ITopicNameResolver _topicNameResolver;
 
-    /// <summary>The RabbitMQ connection provided via dependency injection.</summary>
-    private readonly IConnection _connection;
+    /// <summary>The RabbitMQ connection adapter.</summary>
+    private readonly IRabbitMqConnectionAdapter _connectionAdapter;
 
     /// <summary>Lazy-initialized RabbitMQ channel for publishing.</summary>
-    private IChannel? _channel;
+    private IRabbitMqChannelAdapter? _channel;
 
     /// <summary>Semaphore for thread-safe channel initialization.</summary>
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -43,20 +44,20 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="RabbitMqMessageTransport"/> class.
     /// </summary>
-    /// <param name="connection">The RabbitMQ connection.</param>
+    /// <param name="connectionAdapter">The RabbitMQ connection adapter.</param>
     /// <param name="topicNameResolver">The topic name resolver for determining routing keys from outbox messages.</param>
     /// <param name="options">The transport options.</param>
-    public RabbitMqMessageTransport(
-        IConnection connection,
+    internal RabbitMqMessageTransport(
+        IRabbitMqConnectionAdapter connectionAdapter,
         ITopicNameResolver topicNameResolver,
         IOptions<RabbitMqTransportOptions> options
     )
     {
-        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(connectionAdapter);
         ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
 
-        _connection = connection;
+        _connectionAdapter = connectionAdapter;
         _topicNameResolver = topicNameResolver;
         _options = options.Value;
     }
@@ -100,7 +101,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     {
         try
         {
-            if (_connection?.IsOpen != true || _channel?.IsOpen != true)
+            if (_connectionAdapter?.IsOpen != true || _channel?.IsOpen != true)
             {
                 return false;
             }
@@ -120,7 +121,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The initialized channel.</returns>
-    private async Task<IChannel> EnsureChannelAsync(CancellationToken cancellationToken)
+    private async Task<IRabbitMqChannelAdapter> EnsureChannelAsync(CancellationToken cancellationToken)
     {
         if (_channel?.IsOpen == true)
         {
@@ -135,7 +136,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
                 return _channel;
             }
 
-            _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            _channel = await _connectionAdapter.CreateChannelAsync(cancellationToken).ConfigureAwait(false);
 
             return _channel;
         }

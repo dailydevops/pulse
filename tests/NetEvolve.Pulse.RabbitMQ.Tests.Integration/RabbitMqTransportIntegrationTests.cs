@@ -100,14 +100,10 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
 
     private RabbitMqMessageTransport CreateTransport()
     {
-        var options = new RabbitMqTransportOptions
-        {
-            HostName = new Uri(_container!.GetConnectionString()).Host,
-            Port = new Uri(_container.GetConnectionString()).Port,
-            ExchangeName = ExchangeName,
-        };
+        var options = new RabbitMqTransportOptions { ExchangeName = ExchangeName };
 
-        return new RabbitMqMessageTransport(_connection!, new FakeTopicNameResolver(), Options.Create(options));
+        var adapter = new NetEvolve.Pulse.Internals.RabbitMqConnectionAdapter(_connection!);
+        return new RabbitMqMessageTransport(adapter, new FakeTopicNameResolver(), Options.Create(options));
     }
 
     private static OutboxMessage CreateOutboxMessage() =>

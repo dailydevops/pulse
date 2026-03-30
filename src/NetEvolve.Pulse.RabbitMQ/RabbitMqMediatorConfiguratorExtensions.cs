@@ -4,7 +4,9 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
+using RabbitMQ.Client;
 
 /// <summary>
 /// Extension methods for registering the RabbitMQ message transport with the Pulse mediator.
@@ -40,6 +42,13 @@ public static class RabbitMqMediatorConfiguratorExtensions
         {
             _ = services.Configure(configureOptions);
         }
+
+        // Register the connection adapter
+        _ = services.AddSingleton<IRabbitMqConnectionAdapter>(sp =>
+        {
+            var connection = sp.GetRequiredService<IConnection>();
+            return new RabbitMqConnectionAdapter(connection);
+        });
 
         var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));
         if (existing is not null)
