@@ -26,10 +26,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         ApplySchema();
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await _keepAlive.DisposeAsync().ConfigureAwait(false);
-    }
+    public async ValueTask DisposeAsync() => await _keepAlive.DisposeAsync().ConfigureAwait(false);
 
     private void ApplySchema()
     {
@@ -83,7 +80,10 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.AddAsync(message).ConfigureAwait(false);
 
-        using var cmd = new SqliteCommand("SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using var cmd = new SqliteCommand(
+            "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
+            _keepAlive
+        );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
         var count = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
 
@@ -127,7 +127,10 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.MarkAsCompletedAsync(message.Id).ConfigureAwait(false);
 
-        using var cmd = new SqliteCommand("SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using var cmd = new SqliteCommand(
+            "SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
+            _keepAlive
+        );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
         var status = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
         _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.Completed);
@@ -142,7 +145,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.MarkAsFailedAsync(message.Id, "Test error").ConfigureAwait(false);
 
-        using var cmd = new SqliteCommand(
+        await using var cmd = new SqliteCommand(
             "SELECT \"Status\", \"Error\", \"RetryCount\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
@@ -167,7 +170,10 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.MarkAsDeadLetterAsync(message.Id, "Fatal error").ConfigureAwait(false);
 
-        using var cmd = new SqliteCommand("SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using var cmd = new SqliteCommand(
+            "SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
+            _keepAlive
+        );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
         var status = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
         _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.DeadLetter);
@@ -221,7 +227,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         var nextRetry = DateTimeOffset.UtcNow.AddMinutes(5);
         await repository.MarkAsFailedAsync(message.Id, "Error with retry", nextRetry).ConfigureAwait(false);
 
-        using var cmd = new SqliteCommand(
+        await using var cmd = new SqliteCommand(
             "SELECT \"NextRetryAt\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );

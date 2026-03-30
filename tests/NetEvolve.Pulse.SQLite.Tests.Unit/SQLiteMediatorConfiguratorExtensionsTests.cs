@@ -143,7 +143,7 @@ public sealed class SQLiteMediatorConfiguratorExtensionsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(options.Value.ConnectionString).IsEqualTo("Data Source=:memory:");
-            _ = await Assert.That(options.Value.EnableWalMode).IsEqualTo(false);
+            _ = await Assert.That(options.Value.EnableWalMode).IsFalse();
             _ = await Assert.That(options.Value.TableName).IsEqualTo("Events");
         }
     }

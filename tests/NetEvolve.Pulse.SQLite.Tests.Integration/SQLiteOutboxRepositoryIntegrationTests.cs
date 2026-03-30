@@ -29,10 +29,7 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
     }
 
     [Before(Test)]
-    public async Task SetupAsync()
-    {
-        await _fixture.InitializeSchemaAsync(_connectionString).ConfigureAwait(false);
-    }
+    public async Task SetupAsync() => await _fixture.InitializeSchemaAsync(_connectionString).ConfigureAwait(false);
 
     [After(Test)]
     public Task CleanupAsync()
@@ -174,7 +171,7 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
 
         // WAL mode creates a -wal sidecar file after the first write
         var walExists = File.Exists(_dbPath + "-wal") || File.Exists(_dbPath);
-        _ = await Assert.That(walExists).IsEqualTo(true);
+        _ = await Assert.That(walExists).IsTrue();
     }
 }
 
@@ -185,8 +182,7 @@ public sealed class SQLiteFileFixture
 {
     private readonly string _schemaSql;
 
-    public SQLiteFileFixture()
-    {
+    public SQLiteFileFixture() =>
         _schemaSql = """
             CREATE TABLE IF NOT EXISTS "OutboxMessage"
             (
@@ -210,7 +206,6 @@ public sealed class SQLiteFileFixture
                 ON "OutboxMessage" ("Status", "ProcessedAt")
                 WHERE "Status" = 2;
             """;
-    }
 
     /// <summary>
     /// Initializes the outbox schema on the given SQLite database file.
