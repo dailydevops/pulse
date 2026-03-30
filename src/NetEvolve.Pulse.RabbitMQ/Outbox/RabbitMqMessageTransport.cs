@@ -10,12 +10,11 @@ using RabbitMQ.Client;
 /// </summary>
 /// <remarks>
 /// <para><strong>Connection Management:</strong></para>
-/// This transport maintains a single connection and channel for publishing messages.
-/// The connection is opened lazily on first use and kept alive for the lifetime of the transport.
+/// This transport uses an injected <see cref="IConnection"/> and creates channels on demand.
+/// The connection lifetime is managed externally via dependency injection.
 /// <para><strong>Routing Key Resolution:</strong></para>
 /// Each message is published with a routing key resolved by <see cref="ITopicNameResolver"/>.
 /// By default, the simple class name of the event type is used (e.g., <c>"OrderCreated"</c>).
-/// If <see cref="RabbitMqTransportOptions.RoutingKey"/> is configured, it is used as a prefix.
 /// <para><strong>Payload:</strong></para>
 /// The raw JSON payload from <see cref="OutboxMessage.Payload"/> is published as the message body.
 /// <para><strong>Health Checks:</strong></para>
@@ -29,13 +28,13 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <summary>The topic name resolver used to determine the routing key from an outbox message.</summary>
     private readonly ITopicNameResolver _topicNameResolver;
 
-    /// <summary>Lazy-initialized RabbitMQ connection.</summary>
-    private IConnection? _connection;
+    /// <summary>The RabbitMQ connection provided via dependency injection.</summary>
+    private readonly IConnection _connection;
 
     /// <summary>Lazy-initialized RabbitMQ channel for publishing.</summary>
     private IChannel? _channel;
 
-    /// <summary>Semaphore for thread-safe connection/channel initialization.</summary>
+    /// <summary>Semaphore for thread-safe channel initialization.</summary>
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     /// <summary>Indicates whether the transport has been disposed.</summary>
@@ -44,13 +43,20 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="RabbitMqMessageTransport"/> class.
     /// </summary>
+    /// <param name="connection">The RabbitMQ connection.</param>
     /// <param name="topicNameResolver">The topic name resolver for determining routing keys from outbox messages.</param>
     /// <param name="options">The transport options.</param>
-    public RabbitMqMessageTransport(ITopicNameResolver topicNameResolver, IOptions<RabbitMqTransportOptions> options)
+    public RabbitMqMessageTransport(
+        IConnection connection,
+        ITopicNameResolver topicNameResolver,
+        IOptions<RabbitMqTransportOptions> options
+    )
     {
+        ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
 
+        _connection = connection;
         _topicNameResolver = topicNameResolver;
         _options = options.Value;
     }
@@ -115,7 +121,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     }
 
     /// <summary>
-    /// Ensures that a connection and channel are available, creating them if necessary.
+    /// Ensures that a channel is available, creating it if necessary.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The initialized channel.</returns>
@@ -134,23 +140,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
                 return _channel;
             }
 
-            if (_connection is null || !_connection.IsOpen)
-            {
-                var factory = new ConnectionFactory
-                {
-                    HostName = _options.HostName,
-                    Port = _options.Port,
-                    VirtualHost = _options.VirtualHost,
-                    UserName = _options.UserName,
-                    Password = _options.Password,
-                };
-
-                _connection = await factory.CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-#pragma warning disable CA2016 // Forward cancellation token - CreateChannelAsync doesn't support cancellation in this version
-            _channel = await _connection.CreateChannelAsync().ConfigureAwait(false);
-#pragma warning restore CA2016
+            _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return _channel;
         }
@@ -165,18 +155,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// </summary>
     /// <param name="message">The outbox message to resolve the routing key from.</param>
     /// <returns>The resolved routing key.</returns>
-    private string ResolveRoutingKey(OutboxMessage message)
-    {
-        var topicName = _topicNameResolver.Resolve(message);
-
-        // If a routing key prefix is configured, prepend it to the topic name
-        if (!string.IsNullOrEmpty(_options.RoutingKey))
-        {
-            return $"{_options.RoutingKey}.{topicName}";
-        }
-
-        return topicName;
-    }
+    private string ResolveRoutingKey(OutboxMessage message) => _topicNameResolver.Resolve(message);
 
     /// <inheritdoc />
     public void Dispose()
@@ -187,7 +166,6 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         }
 
         _channel?.Dispose();
-        _connection?.Dispose();
         _initializationLock.Dispose();
         _disposed = true;
     }

@@ -45,15 +45,4 @@ public sealed class RabbitMqTransportOptions
     /// The exchange must already exist; it will not be auto-declared.
     /// </remarks>
     public string ExchangeName { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the routing key prefix for messages.
-    /// </summary>
-    /// <remarks>
-    /// If set, this prefix is prepended to the resolved topic name (event type) to form the final routing key.
-    /// For example, if <c>RoutingKey = "events"</c> and the topic name is <c>"OrderCreated"</c>,
-    /// the final routing key will be <c>"events.OrderCreated"</c>.
-    /// Can be empty for fanout exchanges or when no prefix is desired.
-    /// </remarks>
-    public string RoutingKey { get; set; } = string.Empty;
 }

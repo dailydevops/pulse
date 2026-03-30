@@ -84,39 +84,6 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
         _ = await Assert.That(healthy).IsFalse();
     }
 
-    [Test]
-    public async Task SendAsync_With_routing_key_prefix()
-    {
-        var options = new RabbitMqTransportOptions
-        {
-            HostName = new Uri(_container!.GetConnectionString()).Host,
-            Port = new Uri(_container.GetConnectionString()).Port,
-            ExchangeName = ExchangeName,
-            RoutingKey = "custom",
-        };
-
-        // Bind queue to custom routing key pattern
-        var channel = await _connection!.CreateChannelAsync();
-        await channel.QueueBindAsync(QueueName, ExchangeName, "custom.#");
-        await channel.CloseAsync();
-
-        using var transport = new RabbitMqMessageTransport(new FakeTopicNameResolver(), Options.Create(options));
-        var message = new OutboxMessage
-        {
-            Id = Guid.NewGuid(),
-            EventType = "MyApp.Events.OrderCreated, MyApp",
-            Payload = """{"event":"test"}""",
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        };
-
-        await transport.SendAsync(message);
-
-        var received = await ConsumeMessageAsync();
-
-        _ = await Assert.That(received).IsNotNull();
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (_connection is not null)
@@ -138,10 +105,9 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
             HostName = new Uri(_container!.GetConnectionString()).Host,
             Port = new Uri(_container.GetConnectionString()).Port,
             ExchangeName = ExchangeName,
-            RoutingKey = RoutingKey,
         };
 
-        return new RabbitMqMessageTransport(new FakeTopicNameResolver(), Options.Create(options));
+        return new RabbitMqMessageTransport(_connection!, new FakeTopicNameResolver(), Options.Create(options));
     }
 
     private static OutboxMessage CreateOutboxMessage() =>
