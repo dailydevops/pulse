@@ -37,6 +37,7 @@
     <Project Path="src/NetEvolve.Pulse.Attributes/NetEvolve.Pulse.Attributes.csproj" />
     <Project Path="src/NetEvolve.Pulse.SourceGeneration/NetEvolve.Pulse.SourceGeneration.csproj" />
     <Project Path="src/NetEvolve.Pulse.AzureServiceBus/NetEvolve.Pulse.AzureServiceBus.csproj" />
+    <Project Path="src/NetEvolve.Pulse.SQLite/NetEvolve.Pulse.SQLite.csproj" />
     <Project Path="src/NetEvolve.Pulse.Kafka/NetEvolve.Pulse.Kafka.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -62,5 +63,7 @@
     <Project Path="tests/NetEvolve.Pulse.Kafka.Tests.Unit/NetEvolve.Pulse.Kafka.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Kafka.Tests.Integration/NetEvolve.Pulse.Kafka.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit/NetEvolve.Pulse.SourceGeneration.Tests.Unit.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.SQLite.Tests.Unit/NetEvolve.Pulse.SQLite.Tests.Unit.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.SQLite.Tests.Integration/NetEvolve.Pulse.SQLite.Tests.Integration.csproj" />
   </Folder>
 </Solution>
