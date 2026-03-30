@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.SQLite.Tests.Integration;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -215,11 +216,18 @@ public sealed class SQLiteFileFixture
     /// Initializes the outbox schema on the given SQLite database file.
     /// </summary>
     /// <param name="connectionString">The SQLite connection string for the target database file.</param>
+    [SuppressMessage(
+        "Security",
+        "CA2100:Review SQL queries for security vulnerabilities",
+        Justification = "Schema DDL is a constant string with no user input."
+    )]
     public async Task InitializeSchemaAsync(string connectionString)
     {
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
-        await using var cmd = new SqliteCommand(_schemaSql, connection);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = _schemaSql;
         _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 }
