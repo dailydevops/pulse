@@ -21,19 +21,11 @@ public sealed class AzureServiceBusTransportOptions
     public string? FullyQualifiedNamespace { get; set; }
 
     /// <summary>
-    /// Gets or sets the queue or topic name that receives outbox messages.
-    /// </summary>
-    public string EntityPath { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the entity type that will receive outbox messages.
-    /// </summary>
-    /// <remarks>Defaults to <see cref="AzureServiceBusEntityType.Queue"/>.</remarks>
-    public AzureServiceBusEntityType EntityType { get; set; } = AzureServiceBusEntityType.Queue;
-
-    /// <summary>
     /// Gets or sets a value indicating whether the transport should use batch sending for outbox batches.
     /// </summary>
-    /// <remarks>Defaults to <see langword="true"/>.</remarks>
+    /// <remarks>
+    /// Defaults to <see langword="true"/>.
+    /// When enabled, messages are grouped by their resolved topic or queue name for efficient batch sending.
+    /// </remarks>
     public bool EnableBatching { get; set; } = true;
 }
