@@ -140,10 +140,7 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
         IServiceCollection services = new ServiceCollection();
         IMediatorConfigurator? returnedConfigurator = null;
 
-        _ = services.AddPulse(config =>
-        {
-            returnedConfigurator = config.UseRabbitMqTransport();
-        });
+        _ = services.AddPulse(config => returnedConfigurator = config.UseRabbitMqTransport());
 
         _ = await Assert.That(returnedConfigurator).IsNotNull();
     }

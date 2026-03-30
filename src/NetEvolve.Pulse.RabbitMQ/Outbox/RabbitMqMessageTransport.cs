@@ -100,12 +100,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     {
         try
         {
-            if (_connection is null || !_connection.IsOpen)
-            {
-                return false;
-            }
-
-            if (_channel is null || !_channel.IsOpen)
+            if (_connection?.IsOpen != true || _channel?.IsOpen != true)
             {
                 return false;
             }
@@ -127,7 +122,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <returns>The initialized channel.</returns>
     private async Task<IChannel> EnsureChannelAsync(CancellationToken cancellationToken)
     {
-        if (_channel is not null && _channel.IsOpen)
+        if (_channel?.IsOpen == true)
         {
             return _channel;
         }
@@ -135,7 +130,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         await _initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_channel is not null && _channel.IsOpen)
+            if (_channel?.IsOpen == true)
             {
                 return _channel;
             }
