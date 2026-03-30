@@ -364,4 +364,3 @@ MigrationBackup/
 # Prevent nested .editorconfig files - only root .editorconfig should be used
 **/.editorconfig
 !/.editorconfig
-TestResults/
