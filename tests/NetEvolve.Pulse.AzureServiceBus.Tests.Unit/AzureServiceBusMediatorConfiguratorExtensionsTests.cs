@@ -26,7 +26,7 @@ public sealed class AzureServiceBusMediatorConfiguratorExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_registers_transport_and_adapters()
+    public async Task UseAzureServiceBusTransport_registers_transport()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -94,6 +94,10 @@ public sealed class AzureServiceBusMediatorConfiguratorExtensionsTests
         // (It requires a TokenCredential, which DefaultAzureCredential provides at runtime)
         var descriptor = services.Single(d => d.ServiceType == typeof(ServiceBusClient));
         _ = await Assert.That(descriptor).IsNotNull();
+
+        // New: Actually resolve ServiceBusClient to ensure factory runs and validation occurs
+        var client = provider.GetRequiredService<ServiceBusClient>();
+        Assert.That(client, Is.Not.Null);
     }
 
     [Test]

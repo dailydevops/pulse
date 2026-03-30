@@ -147,5 +147,5 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync() => await _client.DisposeAsync().ConfigureAwait(false);
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask; // Do not dispose injected dependencies
 }

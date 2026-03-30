@@ -11,7 +11,7 @@ Native Azure Service Bus transport for Pulse outbox delivery with dynamic topic 
 - **Dynamic Topic Routing**: Route outbox events to different queues or topics using `ITopicNameResolver` based on message content or metadata.
 - **Connection Flexibility**: Use a connection string or `DefaultAzureCredential` with a fully qualified namespace.
 - **Batching**: Toggle batch sending per outbox batch to reduce broker calls. Messages are automatically grouped by resolved topic name for efficient batching.
-- **Health Checks**: Monitors Service Bus client connectivity to report transport availability.
+- **Health Checks**: Reports transport availability by checking the Service Bus client's local closed/open state (does not verify network connectivity to Azure Service Bus).
 - **Dependency Injection**: Single call `UseAzureServiceBusTransport` wires the Service Bus client and transport.
 - **Env/Emulator Friendly**: Works with Azure-hosted namespaces, dev tunnels, or local emulator connection strings.
 
@@ -83,4 +83,4 @@ services.AddSingleton<ITopicNameResolver, CustomTopicNameResolver>();
 
 ## Health Checks
 
-`AzureServiceBusMessageTransport.IsHealthyAsync` checks if the Service Bus client is operational by verifying the client is not closed.
+`AzureServiceBusMessageTransport.IsHealthyAsync` checks if the Service Bus client is operational by verifying the client is not closed. This only inspects the local state of the client and does **not** verify actual network connectivity to Azure Service Bus. Operators should be aware that a healthy state here does not guarantee remote connectivity.
