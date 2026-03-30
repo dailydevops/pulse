@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>Apache Kafka transport for the Pulse CQRS mediator outbox. Delivers outbox messages directly to Kafka topics using the Confluent.Kafka producer, supporting single and batched sends with health checks via cluster metadata.</Description>
+    <PackageTags>$(PackageTags);kafka;apache-kafka;confluent;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>
