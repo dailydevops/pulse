@@ -12,37 +12,29 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
     [Test]
     public async Task UseRabbitMqTransport_Registers_transport_service()
     {
-        var services = new ServiceCollection();
-        services.AddPulse(config => config.UseRabbitMqTransport());
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config => config.UseRabbitMqTransport());
 
-        var provider = services.BuildServiceProvider();
-        var transport = provider.GetService<IMessageTransport>();
-
-        _ = await Assert.That(transport).IsNotNull();
-        _ = await Assert.That(transport).IsTypeOf<RabbitMqMessageTransport>();
+        var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
+        _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
     }
 
     [Test]
     public async Task UseRabbitMqTransport_Replaces_existing_transport()
     {
-        var services = new ServiceCollection();
-        services.AddPulse(config =>
-        {
-            config.Services.AddSingleton<IMessageTransport, DummyTransport>();
-            config.UseRabbitMqTransport();
-        });
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
+        _ = services.AddPulse(config => config.UseRabbitMqTransport());
 
-        var provider = services.BuildServiceProvider();
-        var transport = provider.GetService<IMessageTransport>();
-
-        _ = await Assert.That(transport).IsTypeOf<RabbitMqMessageTransport>();
+        var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
+        _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
     }
 
     [Test]
     public async Task UseRabbitMqTransport_Configures_options()
     {
-        var services = new ServiceCollection();
-        services.AddPulse(config =>
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config =>
             config.UseRabbitMqTransport(options =>
             {
                 options.HostName = "test-host";
@@ -51,7 +43,7 @@ public sealed class RabbitMqMediatorConfiguratorExtensionsTests
             })
         );
 
-        var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
 
         using (Assert.Multiple())

@@ -150,6 +150,6 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable
 
     private sealed class FakeTopicNameResolver : ITopicNameResolver
     {
-        public string Resolve(OutboxMessage message) => "FakeTopic";
+        public string Resolve(OutboxMessage message) => RoutingKey;
     }
 }
