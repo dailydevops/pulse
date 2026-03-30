@@ -22,6 +22,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 
 ### Provider Libraries
 
+- **NetEvolve.Pulse.AzureServiceBus** — Azure Service Bus transport for the outbox pattern with dynamic topic routing and managed identity support ([src/NetEvolve.Pulse.AzureServiceBus/README.md](src/NetEvolve.Pulse.AzureServiceBus/README.md))
 - **NetEvolve.Pulse.Dapr** — Dapr pub/sub transport for the outbox pattern, publishing messages to any Dapr-supported broker via `DaprClient` ([src/NetEvolve.Pulse.Dapr/README.md](src/NetEvolve.Pulse.Dapr/README.md))
 - **NetEvolve.Pulse.EntityFramework** — Entity Framework Core persistence for the outbox pattern ([src/NetEvolve.Pulse.EntityFramework/README.md](src/NetEvolve.Pulse.EntityFramework/README.md))
 - **NetEvolve.Pulse.Polly** — Polly v8 resilience policies integration for retry, circuit breaker, and timeout strategies ([src/NetEvolve.Pulse.Polly/README.md](src/NetEvolve.Pulse.Polly/README.md))
@@ -51,6 +52,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - Parallel event dispatch with cancellation support to keep handlers responsive under load
 - Built-in primitives like `Void` to simplify command semantics without return values
 - **Multiple persistence providers**: Entity Framework Core (provider-agnostic) and SQL Server ADO.NET
+- **Multiple transport providers**: Azure Service Bus with dynamic topic routing and Dapr pub/sub
 - **Polly v8 integration** for retry, circuit breaker, timeout, bulkhead, and fallback strategies
 
 ## Getting Started
@@ -186,6 +188,7 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report
 
 - [NetEvolve.Pulse project docs](src/NetEvolve.Pulse/README.md) for mediator and outbox usage
 - [NetEvolve.Pulse.AspNetCore docs](src/NetEvolve.Pulse.AspNetCore/README.md) for Minimal API endpoint mapping
+- [NetEvolve.Pulse.AzureServiceBus docs](src/NetEvolve.Pulse.AzureServiceBus/README.md) for Azure Service Bus outbox transport
 - [NetEvolve.Pulse.Dapr docs](src/NetEvolve.Pulse.Dapr/README.md) for Dapr pub/sub transport
 - [NetEvolve.Pulse.Extensibility docs](src/NetEvolve.Pulse.Extensibility/README.md) for contract details
 - [NetEvolve.Pulse.EntityFramework docs](src/NetEvolve.Pulse.EntityFramework/README.md) for Entity Framework outbox persistence

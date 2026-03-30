@@ -4,15 +4,15 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.AzureServiceBus.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.AzureServiceBus/)
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/blob/main/LICENSE)
 
-Native Azure Service Bus transport for Pulse outbox delivery with batching, managed identity, and built-in health checks.
+Native Azure Service Bus transport for Pulse outbox delivery with dynamic topic routing, batching, managed identity, and built-in health checks.
 
 ## Features
 
-- **Queue or Topic**: Send outbox events directly to a queue or topic via the `EntityType` option.
+- **Dynamic Topic Routing**: Route outbox events to different queues or topics using `ITopicNameResolver` based on message content or metadata.
 - **Connection Flexibility**: Use a connection string or `DefaultAzureCredential` with a fully qualified namespace.
-- **Batching**: Toggle batch sending per outbox batch to reduce broker calls.
-- **Health Checks**: Uses Service Bus runtime properties to report entity availability.
-- **Dependency Injection**: Single call `UseAzureServiceBusTransport` wires clients, sender, and health adapters.
+- **Batching**: Toggle batch sending per outbox batch to reduce broker calls. Messages are automatically grouped by resolved topic name for efficient batching.
+- **Health Checks**: Monitors Service Bus client connectivity to report transport availability.
+- **Dependency Injection**: Single call `UseAzureServiceBusTransport` wires the Service Bus client and transport.
 - **Env/Emulator Friendly**: Works with Azure-hosted namespaces, dev tunnels, or local emulator connection strings.
 
 ## Installation
@@ -40,8 +40,6 @@ var services = new ServiceCollection();
 services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 {
     options.ConnectionString = builder.Configuration["ServiceBus:ConnectionString"];
-    options.EntityPath = "outbox-queue";
-    options.EntityType = AzureServiceBusEntityType.Queue; // or Topic
     options.EnableBatching = true;
 }));
 ```
@@ -52,16 +50,28 @@ services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 {
     options.FullyQualifiedNamespace = "contoso.servicebus.windows.net";
-    options.EntityPath = "outbox-topic";
-    options.EntityType = AzureServiceBusEntityType.Topic;
 }));
 ```
 
-## Choosing Queue vs. Topic
+## Topic Name Resolution
 
-- Use **Queue** (`EntityType = Queue`) for point-to-point delivery where a single processor handles each message.
-- Use **Topic** (`EntityType = Topic`) when multiple subscriptions need the same outbox event.
-- Set `EntityPath` to the queue or topic name; the transport sends to the configured entity and targets the same entity for health checks.
+The transport uses `ITopicNameResolver` to determine the destination queue or topic name for each outbox message. By default, the `DefaultTopicNameResolver` extracts the simple class name from the event type (e.g., `"MyApp.Events.OrderCreated"` → `"OrderCreated"`).
+
+You can provide a custom resolver to implement different routing strategies:
+
+```csharp
+public class CustomTopicNameResolver : ITopicNameResolver
+{
+    public string Resolve(OutboxMessage message)
+    {
+        // Route based on event type, metadata, or other logic
+        return message.EventType.Contains("Order") ? "orders-topic" : "events-topic";
+    }
+}
+
+// Register the custom resolver
+services.AddSingleton<ITopicNameResolver, CustomTopicNameResolver>();
+```
 
 ## Configuration
 
@@ -69,15 +79,8 @@ services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 |---|---|
 | `ConnectionString` | Connection string for the Service Bus namespace. Required when `FullyQualifiedNamespace` is not set. |
 | `FullyQualifiedNamespace` | FQDN (e.g., `contoso.servicebus.windows.net`) used with managed identity (`DefaultAzureCredential`). |
-| `EntityPath` | Queue or topic name that receives outbox messages. |
-| `EntityType` | Target entity kind (`Queue` or `Topic`). Defaults to `Queue`. |
-| `EnableBatching` | Enables batch sending per outbox batch. Defaults to `true`. |
+| `EnableBatching` | Enables batch sending per outbox batch. Messages are grouped by resolved topic name for efficient batching. Defaults to `true`. |
 
 ## Health Checks
 
-`AzureServiceBusMessageTransport.IsHealthyAsync` probes the configured entity type:
-
-- For **queues**, it calls `GetQueueRuntimePropertiesAsync`.
-- For **topics**, it calls `GetTopicRuntimePropertiesAsync`.
-
-Any exception other than cancellation returns `false`, allowing the outbox processor to surface transport availability.
+`AzureServiceBusMessageTransport.IsHealthyAsync` checks if the Service Bus client is operational by verifying the client is not closed.

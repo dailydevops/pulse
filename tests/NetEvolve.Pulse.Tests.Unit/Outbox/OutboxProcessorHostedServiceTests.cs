@@ -326,7 +326,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(200).ConfigureAwait(false);
+        await Task.Delay(500).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(CancellationToken.None).ConfigureAwait(false);

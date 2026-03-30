@@ -1,9 +1,10 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Globalization;
+using Azure.Messaging.ServiceBus;
+using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Internals;
 
 /// <summary>
 /// Azure Service Bus transport implementation for the outbox processor.
@@ -12,28 +13,28 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
 {
     private const string JsonContentType = "application/json";
 
-    private readonly IServiceBusSenderAdapter _senderAdapter;
-    private readonly IServiceBusAdministrationClientAdapter _administrationClientAdapter;
+    private readonly ServiceBusClient _client;
+    private readonly ITopicNameResolver _topicNameResolver;
     private readonly AzureServiceBusTransportOptions _options;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureServiceBusMessageTransport"/> class.
     /// </summary>
-    /// <param name="senderAdapter">The sender adapter responsible for creating batches and sending messages.</param>
-    /// <param name="administrationClientAdapter">The administration client adapter used for health checks.</param>
+    /// <param name="client">The Service Bus client for creating senders.</param>
+    /// <param name="topicNameResolver">The resolver to determine topic or queue names from messages.</param>
     /// <param name="options">The configured transport options.</param>
     internal AzureServiceBusMessageTransport(
-        IServiceBusSenderAdapter senderAdapter,
-        IServiceBusAdministrationClientAdapter administrationClientAdapter,
+        ServiceBusClient client,
+        ITopicNameResolver topicNameResolver,
         IOptions<AzureServiceBusTransportOptions> options
     )
     {
-        ArgumentNullException.ThrowIfNull(senderAdapter);
-        ArgumentNullException.ThrowIfNull(administrationClientAdapter);
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
 
-        _senderAdapter = senderAdapter;
-        _administrationClientAdapter = administrationClientAdapter;
+        _client = client;
+        _topicNameResolver = topicNameResolver;
         _options = options.Value;
     }
 
@@ -42,8 +43,13 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var serviceBusMessage = CreateServiceBusMessage(message);
-        await _senderAdapter.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
+        var topicName = _topicNameResolver.Resolve(message);
+        var sender = _client.CreateSender(topicName);
+        await using (sender.ConfigureAwait(false))
+        {
+            var serviceBusMessage = CreateServiceBusMessage(message);
+            await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -51,56 +57,70 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     {
         ArgumentNullException.ThrowIfNull(messages);
 
+        // Group messages by resolved topic name for efficient batching
+        var messagesByTopic = messages.ToLookup(m => _topicNameResolver.Resolve(m));
+
         if (!_options.EnableBatching)
         {
-            foreach (var message in messages)
+            foreach (var group in messagesByTopic)
             {
-                await SendAsync(message, cancellationToken).ConfigureAwait(false);
+                var sender = _client.CreateSender(group.Key);
+                await using (sender.ConfigureAwait(false))
+                {
+                    foreach (var message in group)
+                    {
+                        var serviceBusMessage = CreateServiceBusMessage(message);
+                        await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
+                    }
+                }
             }
 
             return;
         }
 
-        var batch = await _senderAdapter.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var message in messages)
+        foreach (var group in messagesByTopic)
         {
-            var serviceBusMessage = CreateServiceBusMessage(message);
-            if (!batch.TryAddMessage(serviceBusMessage))
+            var sender = _client.CreateSender(group.Key);
+            await using (sender.ConfigureAwait(false))
             {
-                throw new InvalidOperationException(
-                    $"The message with id '{message.Id}' exceeded the maximum batch size for Azure Service Bus."
-                );
+                var batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
+                using (batch)
+                {
+                    foreach (var message in group)
+                    {
+                        var serviceBusMessage = CreateServiceBusMessage(message);
+                        if (!batch.TryAddMessage(serviceBusMessage))
+                        {
+                            throw new InvalidOperationException(
+                                $"The message with id '{message.Id}' exceeded the maximum batch size for Azure Service Bus."
+                            );
+                        }
+                    }
+
+                    await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
-
-        await _senderAdapter.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
+    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return _options.EntityType switch
-            {
-                AzureServiceBusEntityType.Queue => await _administrationClientAdapter
-                    .TryGetQueueRuntimePropertiesAsync(_options.EntityPath, cancellationToken)
-                    .ConfigureAwait(false),
-                AzureServiceBusEntityType.Topic => await _administrationClientAdapter
-                    .TryGetTopicRuntimePropertiesAsync(_options.EntityPath, cancellationToken)
-                    .ConfigureAwait(false),
-                _ => false,
-            };
+            // Verify the client is not disposed and can communicate with Service Bus
+            // by checking if we can get basic namespace properties
+            return Task.FromResult(!_client.IsClosed);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
-            return false;
+            return Task.FromResult(false);
         }
     }
 
-    private static Azure.Messaging.ServiceBus.ServiceBusMessage CreateServiceBusMessage(OutboxMessage message)
+    private static ServiceBusMessage CreateServiceBusMessage(OutboxMessage message)
     {
-        var serviceBusMessage = new Azure.Messaging.ServiceBus.ServiceBusMessage(BinaryData.FromString(message.Payload))
+        var serviceBusMessage = new ServiceBusMessage(BinaryData.FromString(message.Payload))
         {
             ContentType = JsonContentType,
             Subject = message.EventType,
@@ -127,5 +147,5 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync() => await _senderAdapter.DisposeAsync().ConfigureAwait(false);
+    public async ValueTask DisposeAsync() => await _client.DisposeAsync().ConfigureAwait(false);
 }

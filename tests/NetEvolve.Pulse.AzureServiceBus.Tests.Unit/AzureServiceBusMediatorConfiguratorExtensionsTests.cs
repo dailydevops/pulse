@@ -20,16 +20,11 @@ public sealed class AzureServiceBusMediatorConfiguratorExtensionsTests
             {
                 options.ConnectionString =
                     "Endpoint=sb://localhost/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Fake=";
-                options.EntityPath = "outbox-queue";
             })
         );
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
         _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(AzureServiceBusMessageTransport));
-
-        await using var provider = services.BuildServiceProvider();
-        _ = provider.GetRequiredService<IServiceBusSenderAdapter>();
-        _ = provider.GetRequiredService<IServiceBusAdministrationClientAdapter>();
     }
 
     [Test]
@@ -53,8 +48,6 @@ public sealed class AzureServiceBusMediatorConfiguratorExtensionsTests
             {
                 options.ConnectionString =
                     "Endpoint=sb://localhost/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Fake=";
-                options.EntityPath = "outbox-queue";
-                options.EntityType = AzureServiceBusEntityType.Topic;
             })
         );
 

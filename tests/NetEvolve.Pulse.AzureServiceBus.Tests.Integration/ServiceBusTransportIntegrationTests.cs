@@ -7,7 +7,6 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -59,17 +58,12 @@ public sealed class ServiceBusTransportIntegrationTests : IAsyncDisposable
         }
 
         await using var client = new ServiceBusClient(_connectionString);
-        await using var senderAdapter = new ServiceBusSenderAdapter(client.CreateSender(QueueName));
+        var topicNameResolver = new SimpleTopicNameResolver(QueueName);
         await using var transport = new AzureServiceBusMessageTransport(
-            senderAdapter,
-            new ServiceBusAdministrationClientAdapter(adminClient),
+            client,
+            topicNameResolver,
             Options.Create(
-                new AzureServiceBusTransportOptions
-                {
-                    ConnectionString = _connectionString,
-                    EntityPath = QueueName,
-                    EnableBatching = true,
-                }
+                new AzureServiceBusTransportOptions { ConnectionString = _connectionString, EnableBatching = true }
             )
         );
 
@@ -105,4 +99,13 @@ public sealed class ServiceBusTransportIntegrationTests : IAsyncDisposable
 
     private static string? GetConnectionStringFromEnvironment() =>
         Environment.GetEnvironmentVariable("SERVICEBUS_CONNECTIONSTRING");
+
+    private sealed class SimpleTopicNameResolver : ITopicNameResolver
+    {
+        private readonly string _topicName;
+
+        public SimpleTopicNameResolver(string topicName) => _topicName = topicName;
+
+        public string Resolve(OutboxMessage message) => _topicName;
+    }
 }
