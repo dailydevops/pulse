@@ -25,31 +25,19 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     [Test]
     public async Task AddPostgreSqlOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
-                    (string)null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox((string)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
     public async Task AddPostgreSqlOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
-                    string.Empty
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(string.Empty))
             .Throws<ArgumentException>();
 
     [Test]
     public async Task AddPostgreSqlOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
-                    "   "
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox("   "))
             .Throws<ArgumentException>();
 
     [Test]
@@ -124,9 +112,7 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     public async Task AddPostgreSqlOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
-                    (Func<IServiceProvider, string>)null!
-                )
+                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox((Func<IServiceProvider, string>)null!)
             )
             .Throws<ArgumentNullException>();
 

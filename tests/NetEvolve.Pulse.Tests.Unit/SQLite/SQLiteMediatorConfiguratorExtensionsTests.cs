@@ -23,39 +23,25 @@ public sealed class SQLiteMediatorConfiguratorExtensionsTests
     [Test]
     public async Task UseSQLiteOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(
-                    (string)null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox((string)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
     public async Task UseSQLiteOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(
-                    string.Empty
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(string.Empty))
             .Throws<ArgumentException>();
 
     [Test]
     public async Task UseSQLiteOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox("   ")
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox("   "))
             .Throws<ArgumentException>();
 
     [Test]
     public async Task UseSQLiteOutbox_WithNullConfigureOptions_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(
-                    (Action<SQLiteOutboxOptions>)null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox((Action<SQLiteOutboxOptions>)null!))
             .Throws<ArgumentNullException>();
 
     [Test]

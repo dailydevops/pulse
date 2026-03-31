@@ -23,9 +23,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        _ = Assert.Throws<ArgumentNullException>(() =>
-            endpoints.MapCommand<TestCommand, string>(null!)
-        );
+        _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapCommand<TestCommand, string>(null!));
     }
 
     // MapCommand<TCommand, TResponse> — httpMethod validation

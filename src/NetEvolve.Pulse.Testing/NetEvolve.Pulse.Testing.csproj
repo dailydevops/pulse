@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
-    <Description>Testing support for the Pulse CQRS mediator library. Provides a lightweight FakeMediator implementation for unit testing scenarios, enabling verification of mediator interactions without requiring a DI container. Supports command and query setup with canned responses or exceptions, event capture, and invocation count verification.</Description>
-    <PackageTags>$(PackageTags);testing;fake;unit-testing;</PackageTags>
+    <Description>Testing support for the Pulse CQRS mediator library. Provides test helpers for unit testing scenarios, such as controllable HTTP correlation accessor instances.</Description>
+    <PackageTags>$(PackageTags);testing;unit-testing;</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

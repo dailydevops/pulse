@@ -23,31 +23,19 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     [Test]
     public async Task AddSqlServerOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
-                    (string)null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox((string)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
     public async Task AddSqlServerOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
-                    string.Empty
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(string.Empty))
             .Throws<ArgumentException>();
 
     [Test]
     public async Task AddSqlServerOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
-                    "   "
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox("   "))
             .Throws<ArgumentException>();
 
     [Test]
@@ -117,9 +105,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
-                    (Func<IServiceProvider, string>)null!
-                )
+                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox((Func<IServiceProvider, string>)null!)
             )
             .Throws<ArgumentNullException>();
 

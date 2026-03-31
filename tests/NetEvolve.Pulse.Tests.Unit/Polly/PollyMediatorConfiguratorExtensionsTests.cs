@@ -28,11 +28,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
     public async Task AddPollyRequestPolicies_NullConfigure_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPollyRequestPolicies<TestCommand, string>(
-                    null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPollyRequestPolicies<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -88,11 +84,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
     public async Task AddPollyEventPolicies_NullConfigure_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPollyEventPolicies<TestEvent>(
-                    null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPollyEventPolicies<TestEvent>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -368,11 +360,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
     public async Task AddPollyQueryPolicies_NullConfigure_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPollyQueryPolicies<TestQuery, string>(
-                    null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPollyQueryPolicies<TestQuery, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -436,11 +424,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
     public async Task AddPollyCommandPolicies_NullConfigure_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() =>
-                Mock.Of<IMediatorConfigurator>().Object.AddPollyCommandPolicies<TestCommand, string>(
-                    null!
-                )
-            )
+            .That(() => Mock.Of<IMediatorConfigurator>().Object.AddPollyCommandPolicies<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
