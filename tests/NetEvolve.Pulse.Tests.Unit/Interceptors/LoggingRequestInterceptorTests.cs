@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -6,11 +6,12 @@ using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public class LoggingRequestInterceptorTests
 {
     private static LoggingRequestInterceptor<TRequest, TResponse> CreateInterceptor<TRequest, TResponse>(
-        CapturingLogger<LoggingRequestInterceptor<TRequest, TResponse>> logger,
+        ILogger<LoggingRequestInterceptor<TRequest, TResponse>> logger,
         LoggingInterceptorOptions? options = null,
         TimeProvider? timeProvider = null
     )
@@ -23,7 +24,7 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithCommand_LogsBeginAndEndAtDebugLevel()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var command = new TestCommand { CorrelationId = "corr-123" };
 
@@ -33,15 +34,15 @@ public class LoggingRequestInterceptorTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(logger.Entries.Count).IsGreaterThanOrEqualTo(2);
-            _ = await Assert.That(logger.Entries[0].Level).IsEqualTo(LogLevel.Debug);
-            _ = await Assert.That(logger.Entries[1].Level).IsEqualTo(LogLevel.Debug);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Debug);
+            _ = await Assert.That(logger.Entries[1].LogLevel).IsEqualTo(LogLevel.Debug);
         }
     }
 
     [Test]
     public async Task HandleAsync_WithCommand_LogsBeginAndEndAtInformationLevel()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var command = new TestCommand();
 
@@ -50,15 +51,15 @@ public class LoggingRequestInterceptorTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(logger.Entries.Count).IsGreaterThanOrEqualTo(2);
-            _ = await Assert.That(logger.Entries[0].Level).IsEqualTo(LogLevel.Information);
-            _ = await Assert.That(logger.Entries[1].Level).IsEqualTo(LogLevel.Information);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Information);
+            _ = await Assert.That(logger.Entries[1].LogLevel).IsEqualTo(LogLevel.Information);
         }
     }
 
     [Test]
     public async Task HandleAsync_WithQuery_LogsQueryInMessage()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestQuery, int>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestQuery, int>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestQuery();
 
@@ -74,7 +75,7 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithGenericRequest_LogsRequestInMessage()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestRequest, bool>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestRequest, bool>>();
         var interceptor = CreateInterceptor(logger);
         var request = new TestRequest();
 
@@ -86,7 +87,7 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithSlowRequest_LogsWarning()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(
             logger,
             new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.FromMilliseconds(1) }
@@ -104,7 +105,7 @@ public class LoggingRequestInterceptorTests
             )
             .ConfigureAwait(false);
 
-        var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
         _ = await Assert.That(warnings).HasSingleItem();
         _ = await Assert.That(warnings[0].Message).Contains("threshold");
     }
@@ -112,7 +113,7 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithDisabledSlowRequestThreshold_DoesNotLogWarning()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var command = new TestCommand();
 
@@ -127,14 +128,14 @@ public class LoggingRequestInterceptorTests
             )
             .ConfigureAwait(false);
 
-        var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
         _ = await Assert.That(warnings).IsEmpty();
     }
 
     [Test]
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand();
         var expectedException = new InvalidOperationException("test error");
@@ -145,7 +146,7 @@ public class LoggingRequestInterceptorTests
 
         _ = await Assert.That(exception).IsSameReferenceAs(expectedException);
 
-        var errors = logger.Entries.Where(e => e.Level == LogLevel.Error).ToList();
+        var errors = logger.Entries.Where(e => e.LogLevel == LogLevel.Error).ToList();
         using (Assert.Multiple())
         {
             _ = await Assert.That(errors).HasSingleItem();
@@ -156,7 +157,7 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_LogsCorrelationId()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand { CorrelationId = "my-correlation-id" };
 
@@ -168,7 +169,7 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectRequest()
     {
-        var logger = new CapturingLogger<LoggingRequestInterceptor<TestCommand, string>>();
+        var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand();
         TestCommand? received = null;

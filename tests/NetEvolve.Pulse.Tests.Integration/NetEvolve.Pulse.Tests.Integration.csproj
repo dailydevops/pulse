@@ -2,16 +2,67 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(_TestTargetFrameworks)</TargetFrameworks>
+    <NoWarn>$(NoWarn);CA1812;CA1859;</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
+    <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
+    <PackageReference Include="NetEvolve.Http.Correlation.TestGenerator" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="RabbitMQ.Client" />
+    <PackageReference Include="Testcontainers" />
+    <PackageReference Include="Testcontainers.Kafka" />
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="TUnit.Mocks" />
+    <PackageReference Include="TUnit.Mocks.Http" />
+    <PackageReference Include="TUnit.Mocks.Logging" />
     <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.AspNetCore\NetEvolve.Pulse.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureServiceBus\NetEvolve.Pulse.AzureServiceBus.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.EntityFramework\NetEvolve.Pulse.EntityFramework.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.FluentValidation\NetEvolve.Pulse.FluentValidation.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.HttpCorrelation\NetEvolve.Pulse.HttpCorrelation.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Kafka\NetEvolve.Pulse.Kafka.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Polly\NetEvolve.Pulse.Polly.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.PostgreSql\NetEvolve.Pulse.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SqlServer\NetEvolve.Pulse.SqlServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\src\NetEvolve.Pulse.PostgreSql\Scripts\OutboxMessage.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Scripts\PostgreSql\OutboxMessage.sql</Link>
+    </None>
+    <None Include="..\..\src\NetEvolve.Pulse.SqlServer\Scripts\OutboxMessage.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Scripts\SqlServer\OutboxMessage.sql</Link>
+    </None>
+    <None Include="..\..\src\NetEvolve.Pulse.SQLite\Scripts\001_CreateOutboxTable.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Scripts\001_CreateOutboxTable.sql</Link>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

@@ -5,7 +5,8 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-// Suppress CA1812 for test handlers and interceptors that are instantiated via DI
+// Suppress CA1812 for test handlers and interceptors that are instantiated via DI.
+// namespaceanddescendants covers all sub-namespaces of NetEvolve.Pulse.Tests.Integration.
 [assembly: SuppressMessage(
     "Major Code Smell",
     "CA1812:Avoid uninstantiated internal classes",
