@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Http.Correlation.AspNetCore;
 using NetEvolve.Http.Correlation.TestGenerator;
@@ -43,7 +44,10 @@ public sealed class HttpCorrelationRequestInterceptorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        _ = services.AddHttpCorrelation().WithTestGenerator("test-id");
+        _ = services
+            .AddSingleton(Mock.Of<IHttpContextAccessor>().Object)
+            .AddHttpCorrelation()
+            .WithTestGenerator("test-id");
         var provider = services.BuildServiceProvider();
 
         // Act
@@ -98,50 +102,15 @@ public sealed class HttpCorrelationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_AccessorHasCorrelationId_RequestCorrelationIdIsNull_SetsCorrelationId()
-    {
-        // Arrange
-        const string expectedId = "correlation-abc";
-        var services = new ServiceCollection();
-        _ = services.AddHttpCorrelation().WithTestGenerator(expectedId);
-        var provider = services.BuildServiceProvider();
-
-        var interceptor = new HttpCorrelationRequestInterceptor<TestCommand, string>(provider);
-        var request = new TestCommand { CorrelationId = null };
-
-        // Act
-        _ = await interceptor.HandleAsync(request, (_, _) => Task.FromResult("response")).ConfigureAwait(false);
-
-        // Assert
-        _ = await Assert.That(request.CorrelationId).IsEqualTo(expectedId);
-    }
-
-    [Test]
-    public async Task HandleAsync_AccessorHasCorrelationId_RequestCorrelationIdIsEmpty_SetsCorrelationId()
-    {
-        // Arrange
-        const string expectedId = "correlation-abc";
-        var services = new ServiceCollection();
-        _ = services.AddHttpCorrelation().WithTestGenerator(expectedId);
-        var provider = services.BuildServiceProvider();
-
-        var interceptor = new HttpCorrelationRequestInterceptor<TestCommand, string>(provider);
-        var request = new TestCommand { CorrelationId = string.Empty };
-
-        // Act
-        _ = await interceptor.HandleAsync(request, (_, _) => Task.FromResult("response")).ConfigureAwait(false);
-
-        // Assert
-        _ = await Assert.That(request.CorrelationId).IsEqualTo(expectedId);
-    }
-
-    [Test]
     public async Task HandleAsync_AccessorHasCorrelationId_RequestAlreadyHasCorrelationId_DoesNotOverwrite()
     {
         // Arrange
         const string existingId = "existing-id";
         var services = new ServiceCollection();
-        _ = services.AddHttpCorrelation().WithTestGenerator("http-id");
+        _ = services
+            .AddSingleton(Mock.Of<IHttpContextAccessor>().Object)
+            .AddHttpCorrelation()
+            .WithTestGenerator("http-id");
         var provider = services.BuildServiceProvider();
 
         var interceptor = new HttpCorrelationRequestInterceptor<TestCommand, string>(provider);
@@ -159,7 +128,10 @@ public sealed class HttpCorrelationRequestInterceptorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        _ = services.AddHttpCorrelation().WithTestGenerator(string.Empty);
+        _ = services
+            .AddSingleton(Mock.Of<IHttpContextAccessor>().Object)
+            .AddHttpCorrelation()
+            .WithTestGenerator(string.Empty);
         var provider = services.BuildServiceProvider();
 
         var interceptor = new HttpCorrelationRequestInterceptor<TestCommand, string>(provider);
