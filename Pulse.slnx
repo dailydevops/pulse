@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/Solution Items/">
     <File Path=".commitlintrc" />
     <File Path=".csharpierignore" />
@@ -42,30 +42,8 @@
     <Project Path="src/NetEvolve.Pulse.Kafka/NetEvolve.Pulse.Kafka.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/NetEvolve.Pulse.AspNetCore.Tests.Integration/NetEvolve.Pulse.AspNetCore.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.AspNetCore.Tests.Unit/NetEvolve.Pulse.AspNetCore.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.EntityFramework.Tests.Integration/NetEvolve.Pulse.EntityFramework.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.PostgreSql.Tests.Integration/NetEvolve.Pulse.PostgreSql.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.PostgreSql.Tests.Unit/NetEvolve.Pulse.PostgreSql.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.SqlServer.Tests.Integration/NetEvolve.Pulse.SqlServer.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.EntityFramework.Tests.Unit/NetEvolve.Pulse.EntityFramework.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.Polly.Tests.Integration/NetEvolve.Pulse.Polly.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.Polly.Tests.Unit/NetEvolve.Pulse.Polly.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.HttpCorrelation.Tests.Unit/NetEvolve.Pulse.HttpCorrelation.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.HttpCorrelation.Tests.Integration/NetEvolve.Pulse.HttpCorrelation.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.FluentValidation.Tests.Unit/NetEvolve.Pulse.FluentValidation.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.FluentValidation.Tests.Integration/NetEvolve.Pulse.FluentValidation.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.SqlServer.Tests.Unit/NetEvolve.Pulse.SqlServer.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.Testing.Tests.Unit/NetEvolve.Pulse.Testing.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.AzureServiceBus.Tests.Unit/NetEvolve.Pulse.AzureServiceBus.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.AzureServiceBus.Tests.Integration/NetEvolve.Pulse.AzureServiceBus.Tests.Integration.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.RabbitMQ.Tests.Unit/NetEvolve.Pulse.RabbitMQ.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.Kafka.Tests.Unit/NetEvolve.Pulse.Kafka.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.Kafka.Tests.Integration/NetEvolve.Pulse.Kafka.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit/NetEvolve.Pulse.SourceGeneration.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.SQLite.Tests.Unit/NetEvolve.Pulse.SQLite.Tests.Unit.csproj" />
-    <Project Path="tests/NetEvolve.Pulse.SQLite.Tests.Integration/NetEvolve.Pulse.SQLite.Tests.Integration.csproj" />
   </Folder>
 </Solution>

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
+using NetEvolve.Pulse.Testing;
 using TUnit.Core;
 
 public class LoggingEventInterceptorTests

@@ -51,7 +51,7 @@ public sealed class PulseMediatorTests
         var command = new DeleteOrderCommand("Order123");
         var result = await mediator.SendAsync<DeleteOrderCommand, Void>(command).ConfigureAwait(false);
 
-        _ = await Assert.That(result).IsEqualTo(default(Void));
+        _ = await Assert.That(result).IsEqualTo(default);
     }
 
     [Test]
