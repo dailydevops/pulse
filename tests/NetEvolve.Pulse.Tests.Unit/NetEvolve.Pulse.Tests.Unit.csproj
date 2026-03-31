@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(_TestTargetFrameworks)</TargetFrameworks>
@@ -13,6 +13,9 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="TUnit.Mocks" />
+    <PackageReference Include="TUnit.Mocks.Http" />
+    <PackageReference Include="TUnit.Mocks.Logging" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,17 +1,17 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
-using NetEvolve.Pulse.Testing;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public class LoggingEventInterceptorTests
 {
     private static LoggingEventInterceptor<TEvent> CreateInterceptor<TEvent>(
-        CapturingLogger<LoggingEventInterceptor<TEvent>> logger,
+        ILogger<LoggingEventInterceptor<TEvent>> logger,
         LoggingInterceptorOptions? options = null,
         TimeProvider? timeProvider = null
     )
@@ -24,7 +24,7 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_LogsBeginAndEndAtDebugLevel()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var testEvent = new TestEvent { CorrelationId = "corr-123" };
         var handlerCalled = false;
@@ -44,15 +44,15 @@ public class LoggingEventInterceptorTests
         {
             _ = await Assert.That(handlerCalled).IsTrue();
             _ = await Assert.That(logger.Entries.Count).IsGreaterThanOrEqualTo(2);
-            _ = await Assert.That(logger.Entries[0].Level).IsEqualTo(LogLevel.Debug);
-            _ = await Assert.That(logger.Entries[1].Level).IsEqualTo(LogLevel.Debug);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Debug);
+            _ = await Assert.That(logger.Entries[1].LogLevel).IsEqualTo(LogLevel.Debug);
         }
     }
 
     [Test]
     public async Task HandleAsync_LogsBeginAndEndAtInformationLevel()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var testEvent = new TestEvent();
 
@@ -61,15 +61,15 @@ public class LoggingEventInterceptorTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(logger.Entries.Count).IsGreaterThanOrEqualTo(2);
-            _ = await Assert.That(logger.Entries[0].Level).IsEqualTo(LogLevel.Information);
-            _ = await Assert.That(logger.Entries[1].Level).IsEqualTo(LogLevel.Information);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Information);
+            _ = await Assert.That(logger.Entries[1].LogLevel).IsEqualTo(LogLevel.Information);
         }
     }
 
     [Test]
     public async Task HandleAsync_LogsEventNameInMessage()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
 
@@ -81,7 +81,7 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithSlowEvent_LogsWarning()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(
             logger,
             new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.FromMilliseconds(1) }
@@ -92,7 +92,7 @@ public class LoggingEventInterceptorTests
             .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false))
             .ConfigureAwait(false);
 
-        var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
         _ = await Assert.That(warnings).HasSingleItem();
         _ = await Assert.That(warnings[0].Message).Contains("threshold");
     }
@@ -100,7 +100,7 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithDisabledSlowThreshold_DoesNotLogWarning()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var testEvent = new TestEvent();
 
@@ -108,14 +108,14 @@ public class LoggingEventInterceptorTests
             .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false))
             .ConfigureAwait(false);
 
-        var warnings = logger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
         _ = await Assert.That(warnings).IsEmpty();
     }
 
     [Test]
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
         var expectedException = new InvalidOperationException("event error");
@@ -126,7 +126,7 @@ public class LoggingEventInterceptorTests
 
         _ = await Assert.That(exception).IsSameReferenceAs(expectedException);
 
-        var errors = logger.Entries.Where(e => e.Level == LogLevel.Error).ToList();
+        var errors = logger.Entries.Where(e => e.LogLevel == LogLevel.Error).ToList();
         using (Assert.Multiple())
         {
             _ = await Assert.That(errors).HasSingleItem();
@@ -137,7 +137,7 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_LogsCorrelationId()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent { CorrelationId = "event-correlation-id" };
 
@@ -149,7 +149,7 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectEvent()
     {
-        var logger = new CapturingLogger<LoggingEventInterceptor<TestEvent>>();
+        var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
         TestEvent? received = null;
