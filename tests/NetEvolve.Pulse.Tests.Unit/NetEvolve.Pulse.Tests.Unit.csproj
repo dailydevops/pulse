@@ -12,6 +12,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
+    <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
+    <PackageReference Include="NetEvolve.Http.Correlation.TestGenerator" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="TUnit.Mocks" />
     <PackageReference Include="TUnit.Mocks.Http" />
@@ -31,7 +33,6 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SqlServer\NetEvolve.Pulse.SqlServer.csproj" />
-    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Testing\NetEvolve.Pulse.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

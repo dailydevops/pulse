@@ -4,8 +4,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Http.Correlation.AspNetCore;
+using NetEvolve.Http.Correlation.TestGenerator;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Testing;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -26,8 +27,8 @@ public sealed class HttpCorrelationInterceptorTests
         var services = CreateServiceCollection();
         var capturedCorrelationId = (string?)null;
 
+        _ = services.AddHttpCorrelation().WithTestGenerator(expectedId);
         _ = services
-            .AddSingleton(TestHttpCorrelationAccessorFactory.Create(expectedId))
             .AddScoped<ICommandHandler<TestCommand, string>>(_ => new CapturingCommandHandler(id =>
                 capturedCorrelationId = id
             ))
@@ -53,8 +54,8 @@ public sealed class HttpCorrelationInterceptorTests
         var services = CreateServiceCollection();
         var capturedCorrelationId = (string?)null;
 
+        _ = services.AddHttpCorrelation().WithTestGenerator("http-id");
         _ = services
-            .AddSingleton(TestHttpCorrelationAccessorFactory.Create("http-id"))
             .AddScoped<ICommandHandler<TestCommand, string>>(_ => new CapturingCommandHandler(id =>
                 capturedCorrelationId = id
             ))
@@ -98,8 +99,8 @@ public sealed class HttpCorrelationInterceptorTests
         var services = CreateServiceCollection();
         var capturedCorrelationId = "sentinel";
 
+        _ = services.AddHttpCorrelation().WithTestGenerator(string.Empty);
         _ = services
-            .AddSingleton(TestHttpCorrelationAccessorFactory.Create(string.Empty))
             .AddScoped<ICommandHandler<TestCommand, string>>(_ => new CapturingCommandHandler(id =>
                 capturedCorrelationId = id
             ))
@@ -125,8 +126,8 @@ public sealed class HttpCorrelationInterceptorTests
         var services = CreateServiceCollection();
         var capturedCorrelationId = (string?)null;
 
+        _ = services.AddHttpCorrelation().WithTestGenerator(expectedId);
         _ = services
-            .AddSingleton(TestHttpCorrelationAccessorFactory.Create(expectedId))
             .AddScoped<IEventHandler<TestEvent>>(_ => new CapturingEventHandler(id => capturedCorrelationId = id))
             .AddPulse(configurator => configurator.AddHttpCorrelationEnrichment());
 
@@ -148,8 +149,8 @@ public sealed class HttpCorrelationInterceptorTests
         var services = CreateServiceCollection();
         var capturedCorrelationId = (string?)null;
 
+        _ = services.AddHttpCorrelation().WithTestGenerator("http-event-id");
         _ = services
-            .AddSingleton(TestHttpCorrelationAccessorFactory.Create("http-event-id"))
             .AddScoped<IEventHandler<TestEvent>>(_ => new CapturingEventHandler(id => capturedCorrelationId = id))
             .AddPulse(configurator => configurator.AddHttpCorrelationEnrichment());
 

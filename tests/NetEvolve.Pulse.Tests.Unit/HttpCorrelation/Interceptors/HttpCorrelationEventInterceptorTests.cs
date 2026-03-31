@@ -4,9 +4,10 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Http.Correlation.AspNetCore;
+using NetEvolve.Http.Correlation.TestGenerator;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
-using NetEvolve.Pulse.Testing;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -42,7 +43,7 @@ public sealed class HttpCorrelationEventInterceptorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        _ = services.AddSingleton(TestHttpCorrelationAccessorFactory.Create("test-id"));
+        _ = services.AddHttpCorrelation().WithTestGenerator("test-id");
         var provider = services.BuildServiceProvider();
 
         // Act
@@ -79,7 +80,7 @@ public sealed class HttpCorrelationEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                (evt, _) =>
+                (_, _) =>
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
@@ -101,14 +102,14 @@ public sealed class HttpCorrelationEventInterceptorTests
         // Arrange
         const string expectedId = "correlation-abc";
         var services = new ServiceCollection();
-        _ = services.AddSingleton(TestHttpCorrelationAccessorFactory.Create(expectedId));
+        _ = services.AddHttpCorrelation().WithTestGenerator(expectedId);
         var provider = services.BuildServiceProvider();
 
         var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(provider);
         var message = new TestEvent { CorrelationId = null };
 
         // Act
-        await interceptor.HandleAsync(message, (evt, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsEqualTo(expectedId);
@@ -120,14 +121,14 @@ public sealed class HttpCorrelationEventInterceptorTests
         // Arrange
         const string expectedId = "correlation-abc";
         var services = new ServiceCollection();
-        _ = services.AddSingleton(TestHttpCorrelationAccessorFactory.Create(expectedId));
+        _ = services.AddHttpCorrelation().WithTestGenerator(expectedId);
         var provider = services.BuildServiceProvider();
 
         var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(provider);
         var message = new TestEvent { CorrelationId = string.Empty };
 
         // Act
-        await interceptor.HandleAsync(message, (evt, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsEqualTo(expectedId);
@@ -139,14 +140,14 @@ public sealed class HttpCorrelationEventInterceptorTests
         // Arrange
         const string existingId = "existing-id";
         var services = new ServiceCollection();
-        _ = services.AddSingleton(TestHttpCorrelationAccessorFactory.Create("http-id"));
+        _ = services.AddHttpCorrelation().WithTestGenerator("http-id");
         var provider = services.BuildServiceProvider();
 
         var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(provider);
         var message = new TestEvent { CorrelationId = existingId };
 
         // Act
-        await interceptor.HandleAsync(message, (evt, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsEqualTo(existingId);
@@ -157,14 +158,14 @@ public sealed class HttpCorrelationEventInterceptorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        _ = services.AddSingleton(TestHttpCorrelationAccessorFactory.Create(string.Empty));
+        _ = services.AddHttpCorrelation().WithTestGenerator(string.Empty);
         var provider = services.BuildServiceProvider();
 
         var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(provider);
         var message = new TestEvent { CorrelationId = null };
 
         // Act
-        await interceptor.HandleAsync(message, (evt, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsNull();

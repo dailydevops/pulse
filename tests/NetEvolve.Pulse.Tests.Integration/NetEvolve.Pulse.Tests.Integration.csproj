@@ -48,7 +48,6 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SqlServer\NetEvolve.Pulse.SqlServer.csproj" />
-    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Testing\NetEvolve.Pulse.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
