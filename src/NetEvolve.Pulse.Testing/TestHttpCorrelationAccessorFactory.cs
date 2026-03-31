@@ -17,14 +17,14 @@ using NetEvolve.Http.Correlation.AspNetCore;
 /// </remarks>
 public static class TestHttpCorrelationAccessorFactory
 {
-    private static readonly Assembly _aspNetCoreAsm = typeof(ServiceCollectionExtensions).Assembly;
+    private static readonly Assembly AspNetCoreAsm = typeof(ServiceCollectionExtensions).Assembly;
 
-    private static readonly Type _accessorType = _aspNetCoreAsm.GetType(
+    private static readonly Type AccessorType = AspNetCoreAsm.GetType(
         "NetEvolve.Http.Correlation.AspNetCore.HttpCorrelationAccessor",
         throwOnError: true
     )!;
 
-    private static readonly FieldInfo _correlationIdField = _accessorType.GetField(
+    private static readonly FieldInfo CorrelationIdField = AccessorType.GetField(
         "_correlationId",
         BindingFlags.NonPublic | BindingFlags.Instance
     )!;
@@ -37,8 +37,8 @@ public static class TestHttpCorrelationAccessorFactory
     public static IHttpCorrelationAccessor Create(string? correlationId)
     {
         var httpContextAccessor = new EmptyHttpContextAccessor();
-        var instance = (IHttpCorrelationAccessor)Activator.CreateInstance(_accessorType, httpContextAccessor)!;
-        _correlationIdField.SetValue(instance, correlationId ?? string.Empty);
+        var instance = (IHttpCorrelationAccessor)Activator.CreateInstance(AccessorType, httpContextAccessor)!;
+        CorrelationIdField.SetValue(instance, correlationId ?? string.Empty);
         return instance;
     }
 
