@@ -26,7 +26,9 @@ public static class TestHttpCorrelationAccessorFactory
 
     private static readonly FieldInfo CorrelationIdField = AccessorType.GetField(
         "_correlationId",
+#pragma warning disable S3011 // Reflection should not be used to increase accessibility of classes, methods, or fields
         BindingFlags.NonPublic | BindingFlags.Instance
+#pragma warning restore S3011 // Reflection should not be used to increase accessibility of classes, methods, or fields
     )!;
 
     /// <summary>
