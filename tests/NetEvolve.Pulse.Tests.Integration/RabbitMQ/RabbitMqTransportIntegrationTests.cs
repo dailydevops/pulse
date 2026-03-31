@@ -4,6 +4,7 @@ using System.Text;
 using global::RabbitMQ.Client;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 using Testcontainers.RabbitMq;
 using TUnit.Assertions.Extensions;
@@ -100,8 +101,10 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
     {
         var options = new RabbitMqTransportOptions { ExchangeName = ExchangeName };
 
-        var adapter = new NetEvolve.Pulse.Internals.RabbitMqConnectionAdapter(_connection!);
-        return new RabbitMqMessageTransport(adapter, new FakeTopicNameResolver(), Options.Create(options));
+        var adapter = new RabbitMqConnectionAdapter(_connection!);
+        var topicNameResolverMock = Mock.Of<ITopicNameResolver>();
+        _ = topicNameResolverMock.Resolve(Any()).Returns(RoutingKey);
+        return new RabbitMqMessageTransport(adapter, topicNameResolverMock.Object, Options.Create(options));
     }
 
     private static OutboxMessage CreateOutboxMessage() =>
@@ -131,8 +134,8 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
         var messageId = result.BasicProperties.MessageId;
         var correlationId = result.BasicProperties.CorrelationId;
         var eventType =
-            result.BasicProperties.Headers?.TryGetValue("eventType", out var et) == true
-                ? Encoding.UTF8.GetString((byte[])et)
+            result.BasicProperties.Headers?.TryGetValue("eventType", out var et) == true && et is byte[] etBytes
+                ? Encoding.UTF8.GetString(etBytes)
                 : null;
 
         await channel.CloseAsync();
@@ -141,9 +144,4 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
     }
 
     private sealed record ReceivedMessage(string Body, string? MessageId, string? CorrelationId, string? EventType);
-
-    private sealed class FakeTopicNameResolver : ITopicNameResolver
-    {
-        public string Resolve(OutboxMessage message) => RoutingKey;
-    }
 }
