@@ -106,6 +106,7 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
             .Property(m => m.EventType)
             .HasColumnName(OutboxMessageSchema.Columns.EventType)
             .HasMaxLength(OutboxMessageSchema.MaxLengths.EventType)
+            .HasConversion<TypeValueConverter>()
             .IsRequired();
 
         // Payload column (max length text)

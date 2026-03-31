@@ -447,7 +447,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     private static void AddMessageParameters(SqliteCommand command, OutboxMessage message)
     {
         _ = command.Parameters.AddWithValue("@Id", message.Id.ToString());
-        _ = command.Parameters.AddWithValue("@EventType", message.EventType);
+        _ = command.Parameters.AddWithValue("@EventType", message.EventType.AssemblyQualifiedName ?? message.EventType.FullName ?? message.EventType.Name);
         _ = command.Parameters.AddWithValue("@Payload", message.Payload);
         _ = command.Parameters.AddWithValue("@CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("@CreatedAt", message.CreatedAt);
@@ -527,7 +527,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 new OutboxMessage
                 {
                     Id = Guid.Parse(reader.GetString(ordId)),
-                    EventType = reader.GetString(ordEventType),
+                    EventType = Type.GetType(reader.GetString(ordEventType))
+                        ?? throw new InvalidOperationException($"Cannot resolve event type '{reader.GetString(ordEventType)}'."),
                     Payload = reader.GetString(ordPayload),
                     CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
                     CreatedAt = createdAt,

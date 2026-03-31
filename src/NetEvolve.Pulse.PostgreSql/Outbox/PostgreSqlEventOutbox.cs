@@ -95,9 +95,10 @@ public sealed class PostgreSqlEventOutbox : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(message);
 
+        var messageType = message.GetType();
         var eventType =
-            message.GetType().AssemblyQualifiedName
-            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {message.GetType()}");
+            messageType.AssemblyQualifiedName
+            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {messageType}");
 
         if (eventType is { Length: > OutboxMessageSchema.MaxLengths.EventType })
         {
@@ -121,7 +122,7 @@ public sealed class PostgreSqlEventOutbox : IEventOutbox
 
         var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
         var now = _timeProvider.GetUtcNow();
-        var payload = JsonSerializer.Serialize(message, message.GetType(), _options.JsonSerializerOptions);
+        var payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions);
 
         _ = command.Parameters.AddWithValue("Id", id);
         _ = command.Parameters.AddWithValue("EventType", eventType);

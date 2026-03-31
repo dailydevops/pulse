@@ -75,17 +75,6 @@ internal sealed class EntityFrameworkOutbox<TContext> : IEventOutbox
         ArgumentNullException.ThrowIfNull(message);
 
         var messageType = message.GetType();
-        var asmName =
-            messageType.AssemblyQualifiedName
-            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {messageType}");
-
-        if (asmName is { Length: > OutboxMessageSchema.MaxLengths.EventType })
-        {
-            throw new InvalidOperationException(
-                $"Event type identifier exceeds the EventType column maximum length of {OutboxMessageSchema.MaxLengths.EventType} characters. "
-                    + "Shorten the type identifier, increase the database column length, or use Type.FullName with a type registry."
-            );
-        }
 
         var correlationId = message.CorrelationId;
 
@@ -102,7 +91,7 @@ internal sealed class EntityFrameworkOutbox<TContext> : IEventOutbox
         var outboxMessage = new OutboxMessage
         {
             Id = id,
-            EventType = asmName,
+            EventType = messageType,
             Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
             CorrelationId = correlationId,
             CreatedAt = now,

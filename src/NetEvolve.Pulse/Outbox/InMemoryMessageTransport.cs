@@ -54,19 +54,17 @@ internal sealed class InMemoryMessageTransport : IMessageTransport
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var eventType =
-            Type.GetType(message.EventType)
-            ?? throw new InvalidOperationException($"Cannot resolve event type: {message.EventType}");
+        var eventType = message.EventType;
 
         var @event =
             JsonSerializer.Deserialize(message.Payload, eventType, _options.JsonSerializerOptions)
             ?? throw new InvalidOperationException(
-                $"Failed to deserialize event payload for type: {message.EventType}"
+                $"Failed to deserialize event payload for type: {eventType}"
             );
 
         if (@event is not IEvent typedEvent)
         {
-            throw new InvalidOperationException($"Deserialized object is not an IEvent: {message.EventType}");
+            throw new InvalidOperationException($"Deserialized object is not an IEvent: {eventType}");
         }
 
         await PublishEventAsync(typedEvent, cancellationToken).ConfigureAwait(false);

@@ -11,7 +11,7 @@
 /// <para><strong>Column Specifications:</strong></para>
 /// <list type="bullet">
 /// <item><description><see cref="Id"/>: UNIQUEIDENTIFIER / GUID, Primary Key</description></item>
-/// <item><description><see cref="EventType"/>: NVARCHAR(500), NOT NULL - Assembly-qualified type name</description></item>
+/// <item><description><see cref="EventType"/>: NVARCHAR(500), NOT NULL - Runtime type; persisted as assembly-qualified name</description></item>
 /// <item><description><see cref="Payload"/>: NVARCHAR(MAX) / TEXT, NOT NULL - JSON serialized event</description></item>
 /// <item><description><see cref="CorrelationId"/>: NVARCHAR(100), NULL - Distributed tracing correlation</description></item>
 /// <item><description><see cref="CreatedAt"/>: DATETIMEOFFSET, NOT NULL - Message creation timestamp</description></item>
@@ -31,13 +31,14 @@ public sealed class OutboxMessage
     public Guid Id { get; set; }
 
     /// <summary>
-    /// Gets or sets the assembly-qualified type name of the event.
+    /// Gets or sets the runtime type of the event.
     /// Used for deserialization and routing.
     /// </summary>
     /// <remarks>
-    /// Maximum length: 500 characters.
+    /// Stored in the database as the assembly-qualified type name (maximum 500 characters).
+    /// Persistence providers are responsible for converting this value to and from its string representation.
     /// </remarks>
-    public string EventType { get; set; } = string.Empty;
+    public Type EventType { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the JSON serialized event payload.

@@ -287,7 +287,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         new OutboxMessage
         {
             Id = reader.GetGuid(ordId),
-            EventType = reader.GetString(ordEventType),
+            EventType = Type.GetType(reader.GetString(ordEventType))
+                ?? throw new InvalidOperationException($"Cannot resolve event type '{reader.GetString(ordEventType)}'."),
             Payload = reader.GetString(ordPayload),
             CorrelationId = reader.IsDBNull(ordCorrelationId) ? null : reader.GetString(ordCorrelationId),
             CreatedAt = reader.GetDateTimeOffset(ordCreatedAt),
