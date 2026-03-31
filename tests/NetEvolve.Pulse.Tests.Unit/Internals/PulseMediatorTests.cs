@@ -8,7 +8,7 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
-public partial class PulseMediatorTests
+public class PulseMediatorTests
 {
     [Test]
     public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
@@ -519,11 +519,8 @@ public partial class PulseMediatorTests
             }
         }
     }
-}
 
-// StreamQueryAsync tests
-public partial class PulseMediatorTests
-{
+    // StreamQueryAsync tests
     [Test]
     public async Task StreamQueryAsync_WithNullQuery_ThrowsArgumentNullException()
     {

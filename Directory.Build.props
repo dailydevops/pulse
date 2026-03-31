@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Integration"/>
-    <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Unit"/>
+    <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Integration" />
+    <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Unit" />
   </ItemGroup>
 </Project>
