@@ -7,11 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Testing;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public sealed class SqlServerMediatorConfiguratorExtensionsTests
 {
@@ -25,8 +24,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
                     (string)null!
                 )
             )
@@ -36,7 +34,9 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(new MediatorConfiguratorStub(), string.Empty)
+                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
+                    string.Empty
+                )
             )
             .Throws<ArgumentException>();
 
@@ -44,18 +44,21 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(new MediatorConfiguratorStub(), "   ")
+                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
+                    "   "
+                )
             )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task AddSqlServerOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.AddSqlServerOutbox("Server=.;Encrypt=true;");
+        var result = mock.Object.AddSqlServerOutbox("Server=.;Encrypt=true;");
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 
     [Test]
@@ -114,8 +117,7 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     public async Task AddSqlServerOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerMediatorConfiguratorExtensions.AddSqlServerOutbox(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddSqlServerOutbox(
                     (Func<IServiceProvider, string>)null!
                 )
             )
@@ -124,11 +126,12 @@ public sealed class SqlServerMediatorConfiguratorExtensionsTests
     [Test]
     public async Task AddSqlServerOutbox_WithFactory_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.AddSqlServerOutbox(_ => "Server=.;Encrypt=true;");
+        var result = mock.Object.AddSqlServerOutbox(_ => "Server=.;Encrypt=true;");
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 
     [Test]

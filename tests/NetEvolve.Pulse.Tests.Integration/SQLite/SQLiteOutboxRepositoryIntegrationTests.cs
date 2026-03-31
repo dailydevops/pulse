@@ -1,7 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.SQLite;
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;

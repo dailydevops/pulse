@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
-using global::RabbitMQ.Client;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;

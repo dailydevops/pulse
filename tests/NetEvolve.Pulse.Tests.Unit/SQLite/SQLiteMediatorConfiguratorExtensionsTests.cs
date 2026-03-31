@@ -7,11 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Testing;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public sealed class SQLiteMediatorConfiguratorExtensionsTests
 {
@@ -25,7 +24,9 @@ public sealed class SQLiteMediatorConfiguratorExtensionsTests
     public async Task UseSQLiteOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SQLiteMediatorConfiguratorExtensions.UseSQLiteOutbox(new MediatorConfiguratorStub(), (string)null!)
+                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(
+                    (string)null!
+                )
             )
             .Throws<ArgumentNullException>();
 
@@ -33,22 +34,25 @@ public sealed class SQLiteMediatorConfiguratorExtensionsTests
     public async Task UseSQLiteOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                SQLiteMediatorConfiguratorExtensions.UseSQLiteOutbox(new MediatorConfiguratorStub(), string.Empty)
+                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(
+                    string.Empty
+                )
             )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task UseSQLiteOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() => SQLiteMediatorConfiguratorExtensions.UseSQLiteOutbox(new MediatorConfiguratorStub(), "   "))
+            .That(() =>
+                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox("   ")
+            )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task UseSQLiteOutbox_WithNullConfigureOptions_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SQLiteMediatorConfiguratorExtensions.UseSQLiteOutbox(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.UseSQLiteOutbox(
                     (Action<SQLiteOutboxOptions>)null!
                 )
             )
@@ -57,11 +61,12 @@ public sealed class SQLiteMediatorConfiguratorExtensionsTests
     [Test]
     public async Task UseSQLiteOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.UseSQLiteOutbox("Data Source=:memory:");
+        var result = mock.Object.UseSQLiteOutbox("Data Source=:memory:");
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 
     [Test]
@@ -152,10 +157,11 @@ public sealed class SQLiteMediatorConfiguratorExtensionsTests
     [Test]
     public async Task UseSQLiteOutbox_WithConfigureAction_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.UseSQLiteOutbox(opts => opts.ConnectionString = "Data Source=:memory:");
+        var result = mock.Object.UseSQLiteOutbox(opts => opts.ConnectionString = "Data Source=:memory:");
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 }

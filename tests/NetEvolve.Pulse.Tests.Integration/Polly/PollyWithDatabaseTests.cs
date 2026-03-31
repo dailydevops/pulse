@@ -10,9 +10,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Tests.Integration.Internals;
-using Testcontainers.MsSql;
 using TUnit.Core;
-using TUnit.Core.Interfaces;
 
 /// <summary>
 /// Integration tests that verify Polly resilience policies work correctly

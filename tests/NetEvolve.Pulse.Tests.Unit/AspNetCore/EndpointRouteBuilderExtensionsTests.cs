@@ -24,7 +24,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
         _ = Assert.Throws<ArgumentNullException>(() =>
-            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, null!)
+            endpoints.MapCommand<TestCommand, string>(null!)
         );
     }
 
@@ -36,7 +36,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
         _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", UndefinedHttpMethod)
+            endpoints.MapCommand<TestCommand, string>("/test", UndefinedHttpMethod)
         );
     }
 
@@ -47,7 +47,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test");
+        var builder = endpoints.MapCommand<TestCommand, string>("/test");
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -57,7 +57,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", CommandHttpMethod.Put);
+        var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Put);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -67,7 +67,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", CommandHttpMethod.Patch);
+        var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Patch);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -77,7 +77,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<TestCommand, string>(endpoints, "/test", CommandHttpMethod.Delete);
+        var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Delete);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -93,7 +93,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        _ = Assert.Throws<ArgumentNullException>(() => PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, null!));
+        _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapCommand<VoidTestCommand>(null!));
     }
 
     // MapCommand<TCommand> (void) — httpMethod validation
@@ -104,7 +104,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
         _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", UndefinedHttpMethod)
+            endpoints.MapCommand<VoidTestCommand>("/test", UndefinedHttpMethod)
         );
     }
 
@@ -115,7 +115,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test");
+        var builder = endpoints.MapCommand<VoidTestCommand>("/test");
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -125,7 +125,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", CommandHttpMethod.Delete);
+        var builder = endpoints.MapCommand<VoidTestCommand>("/test", CommandHttpMethod.Delete);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -135,7 +135,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapCommand<VoidTestCommand>(endpoints, "/test", CommandHttpMethod.Put);
+        var builder = endpoints.MapCommand<VoidTestCommand>("/test", CommandHttpMethod.Put);
 
         _ = await Assert.That(builder).IsNotNull();
     }
@@ -151,7 +151,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        _ = Assert.Throws<ArgumentNullException>(() => PulseEndpoints.MapQuery<TestQuery, string>(endpoints, null!));
+        _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapQuery<TestQuery, string>(null!));
     }
 
     [Test]
@@ -159,7 +159,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
-        var builder = PulseEndpoints.MapQuery<TestQuery, string>(endpoints, "/test");
+        var builder = endpoints.MapQuery<TestQuery, string>("/test");
 
         _ = await Assert.That(builder).IsNotNull();
     }

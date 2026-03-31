@@ -8,11 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Testing;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public sealed class EntityFrameworkMediatorConfiguratorExtensionsTests
 {
@@ -25,11 +24,12 @@ public sealed class EntityFrameworkMediatorConfiguratorExtensionsTests
     [Test]
     public async Task AddEntityFrameworkOutbox_WithValidConfigurator_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.AddEntityFrameworkOutbox<TestDbContext>();
+        var result = mock.Object.AddEntityFrameworkOutbox<TestDbContext>();
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 
     [Test]

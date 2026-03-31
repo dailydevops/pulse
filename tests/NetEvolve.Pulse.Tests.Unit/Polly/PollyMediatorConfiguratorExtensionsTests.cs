@@ -8,11 +8,10 @@ using global::Polly.Retry;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Extensibility.Caching;
-using NetEvolve.Pulse.Testing;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public sealed class PollyMediatorConfiguratorExtensionsTests
 {
@@ -30,8 +29,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         // Act & Assert
         _ = await Assert
             .That(() =>
-                PollyMediatorConfiguratorExtensions.AddPollyRequestPolicies<TestCommand, string>(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPollyRequestPolicies<TestCommand, string>(
                     null!
                 )
             )
@@ -91,8 +89,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         // Act & Assert
         _ = await Assert
             .That(() =>
-                PollyMediatorConfiguratorExtensions.AddPollyEventPolicies<TestEvent>(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPollyEventPolicies<TestEvent>(
                     null!
                 )
             )
@@ -372,8 +369,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         // Act & Assert
         _ = await Assert
             .That(() =>
-                PollyMediatorConfiguratorExtensions.AddPollyQueryPolicies<TestQuery, string>(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPollyQueryPolicies<TestQuery, string>(
                     null!
                 )
             )
@@ -441,8 +437,7 @@ public sealed class PollyMediatorConfiguratorExtensionsTests
         // Act & Assert
         _ = await Assert
             .That(() =>
-                PollyMediatorConfiguratorExtensions.AddPollyCommandPolicies<TestCommand, string>(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPollyCommandPolicies<TestCommand, string>(
                     null!
                 )
             )

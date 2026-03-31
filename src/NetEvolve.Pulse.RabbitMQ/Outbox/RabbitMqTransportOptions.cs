@@ -1,7 +1,4 @@
 namespace NetEvolve.Pulse.Outbox;
-
-using NetEvolve.Pulse.Extensibility.Outbox;
-
 /// <summary>
 /// Configuration options for <see cref="RabbitMqMessageTransport"/>.
 /// </summary>

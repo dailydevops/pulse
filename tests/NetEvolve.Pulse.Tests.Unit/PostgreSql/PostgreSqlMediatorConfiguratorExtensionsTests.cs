@@ -7,11 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Testing;
 using TUnit.Core;
+using TUnit.Mocks;
 
 public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
 {
@@ -27,8 +26,7 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     public async Task AddPostgreSqlOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlMediatorConfiguratorExtensions.AddPostgreSqlOutbox(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
                     (string)null!
                 )
             )
@@ -38,8 +36,7 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     public async Task AddPostgreSqlOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlMediatorConfiguratorExtensions.AddPostgreSqlOutbox(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
                     string.Empty
                 )
             )
@@ -49,18 +46,21 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     public async Task AddPostgreSqlOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlMediatorConfiguratorExtensions.AddPostgreSqlOutbox(new MediatorConfiguratorStub(), "   ")
+                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
+                    "   "
+                )
             )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task AddPostgreSqlOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.AddPostgreSqlOutbox("Host=localhost;Encrypt=true;");
+        var result = mock.Object.AddPostgreSqlOutbox("Host=localhost;Encrypt=true;");
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 
     [Test]
@@ -124,8 +124,7 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     public async Task AddPostgreSqlOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlMediatorConfiguratorExtensions.AddPostgreSqlOutbox(
-                    new MediatorConfiguratorStub(),
+                Mock.Of<IMediatorConfigurator>().Object.AddPostgreSqlOutbox(
                     (Func<IServiceProvider, string>)null!
                 )
             )
@@ -134,11 +133,12 @@ public sealed class PostgreSqlMediatorConfiguratorExtensionsTests
     [Test]
     public async Task AddPostgreSqlOutbox_WithFactory_ReturnsConfiguratorForChaining()
     {
-        var stub = new MediatorConfiguratorStub();
+        var mock = Mock.Of<IMediatorConfigurator>();
+        _ = mock.Services.Returns(new ServiceCollection());
 
-        var result = stub.AddPostgreSqlOutbox(_ => "Host=localhost;Encrypt=true;");
+        var result = mock.Object.AddPostgreSqlOutbox(_ => "Host=localhost;Encrypt=true;");
 
-        _ = await Assert.That(result).IsSameReferenceAs(stub);
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
     }
 
     [Test]
