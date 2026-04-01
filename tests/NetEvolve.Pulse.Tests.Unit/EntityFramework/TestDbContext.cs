@@ -11,10 +11,4 @@ internal sealed class TestDbContext : DbContext, IOutboxDbContext
         : base(options) { }
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-
-    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-    {
-        base.ConfigureConventions(configurationBuilder);
-        configurationBuilder.Properties<Type>().HaveConversion<TypeValueConverter>();
-    }
 }
