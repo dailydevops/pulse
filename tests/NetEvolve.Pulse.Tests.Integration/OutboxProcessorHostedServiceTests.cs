@@ -4,6 +4,7 @@ using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -462,7 +463,7 @@ public sealed class OutboxProcessorHostedServiceTests
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = "TestEvent",
+            EventType = typeof(TestIntegrationEvent),
             Payload = """{"data":"test"}""",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -669,6 +670,13 @@ public sealed class OutboxProcessorHostedServiceTests
             IEnumerable<OutboxMessage> messages,
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
+    }
+
+    private sealed record TestIntegrationEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 
     #endregion

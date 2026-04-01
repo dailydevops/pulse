@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
@@ -498,12 +499,19 @@ public sealed class EntityFrameworkOutboxManagementTests
         return new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = $"TestEvent.{id}",
+            EventType = typeof(TestEFManagementEvent),
             Payload = $"{{\"Id\":\"{id}\"}}",
             CorrelationId = $"corr-{id}",
             CreatedAt = now,
             UpdatedAt = now,
             Status = status,
         };
+    }
+
+    private sealed record TestEFManagementEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

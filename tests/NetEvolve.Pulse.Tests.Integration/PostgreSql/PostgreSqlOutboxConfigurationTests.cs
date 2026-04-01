@@ -180,7 +180,7 @@ public sealed class PostgreSqlOutboxConfigurationTests
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(pending[0].EventType).Contains(nameof(TestPgEvent));
+            _ = await Assert.That(pending[0].EventType).IsEqualTo(typeof(TestPgEvent));
             _ = await Assert.That(pending[0].Payload).Contains("storage-1").And.Contains("Storage test");
         }
     }

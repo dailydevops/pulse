@@ -18,10 +18,7 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
     /// Initializes a new instance of the <see cref="TypeValueConverter"/> class.
     /// </summary>
     public TypeValueConverter()
-        : base(
-            type => ConvertToString(type),
-            typeName => ConvertFromString(typeName)
-        ) { }
+        : base(type => ConvertToString(type), typeName => ConvertFromString(typeName)) { }
 
     private static string ConvertToString(Type type)
     {
@@ -41,6 +38,5 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
     }
 
     private static Type ConvertFromString(string typeName) =>
-        Type.GetType(typeName)
-        ?? throw new InvalidOperationException($"Cannot resolve event type '{typeName}'.");
+        Type.GetType(typeName) ?? throw new InvalidOperationException($"Cannot resolve event type '{typeName}'.");
 }

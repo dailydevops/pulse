@@ -4,6 +4,7 @@ using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -421,7 +422,7 @@ public sealed class OutboxProcessorHostedServiceTests
                 MaxRetryCount = 5, // Global: 5 retries
                 EventTypeOverrides =
                 {
-                    ["CriticalEvent"] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 retry
+                    [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 retry
                 },
             }
         );
@@ -429,7 +430,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
 
         // Message of type CriticalEvent should use override (MaxRetryCount = 1)
-        var message = CreateMessage("CriticalEvent");
+        var message = CreateMessage(typeof(CriticalEvent));
         message.RetryCount = 0; // First attempt
         await repository.AddAsync(message).ConfigureAwait(false);
 
@@ -449,16 +450,16 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = new OutboxProcessorOptions
         {
             MaxRetryCount = 3, // Global default
-            EventTypeOverrides = { ["CriticalEvent"] = new OutboxEventTypeOptions { MaxRetryCount = 1 } },
+            EventTypeOverrides = { [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 } },
         };
 
         using (Assert.Multiple())
         {
             // "CriticalEvent" uses the override
-            _ = await Assert.That(options.GetEffectiveMaxRetryCount("CriticalEvent")).IsEqualTo(1);
+            _ = await Assert.That(options.GetEffectiveMaxRetryCount(typeof(CriticalEvent))).IsEqualTo(1);
             // Other event types fall back to the global default
-            _ = await Assert.That(options.GetEffectiveMaxRetryCount("StandardEvent")).IsEqualTo(3);
-            _ = await Assert.That(options.GetEffectiveMaxRetryCount("UnknownEvent")).IsEqualTo(3);
+            _ = await Assert.That(options.GetEffectiveMaxRetryCount(typeof(OtherEvent))).IsEqualTo(3);
+            _ = await Assert.That(options.GetEffectiveMaxRetryCount(typeof(TestOutboxEvent))).IsEqualTo(3);
         }
     }
 
@@ -475,7 +476,7 @@ public sealed class OutboxProcessorHostedServiceTests
                 MaxRetryCount = 1,
                 EventTypeOverrides =
                 {
-                    ["SlowEvent"] = new OutboxEventTypeOptions
+                    [typeof(SlowEvent)] = new OutboxEventTypeOptions
                     {
                         ProcessingTimeout = TimeSpan.FromMilliseconds(50), // Override: very short timeout
                     },
@@ -486,7 +487,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
 
         // SlowEvent message should time out and be marked as failed/dead-lettered
-        var message = CreateMessage("SlowEvent");
+        var message = CreateMessage(typeof(SlowEvent));
         await repository.AddAsync(message).ConfigureAwait(false);
 
         using var cts = new CancellationTokenSource();
@@ -509,15 +510,18 @@ public sealed class OutboxProcessorHostedServiceTests
             {
                 PollingInterval = TimeSpan.FromMilliseconds(50),
                 EnableBatchSending = false, // Global: individual sending
-                EventTypeOverrides = { ["BatchEvent"] = new OutboxEventTypeOptions { EnableBatchSending = true } },
+                EventTypeOverrides =
+                {
+                    [typeof(BatchEvent)] = new OutboxEventTypeOptions { EnableBatchSending = true },
+                },
             }
         );
         var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(repository, transport, options, logger);
 
         // Add two messages of the overridden type: should be batch-sent
-        var message1 = CreateMessage("BatchEvent");
-        var message2 = CreateMessage("BatchEvent");
+        var message1 = CreateMessage(typeof(BatchEvent));
+        var message2 = CreateMessage(typeof(BatchEvent));
         await repository.AddAsync(message1).ConfigureAwait(false);
         await repository.AddAsync(message2).ConfigureAwait(false);
 
@@ -548,11 +552,11 @@ public sealed class OutboxProcessorHostedServiceTests
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("AnyEvent")).IsEqualTo(5);
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount(typeof(TestOutboxEvent))).IsEqualTo(5);
             _ = await Assert
-                .That(globalOptions.GetEffectiveProcessingTimeout("AnyEvent"))
+                .That(globalOptions.GetEffectiveProcessingTimeout(typeof(TestOutboxEvent)))
                 .IsEqualTo(TimeSpan.FromSeconds(60));
-            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("AnyEvent")).IsTrue();
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending(typeof(TestOutboxEvent))).IsTrue();
         }
     }
 
@@ -566,7 +570,7 @@ public sealed class OutboxProcessorHostedServiceTests
             EnableBatchSending = false,
             EventTypeOverrides =
             {
-                ["PriorityEvent"] = new OutboxEventTypeOptions
+                [typeof(PriorityEvent)] = new OutboxEventTypeOptions
                 {
                     MaxRetryCount = 10, // Only override MaxRetryCount
                     EnableBatchSending = true, // Override batch sending for this type
@@ -577,17 +581,17 @@ public sealed class OutboxProcessorHostedServiceTests
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("PriorityEvent")).IsEqualTo(10);
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount(typeof(PriorityEvent))).IsEqualTo(10);
             _ = await Assert
-                .That(globalOptions.GetEffectiveProcessingTimeout("PriorityEvent"))
+                .That(globalOptions.GetEffectiveProcessingTimeout(typeof(PriorityEvent)))
                 .IsEqualTo(TimeSpan.FromSeconds(60));
-            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("PriorityEvent")).IsTrue();
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending(typeof(PriorityEvent))).IsTrue();
             // Non-overridden event type uses global defaults
-            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("OtherEvent")).IsEqualTo(5);
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount(typeof(OtherEvent))).IsEqualTo(5);
             _ = await Assert
-                .That(globalOptions.GetEffectiveProcessingTimeout("OtherEvent"))
+                .That(globalOptions.GetEffectiveProcessingTimeout(typeof(OtherEvent)))
                 .IsEqualTo(TimeSpan.FromSeconds(60));
-            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("OtherEvent")).IsFalse();
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending(typeof(OtherEvent))).IsFalse();
         }
     }
 
@@ -602,17 +606,17 @@ public sealed class OutboxProcessorHostedServiceTests
             EventTypeOverrides =
             {
                 // Override entry exists but all properties are null -> all fall back to global
-                ["NullOverrideEvent"] = new OutboxEventTypeOptions(),
+                [typeof(NullOverrideEvent)] = new OutboxEventTypeOptions(),
             },
         };
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount("NullOverrideEvent")).IsEqualTo(7);
+            _ = await Assert.That(globalOptions.GetEffectiveMaxRetryCount(typeof(NullOverrideEvent))).IsEqualTo(7);
             _ = await Assert
-                .That(globalOptions.GetEffectiveProcessingTimeout("NullOverrideEvent"))
+                .That(globalOptions.GetEffectiveProcessingTimeout(typeof(NullOverrideEvent)))
                 .IsEqualTo(TimeSpan.FromSeconds(45));
-            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending("NullOverrideEvent")).IsTrue();
+            _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending(typeof(NullOverrideEvent))).IsTrue();
         }
     }
 
@@ -1029,11 +1033,11 @@ public sealed class OutboxProcessorHostedServiceTests
             .BuildServiceProvider()
             .GetRequiredService<ILogger<OutboxProcessorHostedService>>();
 
-    private static OutboxMessage CreateMessage(string eventType = "TestEvent") =>
+    private static OutboxMessage CreateMessage(Type? eventType = null) =>
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = eventType ?? typeof(TestOutboxEvent),
             Payload = """{"data":"test"}""",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -1289,6 +1293,56 @@ public sealed class OutboxProcessorHostedServiceTests
             IEnumerable<OutboxMessage> messages,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
+    }
+
+    // Test event types used as EventTypeOverrides dictionary keys
+    private sealed record TestOutboxEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record CriticalEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record SlowEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record BatchEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record PriorityEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record NullOverrideEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record OtherEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 
     #endregion

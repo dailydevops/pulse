@@ -3,6 +3,7 @@
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
@@ -334,12 +335,19 @@ public sealed class SqlServerOutboxRepositoryTests
         return new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = $"TestEvent.{id}",
+            EventType = typeof(TestSqlRepoEvent),
             Payload = $"{{\"Id\":\"{id}\"}}",
             CorrelationId = $"corr-{id}",
             CreatedAt = now,
             UpdatedAt = now,
             Status = OutboxMessageStatus.Pending,
         };
+    }
+
+    private sealed record TestSqlRepoEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

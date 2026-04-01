@@ -17,7 +17,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// The outbox pattern still provides reliability by persisting events before processing.
 /// <para><strong>Serialization:</strong></para>
 /// Events are deserialized using System.Text.Json with optional custom settings from <see cref="OutboxOptions"/>.
-/// The <see cref="OutboxMessage.EventType"/> property contains the assembly-qualified type name.
+/// The <see cref="OutboxMessage.EventType"/> property contains the runtime type of the event.
 /// <para><strong>Error Handling:</strong></para>
 /// Exceptions from event handlers propagate to the outbox processor for retry handling.
 /// </remarks>
@@ -58,9 +58,7 @@ internal sealed class InMemoryMessageTransport : IMessageTransport
 
         var @event =
             JsonSerializer.Deserialize(message.Payload, eventType, _options.JsonSerializerOptions)
-            ?? throw new InvalidOperationException(
-                $"Failed to deserialize event payload for type: {eventType}"
-            );
+            ?? throw new InvalidOperationException($"Failed to deserialize event payload for type: {eventType}");
 
         if (@event is not IEvent typedEvent)
         {

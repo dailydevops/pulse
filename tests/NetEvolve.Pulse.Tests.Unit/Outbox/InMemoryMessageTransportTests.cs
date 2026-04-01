@@ -86,39 +86,16 @@ public sealed class InMemoryMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_WithUnresolvableEventType_ThrowsInvalidOperationException()
-    {
-        var mediator = new TestMediator();
-        var options = Options.Create(new OutboxOptions());
-        var transport = new InMemoryMessageTransport(mediator, options);
-
-        var message = new OutboxMessage
-        {
-            Id = Guid.NewGuid(),
-            EventType = "NonExistent.Type, NonExistent.Assembly",
-            Payload = "{}",
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-            Status = OutboxMessageStatus.Processing,
-        };
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => transport.SendAsync(message));
-
-        _ = await Assert.That(exception!.Message).Contains("Cannot resolve event type");
-    }
-
-    [Test]
     public async Task SendAsync_WithInvalidPayload_ThrowsInvalidOperationException()
     {
         var mediator = new TestMediator();
         var options = Options.Create(new OutboxOptions());
         var transport = new InMemoryMessageTransport(mediator, options);
 
-        var eventType = typeof(TestTransportEvent).AssemblyQualifiedName!;
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = typeof(TestTransportEvent),
             Payload = "null", // This will deserialize to null
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -138,11 +115,10 @@ public sealed class InMemoryMessageTransportTests
         var transport = new InMemoryMessageTransport(mediator, options);
 
         // Use a type that is not an IEvent
-        var eventType = typeof(NonEventClass).AssemblyQualifiedName!;
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = typeof(NonEventClass),
             Payload = """{"Value":"test"}""",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -164,11 +140,10 @@ public sealed class InMemoryMessageTransportTests
 
         // Create payload with camelCase property names
         const string payload = """{"id":"custom-id","data":"custom data","correlationId":null,"publishedAt":null}""";
-        var eventType = typeof(TestTransportEvent).AssemblyQualifiedName!;
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = typeof(TestTransportEvent),
             Payload = payload,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -228,13 +203,12 @@ public sealed class InMemoryMessageTransportTests
 
     private static OutboxMessage CreateOutboxMessage(TestTransportEvent @event)
     {
-        var eventType = @event.GetType().AssemblyQualifiedName!;
         var payload = JsonSerializer.Serialize(@event, @event.GetType());
 
         return new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = @event.GetType(),
             Payload = payload,
             CorrelationId = @event.CorrelationId,
             CreatedAt = DateTimeOffset.UtcNow,

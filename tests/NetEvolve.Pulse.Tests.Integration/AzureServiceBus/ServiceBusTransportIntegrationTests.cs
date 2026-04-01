@@ -6,6 +6,7 @@ using Azure.Messaging.ServiceBus.Administration;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
@@ -70,7 +71,7 @@ public sealed class ServiceBusTransportIntegrationTests : IAsyncDisposable
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = "Integration.Event",
+            EventType = typeof(IntegrationTestEvent),
             Payload = """{"event":"integration"}""",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -86,7 +87,7 @@ public sealed class ServiceBusTransportIntegrationTests : IAsyncDisposable
 
         _ = await Assert.That(received).IsNotNull();
         _ = await Assert.That(received!.Body.ToString()).IsEqualTo(message.Payload);
-        _ = await Assert.That(received.Subject).IsEqualTo(message.EventType);
+        _ = await Assert.That(received.Subject).IsEqualTo(message.EventType.AssemblyQualifiedName);
     }
 
     public async ValueTask DisposeAsync()
@@ -107,5 +108,12 @@ public sealed class ServiceBusTransportIntegrationTests : IAsyncDisposable
         public SimpleTopicNameResolver(string topicName) => _topicName = topicName;
 
         public string Resolve(OutboxMessage message) => _topicName;
+    }
+
+    private sealed record IntegrationTestEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }
