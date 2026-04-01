@@ -1,7 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using Microsoft.EntityFrameworkCore;
-using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 
@@ -15,6 +14,6 @@ internal sealed class TestDbContext : DbContext, IOutboxDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(this));
+        _ = modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(this));
     }
 }
