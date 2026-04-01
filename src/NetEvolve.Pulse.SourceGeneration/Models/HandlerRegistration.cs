@@ -57,4 +57,5 @@ internal enum HandlerKind
     Command,
     Query,
     Event,
+    StreamQuery,
 }
