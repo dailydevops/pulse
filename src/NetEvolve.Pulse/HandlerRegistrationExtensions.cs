@@ -78,10 +78,10 @@ public static class HandlerRegistrationExtensions
     /// config.AddCommandHandler&lt;SendNotificationCommand, SendNotificationHandler&gt;(ServiceLifetime.Singleton);
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddCommandHandler<
+    public static IMediatorBuilder AddCommandHandler<
         TCommand,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TCommand : ICommand<Void>
         where THandler : class, ICommandHandler<TCommand, Void> =>
         configurator.AddCommandHandler<TCommand, Void, THandler>(lifetime);
@@ -115,11 +115,11 @@ public static class HandlerRegistrationExtensions
     /// config.AddCommandHandler&lt;GenerateReportCommand, Report, ReportGeneratorHandler&gt;(ServiceLifetime.Singleton);
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddCommandHandler<
+    public static IMediatorBuilder AddCommandHandler<
         TCommand,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TCommand : ICommand<TResponse>
         where THandler : class, ICommandHandler<TCommand, TResponse>
     {
@@ -161,11 +161,11 @@ public static class HandlerRegistrationExtensions
     /// config.AddQueryHandler&lt;GetProductCatalogQuery, ProductCatalog, CachedProductCatalogHandler&gt;(ServiceLifetime.Singleton);
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddQueryHandler<
+    public static IMediatorBuilder AddQueryHandler<
         TQuery,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TQuery : IQuery<TResponse>
         where THandler : class, IQueryHandler<TQuery, TResponse>
     {
@@ -214,10 +214,10 @@ public static class HandlerRegistrationExtensions
     /// // All four handlers will execute in parallel when OrderCreatedEvent is published
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddEventHandler<
+    public static IMediatorBuilder AddEventHandler<
         TEvent,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TEvent : IEvent
         where THandler : class, IEventHandler<TEvent>
     {
@@ -258,11 +258,11 @@ public static class HandlerRegistrationExtensions
     /// config.AddRequestInterceptor&lt;MyRequest, MyResponse, ValidationInterceptor&lt;MyRequest, MyResponse&gt;&gt;(ServiceLifetime.Singleton);
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddRequestInterceptor<
+    public static IMediatorBuilder AddRequestInterceptor<
         TRequest,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TInterceptor
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TRequest : IRequest<TResponse>
         where TInterceptor : class, IRequestInterceptor<TRequest, TResponse>
     {
@@ -308,11 +308,11 @@ public static class HandlerRegistrationExtensions
     ///     .AddCommandInterceptor&lt;CreateOrderCommand, OrderResult, AuthorizationInterceptor&lt;CreateOrderCommand, OrderResult&gt;&gt;();
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddCommandInterceptor<
+    public static IMediatorBuilder AddCommandInterceptor<
         TCommand,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TInterceptor
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TCommand : ICommand<TResponse>
         where TInterceptor : class, ICommandInterceptor<TCommand, TResponse>
     {
@@ -360,11 +360,11 @@ public static class HandlerRegistrationExtensions
     ///     .AddQueryInterceptor&lt;GetOrderQuery, Order, CachingInterceptor&lt;GetOrderQuery, Order&gt;&gt;();
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddQueryInterceptor<
+    public static IMediatorBuilder AddQueryInterceptor<
         TQuery,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TInterceptor
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TQuery : IQuery<TResponse>
         where TInterceptor : class, IQueryInterceptor<TQuery, TResponse>
     {
@@ -410,10 +410,10 @@ public static class HandlerRegistrationExtensions
     ///     .AddEventInterceptor&lt;OrderCreatedEvent, MetricsInterceptor&lt;OrderCreatedEvent&gt;&gt;();
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddEventInterceptor<
+    public static IMediatorBuilder AddEventInterceptor<
         TEvent,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TInterceptor
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TEvent : IEvent
         where TInterceptor : class, IEventInterceptor<TEvent>
     {
@@ -452,11 +452,11 @@ public static class HandlerRegistrationExtensions
     /// config.AddStreamQueryHandler&lt;GetProductCatalogStreamQuery, ProductDto, ProductCatalogStreamHandler&gt;(ServiceLifetime.Singleton);
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddStreamQueryHandler<
+    public static IMediatorBuilder AddStreamQueryHandler<
         TQuery,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THandler
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TQuery : IStreamQuery<TResponse>
         where THandler : class, IStreamQueryHandler<TQuery, TResponse>
     {
@@ -494,11 +494,11 @@ public static class HandlerRegistrationExtensions
     /// config.AddStreamQueryInterceptor&lt;GetAllOrdersStreamQuery, OrderSummaryDto, LoggingStreamQueryInterceptor&lt;GetAllOrdersStreamQuery, OrderSummaryDto&gt;&gt;();
     /// </code>
     /// </example>
-    public static IMediatorConfigurator AddStreamQueryInterceptor<
+    public static IMediatorBuilder AddStreamQueryInterceptor<
         TQuery,
         TResponse,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TInterceptor
-    >(this IMediatorConfigurator configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+    >(this IMediatorBuilder configurator, ServiceLifetime lifetime = ServiceLifetime.Scoped)
         where TQuery : IStreamQuery<TResponse>
         where TInterceptor : class, IStreamQueryInterceptor<TQuery, TResponse>
     {

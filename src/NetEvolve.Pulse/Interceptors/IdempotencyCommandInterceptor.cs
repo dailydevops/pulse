@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Interceptors;
+﻿namespace NetEvolve.Pulse.Interceptors;
 
 using System;
 using System.Threading;
@@ -24,7 +24,7 @@ using NetEvolve.Pulse.Idempotency;
 /// <item><description>Otherwise, the handler is executed and the key is stored via <see cref="IIdempotencyStore.StoreAsync"/> after successful completion.</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
-/// Use <c>AddIdempotency()</c> on the <see cref="IMediatorConfigurator"/> to register this interceptor.
+/// Use <c>AddIdempotency()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
 /// </remarks>
 /// <seealso cref="IIdempotentCommand{TResponse}"/>
 /// <seealso cref="IIdempotencyStore"/>

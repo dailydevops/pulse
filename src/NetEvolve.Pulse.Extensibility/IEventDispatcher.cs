@@ -58,7 +58,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <seealso cref="IEventHandler{TEvent}"/>
 /// <seealso cref="IPrioritizedEventHandler{TEvent}"/>
 /// <seealso cref="IEventOutbox"/>
-/// <seealso cref="IMediatorConfigurator"/>
+/// <seealso cref="IMediatorBuilder"/>
 public interface IEventDispatcher
 {
     /// <summary>

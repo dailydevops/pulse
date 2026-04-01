@@ -11,7 +11,7 @@ NetEvolve.Pulse.Polly provides Polly v8 resilience policies for the Pulse CQRS m
 - **Polly v8 Integration**: Seamless integration with Polly's modern resilience pipeline API
 - **Per-Handler Policies**: Fine-grained control over resilience strategies for specific handlers
 - **Multiple Policy Types**: Retry, circuit breaker, timeout, bulkhead, and fallback strategies
-- **Fluent API**: Type-safe configuration through extension methods on `IMediatorConfigurator`
+- **Fluent API**: Type-safe configuration through extension methods on `IMediatorBuilder`
 - **LIFO-Aware**: Works with Pulse's interceptor execution order for predictable behavior
 - **Thread-Safe**: Polly pipelines are singleton-safe and designed for concurrent use
 

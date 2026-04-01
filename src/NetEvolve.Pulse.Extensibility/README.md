@@ -11,7 +11,7 @@ NetEvolve.Pulse.Extensibility delivers the core contracts for building CQRS medi
 - Minimal abstractions for commands, queries, events, and request/response flows
 - Strongly typed handler interfaces with single-handler guarantees for commands and queries
 - Interceptor interfaces for cross-cutting concerns (logging, validation, metrics, caching)
-- Fluent mediator configuration via `IMediatorConfigurator` and extension methods
+- Fluent mediator configuration via `IMediatorBuilder` and extension methods
 - **`ICacheableQuery<TResponse>`** — opt-in caching contract that pairs with the `AddQueryCaching()` interceptor in `NetEvolve.Pulse`
 - **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
 - Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
@@ -96,10 +96,10 @@ Extend the configurator with your own interceptors and plug them into Pulse:
 ```csharp
 using NetEvolve.Pulse.Extensibility;
 
-public static class MediatorConfiguratorExtensions
+public static class MediatorBuilderExtensions
 {
-    public static IMediatorConfigurator AddCustomValidation(
-        this IMediatorConfigurator configurator)
+    public static IMediatorBuilder AddCustomValidation(
+        this IMediatorBuilder builder)
     {
         // Register validation interceptors or pipelines here
         return configurator;
