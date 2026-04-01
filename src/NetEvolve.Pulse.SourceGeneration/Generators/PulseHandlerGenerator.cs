@@ -27,6 +27,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
     private const string EventHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IEventHandler`1";
 
+    private const string StreamQueryHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IStreamQueryHandler`2";
+
     /// <summary>
     /// Default service lifetime value matching <c>PulseServiceLifetime.Scoped</c>.
     /// </summary>
@@ -118,6 +120,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             else if (string.Equals(metadataName, EventHandlerInterfaceName, StringComparison.Ordinal))
             {
                 kind = HandlerKind.Event;
+            }
+            else if (string.Equals(metadataName, StreamQueryHandlerInterfaceName, StringComparison.Ordinal))
+            {
+                kind = HandlerKind.StreamQuery;
             }
 
             if (kind.HasValue)

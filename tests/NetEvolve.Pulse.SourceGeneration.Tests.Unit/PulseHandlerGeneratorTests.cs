@@ -620,6 +620,65 @@ public class PulseHandlerGeneratorTests
         _ = await Verify(new { diagnostics, generatedSources });
     }
 
+    [Test]
+    public async Task WhenStreamQueryHandlerAnnotatedThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Attributes;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Collections.Generic;
+            using System.Threading;
+
+            public record MyStreamQuery(string Id) : IStreamQuery<string>;
+
+            [PulseHandler]
+            public class MyStreamQueryHandler : IStreamQueryHandler<MyStreamQuery, string>
+            {
+                public async IAsyncEnumerable<string> HandleAsync(MyStreamQuery request, CancellationToken cancellationToken = default)
+                {
+                    yield return request.Id;
+                }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
+    }
+
+    [Test]
+    public async Task WhenDuplicateStreamQueryHandlersThenPulse002Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Attributes;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Collections.Generic;
+            using System.Threading;
+
+            public record MyStreamQuery(string Id) : IStreamQuery<string>;
+
+            [PulseHandler]
+            public class StreamQueryHandlerA : IStreamQueryHandler<MyStreamQuery, string>
+            {
+                public async IAsyncEnumerable<string> HandleAsync(MyStreamQuery request, CancellationToken cancellationToken = default)
+                {
+                    yield return "A";
+                }
+            }
+
+            [PulseHandler]
+            public class StreamQueryHandlerB : IStreamQueryHandler<MyStreamQuery, string>
+            {
+                public async IAsyncEnumerable<string> HandleAsync(MyStreamQuery request, CancellationToken cancellationToken = default)
+                {
+                    yield return "B";
+                }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        _ = await Verify(new { diagnostics, generatedSources });
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
         string? rootNamespace = "TestAssembly",
