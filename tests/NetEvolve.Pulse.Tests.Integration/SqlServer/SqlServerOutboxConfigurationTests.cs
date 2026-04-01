@@ -203,7 +203,7 @@ public sealed class SqlServerOutboxConfigurationTests
         // Verify the stored message contains the correct event
         using (Assert.Multiple())
         {
-            _ = await Assert.That(pending[0].EventType).Contains(nameof(TestSqlEvent));
+            _ = await Assert.That(pending[0].EventType).IsEqualTo(typeof(TestSqlEvent));
             _ = await Assert.That(pending[0].Payload).Contains("storage-1").And.Contains("Storage test");
         }
     }

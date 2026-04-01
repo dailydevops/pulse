@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -69,11 +70,11 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         return new SQLiteOutboxRepository(options, TimeProvider.System, scope);
     }
 
-    private static OutboxMessage CreateMessage(string eventType = "TestEvent") =>
+    private static OutboxMessage CreateMessage(Type? eventType = null) =>
         new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = eventType ?? typeof(TestSQLiteRepoEvent),
             Payload = "{}",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -102,8 +103,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     public async Task GetPendingAsync_WithPendingMessages_ReturnsAndMarksAsProcessing()
     {
         var repository = CreateRepository();
-        var message1 = CreateMessage("pending-event-1");
-        var message2 = CreateMessage("pending-event-2");
+        var message1 = CreateMessage(typeof(TestSQLiteRepoEvent));
+        var message2 = CreateMessage();
         await repository.AddAsync(message1).ConfigureAwait(false);
         await repository.AddAsync(message2).ConfigureAwait(false);
 
@@ -191,8 +192,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     public async Task GetPendingCountAsync_WithPendingMessages_ReturnsCorrectCount()
     {
         var repository = CreateRepository();
-        await repository.AddAsync(CreateMessage("count-1")).ConfigureAwait(false);
-        await repository.AddAsync(CreateMessage("count-2")).ConfigureAwait(false);
+        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
+        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
 
         var count = await repository.GetPendingCountAsync().ConfigureAwait(false);
 
@@ -203,7 +204,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     public async Task DeleteCompletedAsync_DeletesOldCompletedMessages()
     {
         var repository = CreateRepository();
-        var message = CreateMessage("delete-test");
+        var message = CreateMessage();
         await repository.AddAsync(message).ConfigureAwait(false);
         await repository.MarkAsCompletedAsync(message.Id).ConfigureAwait(false);
 
@@ -216,7 +217,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     public async Task GetFailedForRetryAsync_WithFailedMessages_ReturnsEligibleMessages()
     {
         var repository = CreateRepository();
-        var message = CreateMessage("retry-test");
+        var message = CreateMessage();
         await repository.AddAsync(message).ConfigureAwait(false);
         await repository.MarkAsFailedAsync(message.Id, "First failure").ConfigureAwait(false);
 
@@ -229,7 +230,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     public async Task MarkAsFailedAsync_WithNextRetryAt_SetsNextRetryAt()
     {
         var repository = CreateRepository();
-        var message = CreateMessage("retry-at-test");
+        var message = CreateMessage();
         await repository.AddAsync(message).ConfigureAwait(false);
 
         var nextRetry = DateTimeOffset.UtcNow.AddMinutes(5);
@@ -254,7 +255,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         var scope = new StubTransactionScope(transaction);
         var repository = CreateRepositoryWithScope(scope);
-        var message = CreateMessage("scoped");
+        var message = CreateMessage();
 
         await repository.AddAsync(message).ConfigureAwait(false);
         await transaction.RollbackAsync().ConfigureAwait(false);
@@ -272,5 +273,12 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     private sealed class StubTransactionScope(SqliteTransaction transaction) : IOutboxTransactionScope
     {
         public object? GetCurrentTransaction() => transaction;
+    }
+
+    private sealed record TestSQLiteRepoEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

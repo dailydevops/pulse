@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
@@ -30,7 +31,9 @@ public sealed class KafkaMessageTransportTests
         {
             _ = await Assert.That(kafkaMessage.Key).IsEqualTo(outboxMessage.Id.ToString("D"));
             _ = await Assert.That(kafkaMessage.Value).IsEqualTo(outboxMessage.Payload);
-            _ = await Assert.That(GetHeader(kafkaMessage, "eventType")).IsEqualTo(outboxMessage.EventType);
+            _ = await Assert
+                .That(GetHeader(kafkaMessage, "eventType"))
+                .IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert.That(GetHeader(kafkaMessage, "contentType")).IsEqualTo("application/json");
             _ = await Assert.That(GetHeader(kafkaMessage, "correlationId")).IsEqualTo(outboxMessage.CorrelationId);
         }
@@ -155,7 +158,7 @@ public sealed class KafkaMessageTransportTests
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = "Sample.Event.Created",
+            EventType = typeof(TestKafkaEvent),
             Payload = """{"event":"sample"}""",
             CorrelationId = "corr-123",
             CreatedAt = DateTimeOffset.UtcNow,
@@ -404,5 +407,12 @@ public sealed class KafkaMessageTransportTests
         public void SetSaslCredentials(string username, string password) { }
 
         public void Dispose() { }
+    }
+
+    private sealed record TestKafkaEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

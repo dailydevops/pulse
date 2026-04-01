@@ -311,7 +311,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             await _transport.SendAsync(message, timeoutCts.Token).ConfigureAwait(false);
             await _repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
 
-            LogMessageProcessed(_logger, message.Id, message.EventType);
+            LogMessageProcessed(_logger, message.Id, message.EventType.Name);
 
             try
             {

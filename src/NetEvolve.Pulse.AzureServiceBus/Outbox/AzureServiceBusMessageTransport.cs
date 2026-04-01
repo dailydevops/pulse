@@ -105,15 +105,16 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
 
     private static ServiceBusMessage CreateServiceBusMessage(OutboxMessage message)
     {
+        var eventTypeName = message.EventType.ToOutboxEventTypeName();
         var serviceBusMessage = new ServiceBusMessage(BinaryData.FromString(message.Payload))
         {
             ContentType = JsonContentType,
-            Subject = message.EventType,
+            Subject = eventTypeName,
             MessageId = message.Id.ToString("D", CultureInfo.InvariantCulture),
             CorrelationId = message.CorrelationId,
         };
 
-        serviceBusMessage.ApplicationProperties["eventType"] = message.EventType;
+        serviceBusMessage.ApplicationProperties["eventType"] = eventTypeName;
         serviceBusMessage.ApplicationProperties["createdAt"] = message.CreatedAt;
         serviceBusMessage.ApplicationProperties["updatedAt"] = message.UpdatedAt;
         serviceBusMessage.ApplicationProperties["retryCount"] = message.RetryCount;

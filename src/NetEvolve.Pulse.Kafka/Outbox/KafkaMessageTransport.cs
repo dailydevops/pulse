@@ -117,9 +117,10 @@ public sealed class KafkaMessageTransport : IMessageTransport
 
     private static Message<string, string> CreateKafkaMessage(OutboxMessage message)
     {
+        var eventTypeName = message.EventType.ToOutboxEventTypeName();
         var headers = new Headers
         {
-            { "eventType", Encoding.UTF8.GetBytes(message.EventType) },
+            { "eventType", Encoding.UTF8.GetBytes(eventTypeName) },
             { "contentType", "application/json"u8.ToArray() },
         };
 

@@ -36,6 +36,10 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 ///   <term><c>Microsoft.EntityFrameworkCore.SqlServer</c></term>
 ///   <description><see cref="SqlServerOutboxMessageConfiguration"/></description>
 /// </item>
+/// <item>
+///   <term><c>Microsoft.EntityFrameworkCore.InMemory</c></term>
+///   <description><see cref="InMemoryOutboxMessageConfiguration"/> (for testing)</description>
+/// </item>
 /// </list>
 /// <para><strong>Recommended usage:</strong></para>
 /// Call <see cref="Create(DbContext, IOptions{OutboxOptions})"/> inside
@@ -87,6 +91,12 @@ public static class OutboxMessageConfigurationFactory
     private const string OracleMySqlProviderName = "MySql.EntityFrameworkCore";
 
     /// <summary>
+    /// The provider name for the EF Core InMemory provider (<c>Microsoft.EntityFrameworkCore.InMemory</c>).
+    /// Intended for testing only.
+    /// </summary>
+    private const string InMemoryProviderName = "Microsoft.EntityFrameworkCore.InMemory";
+
+    /// <summary>
     /// Creates the appropriate <see cref="IEntityTypeConfiguration{TEntity}"/> by reading the
     /// provider name from <paramref name="context"/>.
     /// </summary>
@@ -125,6 +135,7 @@ public static class OutboxMessageConfigurationFactory
             SqliteProviderName => new SqliteOutboxMessageConfiguration(resolvedOptions),
             SqlServerProviderName => new SqlServerOutboxMessageConfiguration(resolvedOptions),
             PomeloMySqlProviderName or OracleMySqlProviderName => new MySqlOutboxMessageConfiguration(resolvedOptions),
+            InMemoryProviderName => new InMemoryOutboxMessageConfiguration(resolvedOptions),
             _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
         };
     }

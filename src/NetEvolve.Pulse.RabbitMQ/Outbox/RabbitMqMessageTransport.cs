@@ -79,7 +79,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             Timestamp = new AmqpTimestamp(message.CreatedAt.ToUnixTimeSeconds()),
             Headers = new Dictionary<string, object?>
             {
-                ["eventType"] = message.EventType,
+                ["eventType"] = message.EventType.ToOutboxEventTypeName(),
                 ["retryCount"] = message.RetryCount,
             },
         };

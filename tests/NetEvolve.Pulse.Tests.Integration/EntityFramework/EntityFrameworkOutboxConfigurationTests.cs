@@ -152,7 +152,7 @@ public sealed class EntityFrameworkOutboxConfigurationTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(storedMessage).IsNotNull();
-            _ = await Assert.That(storedMessage!.EventType).Contains(nameof(TestIntegrationEvent));
+            _ = await Assert.That(storedMessage!.EventType).IsEqualTo(typeof(TestIntegrationEvent));
         }
     }
 

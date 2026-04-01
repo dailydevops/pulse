@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
@@ -62,11 +63,11 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
         return new SQLiteOutboxRepository(Options.Create(opts), TimeProvider.System);
     }
 
-    private static OutboxMessage CreateMessage(string eventType = "IntegrationEvent") =>
+    private static OutboxMessage CreateMessage(Type? eventType = null) =>
         new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = eventType ?? typeof(SQLiteIntegrationEvent),
             Payload = "{\"key\":\"value\"}",
             CorrelationId = "corr-123",
             CreatedAt = DateTimeOffset.UtcNow,
@@ -78,7 +79,7 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
     public async Task AddAsync_WithValidMessage_PersistsToFileDatabase()
     {
         var repository = CreateRepository();
-        var message = CreateMessage("add-integration");
+        var message = CreateMessage();
 
         await repository.AddAsync(message).ConfigureAwait(false);
 
@@ -98,8 +99,8 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
     public async Task GetPendingAsync_WithPendingMessages_ReturnsAndMarksAsProcessing()
     {
         var repository = CreateRepository();
-        var message1 = CreateMessage("integration-pending-1");
-        var message2 = CreateMessage("integration-pending-2");
+        var message1 = CreateMessage();
+        var message2 = CreateMessage();
         await repository.AddAsync(message1).ConfigureAwait(false);
         await repository.AddAsync(message2).ConfigureAwait(false);
 
@@ -116,7 +117,7 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
     public async Task FullLifecycle_AddProcessComplete_Works()
     {
         var repository = CreateRepository();
-        var message = CreateMessage("lifecycle-test");
+        var message = CreateMessage();
         await repository.AddAsync(message).ConfigureAwait(false);
 
         var pending = await repository.GetPendingAsync(1).ConfigureAwait(false);
@@ -146,8 +147,8 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
         );
         var repository = CreateRepository();
 
-        var message1 = CreateMessage("stats-pending");
-        var message2 = CreateMessage("stats-failed");
+        var message1 = CreateMessage();
+        var message2 = CreateMessage();
         await repository.AddAsync(message1).ConfigureAwait(false);
         await repository.AddAsync(message2).ConfigureAwait(false);
         await repository.MarkAsFailedAsync(message2.Id, "test error").ConfigureAwait(false);
@@ -165,12 +166,19 @@ public sealed class SQLiteOutboxRepositoryIntegrationTests
     public async Task WalModeEnabled_DatabaseFileCreated_WalFilesExist()
     {
         var repository = CreateRepository();
-        var message = CreateMessage("wal-test");
+        var message = CreateMessage();
 
         await repository.AddAsync(message).ConfigureAwait(false);
 
         // WAL mode creates a -wal sidecar file after the first write
         var walExists = File.Exists(_dbPath + "-wal") || File.Exists(_dbPath);
         _ = await Assert.That(walExists).IsTrue();
+    }
+
+    private sealed record SQLiteIntegrationEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

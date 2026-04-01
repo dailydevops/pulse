@@ -97,9 +97,10 @@ public sealed class SQLiteEventOutbox : IEventOutbox
     {
         ArgumentNullException.ThrowIfNull(message);
 
+        var messageType = message.GetType();
         var eventType =
-            message.GetType().AssemblyQualifiedName
-            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {message.GetType()}");
+            messageType.AssemblyQualifiedName
+            ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {messageType}");
 
         if (eventType.Length > OutboxMessageSchema.MaxLengths.EventType)
         {
@@ -123,7 +124,7 @@ public sealed class SQLiteEventOutbox : IEventOutbox
 
         var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
         var now = _timeProvider.GetUtcNow();
-        var payload = JsonSerializer.Serialize(message, message.GetType(), _options.JsonSerializerOptions);
+        var payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions);
 
         _ = command.Parameters.AddWithValue("@Id", id.ToString());
         _ = command.Parameters.AddWithValue("@EventType", eventType);

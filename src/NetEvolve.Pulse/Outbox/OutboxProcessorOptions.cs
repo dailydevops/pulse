@@ -101,23 +101,23 @@ public sealed class OutboxProcessorOptions
     /// while being modified externally through code or dependency injection configuration.
     /// <para><strong>Dictionary Key Format:</strong></para>
     /// The dictionary key must match the <see cref="OutboxMessage.EventType"/> value of the messages
-    /// to be overridden using an exact, case-sensitive (ordinal) comparison.
+    /// to be overridden. Use the runtime <see cref="Type"/> of the event class directly.
     /// <para><strong>Override Precedence:</strong></para>
     /// Any non-<c>null</c> property on the associated <see cref="OutboxEventTypeOptions"/> takes
     /// precedence over the corresponding global default for messages of that event type.
     /// Properties left as <c>null</c> fall back to the global default.
     /// <para><strong>Stored but Unapplied Properties:</strong></para>
     /// </remarks>
-    public ConcurrentDictionary<string, OutboxEventTypeOptions> EventTypeOverrides { get; } =
-        new ConcurrentDictionary<string, OutboxEventTypeOptions>(StringComparer.Ordinal);
+    public ConcurrentDictionary<Type, OutboxEventTypeOptions> EventTypeOverrides { get; } =
+        new ConcurrentDictionary<Type, OutboxEventTypeOptions>();
 
     /// <summary>
     /// Returns the effective <see cref="MaxRetryCount"/> for the given event type,
     /// applying any configured per-type override.
     /// </summary>
-    /// <param name="eventType">The event type name.</param>
+    /// <param name="eventType">The event type.</param>
     /// <returns>The resolved maximum retry count.</returns>
-    internal int GetEffectiveMaxRetryCount(string eventType) =>
+    internal int GetEffectiveMaxRetryCount(Type eventType) =>
         EventTypeOverrides.TryGetValue(eventType, out var overrides) && overrides.MaxRetryCount.HasValue
             ? overrides.MaxRetryCount.Value
             : MaxRetryCount;
@@ -126,9 +126,9 @@ public sealed class OutboxProcessorOptions
     /// Returns the effective <see cref="ProcessingTimeout"/> for the given event type,
     /// applying any configured per-type override.
     /// </summary>
-    /// <param name="eventType">The event type name.</param>
+    /// <param name="eventType">The event type.</param>
     /// <returns>The resolved processing timeout.</returns>
-    internal TimeSpan GetEffectiveProcessingTimeout(string eventType) =>
+    internal TimeSpan GetEffectiveProcessingTimeout(Type eventType) =>
         EventTypeOverrides.TryGetValue(eventType, out var overrides) && overrides.ProcessingTimeout.HasValue
             ? overrides.ProcessingTimeout.Value
             : ProcessingTimeout;
@@ -137,9 +137,9 @@ public sealed class OutboxProcessorOptions
     /// Returns the effective <see cref="EnableBatchSending"/> value for the given event type,
     /// applying any configured per-type override.
     /// </summary>
-    /// <param name="eventType">The event type name.</param>
+    /// <param name="eventType">The event type.</param>
     /// <returns>The resolved batch sending flag.</returns>
-    internal bool GetEffectiveEnableBatchSending(string eventType) =>
+    internal bool GetEffectiveEnableBatchSending(Type eventType) =>
         EventTypeOverrides.TryGetValue(eventType, out var overrides) && overrides.EnableBatchSending.HasValue
             ? overrides.EnableBatchSending.Value
             : EnableBatchSending;

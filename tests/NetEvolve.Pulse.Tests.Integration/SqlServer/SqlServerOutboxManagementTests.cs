@@ -3,6 +3,7 @@
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
@@ -63,12 +64,9 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-1")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-2")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-pending")
-            .ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
 
         // Act
         var result = await management.GetDeadLetterMessagesAsync(pageSize: 10, page: 0).ConfigureAwait(false);
@@ -91,8 +89,7 @@ public sealed class SqlServerOutboxManagementTests
 
         for (var i = 0; i < 5; i++)
         {
-            _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, $"event-dl-{i}")
-                .ConfigureAwait(false);
+            _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
         }
 
         // Act
@@ -111,8 +108,7 @@ public sealed class SqlServerOutboxManagementTests
 
         for (var i = 0; i < 4; i++)
         {
-            _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, $"event-dl-{i}")
-                .ConfigureAwait(false);
+            _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
         }
 
         // Act
@@ -140,8 +136,7 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        var id = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl")
-            .ConfigureAwait(false);
+        var id = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
 
         // Act
         var result = await management.GetDeadLetterMessageAsync(id).ConfigureAwait(false);
@@ -162,8 +157,7 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        var id = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-pending")
-            .ConfigureAwait(false);
+        var id = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
 
         // Act
         var result = await management.GetDeadLetterMessageAsync(id).ConfigureAwait(false);
@@ -211,12 +205,9 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-1")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-2")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-pending")
-            .ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
 
         // Act
         var count = await management.GetDeadLetterCountAsync().ConfigureAwait(false);
@@ -239,7 +230,6 @@ public sealed class SqlServerOutboxManagementTests
         var id = await SeedMessageAsync(
                 connectionString,
                 OutboxMessageStatus.DeadLetter,
-                "event-dl",
                 retryCount: 3,
                 error: "Max retries exceeded"
             )
@@ -275,8 +265,7 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        var id = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-pending")
-            .ConfigureAwait(false);
+        var id = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
 
         // Act
         var replayed = await management.ReplayMessageAsync(id).ConfigureAwait(false);
@@ -337,14 +326,10 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-1")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-2")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-3")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-pending")
-            .ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
 
         // Act
         var count = await management.ReplayAllDeadLetterAsync().ConfigureAwait(false);
@@ -398,16 +383,13 @@ public sealed class SqlServerOutboxManagementTests
         var connectionString = _fixture.GetConnectionString(_databaseName);
         var management = new SqlServerOutboxManagement(connectionString, Options.Create(new OutboxOptions()));
 
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-p-1").ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending, "event-p-2").ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Processing, "event-proc")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Completed, "event-comp").ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Failed, "event-fail").ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-1")
-            .ConfigureAwait(false);
-        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter, "event-dl-2")
-            .ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Pending).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Processing).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Completed).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.Failed).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
+        _ = await SeedMessageAsync(connectionString, OutboxMessageStatus.DeadLetter).ConfigureAwait(false);
 
         // Act
         var stats = await management.GetStatisticsAsync().ConfigureAwait(false);
@@ -430,13 +412,14 @@ public sealed class SqlServerOutboxManagementTests
     private static async Task<Guid> SeedMessageAsync(
         string connectionString,
         OutboxMessageStatus status,
-        string eventType,
+        string? eventType = null,
         int retryCount = 0,
         string? error = null
     )
     {
         var id = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
+        var resolvedEventType = eventType ?? typeof(TestSqlManagementEvent).ToOutboxEventTypeName();
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -451,8 +434,8 @@ public sealed class SqlServerOutboxManagementTests
         );
 
         _ = command.Parameters.AddWithValue("@Id", id);
-        _ = command.Parameters.AddWithValue("@EventType", eventType);
-        _ = command.Parameters.AddWithValue("@Payload", $"{{\"type\":\"{eventType}\"}}");
+        _ = command.Parameters.AddWithValue("@EventType", resolvedEventType);
+        _ = command.Parameters.AddWithValue("@Payload", $"{{\"type\":\"{resolvedEventType}\"}}");
         _ = command.Parameters.AddWithValue("@CreatedAt", now);
         _ = command.Parameters.AddWithValue("@UpdatedAt", now);
         _ = command.Parameters.AddWithValue("@RetryCount", retryCount);
@@ -462,5 +445,12 @@ public sealed class SqlServerOutboxManagementTests
         _ = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
         return id;
+    }
+
+    private sealed record TestSqlManagementEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

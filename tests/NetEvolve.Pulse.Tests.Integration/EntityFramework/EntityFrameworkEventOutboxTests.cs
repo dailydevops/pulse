@@ -66,7 +66,7 @@ public sealed class EntityFrameworkEventOutboxTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(message).IsNotNull();
-            _ = await Assert.That(message.EventType).Contains(nameof(TestStoredEvent));
+            _ = await Assert.That(message.EventType).IsEqualTo(typeof(TestStoredEvent));
             _ = await Assert.That(message.Payload).Contains("stored-1");
             _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.Pending);
         }

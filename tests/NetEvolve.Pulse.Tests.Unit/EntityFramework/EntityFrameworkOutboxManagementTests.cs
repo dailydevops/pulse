@@ -3,6 +3,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -111,7 +112,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = Guid.NewGuid(),
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -122,7 +123,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = Guid.NewGuid(),
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -152,7 +153,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = messageId,
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -182,7 +183,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = messageId,
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -240,7 +241,7 @@ public sealed class EntityFrameworkOutboxManagementTests
                 new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
-                    EventType = "TestEvent",
+                    EventType = typeof(TestDbEvent),
                     Payload = "{}",
                     CreatedAt = now,
                     UpdatedAt = now,
@@ -253,7 +254,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = Guid.NewGuid(),
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -285,7 +286,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = messageId,
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -327,7 +328,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = messageId,
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -394,7 +395,7 @@ public sealed class EntityFrameworkOutboxManagementTests
                 new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
-                    EventType = "TestEvent",
+                    EventType = typeof(TestDbEvent),
                     Payload = "{}",
                     CreatedAt = now,
                     UpdatedAt = now,
@@ -409,7 +410,7 @@ public sealed class EntityFrameworkOutboxManagementTests
             new OutboxMessage
             {
                 Id = Guid.NewGuid(),
-                EventType = "TestEvent",
+                EventType = typeof(TestDbEvent),
                 Payload = "{}",
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -475,7 +476,7 @@ public sealed class EntityFrameworkOutboxManagementTests
                 new OutboxMessage
                 {
                     Id = Guid.NewGuid(),
-                    EventType = "TestEvent",
+                    EventType = typeof(TestDbEvent),
                     Payload = "{}",
                     CreatedAt = now,
                     UpdatedAt = now,
@@ -499,5 +500,12 @@ public sealed class EntityFrameworkOutboxManagementTests
             _ = await Assert.That(statistics.DeadLetter).IsEqualTo(2L);
             _ = await Assert.That(statistics.Total).IsEqualTo(9L);
         }
+    }
+
+    private sealed record TestDbEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

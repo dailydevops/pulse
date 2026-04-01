@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 using System.Text;
 using global::RabbitMQ.Client;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
@@ -90,14 +91,16 @@ public sealed class RabbitMqMessageTransportTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(publishCall.Exchange).IsEqualTo("test-exchange");
-            _ = await Assert.That(publishCall.RoutingKey).IsEqualTo("Sample.Event.Created");
+            _ = await Assert.That(publishCall.RoutingKey).IsEqualTo(outboxMessage.EventType.Name);
             _ = await Assert.That(publishCall.Mandatory).IsFalse();
 
             var props = publishCall.Properties;
             _ = await Assert.That(props.MessageId).IsEqualTo(outboxMessage.Id.ToString());
             _ = await Assert.That(props.CorrelationId).IsEqualTo(outboxMessage.CorrelationId);
             _ = await Assert.That(props.ContentType).IsEqualTo("application/json");
-            _ = await Assert.That(props.Headers!["eventType"]).IsEqualTo(outboxMessage.EventType);
+            _ = await Assert
+                .That(props.Headers!["eventType"])
+                .IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert.That(props.Headers!["retryCount"]).IsEqualTo(outboxMessage.RetryCount);
 
             var bodyText = Encoding.UTF8.GetString(publishCall.Body.ToArray());
@@ -289,7 +292,7 @@ public sealed class RabbitMqMessageTransportTests
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = "Sample.Event.Created",
+            EventType = typeof(TestRabbitMqEvent),
             Payload = """{"event":"sample"}""",
             CorrelationId = "corr-123",
             CreatedAt = DateTimeOffset.UtcNow,
@@ -300,7 +303,7 @@ public sealed class RabbitMqMessageTransportTests
 
     private sealed class FakeTopicNameResolver : ITopicNameResolver
     {
-        public string ResolvedName { get; set; } = "Sample.Event.Created";
+        public string ResolvedName { get; set; } = nameof(TestRabbitMqEvent);
 
         public int ResolveCallCount { get; private set; }
 
@@ -309,6 +312,13 @@ public sealed class RabbitMqMessageTransportTests
             ResolveCallCount++;
             return ResolvedName;
         }
+    }
+
+    private sealed record TestRabbitMqEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 
     private sealed class FakeConnectionAdapter : IRabbitMqConnectionAdapter

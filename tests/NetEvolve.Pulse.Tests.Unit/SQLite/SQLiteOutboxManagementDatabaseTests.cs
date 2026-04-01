@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -70,7 +71,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = "Test.Event",
+            EventType = typeof(TestSQLiteEvent),
             Payload = "{}",
             CorrelationId = "corr-id",
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
@@ -95,7 +96,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
         );
 
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        _ = cmd.Parameters.AddWithValue("@EventType", message.EventType);
+        _ = cmd.Parameters.AddWithValue("@EventType", message.EventType.ToOutboxEventTypeName());
         _ = cmd.Parameters.AddWithValue("@Payload", message.Payload);
         _ = cmd.Parameters.AddWithValue("@CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
         _ = cmd.Parameters.AddWithValue("@CreatedAt", message.CreatedAt);
@@ -234,5 +235,12 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
             _ = await Assert.That(stats.Failed).IsEqualTo(1);
             _ = await Assert.That(stats.DeadLetter).IsEqualTo(1);
         }
+    }
+
+    private sealed record TestSQLiteEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
@@ -133,13 +134,15 @@ public sealed class AzureServiceBusMessageTransportTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(sent.ContentType).IsEqualTo("application/json");
-            _ = await Assert.That(sent.Subject).IsEqualTo(outboxMessage.EventType);
+            _ = await Assert.That(sent.Subject).IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert
                 .That(sent.MessageId)
                 .IsEqualTo(outboxMessage.Id.ToString("D", CultureInfo.InvariantCulture));
             _ = await Assert.That(sent.CorrelationId).IsEqualTo(outboxMessage.CorrelationId);
             _ = await Assert.That(sent.Body.ToString()).IsEqualTo(outboxMessage.Payload);
-            _ = await Assert.That(sent.ApplicationProperties["eventType"]).IsEqualTo(outboxMessage.EventType);
+            _ = await Assert
+                .That(sent.ApplicationProperties["eventType"])
+                .IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert.That(sent.ApplicationProperties["retryCount"]).IsEqualTo(outboxMessage.RetryCount);
         }
     }
@@ -255,15 +258,15 @@ public sealed class AzureServiceBusMessageTransportTests
 
         var messages = new[]
         {
-            CreateOutboxMessage("TopicA"),
-            CreateOutboxMessage("TopicA"),
-            CreateOutboxMessage("TopicB"),
+            CreateOutboxMessage(typeof(TopicAEvent)),
+            CreateOutboxMessage(typeof(TopicAEvent)),
+            CreateOutboxMessage(typeof(TopicBEvent)),
         };
 
         await transport.SendBatchAsync(messages);
 
-        _ = await Assert.That(fakeClient.GetSender("TopicA")!.SentMessages.Count).IsEqualTo(2);
-        _ = await Assert.That(fakeClient.GetSender("TopicB")!.SentMessages.Count).IsEqualTo(1);
+        _ = await Assert.That(fakeClient.GetSender(nameof(TopicAEvent))!.SentMessages.Count).IsEqualTo(2);
+        _ = await Assert.That(fakeClient.GetSender(nameof(TopicBEvent))!.SentMessages.Count).IsEqualTo(1);
     }
 
     // ── SendBatchAsync – batching enabled ─────────────────────────────────────
@@ -297,24 +300,24 @@ public sealed class AzureServiceBusMessageTransportTests
 
         var messages = new[]
         {
-            CreateOutboxMessage("Alpha"),
-            CreateOutboxMessage("Alpha"),
-            CreateOutboxMessage("Beta"),
+            CreateOutboxMessage(typeof(AlphaEvent)),
+            CreateOutboxMessage(typeof(AlphaEvent)),
+            CreateOutboxMessage(typeof(BetaEvent)),
         };
 
         await transport.SendBatchAsync(messages);
 
-        _ = await Assert.That(fakeClient.GetSender("Alpha")!.BatchedMessages[0].Count).IsEqualTo(2);
-        _ = await Assert.That(fakeClient.GetSender("Beta")!.BatchedMessages[0].Count).IsEqualTo(1);
+        _ = await Assert.That(fakeClient.GetSender(nameof(AlphaEvent))!.BatchedMessages[0].Count).IsEqualTo(2);
+        _ = await Assert.That(fakeClient.GetSender(nameof(BetaEvent))!.BatchedMessages[0].Count).IsEqualTo(1);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static OutboxMessage CreateOutboxMessage(string eventType = "Test.Event") =>
+    private static OutboxMessage CreateOutboxMessage(Type? eventType = null) =>
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = eventType,
+            EventType = eventType ?? typeof(TestOutboxEvent),
             Payload = """{"data":"test"}""",
             CorrelationId = "corr-123",
             CreatedAt = DateTimeOffset.UtcNow,
@@ -335,7 +338,42 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed class TopicPerEventTypeResolver : ITopicNameResolver
     {
-        public string Resolve(OutboxMessage message) => message.EventType;
+        public string Resolve(OutboxMessage message) => message.EventType.Name;
+    }
+
+    private sealed record TestOutboxEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record TopicAEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record TopicBEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record AlphaEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
+
+    private sealed record BetaEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 
     private sealed class FakeServiceBusClient : ServiceBusClient

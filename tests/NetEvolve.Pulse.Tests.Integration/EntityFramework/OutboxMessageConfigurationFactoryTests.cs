@@ -20,6 +20,7 @@ public sealed class OutboxMessageConfigurationFactoryTests
     [Arguments("Microsoft.EntityFrameworkCore.Sqlite", typeof(SqliteOutboxMessageConfiguration))]
     [Arguments("Pomelo.EntityFrameworkCore.MySql", typeof(MySqlOutboxMessageConfiguration))]
     [Arguments("MySql.EntityFrameworkCore", typeof(MySqlOutboxMessageConfiguration))]
+    [Arguments("Microsoft.EntityFrameworkCore.InMemory", typeof(InMemoryOutboxMessageConfiguration))]
     public async Task Create_ByProviderName_ReturnsExpectedConfigurationType(string providerName, Type expectedType)
     {
         var result = OutboxMessageConfigurationFactory.Create(providerName);
@@ -43,6 +44,7 @@ public sealed class OutboxMessageConfigurationFactoryTests
     [Arguments("Microsoft.EntityFrameworkCore.Sqlite", typeof(SqliteOutboxMessageConfiguration))]
     [Arguments("Pomelo.EntityFrameworkCore.MySql", typeof(MySqlOutboxMessageConfiguration))]
     [Arguments("MySql.EntityFrameworkCore", typeof(MySqlOutboxMessageConfiguration))]
+    [Arguments("Microsoft.EntityFrameworkCore.InMemory", typeof(InMemoryOutboxMessageConfiguration))]
     public async Task Create_ByProviderName_WithOptions_ReturnsExpectedConfigurationType(
         string providerName,
         Type expectedType

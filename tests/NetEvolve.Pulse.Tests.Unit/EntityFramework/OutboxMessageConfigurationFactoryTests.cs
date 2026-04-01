@@ -28,27 +28,29 @@ public sealed class OutboxMessageConfigurationFactoryTests
             .Throws<NotSupportedException>();
 
     [Test]
-    public async Task Create_WithInMemoryDbContext_ThrowsNotSupportedException()
+    public async Task Create_WithInMemoryDbContext_ReturnsConfiguration()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(Create_WithInMemoryDbContext_ThrowsNotSupportedException))
+            .UseInMemoryDatabase(nameof(Create_WithInMemoryDbContext_ReturnsConfiguration))
             .Options;
         await using var context = new TestDbContext(options);
 
-        _ = await Assert.That(() => OutboxMessageConfigurationFactory.Create(context)).Throws<NotSupportedException>();
+        var result = OutboxMessageConfigurationFactory.Create(context);
+
+        _ = await Assert.That(result).IsNotNull();
     }
 
     [Test]
-    public async Task Create_WithDbContext_WithOptions_ThrowsNotSupportedExceptionForInMemory()
+    public async Task Create_WithDbContext_WithOptions_ReturnsConfigurationForInMemory()
     {
         var dbOptions = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(Create_WithDbContext_WithOptions_ThrowsNotSupportedExceptionForInMemory))
+            .UseInMemoryDatabase(nameof(Create_WithDbContext_WithOptions_ReturnsConfigurationForInMemory))
             .Options;
         await using var context = new TestDbContext(dbOptions);
         var outboxOptions = Options.Create(new OutboxOptions { Schema = "custom" });
 
-        _ = await Assert
-            .That(() => OutboxMessageConfigurationFactory.Create(context, outboxOptions))
-            .Throws<NotSupportedException>();
+        var result = OutboxMessageConfigurationFactory.Create(context, outboxOptions);
+
+        _ = await Assert.That(result).IsNotNull();
     }
 }

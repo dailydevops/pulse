@@ -10,4 +10,10 @@ internal sealed class TestDbContext : DbContext, IOutboxDbContext
         : base(options) { }
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        _ = modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(this));
+    }
 }

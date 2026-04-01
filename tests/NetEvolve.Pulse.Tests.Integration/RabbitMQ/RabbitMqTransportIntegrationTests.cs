@@ -3,6 +3,7 @@
 using System.Text;
 using global::RabbitMQ.Client;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
@@ -51,7 +52,7 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
             _ = await Assert.That(receivedMessage!.Body).IsEqualTo(message.Payload);
             _ = await Assert.That(receivedMessage.MessageId).IsEqualTo(message.Id.ToString());
             _ = await Assert.That(receivedMessage.CorrelationId).IsEqualTo(message.CorrelationId);
-            _ = await Assert.That(receivedMessage.EventType).IsEqualTo(message.EventType);
+            _ = await Assert.That(receivedMessage.EventType).IsEqualTo(message.EventType.ToOutboxEventTypeName());
         }
     }
 
@@ -111,7 +112,7 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
         new()
         {
             Id = Guid.NewGuid(),
-            EventType = "Integration.Event",
+            EventType = typeof(RabbitMqIntegrationEvent),
             Payload = """{"event":"integration"}""",
             CorrelationId = "corr-123",
             CreatedAt = DateTimeOffset.UtcNow,
@@ -144,4 +145,11 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
     }
 
     private sealed record ReceivedMessage(string Body, string? MessageId, string? CorrelationId, string? EventType);
+
+    private sealed record RabbitMqIntegrationEvent : IEvent
+    {
+        public string? CorrelationId { get; set; }
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public DateTimeOffset? PublishedAt { get; set; }
+    }
 }
