@@ -115,7 +115,7 @@ services.AddScoped<IValidator<CreateOrderCommand>, CreateOrderBusinessRulesValid
 
 - .NET 8.0, .NET 9.0, or .NET 10.0
 - `FluentValidation` 12.0 or later
-- `NetEvolve.Pulse.Extensibility` for `IRequestInterceptor<,>` and `IMediatorConfigurator`
+- `NetEvolve.Pulse.Extensibility` for `IRequestInterceptor<,>` and `IMediatorBuilder`
 
 ## Contributing
 

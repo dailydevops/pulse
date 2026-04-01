@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Core;
 
 /// <summary>
-/// Integration tests for <see cref="SqlServerMediatorConfiguratorExtensions"/>.
+/// Integration tests for <see cref="SqlServerMediatorBuilderExtensions"/>.
 /// Tests the full DI registration and integration flow with SQL Server ADO.NET.
 /// </summary>
 [ClassDataSource<SqlServerContainerFixture>(Shared = SharedType.PerAssembly)]

@@ -11,7 +11,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddCommandHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddCommandHandler<TestCommand, string, TestCommandHandler>()
@@ -58,8 +58,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddCommandHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -77,7 +77,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddCommandHandler_VoidCommand_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddCommandHandler<TestVoidCommand, TestVoidCommandHandler>()
@@ -124,8 +124,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddCommandHandler_VoidCommand_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -143,7 +143,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddQueryHandler<TestQuery, string, TestQueryHandler>()
@@ -190,8 +190,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddQueryHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -209,7 +209,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddEventHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddEventHandler<TestEvent, TestEventHandler>());
     }
@@ -271,8 +271,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddEventHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -366,7 +366,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddRequestInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddRequestInterceptor<TestCommand, string, TestRequestInterceptor>()
@@ -417,8 +417,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddRequestInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -436,7 +436,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddCommandInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddCommandInterceptor<TestCommand, string, TestCommandInterceptor>()
@@ -487,8 +487,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddCommandInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -506,7 +506,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>()
@@ -553,8 +553,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddQueryInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -572,7 +572,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddEventInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddEventInterceptor<TestEvent, TestEventInterceptor>()
@@ -619,8 +619,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddEventInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -708,7 +708,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddStreamQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddStreamQueryHandler<TestStreamQuery, string, TestStreamQueryHandler>()
@@ -761,8 +761,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddStreamQueryHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -780,7 +780,7 @@ public class HandlerRegistrationExtensionsTests
     [Test]
     public void AddStreamQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddStreamQueryInterceptor<TestStreamQuery, string, TestStreamQueryInterceptor>()
@@ -835,8 +835,8 @@ public class HandlerRegistrationExtensionsTests
     public async Task AddStreamQueryInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {

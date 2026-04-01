@@ -48,7 +48,7 @@ using NetEvolve.Pulse.Extensibility;
 [SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "As designed.")]
 public static class AssemblyScanningExtensions
 {
-    extension(IMediatorConfigurator configurator)
+    extension(IMediatorBuilder configurator)
     {
         /// <summary>
         /// Scans the specified assemblies for handler implementations and registers them.
@@ -93,7 +93,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddHandlersFromAssemblies(
+        public IMediatorBuilder AddHandlersFromAssemblies(
             Assembly[] assemblies,
             ServiceLifetime lifetime = ServiceLifetime.Scoped
         )
@@ -146,7 +146,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddHandlersFromAssembly(
+        public IMediatorBuilder AddHandlersFromAssembly(
             Assembly assembly,
             ServiceLifetime lifetime = ServiceLifetime.Scoped
         )
@@ -202,7 +202,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddHandlersFromAssemblyContaining<TMarker>(
+        public IMediatorBuilder AddHandlersFromAssemblyContaining<TMarker>(
             ServiceLifetime lifetime = ServiceLifetime.Scoped
         )
         {
@@ -260,7 +260,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddHandlersFromCallingAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        public IMediatorBuilder AddHandlersFromCallingAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         {
             ArgumentNullException.ThrowIfNull(configurator);
 
@@ -327,7 +327,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddHandlersFromEntryAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        public IMediatorBuilder AddHandlersFromEntryAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         {
             ArgumentNullException.ThrowIfNull(configurator);
 
@@ -380,7 +380,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddHandlersFromExecutingAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        public IMediatorBuilder AddHandlersFromExecutingAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         {
             ArgumentNullException.ThrowIfNull(configurator);
 
@@ -473,7 +473,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddInterceptorsFromAssemblies(
+        public IMediatorBuilder AddInterceptorsFromAssemblies(
             Assembly[] assemblies,
             ServiceLifetime lifetime = ServiceLifetime.Scoped
         )
@@ -527,7 +527,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddInterceptorsFromAssembly(
+        public IMediatorBuilder AddInterceptorsFromAssembly(
             Assembly assembly,
             ServiceLifetime lifetime = ServiceLifetime.Scoped
         )
@@ -574,7 +574,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddInterceptorsFromAssemblyContaining<TMarker>(
+        public IMediatorBuilder AddInterceptorsFromAssemblyContaining<TMarker>(
             ServiceLifetime lifetime = ServiceLifetime.Scoped
         )
         {
@@ -621,9 +621,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddInterceptorsFromCallingAssembly(
-            ServiceLifetime lifetime = ServiceLifetime.Scoped
-        )
+        public IMediatorBuilder AddInterceptorsFromCallingAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         {
             ArgumentNullException.ThrowIfNull(configurator);
 
@@ -667,7 +665,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddInterceptorsFromEntryAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        public IMediatorBuilder AddInterceptorsFromEntryAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         {
             ArgumentNullException.ThrowIfNull(configurator);
 
@@ -716,9 +714,7 @@ public static class AssemblyScanningExtensions
         [RequiresDynamicCode(
             "Assembly scanning requires dynamic code generation and is not compatible with Native AOT."
         )]
-        public IMediatorConfigurator AddInterceptorsFromExecutingAssembly(
-            ServiceLifetime lifetime = ServiceLifetime.Scoped
-        )
+        public IMediatorBuilder AddInterceptorsFromExecutingAssembly(ServiceLifetime lifetime = ServiceLifetime.Scoped)
         {
             ArgumentNullException.ThrowIfNull(configurator);
 

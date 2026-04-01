@@ -80,13 +80,13 @@ public static class ServiceCollectionExtensions
     /// </code>
     /// </example>
     /// <seealso cref="IMediator"/>
-    /// <seealso cref="IMediatorConfigurator"/>
+    /// <seealso cref="IMediatorBuilder"/>
     /// <seealso cref="ICommandHandler{TCommand, TResponse}"/>
     /// <seealso cref="IQueryHandler{TQuery, TResponse}"/>
     /// <seealso cref="IEventHandler{TEvent}"/>
     public static IServiceCollection AddPulse(
         this IServiceCollection services,
-        Action<IMediatorConfigurator>? builder = null
+        Action<IMediatorBuilder>? builder = null
     )
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -99,7 +99,7 @@ public static class ServiceCollectionExtensions
 
         if (builder is not null)
         {
-            var mediatorBuilder = new MediatorConfigurator(services);
+            var mediatorBuilder = new MediatorBuilder(services);
             builder.Invoke(mediatorBuilder);
         }
 

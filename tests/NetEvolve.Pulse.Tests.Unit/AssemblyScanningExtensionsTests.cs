@@ -12,7 +12,7 @@ public class AssemblyScanningExtensionsTests
     [Test]
     public void AddHandlersFromAssembly_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
 
         _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddHandlersFromAssembly(assembly));
@@ -127,8 +127,8 @@ public class AssemblyScanningExtensionsTests
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -146,7 +146,7 @@ public class AssemblyScanningExtensionsTests
     [Test]
     public void AddHandlersFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddHandlersFromAssemblyContaining<ScanTestCommandHandler>()
@@ -195,8 +195,8 @@ public class AssemblyScanningExtensionsTests
     public async Task AddHandlersFromAssemblyContaining_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -214,7 +214,7 @@ public class AssemblyScanningExtensionsTests
     [Test]
     public void AddHandlersFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
 
         _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddHandlersFromAssemblies(assemblies));
@@ -274,8 +274,8 @@ public class AssemblyScanningExtensionsTests
     {
         var services = new ServiceCollection();
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -344,7 +344,7 @@ public class AssemblyScanningExtensionsTests
     [Test]
     public void AddInterceptorsFromAssembly_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
 
         _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddInterceptorsFromAssembly(assembly));
@@ -476,8 +476,8 @@ public class AssemblyScanningExtensionsTests
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -495,7 +495,7 @@ public class AssemblyScanningExtensionsTests
     [Test]
     public void AddInterceptorsFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
 
         _ = Assert.Throws<ArgumentNullException>(() => configurator!.AddInterceptorsFromAssemblies(assemblies));
@@ -542,8 +542,8 @@ public class AssemblyScanningExtensionsTests
     {
         var services = new ServiceCollection();
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
-        IMediatorConfigurator? capturedConfig = null;
-        IMediatorConfigurator? result = null;
+        IMediatorBuilder? capturedConfig = null;
+        IMediatorBuilder? result = null;
 
         _ = services.AddPulse(config =>
         {
@@ -585,7 +585,7 @@ public class AssemblyScanningExtensionsTests
     [Test]
     public void AddInterceptorsFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException()
     {
-        IMediatorConfigurator? configurator = null;
+        IMediatorBuilder? configurator = null;
 
         _ = Assert.Throws<ArgumentNullException>(() =>
             configurator!.AddInterceptorsFromAssemblyContaining<ScanTestCommandInterceptor>()

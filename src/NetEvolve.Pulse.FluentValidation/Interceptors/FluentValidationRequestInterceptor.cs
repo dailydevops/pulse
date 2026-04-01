@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Interceptors;
+﻿namespace NetEvolve.Pulse.Interceptors;
 
 using System;
 using System.Collections.Generic;
@@ -26,7 +26,7 @@ using NetEvolve.Pulse.Extensibility;
 /// <item><description>If all validators pass, the request is forwarded to the handler unchanged.</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
-/// Use <c>AddFluentValidation()</c> on the <see cref="IMediatorConfigurator"/> to register this interceptor.
+/// Use <c>AddFluentValidation()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
 /// </remarks>
 /// <seealso cref="IValidator{T}"/>
 /// <seealso cref="ValidationException"/>

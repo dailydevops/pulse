@@ -6,9 +6,8 @@ using System.Text.Json;
 /// Configuration options for the distributed query caching interceptor.
 /// </summary>
 /// <remarks>
-/// Configure these options when calling <see cref="IMediatorConfigurator.AddQueryCaching"/>.
+/// Configure these options when calling <b>IMediatorBuilder.AddQueryCaching</b>.
 /// </remarks>
-/// <seealso cref="IMediatorConfigurator.AddQueryCaching"/>
 /// <seealso cref="ICacheableQuery{TResponse}"/>
 public sealed class QueryCachingOptions
 {

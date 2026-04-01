@@ -10,7 +10,7 @@ NetEvolve.Pulse is a high-performance CQRS mediator for ASP.NET Core that wires 
 
 - Typed CQRS mediator with single-handler enforcement for commands and queries plus fan-out events
 - Minimal DI integration via `services.AddPulse(...)` with scoped lifetimes for handlers and interceptors
-- Configurable interceptor pipeline (logging, metrics, tracing, validation) via `IMediatorConfigurator`
+- Configurable interceptor pipeline (logging, metrics, tracing, validation) via `IMediatorBuilder`
 - **Distributed query caching** — register `ICacheableQuery<TResponse>` per query and enable transparent `IDistributedCache` caching with `AddQueryCaching()`
 - **Outbox pattern** with background processor for reliable event delivery via `AddOutbox()`
 - Parallel event dispatch for efficient domain event broadcasting
