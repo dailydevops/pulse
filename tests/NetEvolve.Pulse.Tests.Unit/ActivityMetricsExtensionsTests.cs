@@ -11,12 +11,12 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class ActivityMetricsMediatorBuilderExtensionsTests
+public sealed class ActivityMetricsExtensionsTests
 {
     [Test]
     public async Task AddActivityAndMetrics_NullBuilder_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => ActivityMetricsMediatorBuilderExtensions.AddActivityAndMetrics(null!))
+            .That(() => ActivityMetricsExtensions.AddActivityAndMetrics(null!))
             .Throws<ArgumentNullException>();
 
     [Test]

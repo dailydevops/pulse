@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Interceptors;
 /// </summary>
 /// <seealso cref="TimeoutRequestInterceptorOptions"/>
 /// <seealso cref="ITimeoutRequest"/>
-public static class TimeoutMediatorBuilderExtensions
+public static class TimeoutExtensions
 {
     /// <summary>
     /// Registers the built-in <c>TimeoutRequestInterceptor</c> that enforces per-request deadlines

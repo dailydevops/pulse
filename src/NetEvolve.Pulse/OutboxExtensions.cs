@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Outbox;
 /// <summary>
 /// Extension methods for configuring outbox services on <see cref="IMediatorBuilder"/>.
 /// </summary>
-public static class OutboxMediatorBuilderExtensions
+public static class OutboxExtensions
 {
     /// <summary>
     /// Adds core outbox services including the <see cref="IEventOutbox"/> implementation,

@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +13,7 @@ using NetEvolve.Pulse.Interceptors;
 /// </summary>
 /// <seealso cref="ICacheableQuery{TResponse}"/>
 /// <seealso cref="QueryCachingOptions"/>
-public static class QueryCachingMediatorBuilderExtensions
+public static class QueryCachingExtensions
 {
     /// <summary>
     /// Registers the distributed cache interceptor for queries.

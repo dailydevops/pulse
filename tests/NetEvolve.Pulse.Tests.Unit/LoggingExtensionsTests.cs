@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit;
+namespace NetEvolve.Pulse.Tests.Unit;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +8,7 @@ using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
-public class LoggingMediatorBuilderExtensionsTests
+public class LoggingExtensionsTests
 {
     [Test]
     public async Task AddLogging_WithNullConfigurator_ThrowsArgumentNullException()

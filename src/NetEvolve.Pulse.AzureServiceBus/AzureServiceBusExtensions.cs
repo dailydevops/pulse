@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Azure.Core;
@@ -14,7 +14,7 @@ using NetEvolve.Pulse.Outbox;
 /// <summary>
 /// Extension methods for registering the Azure Service Bus transport with the Pulse mediator.
 /// </summary>
-public static class AzureServiceBusMediatorBuilderExtensions
+public static class AzureServiceBusExtensions
 {
     /// <summary>
     /// Configures the outbox to deliver messages to Azure Service Bus queues or topics.

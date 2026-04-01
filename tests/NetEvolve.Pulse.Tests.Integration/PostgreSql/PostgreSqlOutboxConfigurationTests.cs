@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Core;
 
 /// <summary>
-/// Integration tests for <see cref="PostgreSqlMediatorBuilderExtensions"/>.
+/// Integration tests for <see cref="PostgreSqlExtensions"/>.
 /// Tests the full DI registration and integration flow with PostgreSQL ADO.NET.
 /// </summary>
 [ClassDataSource<PostgreSqlContainerFixture>(Shared = SharedType.PerAssembly)]

@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Outbox;
 /// Extension methods on <see cref="IMediatorBuilder" /> for registering the Apache Kafka
 /// outbox transport.
 /// </summary>
-public static class KafkaMediatorBuilderExtensions
+public static class KafkaExtensions
 {
     /// <summary>
     /// Registers the Kafka outbox transport so that outbox messages are produced to Kafka topics.

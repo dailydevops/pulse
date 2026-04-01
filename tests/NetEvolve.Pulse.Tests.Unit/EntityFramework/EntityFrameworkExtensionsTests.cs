@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
+namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
 using System.Linq;
@@ -13,12 +13,12 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 using TUnit.Mocks;
 
-public sealed class EntityFrameworkMediatorBuilderExtensionsTests
+public sealed class EntityFrameworkExtensionsTests
 {
     [Test]
     public async Task AddEntityFrameworkOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => EntityFrameworkMediatorBuilderExtensions.AddEntityFrameworkOutbox<TestDbContext>(null!))
+            .That(() => EntityFrameworkExtensions.AddEntityFrameworkOutbox<TestDbContext>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]

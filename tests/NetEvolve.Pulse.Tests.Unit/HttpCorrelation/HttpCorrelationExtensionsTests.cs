@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation;
+namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation;
 
 using System;
 using System.Linq;
@@ -9,12 +9,12 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class HttpCorrelationMediatorBuilderExtensionsTests
+public sealed class HttpCorrelationExtensionsTests
 {
     [Test]
     public async Task AddHttpCorrelationEnrichment_NullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => HttpCorrelationMediatorBuilderExtensions.AddHttpCorrelationEnrichment(null!))
+            .That(() => HttpCorrelationExtensions.AddHttpCorrelationEnrichment(null!))
             .Throws<ArgumentNullException>();
 
     [Test]

@@ -2,8 +2,6 @@ namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using NetEvolve.Pulse;
-using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
@@ -14,10 +12,7 @@ public class MediatorBuilderTests
     {
         IServiceCollection? services = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "services",
-            () => new MediatorBuilder(services!).AddActivityAndMetrics()
-        );
+        _ = Assert.Throws<ArgumentNullException>("services", () => _ = new MediatorBuilder(services!));
     }
 
     [Test]

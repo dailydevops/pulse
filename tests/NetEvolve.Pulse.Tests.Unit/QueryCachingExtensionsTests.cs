@@ -14,13 +14,11 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class QueryCachingMediatorBuilderExtensionsTests
+public sealed class QueryCachingExtensionsTests
 {
     [Test]
     public async Task AddQueryCaching_NullBuilder_ThrowsArgumentNullException() =>
-        _ = await Assert
-            .That(() => QueryCachingMediatorBuilderExtensions.AddQueryCaching(null!))
-            .Throws<ArgumentNullException>();
+        _ = await Assert.That(() => QueryCachingExtensions.AddQueryCaching(null!)).Throws<ArgumentNullException>();
 
     [Test]
     public async Task AddQueryCaching_RegistersRequestInterceptor()

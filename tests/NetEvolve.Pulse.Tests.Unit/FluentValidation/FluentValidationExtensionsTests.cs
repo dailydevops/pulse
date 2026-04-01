@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.FluentValidation;
+namespace NetEvolve.Pulse.Tests.Unit.FluentValidation;
 
 using System;
 using System.Linq;
@@ -10,12 +10,12 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class FluentValidationMediatorBuilderExtensionsTests
+public sealed class FluentValidationExtensionsTests
 {
     [Test]
     public async Task AddFluentValidation_NullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => FluentValidationMediatorBuilderExtensions.AddFluentValidation(null!))
+            .That(() => FluentValidationExtensions.AddFluentValidation(null!))
             .Throws<ArgumentNullException>();
 
     [Test]

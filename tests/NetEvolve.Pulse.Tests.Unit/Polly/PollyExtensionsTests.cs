@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Polly;
+namespace NetEvolve.Pulse.Tests.Unit.Polly;
 
 using System;
 using System.Linq;
@@ -13,13 +13,13 @@ using TUnit.Assertions.Extensions;
 using TUnit.Core;
 using TUnit.Mocks;
 
-public sealed class PollyMediatorBuilderExtensionsTests
+public sealed class PollyExtensionsTests
 {
     [Test]
     public async Task AddPollyRequestPolicies_NullConfigurator_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() => PollyMediatorBuilderExtensions.AddPollyRequestPolicies<TestCommand, string>(null!, _ => { }))
+            .That(() => PollyExtensions.AddPollyRequestPolicies<TestCommand, string>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -75,7 +75,7 @@ public sealed class PollyMediatorBuilderExtensionsTests
     public async Task AddPollyEventPolicies_NullConfigurator_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() => PollyMediatorBuilderExtensions.AddPollyEventPolicies<TestEvent>(null!, _ => { }))
+            .That(() => PollyExtensions.AddPollyEventPolicies<TestEvent>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -351,7 +351,7 @@ public sealed class PollyMediatorBuilderExtensionsTests
     public async Task AddPollyQueryPolicies_NullConfigurator_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() => PollyMediatorBuilderExtensions.AddPollyQueryPolicies<TestQuery, string>(null!, _ => { }))
+            .That(() => PollyExtensions.AddPollyQueryPolicies<TestQuery, string>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -413,7 +413,7 @@ public sealed class PollyMediatorBuilderExtensionsTests
     public async Task AddPollyCommandPolicies_NullConfigurator_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert
-            .That(() => PollyMediatorBuilderExtensions.AddPollyCommandPolicies<TestCommand, string>(null!, _ => { }))
+            .That(() => PollyExtensions.AddPollyCommandPolicies<TestCommand, string>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]

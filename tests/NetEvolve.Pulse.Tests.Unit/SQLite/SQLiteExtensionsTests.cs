@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
 using System.Linq;
@@ -12,12 +12,12 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 using TUnit.Mocks;
 
-public sealed class SQLiteMediatorBuilderExtensionsTests
+public sealed class SQLiteExtensionsTests
 {
     [Test]
     public async Task UseSQLiteOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => SQLiteMediatorBuilderExtensions.UseSQLiteOutbox(null!, "Data Source=:memory:"))
+            .That(() => SQLiteExtensions.UseSQLiteOutbox(null!, "Data Source=:memory:"))
             .Throws<ArgumentNullException>();
 
     [Test]
