@@ -115,6 +115,10 @@ internal static class Defaults
         /// <summary>Tag name for response type name.</summary>
         internal const string ResponseType = "pulse.response.type";
 
+        // Stream query-related tags
+        /// <summary>Tag name for stream query type (type name of the query).</summary>
+        internal const string StreamQueryType = "query.type";
+
         // General tags
         /// <summary>Tag name for success/failure indicator.</summary>
         internal const string Success = "pulse.success";

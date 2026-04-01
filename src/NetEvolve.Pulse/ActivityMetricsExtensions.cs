@@ -30,6 +30,12 @@ public static class ActivityMetricsExtensions
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(ActivityAndMetricsRequestInterceptor<,>))
         );
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton(
+                typeof(IStreamQueryInterceptor<,>),
+                typeof(ActivityAndMetricsStreamQueryInterceptor<,>)
+            )
+        );
 
         return builder;
     }
