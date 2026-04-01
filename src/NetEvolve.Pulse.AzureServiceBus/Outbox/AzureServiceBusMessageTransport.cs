@@ -105,8 +105,7 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
 
     private static ServiceBusMessage CreateServiceBusMessage(OutboxMessage message)
     {
-        var eventTypeName =
-            message.EventType.AssemblyQualifiedName ?? message.EventType.FullName ?? message.EventType.Name;
+        var eventTypeName = message.EventType.ToOutboxEventTypeName();
         var serviceBusMessage = new ServiceBusMessage(BinaryData.FromString(message.Payload))
         {
             ContentType = JsonContentType,

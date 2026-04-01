@@ -321,10 +321,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     private static void AddMessageParameters(SqlCommand command, OutboxMessage message)
     {
         _ = command.Parameters.AddWithValue("@Id", message.Id);
-        _ = command.Parameters.AddWithValue(
-            "@EventType",
-            message.EventType.AssemblyQualifiedName ?? message.EventType.FullName ?? message.EventType.Name
-        );
+        _ = command.Parameters.AddWithValue("@EventType", message.EventType.ToOutboxEventTypeName());
         _ = command.Parameters.AddWithValue("@Payload", message.Payload);
         _ = command.Parameters.AddWithValue("@CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("@CreatedAt", message.CreatedAt);

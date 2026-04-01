@@ -100,11 +100,7 @@ public sealed class RabbitMqMessageTransportTests
             _ = await Assert.That(props.ContentType).IsEqualTo("application/json");
             _ = await Assert
                 .That(props.Headers!["eventType"])
-                .IsEqualTo(
-                    outboxMessage.EventType.AssemblyQualifiedName
-                        ?? outboxMessage.EventType.FullName
-                        ?? outboxMessage.EventType.Name
-                );
+                .IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert.That(props.Headers!["retryCount"]).IsEqualTo(outboxMessage.RetryCount);
 
             var bodyText = Encoding.UTF8.GetString(publishCall.Body.ToArray());

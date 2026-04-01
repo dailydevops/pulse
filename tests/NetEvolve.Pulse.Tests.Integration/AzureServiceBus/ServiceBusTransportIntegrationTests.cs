@@ -87,7 +87,7 @@ public sealed class ServiceBusTransportIntegrationTests : IAsyncDisposable
 
         _ = await Assert.That(received).IsNotNull();
         _ = await Assert.That(received!.Body.ToString()).IsEqualTo(message.Payload);
-        _ = await Assert.That(received.Subject).IsEqualTo(message.EventType.AssemblyQualifiedName);
+        _ = await Assert.That(received.Subject).IsEqualTo(message.EventType.ToOutboxEventTypeName());
     }
 
     public async ValueTask DisposeAsync()

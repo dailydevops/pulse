@@ -134,7 +134,7 @@ public sealed class AzureServiceBusMessageTransportTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(sent.ContentType).IsEqualTo("application/json");
-            _ = await Assert.That(sent.Subject).IsEqualTo(outboxMessage.EventType.AssemblyQualifiedName);
+            _ = await Assert.That(sent.Subject).IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert
                 .That(sent.MessageId)
                 .IsEqualTo(outboxMessage.Id.ToString("D", CultureInfo.InvariantCulture));
@@ -142,7 +142,7 @@ public sealed class AzureServiceBusMessageTransportTests
             _ = await Assert.That(sent.Body.ToString()).IsEqualTo(outboxMessage.Payload);
             _ = await Assert
                 .That(sent.ApplicationProperties["eventType"])
-                .IsEqualTo(outboxMessage.EventType.AssemblyQualifiedName);
+                .IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert.That(sent.ApplicationProperties["retryCount"]).IsEqualTo(outboxMessage.RetryCount);
         }
     }

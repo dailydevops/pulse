@@ -52,11 +52,7 @@ public sealed class RabbitMqTransportIntegrationTests : IAsyncDisposable, IAsync
             _ = await Assert.That(receivedMessage!.Body).IsEqualTo(message.Payload);
             _ = await Assert.That(receivedMessage.MessageId).IsEqualTo(message.Id.ToString());
             _ = await Assert.That(receivedMessage.CorrelationId).IsEqualTo(message.CorrelationId);
-            _ = await Assert
-                .That(receivedMessage.EventType)
-                .IsEqualTo(
-                    message.EventType.AssemblyQualifiedName ?? message.EventType.FullName ?? message.EventType.Name
-                );
+            _ = await Assert.That(receivedMessage.EventType).IsEqualTo(message.EventType.ToOutboxEventTypeName());
         }
     }
 

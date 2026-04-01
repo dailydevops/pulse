@@ -371,7 +371,7 @@ public sealed class PostgreSqlOutboxManagementTests
     {
         var id = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
-        var resolvedEventType = eventType ?? typeof(TestPgManagementEvent).AssemblyQualifiedName!;
+        var resolvedEventType = eventType ?? typeof(TestPgManagementEvent).ToOutboxEventTypeName();
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync().ConfigureAwait(false);

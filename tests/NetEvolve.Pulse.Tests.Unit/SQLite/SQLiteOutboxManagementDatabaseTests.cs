@@ -96,10 +96,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
         );
 
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        _ = cmd.Parameters.AddWithValue(
-            "@EventType",
-            message.EventType.AssemblyQualifiedName ?? message.EventType.FullName ?? message.EventType.Name
-        );
+        _ = cmd.Parameters.AddWithValue("@EventType", message.EventType.ToOutboxEventTypeName());
         _ = cmd.Parameters.AddWithValue("@Payload", message.Payload);
         _ = cmd.Parameters.AddWithValue("@CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
         _ = cmd.Parameters.AddWithValue("@CreatedAt", message.CreatedAt);

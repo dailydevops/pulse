@@ -419,7 +419,7 @@ public sealed class SqlServerOutboxManagementTests
     {
         var id = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
-        var resolvedEventType = eventType ?? typeof(TestSqlManagementEvent).AssemblyQualifiedName!;
+        var resolvedEventType = eventType ?? typeof(TestSqlManagementEvent).ToOutboxEventTypeName();
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync().ConfigureAwait(false);

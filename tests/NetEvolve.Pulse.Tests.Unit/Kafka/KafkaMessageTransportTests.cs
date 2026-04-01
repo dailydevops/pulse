@@ -33,7 +33,7 @@ public sealed class KafkaMessageTransportTests
             _ = await Assert.That(kafkaMessage.Value).IsEqualTo(outboxMessage.Payload);
             _ = await Assert
                 .That(GetHeader(kafkaMessage, "eventType"))
-                .IsEqualTo(outboxMessage.EventType.AssemblyQualifiedName);
+                .IsEqualTo(outboxMessage.EventType.ToOutboxEventTypeName());
             _ = await Assert.That(GetHeader(kafkaMessage, "contentType")).IsEqualTo("application/json");
             _ = await Assert.That(GetHeader(kafkaMessage, "correlationId")).IsEqualTo(outboxMessage.CorrelationId);
         }
