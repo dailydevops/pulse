@@ -889,7 +889,10 @@ public sealed class OutboxProcessorHostedServiceTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(1000).ConfigureAwait(false);
+        // Wait only long enough for at least one processing cycle (~50ms poll interval + margin).
+        // A 1-second delay would cause NextRetryAt (set to now+1s at processing time) to no longer
+        // be 500ms+ in the future by assertion time, causing a false failure.
+        await Task.Delay(200).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
 
         try
@@ -906,7 +909,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = await Assert.That(failedMessage).IsNotNull();
         _ = await Assert.That(failedMessage!.NextRetryAt).IsNotNull();
-        // NextRetryAt should be approximately 1 second in the future (allow 500-1500ms range for test execution time)
+        // NextRetryAt should be approximately 1 second in the future (allow 500-1500ms range for test execution time).
+        // Message is processed within ~50ms, so at assertion time (~200ms elapsed) NextRetryAt is ~800ms in the future.
         _ = await Assert
             .That(failedMessage.NextRetryAt!.Value)
             .IsGreaterThan(DateTimeOffset.UtcNow.AddMilliseconds(500));
