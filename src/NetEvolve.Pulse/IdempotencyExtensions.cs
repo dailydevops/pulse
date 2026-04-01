@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +27,7 @@ using NetEvolve.Pulse.Interceptors;
 /// Calling <see cref="AddIdempotency"/> multiple times is safe — the interceptor is registered
 /// via <c>TryAddEnumerable</c> and will not be duplicated.
 /// </remarks>
-public static class IdempotencyMediatorBuilderExtensions
+public static class IdempotencyExtensions
 {
     /// <summary>
     /// Registers the idempotency enforcement interceptor for all commands that implement

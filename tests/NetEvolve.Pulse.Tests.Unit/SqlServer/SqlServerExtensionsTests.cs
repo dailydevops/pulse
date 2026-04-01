@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
+namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
 
 using System;
 using System.Linq;
@@ -12,12 +12,12 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 using TUnit.Mocks;
 
-public sealed class SqlServerMediatorBuilderExtensionsTests
+public sealed class SqlServerExtensionsTests
 {
     [Test]
     public async Task AddSqlServerOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => SqlServerMediatorBuilderExtensions.AddSqlServerOutbox(null!, "Server=.;Encrypt=true;"))
+            .That(() => SqlServerExtensions.AddSqlServerOutbox(null!, "Server=.;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -96,7 +96,7 @@ public sealed class SqlServerMediatorBuilderExtensionsTests
     [Test]
     public async Task AddSqlServerOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => SqlServerMediatorBuilderExtensions.AddSqlServerOutbox(null!, _ => "Server=.;Encrypt=true;"))
+            .That(() => SqlServerExtensions.AddSqlServerOutbox(null!, _ => "Server=.;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]

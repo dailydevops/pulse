@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Interceptors;
 /// Provides extension methods for registering activity tracing and metrics interceptors
 /// with the Pulse mediator.
 /// </summary>
-public static class ActivityMetricsMediatorBuilderExtensions
+public static class ActivityMetricsExtensions
 {
     /// <summary>
     /// Adds activity tracing and metrics collection for all requests processed by the mediator.

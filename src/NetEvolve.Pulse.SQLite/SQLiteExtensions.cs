@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -9,7 +9,7 @@ using NetEvolve.Pulse.Outbox;
 /// <summary>
 /// Extension methods for configuring SQLite outbox services on <see cref="IMediatorBuilder"/>.
 /// </summary>
-public static class SQLiteMediatorBuilderExtensions
+public static class SQLiteExtensions
 {
     /// <summary>
     /// Adds SQLite outbox persistence using ADO.NET with a connection string shorthand.
@@ -29,7 +29,7 @@ public static class SQLiteMediatorBuilderExtensions
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
-    /// Call <see cref="OutboxMediatorBuilderExtensions.AddOutbox"/> first to register core outbox services
+    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
     /// before calling this method.
     /// </remarks>
     /// <example>
@@ -73,7 +73,7 @@ public static class SQLiteMediatorBuilderExtensions
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
-    /// Call <see cref="OutboxMediatorBuilderExtensions.AddOutbox"/> first to register core outbox services
+    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
     /// before calling this method.
     /// </remarks>
     /// <example>

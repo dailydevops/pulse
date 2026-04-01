@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +25,7 @@ using NetEvolve.Pulse.Interceptors;
 /// Calling <see cref="AddFluentValidation"/> multiple times is safe — the interceptor is registered
 /// via <c>TryAddEnumerable</c> and will not be duplicated.
 /// </remarks>
-public static class FluentValidationMediatorBuilderExtensions
+public static class FluentValidationExtensions
 {
     /// <summary>
     /// Registers the FluentValidation request interceptor for all commands and queries.

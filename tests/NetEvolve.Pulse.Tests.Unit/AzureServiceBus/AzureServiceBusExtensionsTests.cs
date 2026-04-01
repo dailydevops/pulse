@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.AzureServiceBus;
+namespace NetEvolve.Pulse.Tests.Unit.AzureServiceBus;
 
 using Azure.Core;
 using Azure.Identity;
@@ -11,7 +11,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class AzureServiceBusMediatorBuilderExtensionsTests
+public sealed class AzureServiceBusExtensionsTests
 {
     private const string FakeConnectionString =
         "Endpoint=sb://localhost/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Fake=";

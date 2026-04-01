@@ -11,7 +11,7 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Core;
 
 /// <summary>
-/// Integration tests for <see cref="EntityFrameworkMediatorBuilderExtensions"/>.
+/// Integration tests for <see cref="EntityFrameworkExtensions"/>.
 /// Tests the full DI registration and integration flow with EF Core.
 /// </summary>
 [ClassDataSource<SqlServerContainerFixture>(Shared = SharedType.PerAssembly)]

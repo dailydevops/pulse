@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,7 +48,7 @@ using Polly;
 /// <item><description>Combine policies thoughtfully - order matters (typically: timeout > retry > circuit breaker)</description></item>
 /// </list>
 /// </remarks>
-public static class PollyMediatorBuilderExtensions
+public static class PollyExtensions
 {
     /// <summary>
     /// Adds Polly resilience policies for a specific request type (command or query).

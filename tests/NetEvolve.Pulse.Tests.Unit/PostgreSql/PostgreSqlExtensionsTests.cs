@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.PostgreSql;
+namespace NetEvolve.Pulse.Tests.Unit.PostgreSql;
 
 using System;
 using System.Linq;
@@ -12,12 +12,12 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 using TUnit.Mocks;
 
-public sealed class PostgreSqlMediatorBuilderExtensionsTests
+public sealed class PostgreSqlExtensionsTests
 {
     [Test]
     public async Task AddPostgreSqlOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => PostgreSqlMediatorBuilderExtensions.AddPostgreSqlOutbox(null!, "Host=localhost;Encrypt=true;"))
+            .That(() => PostgreSqlExtensions.AddPostgreSqlOutbox(null!, "Host=localhost;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -99,7 +99,7 @@ public sealed class PostgreSqlMediatorBuilderExtensionsTests
     public async Task AddPostgreSqlOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlMediatorBuilderExtensions.AddPostgreSqlOutbox(
+                PostgreSqlExtensions.AddPostgreSqlOutbox(
                     null!,
                     (Func<IServiceProvider, string>)(_ => "Host=localhost;Encrypt=true;")
                 )

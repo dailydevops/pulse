@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Kafka;
+namespace NetEvolve.Pulse.Tests.Unit.Kafka;
 
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
@@ -8,7 +8,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class KafkaMediatorBuilderExtensionsTests
+public sealed class KafkaExtensionsTests
 {
     [Test]
     public async Task UseKafkaTransport_Registers_transport()

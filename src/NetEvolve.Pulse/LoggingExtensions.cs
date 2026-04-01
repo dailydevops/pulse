@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -9,7 +9,7 @@ using NetEvolve.Pulse.Interceptors;
 /// <summary>
 /// Provides extension methods for registering structured logging interceptors with the Pulse mediator.
 /// </summary>
-public static class LoggingMediatorBuilderExtensions
+public static class LoggingExtensions
 {
     /// <summary>
     /// Adds structured <see cref="Microsoft.Extensions.Logging.ILogger"/>-based logging interceptors for all

@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit;
+namespace NetEvolve.Pulse.Tests.Unit;
 
 using System;
 using System.Linq;
@@ -12,13 +12,11 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class IdempotencyMediatorBuilderExtensionsTests
+public sealed class IdempotencyExtensionsTests
 {
     [Test]
     public async Task AddIdempotency_NullConfigurator_ThrowsArgumentNullException() =>
-        _ = await Assert
-            .That(() => IdempotencyMediatorBuilderExtensions.AddIdempotency(null!))
-            .Throws<ArgumentNullException>();
+        _ = await Assert.That(() => IdempotencyExtensions.AddIdempotency(null!)).Throws<ArgumentNullException>();
 
     [Test]
     public async Task AddIdempotency_RegistersRequestInterceptor()

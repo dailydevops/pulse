@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
+namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
@@ -7,7 +7,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-public sealed class RabbitMqMediatorBuilderExtensionsTests
+public sealed class RabbitMqExtensionsTests
 {
     [Test]
     public async Task UseRabbitMqTransport_Registers_transport_service()

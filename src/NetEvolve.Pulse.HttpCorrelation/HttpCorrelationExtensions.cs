@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +22,7 @@ using NetEvolve.Pulse.Interceptors;
 /// Calling <see cref="AddHttpCorrelationEnrichment"/> multiple times is safe — the interceptors are
 /// registered via <c>TryAddEnumerable</c> and will not be duplicated.
 /// </remarks>
-public static class HttpCorrelationMediatorBuilderExtensions
+public static class HttpCorrelationExtensions
 {
     /// <summary>
     /// Registers HTTP correlation ID enrichment interceptors for all requests and events.
