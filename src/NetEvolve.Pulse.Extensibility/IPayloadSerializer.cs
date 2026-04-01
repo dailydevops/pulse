@@ -29,7 +29,6 @@ namespace NetEvolve.Pulse.Extensibility;
 ///     public T? Deserialize&lt;T&gt;(string payload) =&gt; JsonConvert.DeserializeObject&lt;T&gt;(payload);
 ///     public T? Deserialize&lt;T&gt;(byte[] payload) =&gt; JsonConvert.DeserializeObject&lt;T&gt;(Encoding.UTF8.GetString(payload));
 ///     public string Serialize(object value, Type type) =&gt; JsonConvert.SerializeObject(value, type, null);
-///     public object? Deserialize(string payload, Type type) =&gt; JsonConvert.DeserializeObject(payload, type);
 /// }
 /// </code>
 /// </example>
@@ -84,16 +83,4 @@ public interface IPayloadSerializer
     /// or if deserialization yields no result.
     /// </returns>
     T? Deserialize<T>(byte[] payload);
-
-    /// <summary>
-    /// Deserializes an object from the given string <paramref name="payload"/> using the specified <paramref name="type"/>
-    /// as the deserialization contract.
-    /// </summary>
-    /// <param name="payload">The string payload to deserialize.</param>
-    /// <param name="type">The <see cref="Type"/> to deserialize the payload into.</param>
-    /// <returns>
-    /// The deserialized object, or <see langword="null"/> if the payload represents a <see langword="null"/> value
-    /// or if deserialization yields no result.
-    /// </returns>
-    object? Deserialize(string payload, Type type);
 }
