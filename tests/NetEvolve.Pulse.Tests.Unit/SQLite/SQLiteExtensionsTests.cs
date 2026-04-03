@@ -41,7 +41,7 @@ public sealed class SQLiteExtensionsTests
     [Test]
     public async Task UseSQLiteOutbox_WithNullConfigureOptions_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => Mock.Of<IMediatorBuilder>().Object.UseSQLiteOutbox((Action<SQLiteOutboxOptions>)null!))
+            .That(() => Mock.Of<IMediatorBuilder>().Object.UseSQLiteOutbox((Action<OutboxOptions>)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -109,7 +109,7 @@ public sealed class SQLiteExtensionsTests
         );
 
         await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<SQLiteOutboxOptions>>();
+        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
         _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
     }
@@ -130,7 +130,7 @@ public sealed class SQLiteExtensionsTests
         );
 
         await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<SQLiteOutboxOptions>>();
+        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
         using (Assert.Multiple())
         {

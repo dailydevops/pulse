@@ -15,7 +15,8 @@ public static class ModelBuilderExtensions
     /// <param name="modelBuilder">The model builder to apply the configuration to.</param>
     /// <param name="context">The DbContext instance used to resolve provider-specific configuration.</param>
     /// <returns>The <paramref name="modelBuilder"/> for chaining.</returns>
-    public static ModelBuilder ApplyPulseConfiguration<TContext>(this ModelBuilder modelBuilder, TContext context) where TContext : DbContext
+    public static ModelBuilder ApplyPulseConfiguration<TContext>(this ModelBuilder modelBuilder, TContext context)
+        where TContext : DbContext
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
         ArgumentNullException.ThrowIfNull(context);

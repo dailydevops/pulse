@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
@@ -38,6 +39,54 @@ public sealed class OutboxMessageConfigurationFactoryTests
         var result = OutboxMessageConfigurationFactory.Create(context);
 
         _ = await Assert.That(result).IsNotNull();
+    }
+
+    [Test]
+    public async Task Create_WithSqlServerProviderName_ReturnsSqlServerConfiguration()
+    {
+        var result = OutboxMessageConfigurationFactory.Create("Microsoft.EntityFrameworkCore.SqlServer");
+
+        _ = await Assert.That(result).IsTypeOf<SqlServerOutboxMessageConfiguration>();
+    }
+
+    [Test]
+    public async Task Create_WithPostgreSqlProviderName_ReturnsPostgreSqlConfiguration()
+    {
+        var result = OutboxMessageConfigurationFactory.Create("Npgsql.EntityFrameworkCore.PostgreSQL");
+
+        _ = await Assert.That(result).IsTypeOf<PostgreSqlOutboxMessageConfiguration>();
+    }
+
+    [Test]
+    public async Task Create_WithSqliteProviderName_ReturnsSqliteConfiguration()
+    {
+        var result = OutboxMessageConfigurationFactory.Create("Microsoft.EntityFrameworkCore.Sqlite");
+
+        _ = await Assert.That(result).IsTypeOf<SqliteOutboxMessageConfiguration>();
+    }
+
+    [Test]
+    public async Task Create_WithPomeloMySqlProviderName_ReturnsMySqlConfiguration()
+    {
+        var result = OutboxMessageConfigurationFactory.Create("Pomelo.EntityFrameworkCore.MySql");
+
+        _ = await Assert.That(result).IsTypeOf<MySqlOutboxMessageConfiguration>();
+    }
+
+    [Test]
+    public async Task Create_WithOracleMySqlProviderName_ReturnsMySqlConfiguration()
+    {
+        var result = OutboxMessageConfigurationFactory.Create("MySql.EntityFrameworkCore");
+
+        _ = await Assert.That(result).IsTypeOf<MySqlOutboxMessageConfiguration>();
+    }
+
+    [Test]
+    public async Task Create_WithInMemoryProviderName_ReturnsInMemoryConfiguration()
+    {
+        var result = OutboxMessageConfigurationFactory.Create("Microsoft.EntityFrameworkCore.InMemory");
+
+        _ = await Assert.That(result).IsTypeOf<InMemoryOutboxMessageConfiguration>();
     }
 
     [Test]

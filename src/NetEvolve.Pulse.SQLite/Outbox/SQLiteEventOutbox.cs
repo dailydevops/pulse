@@ -30,7 +30,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 [SuppressMessage(
     "Security",
     "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "SQL constructed from validated SQLiteOutboxOptions properties and strongly-typed parameters, not user input."
+    Justification = "SQL constructed from validated OutboxOptions properties and strongly-typed parameters, not user input."
 )]
 public sealed class SQLiteEventOutbox : IEventOutbox
 {
@@ -41,7 +41,7 @@ public sealed class SQLiteEventOutbox : IEventOutbox
     private readonly SqliteTransaction? _transaction;
 
     /// <summary>The resolved outbox options controlling table name and JSON serialization.</summary>
-    private readonly SQLiteOutboxOptions _options;
+    private readonly OutboxOptions _options;
 
     /// <summary>The time provider used to generate consistent creation and update timestamps.</summary>
     private readonly TimeProvider _timeProvider;
@@ -58,7 +58,7 @@ public sealed class SQLiteEventOutbox : IEventOutbox
     /// <param name="transaction">Optional transaction to enlist with.</param>
     public SQLiteEventOutbox(
         SqliteConnection connection,
-        IOptions<SQLiteOutboxOptions> options,
+        IOptions<OutboxOptions> options,
         TimeProvider timeProvider,
         SqliteTransaction? transaction = null
     )

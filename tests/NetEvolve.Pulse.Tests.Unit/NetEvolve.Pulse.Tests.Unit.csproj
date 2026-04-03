@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Dapr\NetEvolve.Pulse.Dapr.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AspNetCore\NetEvolve.Pulse.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureServiceBus\NetEvolve.Pulse.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.EntityFramework\NetEvolve.Pulse.EntityFramework.csproj" />
