@@ -887,11 +887,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var message = CreateMessage();
         await repository.AddAsync(message).ConfigureAwait(false);
 
+        // Capture reference time before starting so the assertion is not sensitive to
+        // how long StopAsync or pre-assertion overhead takes to complete.
+        var startTime = DateTimeOffset.UtcNow;
+
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        // Wait only long enough for at least one processing cycle (~50ms poll interval + margin).
-        // A 1-second delay would cause NextRetryAt (set to now+1s at processing time) to no longer
-        // be 500ms+ in the future by assertion time, causing a false failure.
+        // Wait long enough for at least one processing cycle (~50ms poll interval + margin).
         await Task.Delay(200).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
 
@@ -909,11 +911,10 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = await Assert.That(failedMessage).IsNotNull();
         _ = await Assert.That(failedMessage!.NextRetryAt).IsNotNull();
-        // NextRetryAt should be approximately 1 second in the future (allow 500-1500ms range for test execution time).
-        // Message is processed within ~50ms, so at assertion time (~200ms elapsed) NextRetryAt is ~800ms in the future.
-        _ = await Assert
-            .That(failedMessage.NextRetryAt!.Value)
-            .IsGreaterThan(DateTimeOffset.UtcNow.AddMilliseconds(500));
+        // NextRetryAt should be ~1 second after processing. Processing happens quickly after StartAsync,
+        // so NextRetryAt ≈ startTime + 1000ms. Asserting > startTime + 500ms is always satisfied
+        // regardless of how long StopAsync or OS scheduling takes, making this assertion time-stable.
+        _ = await Assert.That(failedMessage.NextRetryAt!.Value).IsGreaterThan(startTime.AddMilliseconds(500));
     }
 
     [Test]

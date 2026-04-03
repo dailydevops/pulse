@@ -97,7 +97,15 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await hostedService.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(300).ConfigureAwait(false);
+
+        // Wait until the message is completed, with a generous timeout.
+        // A fixed delay is too racy: if the processing cycle hasn't finished before the
+        // CancellationToken fires, SentMessages stays empty and CompletedCount stays at 0.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (repository.CompletedCount < 1 && !timeoutCts.IsCancellationRequested)
+        {
+            await Task.Delay(10).ConfigureAwait(false);
+        }
 
         await cts.CancelAsync().ConfigureAwait(false);
         await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -140,7 +148,15 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await hostedService.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(400).ConfigureAwait(false);
+
+        // Wait until the message is completed, with a generous timeout.
+        // A fixed delay is too racy: if the retry cycle hasn't finished before the
+        // CancellationToken fires, CompletedCount stays at 0.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (repository.CompletedCount < 1 && !timeoutCts.IsCancellationRequested)
+        {
+            await Task.Delay(10).ConfigureAwait(false);
+        }
 
         await cts.CancelAsync().ConfigureAwait(false);
         await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -222,7 +238,16 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await hostedService.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(300).ConfigureAwait(false);
+
+        // Wait until all messages are processed, with a generous timeout.
+        // A fixed delay is too racy: if the CancellationToken fires exactly while
+        // the batch is in-flight (messages already set to Processing but
+        // MarkAsCompleted not yet called), CompletedCount stays at 0.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (repository.CompletedCount < 3 && !timeoutCts.IsCancellationRequested)
+        {
+            await Task.Delay(10).ConfigureAwait(false);
+        }
 
         await cts.CancelAsync().ConfigureAwait(false);
         await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -307,7 +332,16 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = new CancellationTokenSource();
 
         await hostedService.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(500).ConfigureAwait(false);
+
+        // Wait until all messages are processed, with a generous timeout.
+        // A fixed delay is too racy: if the CancellationToken fires exactly while
+        // cycle 3 is in-flight (msg5 already set to Processing but MarkAsCompleted
+        // not yet called), the 5th message is skipped and CompletedCount stays at 4.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (repository.CompletedCount < 5 && !timeoutCts.IsCancellationRequested)
+        {
+            await Task.Delay(10).ConfigureAwait(false);
+        }
 
         await cts.CancelAsync().ConfigureAwait(false);
         await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
