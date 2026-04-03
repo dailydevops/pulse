@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Dispatchers;
 
+using System.Collections.Concurrent;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -11,14 +12,17 @@ using NetEvolve.Pulse.Extensibility;
 /// <list type="bullet">
 /// <item><description>Handlers implementing <see cref="IPrioritizedEventHandler{TEvent}"/> are sorted by <see cref="IPrioritizedEventHandler{TEvent}.Priority"/></description></item>
 /// <item><description>Handlers not implementing the interface are treated as priority <see cref="int.MaxValue"/> (execute last)</description></item>
-/// <item><description>Handlers with equal priority maintain their registration order (stable sort)</description></item>
+/// <item><description>Handlers with equal priority execute in parallel within the same priority group</description></item>
 /// </list>
 /// <para><strong>Execution Behavior:</strong></para>
-/// Handlers execute sequentially in priority order. Each handler completes before the next starts.
-/// This ensures predictable ordering for handlers with dependencies.
+/// Priority groups execute sequentially in ascending priority order. Within each group, handlers
+/// execute in parallel using <see cref="System.Threading.Tasks.Parallel"/>.
+/// This ensures predictable ordering between groups while maximising throughput within each group.
 /// <para><strong>Error Handling:</strong></para>
-/// Individual handler failures do not prevent subsequent handlers from executing.
-/// Errors are handled by the invoker delegate which logs exceptions appropriately.
+/// Individual handler failures do not prevent other handlers from executing, including handlers
+/// in subsequent priority groups. All handlers across all groups are executed regardless of
+/// failures. If any handlers fail, an <see cref="AggregateException"/> is thrown after all
+/// handlers have completed, containing all exceptions that occurred.
 /// <para><strong>Use Cases:</strong></para>
 /// <list type="bullet">
 /// <item><description>Validation handlers that must run before business logic</description></item>
@@ -27,7 +31,8 @@ using NetEvolve.Pulse.Extensibility;
 /// <item><description>Notification handlers with delivery priority</description></item>
 /// </list>
 /// <para><strong>⚠️ Performance Consideration:</strong></para>
-/// Sequential execution impacts throughput. Use only when handler ordering is critical.
+/// Sequential group execution impacts overall throughput compared to fully parallel execution.
+/// Use only when handler ordering across groups is critical.
 /// Consider <see cref="ParallelEventDispatcher"/> for independent handlers.
 /// </remarks>
 /// <example>
@@ -53,9 +58,12 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Sorts handlers by priority before execution. Uses a stable sort algorithm to preserve
-    /// registration order for handlers with equal priority. Non-prioritized handlers are
-    /// assigned <see cref="int.MaxValue"/> and execute after all prioritized handlers.
+    /// Groups handlers by priority and executes each group sequentially in ascending order.
+    /// Within each group, handlers execute in parallel using
+    /// <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, CancellationToken, Func{TSource, CancellationToken, ValueTask})"/>.
+    /// Non-prioritized handlers are assigned <see cref="int.MaxValue"/> and execute in the last group.
+    /// Exceptions from individual handlers are collected and thrown as an <see cref="AggregateException"/>
+    /// after all handlers across all groups have completed.
     /// </remarks>
     public async Task DispatchAsync<TEvent>(
         TEvent message,
@@ -68,16 +76,39 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
         ArgumentNullException.ThrowIfNull(invoker);
 
         // Sort handlers by priority, preserving order for equal priorities
-        var orderedHandlers = handlers
-            .Select((handler, index) => (Handler: handler, Priority: GetPriority(handler), Index: index))
-            .OrderBy(x => x.Priority)
-            .ThenBy(x => x.Index)
-            .Select(x => x.Handler);
+        var priorityGroups = handlers
+            .Select(handler => (Handler: handler, Priority: GetPriority(handler)))
+            .GroupBy(x => x.Priority)
+            .OrderBy(x => x.Key);
 
-        foreach (var handler in orderedHandlers)
+        var exceptions = new ConcurrentBag<Exception>();
+
+        foreach (var group in priorityGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await invoker(handler, message, cancellationToken).ConfigureAwait(false);
+
+            await Parallel
+                .ForEachAsync(
+                    group.Select(x => x.Handler),
+                    cancellationToken,
+                    async (handler, ct) =>
+                    {
+                        try
+                        {
+                            await invoker(handler, message, ct).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            exceptions.Add(ex);
+                        }
+                    }
+                )
+                .ConfigureAwait(false);
+        }
+
+        if (!exceptions.IsEmpty)
+        {
+            throw new AggregateException("One or more event handlers failed.", exceptions);
         }
     }
 

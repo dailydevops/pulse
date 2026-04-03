@@ -120,11 +120,10 @@ public sealed class SqlServerEventOutbox : IEventOutbox
 
         await using var command = new SqlCommand(_sqlInsertInto, _connection, _transaction);
 
-        var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
         var now = _timeProvider.GetUtcNow();
         var payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions);
 
-        _ = command.Parameters.AddWithValue("@Id", id);
+        _ = command.Parameters.AddWithValue("@Id", message.ToOutboxId());
         _ = command.Parameters.AddWithValue("@EventType", eventType);
         _ = command.Parameters.AddWithValue("@Payload", payload);
         _ = command.Parameters.AddWithValue("@CorrelationId", (object?)correlationId ?? DBNull.Value);

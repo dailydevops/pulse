@@ -63,12 +63,11 @@ internal sealed class OutboxEventStore : IEventOutbox
             );
         }
 
-        var id = Guid.TryParse(message.Id, out var parsedId) ? parsedId : Guid.NewGuid();
         var now = _timeProvider.GetUtcNow();
 
         var outboxMessage = new OutboxMessage
         {
-            Id = id,
+            Id = message.ToOutboxId(),
             EventType = messageType,
             Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
             CorrelationId = correlationId,

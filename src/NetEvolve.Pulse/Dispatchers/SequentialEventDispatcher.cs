@@ -37,7 +37,7 @@ using NetEvolve.Pulse.Extensibility;
 /// </example>
 /// <seealso cref="IEventDispatcher"/>
 /// <seealso cref="ParallelEventDispatcher"/>
-internal sealed class SequentialEventDispatcher : IEventDispatcher
+public sealed class SequentialEventDispatcher : IEventDispatcher
 {
     /// <inheritdoc />
     /// <remarks>
@@ -57,7 +57,7 @@ internal sealed class SequentialEventDispatcher : IEventDispatcher
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 
-        List<Exception>? exceptions = null;
+        var exceptions = new List<Exception>();
 
         foreach (var handler in handlers)
         {
@@ -68,7 +68,6 @@ internal sealed class SequentialEventDispatcher : IEventDispatcher
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
-                exceptions ??= [];
                 exceptions.Add(ex);
             }
         }

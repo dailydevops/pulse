@@ -14,7 +14,7 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task Constructor_WithDefaultConcurrency_CreatesWith5()
     {
-        using var dispatcher = new RateLimitedEventDispatcher();
+        var dispatcher = new RateLimitedEventDispatcher();
 
         _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(5);
     }
@@ -22,29 +22,23 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task Constructor_WithCustomConcurrency_CreatesWithSpecifiedValue()
     {
-        using var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 10);
+        var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 10);
 
         _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(10);
     }
 
     [Test]
     public async Task Constructor_WithZeroConcurrency_ThrowsArgumentOutOfRangeException() =>
-        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
-        {
-            using var d = new RateLimitedEventDispatcher(maxConcurrency: 0);
-        });
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: 0));
 
     [Test]
     public async Task Constructor_WithNegativeConcurrency_ThrowsArgumentOutOfRangeException() =>
-        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
-        {
-            using var d = new RateLimitedEventDispatcher(maxConcurrency: -1);
-        });
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: -1));
 
     [Test]
     public async Task DispatchAsync_WithHandlers_InvokesAllHandlers()
     {
-        using var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
+        var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
         var invokedHandlers = new ConcurrentBag<int>();
         var handlers = new List<IEventHandler<TestEvent>>
@@ -75,7 +69,7 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_LimitsConcurrency()
     {
-        using var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
+        var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
         var maxConcurrent = 0;
         var currentConcurrent = 0;
@@ -116,38 +110,6 @@ public class RateLimitedEventDispatcherTests
             .ConfigureAwait(false);
 
         _ = await Assert.That(maxConcurrent).IsLessThanOrEqualTo(2);
-    }
-
-    [Test]
-    public async Task DispatchAsync_AfterDispose_ThrowsObjectDisposedException()
-    {
-        var dispatcher = new RateLimitedEventDispatcher();
-        var message = new TestEvent();
-        var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler(1, []) };
-
-        dispatcher.Dispose();
-
-        _ = await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await dispatcher
-                .DispatchAsync(
-                    message,
-                    handlers,
-                    (handler, msg, ct) => handler.HandleAsync(msg, ct),
-                    CancellationToken.None
-                )
-                .ConfigureAwait(false)
-        );
-    }
-
-    [Test]
-    public Task Dispose_CalledMultipleTimes_DoesNotThrow()
-    {
-        var dispatcher = new RateLimitedEventDispatcher();
-
-        dispatcher.Dispose();
-        dispatcher.Dispose();
-
-        return Task.CompletedTask;
     }
 
     private sealed class TestEvent : IEvent

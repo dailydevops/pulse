@@ -37,7 +37,7 @@ using NetEvolve.Pulse.Extensibility;
 /// </example>
 /// <seealso cref="IEventDispatcher"/>
 /// <seealso cref="SequentialEventDispatcher"/>
-internal sealed class ParallelEventDispatcher : IEventDispatcher
+public sealed class ParallelEventDispatcher : IEventDispatcher
 {
     /// <inheritdoc />
     /// <remarks>
