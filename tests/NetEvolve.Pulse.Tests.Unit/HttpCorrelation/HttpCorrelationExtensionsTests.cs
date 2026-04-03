@@ -116,6 +116,46 @@ public sealed class HttpCorrelationExtensionsTests
         _ = await Assert.That(interceptors).IsNotEmpty();
     }
 
+    [Test]
+    public async Task AddHttpCorrelationEnrichment_RegistersStreamQueryInterceptor()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator => configurator.AddHttpCorrelationEnrichment());
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert
+        var streamQueryInterceptors = provider.GetServices<IStreamQueryInterceptor<TestStreamQuery, string>>().ToList();
+        _ = await Assert.That(streamQueryInterceptors).IsNotEmpty();
+    }
+
+    [Test]
+    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateStreamQueryInterceptor()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddHttpCorrelationEnrichment().AddHttpCorrelationEnrichment()
+        );
+
+        // Assert — TryAddEnumerable should prevent duplicates for open-generic registrations
+        var streamQueryDescriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(IStreamQueryInterceptor<,>)
+                && d.ImplementationType?.GetGenericTypeDefinition()
+                    == typeof(Pulse.Interceptors.HttpCorrelationStreamQueryInterceptor<,>)
+            )
+            .ToList();
+
+        _ = await Assert.That(streamQueryDescriptors.Count).IsEqualTo(1);
+    }
+
+    private sealed record TestStreamQuery : IStreamQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
     private sealed record TestCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }

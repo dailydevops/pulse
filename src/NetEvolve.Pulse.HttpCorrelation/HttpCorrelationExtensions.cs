@@ -13,11 +13,12 @@ using NetEvolve.Pulse.Interceptors;
 /// <remarks>
 /// <para><strong>Purpose:</strong></para>
 /// The HTTP correlation enrichment interceptors automatically propagate the correlation ID resolved
-/// by <c>IHttpCorrelationAccessor</c> into every <see cref="IRequest{TResponse}"/> and <see cref="IEvent"/>
-/// dispatched through the mediator, eliminating repetitive manual population at each call site.
+/// by <c>IHttpCorrelationAccessor</c> into every <see cref="IRequest{TResponse}"/>, <see cref="IEvent"/>,
+/// and <see cref="IStreamQuery{TResponse}"/> dispatched through the mediator, eliminating repetitive
+/// manual population at each call site.
 /// <para><strong>Optional Dependency:</strong></para>
 /// If <c>IHttpCorrelationAccessor</c> is not registered in the DI container (for example in a
-/// background-service context), both interceptors pass through without modification or error.
+/// background-service context), all interceptors pass through without modification or error.
 /// <para><strong>Idempotency:</strong></para>
 /// Calling <see cref="AddHttpCorrelationEnrichment"/> multiple times is safe — the interceptors are
 /// registered via <c>TryAddEnumerable</c> and will not be duplicated.
@@ -25,7 +26,7 @@ using NetEvolve.Pulse.Interceptors;
 public static class HttpCorrelationExtensions
 {
     /// <summary>
-    /// Registers HTTP correlation ID enrichment interceptors for all requests and events.
+    /// Registers HTTP correlation ID enrichment interceptors for all requests, events, and stream queries.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <returns>The configurator for method chaining.</returns>
@@ -45,6 +46,12 @@ public static class HttpCorrelationExtensions
     ///     instances with the HTTP correlation ID.
     ///   </description>
     /// </item>
+    /// <item>
+    ///   <description>
+    ///     <c>HttpCorrelationStreamQueryInterceptor&lt;TQuery, TResponse&gt;</c> — enriches all
+    ///     <see cref="IStreamQuery{TResponse}"/> instances with the HTTP correlation ID.
+    ///   </description>
+    /// </item>
     /// </list>
     /// </remarks>
     /// <example>
@@ -62,6 +69,13 @@ public static class HttpCorrelationExtensions
 
         configurator.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped(typeof(IEventInterceptor<>), typeof(HttpCorrelationEventInterceptor<>))
+        );
+
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped(
+                typeof(IStreamQueryInterceptor<,>),
+                typeof(HttpCorrelationStreamQueryInterceptor<,>)
+            )
         );
 
         return configurator;
