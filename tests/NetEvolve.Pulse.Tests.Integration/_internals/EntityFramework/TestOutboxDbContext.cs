@@ -10,7 +10,8 @@ using NetEvolve.Pulse.Outbox;
 /// </summary>
 /// <remarks>
 /// Provides a minimal EF Core DbContext for testing Entity Framework outbox functionality.
-/// Applies the standard <see cref="SqlServerOutboxMessageConfiguration"/> for schema consistency.
+/// Uses <see cref="ModelBuilderExtensions.ApplyPulseConfiguration{TContext}"/> to apply
+/// provider-specific outbox message configuration automatically.
 /// </remarks>
 public sealed class TestOutboxDbContext : DbContext, IOutboxDbContext
 {
@@ -30,6 +31,6 @@ public sealed class TestOutboxDbContext : DbContext, IOutboxDbContext
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
-        _ = modelBuilder.ApplyConfiguration(new SqlServerOutboxMessageConfiguration());
+        _ = modelBuilder.ApplyPulseConfiguration(this);
     }
 }
