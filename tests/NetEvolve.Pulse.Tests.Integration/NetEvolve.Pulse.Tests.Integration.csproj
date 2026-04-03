@@ -28,9 +28,6 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.RabbitMq" />
     <PackageReference Include="TUnit" />
-    <PackageReference Include="TUnit.Mocks" />
-    <PackageReference Include="TUnit.Mocks.Http" />
-    <PackageReference Include="TUnit.Mocks.Logging" />
     <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
