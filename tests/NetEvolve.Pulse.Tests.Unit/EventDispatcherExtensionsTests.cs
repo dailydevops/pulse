@@ -142,7 +142,7 @@ public sealed class EventDispatcherExtensionsTests
         }
 
         await using var sp = services.BuildServiceProvider();
-        using var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredService<IEventDispatcher>();
+        var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredService<IEventDispatcher>();
 
         _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(10);
     }
@@ -302,8 +302,7 @@ public sealed class EventDispatcherExtensionsTests
         }
 
         await using var sp = services.BuildServiceProvider();
-        using var dispatcher = (RateLimitedEventDispatcher)
-            sp.GetRequiredKeyedService<IEventDispatcher>(typeof(TestEvent));
+        var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredKeyedService<IEventDispatcher>(typeof(TestEvent));
 
         _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(5);
     }

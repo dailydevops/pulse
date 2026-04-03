@@ -24,12 +24,7 @@ public sealed class RabbitMqExtensionsTests
     public async Task UseRabbitMqTransport_Configures_options()
     {
         IServiceCollection services = new ServiceCollection();
-        _ = services.AddPulse(config =>
-            config.UseRabbitMqTransport(options =>
-            {
-                options.ExchangeName = "test-exchange";
-            })
-        );
+        _ = services.AddPulse(config => config.UseRabbitMqTransport(options => options.ExchangeName = "test-exchange"));
 
         await using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();

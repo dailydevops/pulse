@@ -20,9 +20,8 @@ public sealed class RabbitMqMessageTransportTests
         var options = CreateOptions();
 
         var exception = Assert.Throws<ArgumentNullException>(() =>
-        {
-            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options);
-        });
+            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options)
+        );
 
         _ = await Assert.That(exception).IsNotNull();
         _ = await Assert.That(exception!.ParamName).IsEqualTo("connectionAdapter");
@@ -36,9 +35,8 @@ public sealed class RabbitMqMessageTransportTests
         var options = CreateOptions();
 
         var exception = Assert.Throws<ArgumentNullException>(() =>
-        {
-            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options);
-        });
+            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options)
+        );
 
         _ = await Assert.That(exception).IsNotNull();
         _ = await Assert.That(exception!.ParamName).IsEqualTo("topicNameResolver");
@@ -52,9 +50,8 @@ public sealed class RabbitMqMessageTransportTests
         IOptions<RabbitMqTransportOptions> options = null!;
 
         var exception = Assert.Throws<ArgumentNullException>(() =>
-        {
-            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options);
-        });
+            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options)
+        );
 
         _ = await Assert.That(exception).IsNotNull();
         _ = await Assert.That(exception!.ParamName).IsEqualTo("options");

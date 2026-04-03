@@ -1,20 +1,25 @@
 ﻿namespace NetEvolve.Pulse.Dispatchers;
 
+using System.Collections.Concurrent;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
-/// Event dispatcher that limits concurrent handler execution using a semaphore.
+/// Event dispatcher that limits concurrent handler execution to a configurable maximum.
 /// Protects downstream systems from being overwhelmed by controlling parallelism.
 /// </summary>
 /// <remarks>
 /// <para><strong>Execution Behavior:</strong></para>
-/// Limits the number of handlers executing simultaneously to the configured maximum.
-/// Handlers waiting for a semaphore slot respect the cancellation token.
+/// Uses <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, ParallelOptions, Func{TSource, CancellationToken, ValueTask})"/>
+/// with <see cref="ParallelOptions.MaxDegreeOfParallelism"/> set to <see cref="MaxConcurrency"/> to limit
+/// the number of handlers executing simultaneously. Cancellation is respected between handler invocations.
 /// <para><strong>Thread Safety:</strong></para>
-/// This implementation is thread-safe and uses <see cref="SemaphoreSlim"/> for efficient async coordination.
+/// This implementation is thread-safe. Concurrency is controlled by <see cref="Parallel"/> via
+/// <see cref="ParallelOptions.MaxDegreeOfParallelism"/>; no external synchronisation is required.
 /// <para><strong>Error Handling:</strong></para>
 /// Individual handler failures do not prevent other handlers from executing.
-/// The semaphore is always released in a finally block to prevent deadlocks.
+/// All handlers are executed regardless of failures. If any handlers fail, an
+/// <see cref="AggregateException"/> is thrown after all handlers have completed,
+/// containing all exceptions that occurred.
 /// <para><strong>Use Cases:</strong></para>
 /// <list type="bullet">
 /// <item><description>Protecting rate-limited external APIs</description></item>
@@ -48,18 +53,8 @@ using NetEvolve.Pulse.Extensibility;
 /// <seealso cref="IEventDispatcher"/>
 /// <seealso cref="ParallelEventDispatcher"/>
 /// <seealso cref="SequentialEventDispatcher"/>
-public sealed class RateLimitedEventDispatcher : IEventDispatcher, IDisposable
+public sealed class RateLimitedEventDispatcher : IEventDispatcher
 {
-    /// <summary>
-    /// Semaphore controlling the maximum number of concurrent handler executions.
-    /// </summary>
-    private readonly SemaphoreSlim _semaphore;
-
-    /// <summary>
-    /// Flag indicating whether the dispatcher has been disposed.
-    /// </summary>
-    private bool _disposed;
-
     /// <summary>
     /// Gets the maximum number of handlers that can execute concurrently.
     /// </summary>
@@ -82,14 +77,14 @@ public sealed class RateLimitedEventDispatcher : IEventDispatcher, IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(maxConcurrency, 1);
 
         MaxConcurrency = maxConcurrency;
-        _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// Each handler acquisition waits for a semaphore slot before execution.
-    /// If the cancellation token is triggered while waiting, the handler is skipped.
-    /// The semaphore is released in a finally block to ensure proper cleanup even on exceptions.
+    /// Uses <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, ParallelOptions, Func{TSource, CancellationToken, ValueTask})"/>
+    /// with <see cref="ParallelOptions.MaxDegreeOfParallelism"/> capped at <see cref="MaxConcurrency"/>.
+    /// Exceptions from individual handlers are collected and thrown as an <see cref="AggregateException"/>
+    /// after all handlers have completed.
     /// </remarks>
     public async Task DispatchAsync<TEvent>(
         TEvent message,
@@ -99,35 +94,34 @@ public sealed class RateLimitedEventDispatcher : IEventDispatcher, IDisposable
     )
         where TEvent : IEvent
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        var tasks = handlers.Select(async handler =>
+        var exceptions = new ConcurrentBag<Exception>();
+        var options = new ParallelOptions
         {
-            await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                await invoker(handler, message, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                _ = _semaphore.Release();
-            }
-        });
+            MaxDegreeOfParallelism = MaxConcurrency,
+            CancellationToken = cancellationToken,
+        };
 
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-    }
+        await Parallel
+            .ForEachAsync(
+                handlers,
+                options,
+                async (handler, token) =>
+                {
+                    try
+                    {
+                        await invoker(handler, message, token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (!token.IsCancellationRequested)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            )
+            .ConfigureAwait(false);
 
-    /// <summary>
-    /// Releases the semaphore resources used by this dispatcher.
-    /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
+        if (!exceptions.IsEmpty)
         {
-            return;
+            throw new AggregateException("One or more event handlers failed.", exceptions);
         }
-
-        _semaphore.Dispose();
-        _disposed = true;
     }
 }

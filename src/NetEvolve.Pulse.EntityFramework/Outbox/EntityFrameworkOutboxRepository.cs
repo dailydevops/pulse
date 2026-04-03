@@ -21,7 +21,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>Pre-compiled pending ID-selection query; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<TContext, int, DateTimeOffset, IAsyncEnumerable<Guid>> _getPendingIdsQuery =
+    private static readonly Func<TContext, int, DateTimeOffset, IAsyncEnumerable<Guid>> GetPendingIdsQuery =
         EF.CompileAsyncQuery(
             (TContext ctx, int batchSize, DateTimeOffset now) =>
                 ctx
@@ -34,24 +34,19 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
         );
 
     /// <summary>Pre-compiled failed-for-retry ID-selection query; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<
-        TContext,
-        int,
-        int,
-        DateTimeOffset,
-        IAsyncEnumerable<Guid>
-    > _getFailedForRetryIdsQuery = EF.CompileAsyncQuery(
-        (TContext ctx, int maxRetryCount, int batchSize, DateTimeOffset now) =>
-            ctx
-                .OutboxMessages.Where(m =>
-                    m.Status == OutboxMessageStatus.Failed
-                    && m.RetryCount < maxRetryCount
-                    && (m.NextRetryAt == null || m.NextRetryAt <= now)
-                )
-                .OrderBy(m => m.UpdatedAt)
-                .Take(batchSize)
-                .Select(m => m.Id)
-    );
+    private static readonly Func<TContext, int, int, DateTimeOffset, IAsyncEnumerable<Guid>> GetFailedForRetryIdsQuery =
+        EF.CompileAsyncQuery(
+            (TContext ctx, int maxRetryCount, int batchSize, DateTimeOffset now) =>
+                ctx
+                    .OutboxMessages.Where(m =>
+                        m.Status == OutboxMessageStatus.Failed
+                        && m.RetryCount < maxRetryCount
+                        && (m.NextRetryAt == null || m.NextRetryAt <= now)
+                    )
+                    .OrderBy(m => m.UpdatedAt)
+                    .Take(batchSize)
+                    .Select(m => m.Id)
+        );
 
     /// <summary>The DbContext used for all LINQ-to-SQL query and update operations.</summary>
     private readonly TContext _context;
@@ -92,7 +87,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var ids = new List<Guid>(batchSize);
         await foreach (
-            var id in _getPendingIdsQuery(_context, batchSize, now)
+            var id in GetPendingIdsQuery(_context, batchSize, now)
                 .WithCancellation(cancellationToken)
                 .ConfigureAwait(false)
         )
@@ -131,7 +126,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var ids = new List<Guid>(batchSize);
         await foreach (
-            var id in _getFailedForRetryIdsQuery(_context, maxRetryCount, batchSize, now)
+            var id in GetFailedForRetryIdsQuery(_context, maxRetryCount, batchSize, now)
                 .WithCancellation(cancellationToken)
                 .ConfigureAwait(false)
         )

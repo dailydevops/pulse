@@ -29,10 +29,7 @@ public sealed class AzureServiceBusExtensionsTests
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.UseAzureServiceBusTransport(options =>
-            {
-                options.ConnectionString = FakeConnectionString;
-            })
+            config.UseAzureServiceBusTransport(options => options.ConnectionString = FakeConnectionString)
         );
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
@@ -44,10 +41,7 @@ public sealed class AzureServiceBusExtensionsTests
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.UseAzureServiceBusTransport(options =>
-            {
-                options.ConnectionString = FakeConnectionString;
-            })
+            config.UseAzureServiceBusTransport(options => options.ConnectionString = FakeConnectionString)
         );
 
         var descriptor = services.Single(d => d.ServiceType == typeof(ServiceBusClient));
@@ -85,9 +79,8 @@ public sealed class AzureServiceBusExtensionsTests
 
         _ = services.AddPulse(config =>
             config.UseAzureServiceBusTransport(options =>
-            {
-                options.FullyQualifiedNamespace = "contoso.servicebus.windows.net";
-            })
+                options.FullyQualifiedNamespace = "contoso.servicebus.windows.net"
+            )
         );
 
         await using var provider = services.BuildServiceProvider();
@@ -102,10 +95,7 @@ public sealed class AzureServiceBusExtensionsTests
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.UseAzureServiceBusTransport(options =>
-            {
-                options.ConnectionString = FakeConnectionString;
-            })
+            config.UseAzureServiceBusTransport(options => options.ConnectionString = FakeConnectionString)
         );
 
         await using var provider = services.BuildServiceProvider();
@@ -120,10 +110,7 @@ public sealed class AzureServiceBusExtensionsTests
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
         _ = services.AddPulse(config =>
-            config.UseAzureServiceBusTransport(options =>
-            {
-                options.ConnectionString = FakeConnectionString;
-            })
+            config.UseAzureServiceBusTransport(options => options.ConnectionString = FakeConnectionString)
         );
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
