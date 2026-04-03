@@ -26,6 +26,7 @@ public static class OutboxExtensions
     /// <item><description><see cref="OutboxOptions"/> - Configuration options (Singleton)</description></item>
     /// <item><description><see cref="OutboxProcessorOptions"/> - Processor options (Singleton)</description></item>
     /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventHandler{TEvent}"/> as <see cref="OutboxEventHandler{TEvent}"/> (Scoped, open-generic)</description></item>
     /// <item><description><see cref="IMessageTransport"/> as <see cref="InMemoryMessageTransport"/> (Singleton)</description></item>
     /// <item><description><see cref="ITopicNameResolver"/> as <see cref="DefaultTopicNameResolver"/> (Singleton)</description></item>
     /// <item><description><see cref="OutboxProcessorHostedService"/> (Hosted service)</description></item>
@@ -64,6 +65,7 @@ public static class OutboxExtensions
 
         // Register core services
         services.TryAddScoped<IEventOutbox, OutboxEventStore>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(IEventHandler<>), typeof(OutboxEventHandler<>)));
         services.TryAddSingleton<IMessageTransport, InMemoryMessageTransport>();
         services.TryAddSingleton<ITopicNameResolver, DefaultTopicNameResolver>();
 
