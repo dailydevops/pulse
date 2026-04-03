@@ -16,7 +16,7 @@ public static class SQLiteExtensions
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="connectionString">The SQLite connection string (e.g., <c>"Data Source=outbox.db"</c>).</param>
-    /// <param name="configureOptions">Optional action to further configure <see cref="SQLiteOutboxOptions"/>.</param>
+    /// <param name="configureOptions">Optional action to further configure <see cref="OutboxOptions"/>.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// <para><strong>Prerequisites:</strong></para>
@@ -43,7 +43,7 @@ public static class SQLiteExtensions
     public static IMediatorBuilder UseSQLiteOutbox(
         this IMediatorBuilder configurator,
         string connectionString,
-        Action<SQLiteOutboxOptions>? configureOptions = null
+        Action<OutboxOptions>? configureOptions = null
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -60,7 +60,7 @@ public static class SQLiteExtensions
     /// Adds SQLite outbox persistence using ADO.NET with a full options configuration action.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
-    /// <param name="configureOptions">Action to configure <see cref="SQLiteOutboxOptions"/>.</param>
+    /// <param name="configureOptions">Action to configure <see cref="OutboxOptions"/>.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// <para><strong>Prerequisites:</strong></para>
@@ -90,7 +90,7 @@ public static class SQLiteExtensions
     /// </example>
     public static IMediatorBuilder UseSQLiteOutbox(
         this IMediatorBuilder configurator,
-        Action<SQLiteOutboxOptions> configureOptions
+        Action<OutboxOptions> configureOptions
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -106,7 +106,7 @@ public static class SQLiteExtensions
         // Register the repository
         _ = services.AddScoped<IOutboxRepository>(sp =>
         {
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SQLiteOutboxOptions>>();
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
             var timeProvider = sp.GetRequiredService<TimeProvider>();
             var transactionScope = sp.GetService<IOutboxTransactionScope>();
 
@@ -116,7 +116,7 @@ public static class SQLiteExtensions
         // Register the management API
         _ = services.AddScoped<IOutboxManagement>(sp =>
         {
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SQLiteOutboxOptions>>();
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
             var timeProvider = sp.GetRequiredService<TimeProvider>();
 
             return new SQLiteOutboxManagement(options, timeProvider);

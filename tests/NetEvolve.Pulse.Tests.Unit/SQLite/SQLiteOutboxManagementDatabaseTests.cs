@@ -56,7 +56,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
 
     private SQLiteOutboxManagement CreateManagement(bool enableWal = false) =>
         new(
-            Options.Create(new SQLiteOutboxOptions { ConnectionString = _connectionString, EnableWalMode = enableWal }),
+            Options.Create(new OutboxOptions { ConnectionString = _connectionString, EnableWalMode = enableWal }),
             _timeProvider
         );
 

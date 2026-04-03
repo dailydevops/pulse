@@ -17,7 +17,7 @@ public sealed class SQLiteOutboxManagementTests
     [Test]
     public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new SQLiteOutboxManagement(Options.Create(new SQLiteOutboxOptions()), null!))
+            .That(() => new SQLiteOutboxManagement(Options.Create(new OutboxOptions()), null!))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -25,7 +25,7 @@ public sealed class SQLiteOutboxManagementTests
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxManagement(
-                    Options.Create(new SQLiteOutboxOptions { ConnectionString = string.Empty }),
+                    Options.Create(new OutboxOptions { ConnectionString = string.Empty }),
                     TimeProvider.System
                 )
             )
@@ -36,7 +36,7 @@ public sealed class SQLiteOutboxManagementTests
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxManagement(
-                    Options.Create(new SQLiteOutboxOptions { ConnectionString = "   " }),
+                    Options.Create(new OutboxOptions { ConnectionString = "   " }),
                     TimeProvider.System
                 )
             )
@@ -46,9 +46,7 @@ public sealed class SQLiteOutboxManagementTests
     public async Task Constructor_WithValidOptions_CreatesInstance()
     {
         var management = new SQLiteOutboxManagement(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System
         );
 
@@ -58,7 +56,7 @@ public sealed class SQLiteOutboxManagementTests
     [Test]
     public async Task Constructor_WithCustomTableName_CreatesInstance()
     {
-        var options = new SQLiteOutboxOptions
+        var options = new OutboxOptions
         {
             ConnectionString = "Data Source=:memory:",
             EnableWalMode = false,
@@ -74,9 +72,7 @@ public sealed class SQLiteOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new SQLiteOutboxManagement(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System
         );
 
@@ -89,9 +85,7 @@ public sealed class SQLiteOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new SQLiteOutboxManagement(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System
         );
 
@@ -104,9 +98,7 @@ public sealed class SQLiteOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException()
     {
         var management = new SQLiteOutboxManagement(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System
         );
 

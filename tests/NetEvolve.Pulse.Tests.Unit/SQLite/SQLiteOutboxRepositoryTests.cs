@@ -17,7 +17,7 @@ public sealed class SQLiteOutboxRepositoryTests
     [Test]
     public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new SQLiteOutboxRepository(Options.Create(new SQLiteOutboxOptions()), null!))
+            .That(() => new SQLiteOutboxRepository(Options.Create(new OutboxOptions()), null!))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -25,7 +25,7 @@ public sealed class SQLiteOutboxRepositoryTests
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxRepository(
-                    Options.Create(new SQLiteOutboxOptions { ConnectionString = string.Empty }),
+                    Options.Create(new OutboxOptions { ConnectionString = string.Empty }),
                     TimeProvider.System
                 )
             )
@@ -36,7 +36,7 @@ public sealed class SQLiteOutboxRepositoryTests
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxRepository(
-                    Options.Create(new SQLiteOutboxOptions { ConnectionString = "   " }),
+                    Options.Create(new OutboxOptions { ConnectionString = "   " }),
                     TimeProvider.System
                 )
             )
@@ -46,9 +46,7 @@ public sealed class SQLiteOutboxRepositoryTests
     public async Task Constructor_WithValidOptions_CreatesInstance()
     {
         var repository = new SQLiteOutboxRepository(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System
         );
 
@@ -61,9 +59,7 @@ public sealed class SQLiteOutboxRepositoryTests
         var transactionScope = new SQLiteOutboxTransactionScope(null);
 
         var repository = new SQLiteOutboxRepository(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System,
             transactionScope
         );
@@ -74,7 +70,7 @@ public sealed class SQLiteOutboxRepositoryTests
     [Test]
     public async Task Constructor_WithCustomTableName_CreatesInstance()
     {
-        var options = new SQLiteOutboxOptions
+        var options = new OutboxOptions
         {
             ConnectionString = "Data Source=:memory:",
             EnableWalMode = false,
@@ -90,9 +86,7 @@ public sealed class SQLiteOutboxRepositoryTests
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         var repository = new SQLiteOutboxRepository(
-            Options.Create(
-                new SQLiteOutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }
-            ),
+            Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System
         );
 

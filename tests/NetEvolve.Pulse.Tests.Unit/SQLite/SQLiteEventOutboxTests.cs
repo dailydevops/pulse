@@ -16,7 +16,7 @@ public sealed class SQLiteEventOutboxTests
     [Test]
     public async Task Constructor_WithNullConnection_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new SQLiteEventOutbox(null!, Options.Create(new SQLiteOutboxOptions()), TimeProvider.System))
+            .That(() => new SQLiteEventOutbox(null!, Options.Create(new OutboxOptions()), TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -35,7 +35,7 @@ public sealed class SQLiteEventOutboxTests
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
         _ = await Assert
-            .That(() => new SQLiteEventOutbox(connection, Options.Create(new SQLiteOutboxOptions()), null!))
+            .That(() => new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -44,7 +44,7 @@ public sealed class SQLiteEventOutboxTests
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
-        var outbox = new SQLiteEventOutbox(connection, Options.Create(new SQLiteOutboxOptions()), TimeProvider.System);
+        var outbox = new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
 
         _ = await Assert.That(outbox).IsNotNull();
     }
@@ -56,7 +56,7 @@ public sealed class SQLiteEventOutboxTests
 
         var outbox = new SQLiteEventOutbox(
             connection,
-            Options.Create(new SQLiteOutboxOptions()),
+            Options.Create(new OutboxOptions()),
             TimeProvider.System,
             transaction: null
         );
@@ -68,7 +68,7 @@ public sealed class SQLiteEventOutboxTests
     public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
-        var outbox = new SQLiteEventOutbox(connection, Options.Create(new SQLiteOutboxOptions()), TimeProvider.System);
+        var outbox = new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
 
         _ = await Assert
             .That(async () => await outbox.StoreAsync<TestEvent>(null!).ConfigureAwait(false))
@@ -79,7 +79,7 @@ public sealed class SQLiteEventOutboxTests
     public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
-        var outbox = new SQLiteEventOutbox(connection, Options.Create(new SQLiteOutboxOptions()), TimeProvider.System);
+        var outbox = new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
         var message = new TestEvent
         {
             CorrelationId = new string('x', OutboxMessageSchema.MaxLengths.CorrelationId + 1),
@@ -127,7 +127,7 @@ public sealed class SQLiteEventOutboxTests
 
         var outbox = new SQLiteEventOutbox(
             connection,
-            Options.Create(new SQLiteOutboxOptions { ConnectionString = connectionString }),
+            Options.Create(new OutboxOptions { ConnectionString = connectionString }),
             TimeProvider.System
         );
 
@@ -188,7 +188,7 @@ public sealed class SQLiteEventOutboxTests
 
         var outbox = new SQLiteEventOutbox(
             connection,
-            Options.Create(new SQLiteOutboxOptions { ConnectionString = connectionString }),
+            Options.Create(new OutboxOptions { ConnectionString = connectionString }),
             TimeProvider.System
         );
 

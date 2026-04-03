@@ -25,6 +25,23 @@ public sealed class OutboxOptions
     public string TableName { get; set; } = OutboxMessageSchema.DefaultTableName;
 
     /// <summary>
+    /// Gets or sets the outbox database connection string.
+    /// </summary>
+    /// <remarks>
+    /// This setting is used by ADO.NET-based providers such as SQLite.
+    /// </remarks>
+    public string? ConnectionString { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether WAL (Write-Ahead Logging) mode is enabled.
+    /// </summary>
+    /// <remarks>
+    /// This setting is used by SQLite-based providers.
+    /// Default: <see langword="true"/>.
+    /// </remarks>
+    public bool EnableWalMode { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the JSON serializer options for event serialization.
     /// </summary>
     public JsonSerializerOptions? JsonSerializerOptions { get; set; }

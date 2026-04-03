@@ -17,11 +17,11 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 [SuppressMessage(
     "Security",
     "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "SQL is constructed from validated SQLiteOutboxOptions.TableName property, not user input."
+    Justification = "SQL is constructed from validated OutboxOptions.TableName property, not user input."
 )]
 internal sealed class SQLiteOutboxManagement : IOutboxManagement
 {
-    /// <summary>The SQLite connection string resolved from <see cref="SQLiteOutboxOptions"/>.</summary>
+    /// <summary>The SQLite connection string resolved from <see cref="OutboxOptions"/>.</summary>
     private readonly string _connectionString;
 
     /// <summary>Whether to apply WAL journal mode on each opened connection.</summary>
@@ -43,7 +43,7 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// </summary>
     /// <param name="options">The SQLite outbox configuration options.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
-    public SQLiteOutboxManagement(IOptions<SQLiteOutboxOptions> options, TimeProvider timeProvider)
+    public SQLiteOutboxManagement(IOptions<OutboxOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -245,7 +245,7 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
 
     /// <summary>
     /// Opens and returns a new <see cref="SqliteConnection"/> using the stored connection string.
-    /// Applies WAL mode when <see cref="SQLiteOutboxOptions.EnableWalMode"/> is <see langword="true"/>.
+    /// Applies WAL mode when <see cref="OutboxOptions.EnableWalMode"/> is <see langword="true"/>.
     /// The caller is responsible for disposing the connection.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>

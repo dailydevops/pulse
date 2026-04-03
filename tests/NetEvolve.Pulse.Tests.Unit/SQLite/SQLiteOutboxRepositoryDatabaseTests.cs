@@ -56,17 +56,13 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
     private SQLiteOutboxRepository CreateRepository()
     {
-        var options = Options.Create(
-            new SQLiteOutboxOptions { ConnectionString = _connectionString, EnableWalMode = false }
-        );
+        var options = Options.Create(new OutboxOptions { ConnectionString = _connectionString, EnableWalMode = false });
         return new SQLiteOutboxRepository(options, TimeProvider.System);
     }
 
     private SQLiteOutboxRepository CreateRepositoryWithScope(IOutboxTransactionScope scope)
     {
-        var options = Options.Create(
-            new SQLiteOutboxOptions { ConnectionString = _connectionString, EnableWalMode = false }
-        );
+        var options = Options.Create(new OutboxOptions { ConnectionString = _connectionString, EnableWalMode = false });
         return new SQLiteOutboxRepository(options, TimeProvider.System, scope);
     }
 
