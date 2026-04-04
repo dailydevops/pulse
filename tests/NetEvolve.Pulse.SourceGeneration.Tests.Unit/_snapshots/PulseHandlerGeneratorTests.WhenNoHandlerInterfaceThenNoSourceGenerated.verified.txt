@@ -3,7 +3,7 @@
     {
       DefaultSeverity: Error,
       Descriptor: {
-        Category: PulseSourceGeneration,
+        Category: Usage,
         DefaultSeverity: Error,
         Description: {},
         HelpLinkUri: ,

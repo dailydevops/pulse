@@ -21,12 +21,12 @@
         Kind: SourceFile,
         SourceSpan: {
           Start: 150,
-          Length: 214
+          Length: 215
         },
         SourceTree: {
           FilePath: ,
           HasCompilationUnitRoot: true,
-          Length: 364,
+          Length: 365,
           Options: {
             DocumentationMode: Parse,
             Language: C#,
