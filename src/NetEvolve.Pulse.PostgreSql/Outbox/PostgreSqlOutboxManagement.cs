@@ -50,14 +50,13 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlOutboxManagement"/> class.
     /// </summary>
-    /// <param name="connectionString">The PostgreSQL connection string.</param>
     /// <param name="options">The outbox configuration options.</param>
-    public PostgreSqlOutboxManagement(string connectionString, IOptions<OutboxOptions> options)
+    public PostgreSqlOutboxManagement(IOptions<OutboxOptions> options)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
 
-        _connectionString = connectionString;
+        _connectionString = options.Value.ConnectionString;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema

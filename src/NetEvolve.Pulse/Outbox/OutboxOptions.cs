@@ -28,7 +28,7 @@ public sealed class OutboxOptions
     /// Gets or sets the outbox database connection string.
     /// </summary>
     /// <remarks>
-    /// This setting is used by ADO.NET-based providers such as SQLite.
+    /// This setting is used by ADO.NET-based providers such as PostgreSQL, SQL Server, and SQLite.
     /// </remarks>
     public string? ConnectionString { get; set; }
 

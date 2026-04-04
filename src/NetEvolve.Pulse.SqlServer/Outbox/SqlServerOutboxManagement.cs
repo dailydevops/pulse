@@ -51,14 +51,13 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerOutboxManagement"/> class.
     /// </summary>
-    /// <param name="connectionString">The SQL Server connection string.</param>
     /// <param name="options">The outbox configuration options.</param>
-    public SqlServerOutboxManagement(string connectionString, IOptions<OutboxOptions> options)
+    public SqlServerOutboxManagement(IOptions<OutboxOptions> options)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
 
-        _connectionString = connectionString;
+        _connectionString = options.Value.ConnectionString;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
