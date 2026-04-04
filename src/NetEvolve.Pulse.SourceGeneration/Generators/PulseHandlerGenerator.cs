@@ -4,10 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using NetEvolve.CodeBuilder;
 using NetEvolve.Pulse.SourceGeneration.Models;
 
 /// <summary>
@@ -37,11 +37,11 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Collect annotated classes via ForAttributeWithMetadataName for efficient filtering.
+        // Collect annotated classes/records via ForAttributeWithMetadataName for efficient filtering.
         var handlerInfos = context
             .SyntaxProvider.ForAttributeWithMetadataName(
                 PulseHandlerAttributeFullName,
-                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
                 transform: static (ctx, ct) => ExtractHandlerInfo(ctx, ct)
             )
             .Where(static info => info.HasValue)
@@ -66,6 +66,30 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             combined,
             static (spc, data) => Execute(spc, data.Left.Left, data.Left.Right, data.Right)
+        );
+
+        // Report PULSE003 for classes/records that implement a handler interface but lack [PulseHandler].
+        var unannotatedHandlers = context
+            .SyntaxProvider.CreateSyntaxProvider(
+                predicate: static (node, _) =>
+                    node
+                        is ClassDeclarationSyntax { BaseList: not null }
+                            or RecordDeclarationSyntax { BaseList: not null },
+                transform: static (ctx, ct) => ExtractUnannotatedHandlerInfo(ctx, ct)
+            )
+            .Where(static info => info.HasValue)
+            .Select(static (info, _) => info!.Value);
+
+        context.RegisterSourceOutput(
+            unannotatedHandlers,
+            static (spc, info) =>
+                spc.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.MissingPulseHandlerAttribute,
+                        info.Location,
+                        info.HandlerTypeName
+                    )
+                )
         );
     }
 
@@ -140,6 +164,64 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         return new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location);
+    }
+
+    /// <summary>
+    /// Checks whether a class implements a known Pulse handler interface without carrying the
+    /// <c>[PulseHandler]</c> attribute. Returns a <see cref="HandlerInfo"/> for diagnostic
+    /// reporting, or <c>null</c> when no issue is detected.
+    /// </summary>
+    private static HandlerInfo? ExtractUnannotatedHandlerInfo(GeneratorSyntaxContext ctx, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (ctx.Node is not (ClassDeclarationSyntax or RecordDeclarationSyntax))
+        {
+            return null;
+        }
+
+        var typeDeclaration = (TypeDeclarationSyntax)ctx.Node;
+
+        if (ctx.SemanticModel.GetDeclaredSymbol(typeDeclaration, ct) is not INamedTypeSymbol classSymbol)
+        {
+            return null;
+        }
+
+        // Skip classes already annotated with [PulseHandler].
+        if (
+            classSymbol
+                .GetAttributes()
+                .Any(attr =>
+                    attr.AttributeClass is not null
+                    && string.Equals(
+                        GetFullMetadataName(attr.AttributeClass),
+                        PulseHandlerAttributeFullName,
+                        StringComparison.Ordinal
+                    )
+                )
+        )
+        {
+            return null;
+        }
+
+        // Check whether the class implements any known handler interface.
+        foreach (var iface in classSymbol.AllInterfaces)
+        {
+            var metadataName = GetFullMetadataName(iface.OriginalDefinition);
+
+            if (
+                string.Equals(metadataName, CommandHandlerInterfaceName, StringComparison.Ordinal)
+                || string.Equals(metadataName, CommandHandlerSingleInterfaceName, StringComparison.Ordinal)
+                || string.Equals(metadataName, QueryHandlerInterfaceName, StringComparison.Ordinal)
+                || string.Equals(metadataName, EventHandlerInterfaceName, StringComparison.Ordinal)
+                || string.Equals(metadataName, StreamQueryHandlerInterfaceName, StringComparison.Ordinal)
+            )
+            {
+                return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], typeDeclaration.GetLocation());
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -226,56 +308,49 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         string? assemblyName
     )
     {
-        var targetNamespace = rootNamespace ?? "NetEvolve.Pulse.Generated";
+        var targetNamespace = string.IsNullOrWhiteSpace(rootNamespace) ? "NetEvolve.Pulse.Generated" : rootNamespace;
         var methodName = GetMethodName(assemblyName);
+        var generatorVersion = typeof(PulseHandlerGenerator).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
 
-        var sb = new StringBuilder();
-        _ = sb.AppendLine("// <auto-generated />");
-        _ = sb.AppendLine("#nullable enable");
-        _ = sb.AppendLine();
-        _ = sb.AppendLine("using System.CodeDom.Compiler;");
-        _ = sb.AppendLine();
-        _ = sb.AppendLine($"namespace {targetNamespace}");
-        _ = sb.AppendLine("{");
-        _ = sb.AppendLine("    /// <summary>");
-        _ = sb.AppendLine(
-            "    /// Auto-generated extension method to register Pulse handlers annotated with <c>[PulseHandler]</c>."
-        );
-        _ = sb.AppendLine("    /// </summary>");
-        _ = sb.AppendLine("    [GeneratedCode(\"NetEvolve.Pulse.SourceGeneration\", \"1.0.0\")]");
-        _ = sb.AppendLine("    public static partial class PulseHandlerRegistrationExtensions");
-        _ = sb.AppendLine("    {");
-        _ = sb.AppendLine("        /// <summary>");
-        _ = sb.AppendLine(
-            "        /// Registers all Pulse handlers annotated with <c>[PulseHandler]</c> into the service collection."
-        );
-        _ = sb.AppendLine("        /// </summary>");
-        _ = sb.AppendLine(
-            "        /// <param name=\"services\">The service collection to add registrations to.</param>"
-        );
-        _ = sb.AppendLine(
-            "        /// <returns>The same <see cref=\"global::Microsoft.Extensions.DependencyInjection.IServiceCollection\"/> instance for chaining.</returns>"
-        );
-        _ = sb.AppendLine(
-            $"        public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection {methodName}(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)"
-        );
-        _ = sb.AppendLine("        {");
+        var cb = new CSharpCodeBuilder(512)
+            .AppendLine("// <auto-generated />")
+            .AppendLine("#nullable enable")
+            .AppendLine()
+            .AppendLine("using global::System.CodeDom.Compiler;")
+            .AppendLine("using global::Microsoft.Extensions.DependencyInjection;")
+            .AppendLine("using global::Microsoft.Extensions.DependencyInjection.Extensions;")
+            .AppendLine()
+            .AppendLine($"namespace {targetNamespace};")
+            .AppendLine()
+            .AppendXmlDocSummary([
+                "Auto-generated extension method to register Pulse handlers annotated",
+                $"with <c>[PulseHandler]</c> inside of the Assembly <c>{assemblyName}</c>.",
+            ])
+            .AppendLine($"[GeneratedCode(\"NetEvolve.Pulse.SourceGeneration\", \"{generatorVersion}\")]");
 
-        foreach (var reg in registrations)
+        using (cb.ScopeLine("public static partial class PulseRegistrationExtensions"))
         {
-            var lifetimeMethodName = GetLifetimeMethodName(reg.Lifetime);
-            _ = sb.AppendLine(
-                $"            global::Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.{lifetimeMethodName}<{reg.ServiceTypeName}, {reg.HandlerTypeName}>(services);"
-            );
+            _ = cb.AppendXmlDocSummary(
+                    $"Registers all <c>[PulseHandler]</c>-annotated handlers from the assembly <c>{assemblyName}</c> into the DI container."
+                )
+                .AppendXmlDocParam("services", "The service collection to add registrations to.")
+                .AppendXmlDocReturns("The same <see cref=\"IServiceCollection\"/> instance for chaining.");
+
+            using (cb.ScopeLine($"public static IServiceCollection {methodName}(this IServiceCollection services)"))
+            {
+                foreach (var reg in registrations)
+                {
+                    var lifetimeMethodName = GetLifetimeMethodName(reg.Lifetime);
+                    _ = cb.AppendLine(
+                        $"services.{lifetimeMethodName}<{reg.ServiceTypeName}, {reg.HandlerTypeName}>();"
+                    );
+                }
+
+                _ = cb.AppendLine().AppendLine("return services;");
+            }
         }
 
-        _ = sb.AppendLine();
-        _ = sb.AppendLine("            return services;");
-        _ = sb.AppendLine("        }");
-        _ = sb.AppendLine("    }");
-        _ = sb.AppendLine("}");
-
-        return sb.ToString();
+        return cb.ToString();
     }
 
     /// <summary>

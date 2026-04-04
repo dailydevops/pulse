@@ -14,7 +14,7 @@ internal static class DiagnosticDescriptors
         id: "PULSE001",
         title: "Type does not implement a Pulse handler interface",
         messageFormat: "Type '{0}' is annotated with [PulseHandler] but does not implement any known Pulse handler interface",
-        category: "PulseSourceGeneration",
+        category: "Usage",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
     );
@@ -26,8 +26,20 @@ internal static class DiagnosticDescriptors
         id: "PULSE002",
         title: "Duplicate handler registration",
         messageFormat: "Multiple [PulseHandler] types implement '{0}': {1}. Commands and queries must have exactly one handler.",
-        category: "PulseSourceGeneration",
+        category: "Design",
         defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// PULSE003 – the class implements a Pulse handler interface but is missing the [PulseHandler] attribute.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MissingPulseHandlerAttribute = new(
+        id: "PULSE003",
+        title: "Type implements a Pulse handler interface but is missing [PulseHandler]",
+        messageFormat: "Type '{0}' implements a Pulse handler interface but is not annotated with [PulseHandler]",
+        category: "Design",
+        defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true
     );
 }

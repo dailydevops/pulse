@@ -30,7 +30,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -53,7 +53,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -82,7 +82,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -116,7 +116,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -132,7 +132,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -148,7 +148,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -178,7 +178,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -208,7 +208,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -238,7 +238,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -274,7 +274,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -295,7 +295,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -318,7 +318,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -347,7 +347,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -370,7 +370,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -393,7 +393,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -416,7 +416,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -439,7 +439,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -462,7 +462,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -485,7 +485,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -516,7 +516,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -539,7 +539,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -570,7 +570,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -601,7 +601,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -617,7 +617,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -642,7 +642,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
     }
 
     [Test]
@@ -676,7 +676,189 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        _ = await Verify(new { diagnostics, generatedSources });
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenQueryHandlerNotAnnotatedThenPulse003Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyQuery(string Id) : IQuery<string>;
+
+            public class MyQueryHandler : IQueryHandler<MyQuery, string>
+            {
+                public Task<string> HandleAsync(MyQuery request, CancellationToken cancellationToken = default)
+                    => Task.FromResult(request.Id);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenEventHandlerNotAnnotatedThenPulse003Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            public record MyEvent : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            public class MyEventHandler : IEventHandler<MyEvent>
+            {
+                public Task HandleAsync(MyEvent message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenStreamQueryHandlerNotAnnotatedThenPulse003Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using System.Collections.Generic;
+            using System.Threading;
+
+            public record MyStreamQuery(string Id) : IStreamQuery<string>;
+
+            public class MyStreamQueryHandler : IStreamQueryHandler<MyStreamQuery, string>
+            {
+                public async IAsyncEnumerable<string> HandleAsync(MyStreamQuery request, CancellationToken cancellationToken = default)
+                {
+                    yield return request.Id;
+                }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenMultipleUnannotatedHandlersThenPulse003ReportedForEach()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record CommandA(string Name) : ICommand<string>;
+            public record QueryA(string Id) : IQuery<string>;
+
+            public class HandlerA : ICommandHandler<CommandA, string>
+            {
+                public Task<string> HandleAsync(CommandA command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+
+            public class HandlerB : IQueryHandler<QueryA, string>
+            {
+                public Task<string> HandleAsync(QueryA query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(query.Id);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenClassWithNonHandlerInterfaceNotAnnotatedThenNoPulse003()
+    {
+        const string source = """
+            using System;
+
+            public class MyService : IDisposable
+            {
+                public void Dispose() { }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenEmptyAssemblyNameThenFallbackMethodNameIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Attributes;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler]
+            public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source, assemblyName: "");
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenRecordCommandHandlerAnnotatedThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Attributes;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler]
+            public record MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenRecordHandlerNotAnnotatedThenPulse003Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            public record MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
     }
 
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
@@ -745,4 +927,7 @@ public class PulseHandlerGeneratorTests
 
         return [.. runtimeReferences];
     }
+
+    private static async Task VerifySources(ImmutableArray<Diagnostic> diagnostics, ImmutableArray<string> sources) =>
+        await Verify(new { diagnostics, sources });
 }

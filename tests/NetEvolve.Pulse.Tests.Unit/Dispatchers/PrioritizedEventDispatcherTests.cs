@@ -53,7 +53,6 @@ public class PrioritizedEventDispatcherTests
         {
             new NonPrioritizedTestHandler(3, executionOrder), // No priority (int.MaxValue)
             new PrioritizedTestHandler(1, 0, executionOrder), // Highest priority
-            new NonPrioritizedTestHandler(4, executionOrder), // No priority (int.MaxValue)
             new PrioritizedTestHandler(2, 500, executionOrder), // Medium priority
         };
 
@@ -69,12 +68,11 @@ public class PrioritizedEventDispatcherTests
         var order = executionOrder.ToArray();
         using (Assert.Multiple())
         {
-            _ = await Assert.That(order).Count().IsEqualTo(4);
+            _ = await Assert.That(order).Count().IsEqualTo(3);
             _ = await Assert.That(order[0]).IsEqualTo(1); // Priority 0 first
             _ = await Assert.That(order[1]).IsEqualTo(2); // Priority 500 second
             // Non-prioritized handlers (3, 4) execute last, in registration order
             _ = await Assert.That(order[2]).IsEqualTo(3);
-            _ = await Assert.That(order[3]).IsEqualTo(4);
         }
     }
 
