@@ -271,6 +271,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
         }
 
+        // Report PULSE002 for duplicate single-handler contracts and track them for deduplication.
+        var duplicatedServiceTypes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var kvp in singleHandlerContracts)
         {
             if (kvp.Value.Count > 1)
@@ -283,15 +285,6 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                         string.Join(", ", kvp.Value)
                     )
                 );
-            }
-        }
-
-        // Collect all registrations across all handlers, deduplicating single-handler contracts.
-        var duplicatedServiceTypes = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var kvp in singleHandlerContracts)
-        {
-            if (kvp.Value.Count > 1)
-            {
                 _ = duplicatedServiceTypes.Add(kvp.Key);
             }
         }
@@ -322,7 +315,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         var source = GenerateSource(allRegistrations, rootNamespace, assemblyName);
-        spc.AddSource("PulseHandlerRegistrations.g.cs", source);
+        spc.AddSource("PulseRegistrations.Handlers.g.cs", source);
     }
 
     private static string GenerateSource(

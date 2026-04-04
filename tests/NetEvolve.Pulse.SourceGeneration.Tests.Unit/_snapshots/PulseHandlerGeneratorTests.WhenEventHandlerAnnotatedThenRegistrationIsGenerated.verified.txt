@@ -13,7 +13,7 @@ namespace TestAssembly;
 /// Auto-generated extension method to register Pulse handlers annotated
 /// with <c>[PulseHandler]</c> inside the Assembly <c>TestAssembly</c>.
 /// </summary>
-[GeneratedCode("NetEvolve.Pulse.SourceGeneration", "1.0.0")]
+[GeneratedCode("NetEvolve.Pulse.SourceGeneration", "{version}")]
 public static partial class PulseRegistrationExtensions
 {
     /// <summary>
