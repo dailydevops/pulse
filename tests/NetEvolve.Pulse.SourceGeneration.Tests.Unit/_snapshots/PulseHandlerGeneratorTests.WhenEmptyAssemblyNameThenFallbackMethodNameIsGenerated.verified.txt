@@ -11,19 +11,19 @@ namespace TestAssembly;
 
 /// <summary>
 /// Auto-generated extension method to register Pulse handlers annotated
-/// with <c>[PulseHandler]</c> inside the Assembly <c>TestAssembly</c>.
+/// with <c>[PulseHandler]</c> inside the Assembly <c>GeneratedAssembly</c>.
 /// </summary>
 [GeneratedCode("NetEvolve.Pulse.SourceGeneration", "{version}")]
 public static partial class PulseRegistrationExtensions
 {
     /// <summary>
-    /// Registers all <c>[PulseHandler]</c>-annotated handlers from the assembly <c>TestAssembly</c> into the DI container.
+    /// Registers all <c>[PulseHandler]</c>-annotated handlers from the assembly <c>GeneratedAssembly</c> into the DI container.
     /// </summary>
     /// <param name="services">The service collection to add registrations to.</param>
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
-    public static IServiceCollection AddTestAssemblyHandlers(this IServiceCollection services)
+    public static IServiceCollection AddGeneratedPulseHandlers(this IServiceCollection services)
     {
-        services.TryAddSingleton<global::NetEvolve.Pulse.Extensibility.IQueryHandler<global::MyQuery, string>, global::MyQueryHandler>();
+        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::MyCommand, string>, global::MyCommandHandler>();
 
         return services;
     }

@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="NetEvolve.CodeBuilder" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="NetEvolve.Http.Correlation.TestGenerator" />
     <PackageReference Include="TUnit" />

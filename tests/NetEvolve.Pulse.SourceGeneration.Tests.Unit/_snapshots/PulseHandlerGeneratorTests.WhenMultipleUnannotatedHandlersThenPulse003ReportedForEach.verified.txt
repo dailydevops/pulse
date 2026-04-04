@@ -1,0 +1,78 @@
+﻿{
+  diagnostics: [
+    {
+      DefaultSeverity: Info,
+      Descriptor: {
+        Category: Design,
+        DefaultSeverity: Info,
+        Description: {},
+        HelpLinkUri: ,
+        Id: PULSE003,
+        IsEnabledByDefault: true,
+        MessageFormat: {},
+        Title: {}
+      },
+      Id: PULSE003,
+      IsSuppressed: false,
+      IsWarningAsError: false,
+      Location: {
+        IsInMetadata: false,
+        IsInSource: true,
+        Kind: SourceFile,
+        SourceSpan: {
+          Start: 199,
+          Length: 204
+        },
+        SourceTree: {
+          FilePath: ,
+          HasCompilationUnitRoot: true,
+          Length: 597,
+          Options: {
+            DocumentationMode: Parse,
+            Language: C#,
+            LanguageVersion: CSharp14
+          }
+        }
+      },
+      Severity: Info,
+      WarningLevel: 1
+    },
+    {
+      DefaultSeverity: Info,
+      Descriptor: {
+        Category: Design,
+        DefaultSeverity: Info,
+        Description: {},
+        HelpLinkUri: ,
+        Id: PULSE003,
+        IsEnabledByDefault: true,
+        MessageFormat: {},
+        Title: {}
+      },
+      Id: PULSE003,
+      IsSuppressed: false,
+      IsWarningAsError: false,
+      Location: {
+        IsInMetadata: false,
+        IsInSource: true,
+        Kind: SourceFile,
+        SourceSpan: {
+          Start: 405,
+          Length: 192
+        },
+        SourceTree: {
+          FilePath: ,
+          HasCompilationUnitRoot: true,
+          Length: 597,
+          Options: {
+            DocumentationMode: Parse,
+            Language: C#,
+            LanguageVersion: CSharp14
+          }
+        }
+      },
+      Severity: Info,
+      WarningLevel: 1
+    }
+  ]
+}

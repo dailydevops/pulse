@@ -33,6 +33,22 @@ internal static class Predefined
         VerifierSettings.SortJsonObjects();
         VerifierSettings.SortPropertiesAlphabetically();
 
+        VerifierSettings.ScrubLinesWithReplace(line =>
+            System.Text.RegularExpressions.Regex.Replace(
+                line,
+                @"LanguageVersion: CSharp\d+",
+                "LanguageVersion: CSharpLatest"
+            )
+        );
+
+        VerifierSettings.ScrubLinesWithReplace(line =>
+            System.Text.RegularExpressions.Regex.Replace(
+                line,
+                @"(GeneratedCode\(""NetEvolve\.Pulse\.SourceGeneration"", "")[^""]+("")",
+                "$1{version}$2"
+            )
+        );
+
         VerifierSettings.AddExtraSettings(o =>
         {
             o.DefaultValueHandling = DefaultValueHandling.Ignore;
