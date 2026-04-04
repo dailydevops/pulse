@@ -35,7 +35,7 @@ namespace TestAssembly;
 
 /// <summary>
 /// Auto-generated extension method to register Pulse handlers annotated
-/// with <c>[PulseHandler]</c> inside of the Assembly <c>TestAssembly</c>.
+/// with <c>[PulseHandler]</c> inside the Assembly <c>TestAssembly</c>.
 /// </summary>
 [GeneratedCode("NetEvolve.Pulse.SourceGeneration", "1.0.0")]
 public static partial class PulseRegistrationExtensions
@@ -48,7 +48,6 @@ public static partial class PulseRegistrationExtensions
     public static IServiceCollection AddTestAssemblyHandlers(this IServiceCollection services)
     {
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IStreamQueryHandler<global::MyStreamQuery, string>, global::StreamQueryHandlerA>();
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IStreamQueryHandler<global::MyStreamQuery, string>, global::StreamQueryHandlerB>();
 
         return services;
     }

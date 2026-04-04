@@ -33,6 +33,14 @@ internal static class Predefined
         VerifierSettings.SortJsonObjects();
         VerifierSettings.SortPropertiesAlphabetically();
 
+        VerifierSettings.ScrubLinesWithReplace(line =>
+            System.Text.RegularExpressions.Regex.Replace(
+                line,
+                @"LanguageVersion: CSharp\d+",
+                "LanguageVersion: CSharpLatest"
+            )
+        );
+
         VerifierSettings.AddExtraSettings(o =>
         {
             o.DefaultValueHandling = DefaultValueHandling.Ignore;

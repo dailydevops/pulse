@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
-    <PackageReference Include="NetEvolve.CodeBuilder" />
+    <PackageReference Include="NetEvolve.CodeBuilder" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

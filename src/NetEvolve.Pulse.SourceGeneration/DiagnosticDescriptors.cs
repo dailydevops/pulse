@@ -32,7 +32,7 @@ internal static class DiagnosticDescriptors
     );
 
     /// <summary>
-    /// PULSE003 – the class implements a Pulse handler interface but is missing the [PulseHandler] attribute.
+    /// PULSE003 – the type implements a Pulse handler interface but is missing the [PulseHandler] attribute.
     /// </summary>
     public static readonly DiagnosticDescriptor MissingPulseHandlerAttribute = new(
         id: "PULSE003",
