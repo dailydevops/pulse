@@ -87,8 +87,8 @@ public class PrioritizedEventDispatcherTests
         var handlers = new List<IEventHandler<TestEvent>>
         {
             new PrioritizedTestHandler(1, 100, executionOrder),
-            new PrioritizedTestHandler(2, 100, executionOrder),
-            new PrioritizedTestHandler(3, 100, executionOrder),
+            new PrioritizedTestHandler(2, 200, executionOrder),
+            new PrioritizedTestHandler(3, 300, executionOrder),
         };
 
         await dispatcher

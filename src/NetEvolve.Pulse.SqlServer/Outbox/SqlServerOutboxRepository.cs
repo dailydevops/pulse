@@ -69,22 +69,20 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerOutboxRepository"/> class.
     /// </summary>
-    /// <param name="connectionString">The SQL Server connection string.</param>
     /// <param name="options">The outbox configuration options.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
     /// <param name="transactionScope">Optional transaction scope for ambient transaction support.</param>
     public SqlServerOutboxRepository(
-        string connectionString,
         IOptions<OutboxOptions> options,
         TimeProvider timeProvider,
         IOutboxTransactionScope? transactionScope = null
     )
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
-        _connectionString = connectionString;
+        _connectionString = options.Value.ConnectionString;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
 
@@ -352,16 +350,14 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
-        var messages = new List<OutboxMessage>();
-
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
         if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            return messages;
+            return [];
         }
 
-        // Resolve ordinals once per result set � GetOrdinal is a string lookup
+        // Resolve ordinals once per result set — GetOrdinal is a string lookup
         var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
         var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
         var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
@@ -374,6 +370,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
 
+        var messages = new List<OutboxMessage>();
         do
         {
             messages.Add(

@@ -1,7 +1,8 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -49,47 +50,35 @@ public static class SqlServerExtensions
         ArgumentNullException.ThrowIfNull(configurator);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        var services = configurator.Services;
-
-        // Register options if configureOptions is provided
-        if (configureOptions is not null)
+        return configurator.AddSqlServerOutbox(opts =>
         {
-            _ = services.Configure(configureOptions);
-        }
-
-        // Ensure TimeProvider is registered
-        services.TryAddSingleton(TimeProvider.System);
-
-        // Register the repository
-        _ = services.AddScoped<IOutboxRepository>(sp =>
-        {
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
-            var timeProvider = sp.GetRequiredService<TimeProvider>();
-            var transactionScope = sp.GetService<IOutboxTransactionScope>();
-
-            return new SqlServerOutboxRepository(connectionString, options, timeProvider, transactionScope);
+            opts.ConnectionString = connectionString;
+            configureOptions?.Invoke(opts);
         });
-
-        // Register the management API
-        _ = services.AddScoped<IOutboxManagement>(sp =>
-        {
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
-            return new SqlServerOutboxManagement(connectionString, options);
-        });
-
-        return configurator;
     }
 
     /// <summary>
     /// Adds SQL Server outbox persistence with a connection string provider factory.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
-    /// <param name="connectionStringFactory">Factory function to resolve the connection string.</param>
-    /// <param name="configureOptions">Optional action to configure <see cref="OutboxOptions"/>.</param>
+    /// <param name="connectionStringFactory">Factory function to resolve the connection string from the <see cref="IServiceProvider"/>.</param>
+    /// <param name="configureOptions">Optional action to configure additional <see cref="OutboxOptions"/> settings.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// Use this overload when the connection string needs to be resolved from configuration
     /// or other services at runtime.
+    /// <para><strong>Prerequisites:</strong></para>
+    /// Execute the schema script from <c>Scripts/OutboxMessage.sql</c> to create the required
+    /// database objects before using this provider.
+    /// <para><strong>Registered Services:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
+    /// <item><description><see cref="IOutboxManagement"/> as <see cref="SqlServerOutboxManagement"/> (Scoped)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
+    /// </list>
+    /// <para><strong>Note:</strong></para>
+    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
+    /// before calling this method.
     /// </remarks>
     /// <example>
     /// <code>
@@ -112,33 +101,72 @@ public static class SqlServerExtensions
 
         var services = configurator.Services;
 
-        // Register options if configureOptions is provided
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
         }
 
-        // Ensure TimeProvider is registered
+        _ = services.AddSingleton<IConfigureOptions<OutboxOptions>>(sp => new ConfigureOptions<OutboxOptions>(o =>
+            o.ConnectionString = connectionStringFactory(sp)
+        ));
+
+        return configurator.RegisterSqlServerOutboxServices();
+    }
+
+    /// <summary>
+    /// Adds SQL Server outbox persistence using ADO.NET with a full options configuration action.
+    /// </summary>
+    /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="configureOptions">Action to configure <see cref="OutboxOptions"/>.</param>
+    /// <returns>The configurator for chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Prerequisites:</strong></para>
+    /// Execute the schema script from <c>Scripts/OutboxMessage.sql</c> to create the required
+    /// database objects before using this provider.
+    /// <para><strong>Registered Services:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
+    /// <item><description><see cref="IOutboxManagement"/> as <see cref="SqlServerOutboxManagement"/> (Scoped)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
+    /// </list>
+    /// <para><strong>Note:</strong></para>
+    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
+    /// before calling this method.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddPulse(config => config
+    ///     .AddOutbox()
+    ///     .AddSqlServerOutbox(opts =>
+    ///     {
+    ///         opts.ConnectionString = "Server=.;Database=MyDb;Integrated Security=true;";
+    ///         opts.Schema = "myschema";
+    ///     })
+    /// );
+    /// </code>
+    /// </example>
+    public static IMediatorBuilder AddSqlServerOutbox(
+        this IMediatorBuilder configurator,
+        Action<OutboxOptions> configureOptions
+    )
+    {
+        ArgumentNullException.ThrowIfNull(configurator);
+        ArgumentNullException.ThrowIfNull(configureOptions);
+
+        _ = configurator.Services.Configure(configureOptions);
+
+        return configurator.RegisterSqlServerOutboxServices();
+    }
+
+    private static IMediatorBuilder RegisterSqlServerOutboxServices(this IMediatorBuilder configurator)
+    {
+        var services = configurator.Services;
+
         services.TryAddSingleton(TimeProvider.System);
 
-        // Register the repository with factory
-        _ = services.AddScoped<IOutboxRepository>(sp =>
-        {
-            var connectionString = connectionStringFactory(sp);
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
-            var timeProvider = sp.GetRequiredService<TimeProvider>();
-            var transactionScope = sp.GetService<IOutboxTransactionScope>();
-
-            return new SqlServerOutboxRepository(connectionString, options, timeProvider, transactionScope);
-        });
-
-        // Register the management API with factory
-        _ = services.AddScoped<IOutboxManagement>(sp =>
-        {
-            var connectionString = connectionStringFactory(sp);
-            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OutboxOptions>>();
-            return new SqlServerOutboxManagement(connectionString, options);
-        });
+        _ = services
+            .AddScoped<IOutboxRepository, SqlServerOutboxRepository>()
+            .AddScoped<IOutboxManagement, SqlServerOutboxManagement>();
 
         return configurator;
     }

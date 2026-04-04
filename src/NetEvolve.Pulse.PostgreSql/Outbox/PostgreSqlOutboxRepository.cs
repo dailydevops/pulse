@@ -68,22 +68,20 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlOutboxRepository"/> class.
     /// </summary>
-    /// <param name="connectionString">The PostgreSQL connection string.</param>
     /// <param name="options">The outbox configuration options.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
     /// <param name="transactionScope">Optional transaction scope for ambient transaction support.</param>
     public PostgreSqlOutboxRepository(
-        string connectionString,
         IOptions<OutboxOptions> options,
         TimeProvider timeProvider,
         IOutboxTransactionScope? transactionScope = null
     )
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
-        _connectionString = connectionString;
+        _connectionString = options.Value.ConnectionString;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
 
@@ -327,13 +325,11 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
-        var messages = new List<OutboxMessage>();
-
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
         if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            return messages;
+            return [];
         }
 
         // Resolve ordinals once per result set — GetOrdinal is a string lookup
@@ -349,6 +345,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
         var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
 
+        var messages = new List<OutboxMessage>();
         do
         {
             messages.Add(
