@@ -17,16 +17,22 @@ using NetEvolve.Pulse.SourceGeneration.Models;
 [Generator(LanguageNames.CSharp)]
 public sealed class PulseHandlerGenerator : IIncrementalGenerator
 {
+    /// <summary>Fully qualified metadata name of the <c>[PulseHandler]</c> attribute.</summary>
     private const string PulseHandlerAttributeFullName = "NetEvolve.Pulse.Attributes.PulseHandlerAttribute";
 
+    /// <summary>Metadata name of the two-type-argument <c>ICommandHandler</c> interface.</summary>
     private const string CommandHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.ICommandHandler`2";
 
+    /// <summary>Metadata name of the single-type-argument <c>ICommandHandler</c> interface.</summary>
     private const string CommandHandlerSingleInterfaceName = "NetEvolve.Pulse.Extensibility.ICommandHandler`1";
 
+    /// <summary>Metadata name of the <c>IQueryHandler</c> interface.</summary>
     private const string QueryHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IQueryHandler`2";
 
+    /// <summary>Metadata name of the <c>IEventHandler</c> interface.</summary>
     private const string EventHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IEventHandler`1";
 
+    /// <summary>Metadata name of the <c>IStreamQueryHandler</c> interface.</summary>
     private const string StreamQueryHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.IStreamQueryHandler`2";
 
     /// <summary>
@@ -37,7 +43,18 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Collect annotated classes/records via ForAttributeWithMetadataName for efficient filtering.
+        RegisterHandlerRegistrationPipeline(context);
+        RegisterOpenGenericDiagnosticPipeline(context);
+        RegisterUnannotatedHandlerDiagnosticPipeline(context);
+    }
+
+    /// <summary>
+    /// Registers the main handler registration pipeline that collects <c>[PulseHandler]</c>-annotated
+    /// types and emits the DI registration extension method via <see cref="Execute"/>.
+    /// </summary>
+    /// <param name="context">The generator initialization context.</param>
+    private static void RegisterHandlerRegistrationPipeline(IncrementalGeneratorInitializationContext context)
+    {
         var handlerInfos = context
             .SyntaxProvider.ForAttributeWithMetadataName(
                 PulseHandlerAttributeFullName,
@@ -49,7 +66,6 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         var collected = handlerInfos.Collect();
 
-        // Resolve the target project's root namespace for the generated code.
         var rootNamespace = context.AnalyzerConfigOptionsProvider.Select(
             static (provider, _1) =>
             {
@@ -58,7 +74,6 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
         );
 
-        // Read the assembly name from the compilation for the generated method name.
         var assemblyName = context.CompilationProvider.Select(static (compilation, _) => compilation.AssemblyName);
 
         var combined = collected.Combine(rootNamespace).Combine(assemblyName);
@@ -67,8 +82,44 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             combined,
             static (spc, data) => Execute(spc, data.Left.Left, data.Left.Right, data.Right)
         );
+    }
 
-        // Report PULSE003 for classes/records that implement a handler interface but lack [PulseHandler].
+    /// <summary>
+    /// Registers the incremental pipeline that reports PULSE004 for <c>[PulseHandler]</c>-annotated
+    /// open generic types that cannot be automatically registered.
+    /// </summary>
+    /// <param name="context">The generator initialization context.</param>
+    private static void RegisterOpenGenericDiagnosticPipeline(IncrementalGeneratorInitializationContext context)
+    {
+        var openGenericHandlers = context
+            .SyntaxProvider.ForAttributeWithMetadataName(
+                PulseHandlerAttributeFullName,
+                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+                transform: static (ctx, ct) => ExtractOpenGenericHandlerInfo(ctx, ct)
+            )
+            .Where(static info => info.HasValue)
+            .Select(static (info, _) => info!.Value);
+
+        context.RegisterSourceOutput(
+            openGenericHandlers,
+            static (spc, info) =>
+                spc.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.OpenGenericHandlerNotSupported,
+                        info.Location,
+                        info.HandlerTypeName
+                    )
+                )
+        );
+    }
+
+    /// <summary>
+    /// Registers the incremental pipeline that reports PULSE003 for types that implement a known
+    /// Pulse handler interface but are not annotated with <c>[PulseHandler]</c>.
+    /// </summary>
+    /// <param name="context">The generator initialization context.</param>
+    private static void RegisterUnannotatedHandlerDiagnosticPipeline(IncrementalGeneratorInitializationContext context)
+    {
         var unannotatedHandlers = context
             .SyntaxProvider.CreateSyntaxProvider(
                 predicate: static (node, _) =>
@@ -106,64 +157,38 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Read the Lifetime property from the attribute.
-        var lifetime = DefaultLifetime;
-        foreach (var attr in ctx.Attributes)
+        // Skip open generic types - they cannot be registered in the DI container.
+        if (classSymbol.TypeParameters.Length > 0)
         {
-            foreach (var namedArg in attr.NamedArguments)
-            {
-                if (string.Equals(namedArg.Key, "Lifetime", StringComparison.Ordinal) && !namedArg.Value.IsNull)
-                {
-                    // When IsNull is false, Value is guaranteed to be non-null by the Roslyn API contract.
-                    lifetime = (int)namedArg.Value.Value!;
-                }
-            }
+            return null;
         }
 
-        var registrations = new List<HandlerRegistration>();
+        var lifetime = ReadLifetime(ctx.Attributes);
         var location = ctx.TargetNode.GetLocation();
-
-        foreach (var iface in classSymbol.AllInterfaces)
-        {
-            var originalDef = iface.OriginalDefinition;
-            var metadataName = GetFullMetadataName(originalDef);
-
-            HandlerKind? kind = null;
-
-            if (
-                string.Equals(metadataName, CommandHandlerInterfaceName, StringComparison.Ordinal)
-                || string.Equals(metadataName, CommandHandlerSingleInterfaceName, StringComparison.Ordinal)
-            )
-            {
-                kind = HandlerKind.Command;
-            }
-            else if (string.Equals(metadataName, QueryHandlerInterfaceName, StringComparison.Ordinal))
-            {
-                kind = HandlerKind.Query;
-            }
-            else if (string.Equals(metadataName, EventHandlerInterfaceName, StringComparison.Ordinal))
-            {
-                kind = HandlerKind.Event;
-            }
-            else if (string.Equals(metadataName, StreamQueryHandlerInterfaceName, StringComparison.Ordinal))
-            {
-                kind = HandlerKind.StreamQuery;
-            }
-
-            if (kind.HasValue)
-            {
-                registrations.Add(
-                    new HandlerRegistration(
-                        handlerTypeName: GetFullyQualifiedName(classSymbol),
-                        serviceTypeName: GetFullyQualifiedName(iface),
-                        kind: kind.Value,
-                        lifetime: lifetime
-                    )
-                );
-            }
-        }
+        var registrations = BuildHandlerRegistrations(classSymbol, lifetime);
 
         return new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location);
+    }
+
+    /// <summary>
+    /// Detects open generic types annotated with <c>[PulseHandler]</c> for PULSE004 reporting.
+    /// Returns <c>null</c> when the type is not an open generic.
+    /// </summary>
+    private static HandlerInfo? ExtractOpenGenericHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
+        {
+            return null;
+        }
+
+        if (classSymbol.TypeParameters.Length == 0)
+        {
+            return null;
+        }
+
+        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], ctx.TargetNode.GetLocation());
     }
 
     /// <summary>
@@ -183,6 +208,12 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var typeDeclaration = (TypeDeclarationSyntax)ctx.Node;
 
         if (ctx.SemanticModel.GetDeclaredSymbol(typeDeclaration, ct) is not INamedTypeSymbol classSymbol)
+        {
+            return null;
+        }
+
+        // Skip open generic types - they cannot be registered even with [PulseHandler], so PULSE003 is not applicable.
+        if (classSymbol.TypeParameters.Length > 0)
         {
             return null;
         }
@@ -207,15 +238,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         // Check whether the class implements any known handler interface.
         foreach (var iface in classSymbol.AllInterfaces)
         {
-            var metadataName = GetFullMetadataName(iface.OriginalDefinition);
-
-            if (
-                string.Equals(metadataName, CommandHandlerInterfaceName, StringComparison.Ordinal)
-                || string.Equals(metadataName, CommandHandlerSingleInterfaceName, StringComparison.Ordinal)
-                || string.Equals(metadataName, QueryHandlerInterfaceName, StringComparison.Ordinal)
-                || string.Equals(metadataName, EventHandlerInterfaceName, StringComparison.Ordinal)
-                || string.Equals(metadataName, StreamQueryHandlerInterfaceName, StringComparison.Ordinal)
-            )
+            if (TryGetHandlerKind(GetFullMetadataName(iface.OriginalDefinition), out _))
             {
                 return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], typeDeclaration.GetLocation());
             }
@@ -234,7 +257,32 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         string? assemblyName
     )
     {
-        // Report PULSE001 for handlers with no recognized interfaces.
+        ReportNoHandlerInterfaceDiagnostics(spc, handlers);
+
+        var singleHandlerContracts = BuildSingleHandlerContracts(handlers);
+        var duplicatedServiceTypes = ReportDuplicateHandlerDiagnostics(spc, singleHandlerContracts);
+        var allRegistrations = BuildRegistrations(handlers, duplicatedServiceTypes);
+
+        if (allRegistrations.Count == 0)
+        {
+            return;
+        }
+
+        var source = GenerateSource(allRegistrations, rootNamespace, assemblyName);
+        spc.AddSource("PulseRegistrations.Handlers.g.cs", source);
+    }
+
+    /// <summary>
+    /// Reports PULSE001 for every handler in <paramref name="handlers"/> that has no recognized
+    /// Pulse handler interface registrations.
+    /// </summary>
+    /// <param name="spc">The production context used to emit diagnostics.</param>
+    /// <param name="handlers">The collected handler infos to inspect.</param>
+    private static void ReportNoHandlerInterfaceDiagnostics(
+        SourceProductionContext spc,
+        ImmutableArray<HandlerInfo> handlers
+    )
+    {
         foreach (var handler in handlers)
         {
             if (handler.Registrations.Length == 0)
@@ -248,9 +296,20 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 );
             }
         }
+    }
 
-        // Detect duplicate single-handler contracts (command & query).
-        var singleHandlerContracts = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+    /// <summary>
+    /// Builds a map from service type name to the list of handler type names for all non-event
+    /// single-handler contracts (commands, queries, and stream queries).
+    /// </summary>
+    /// <param name="handlers">The collected handler infos to aggregate.</param>
+    /// <returns>
+    /// A dictionary keyed by service type name whose values are the handler type names registered
+    /// for that contract.
+    /// </returns>
+    private static Dictionary<string, List<string>> BuildSingleHandlerContracts(ImmutableArray<HandlerInfo> handlers)
+    {
+        var contracts = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
         foreach (var handler in handlers)
         {
@@ -261,18 +320,36 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                     continue;
                 }
 
-                if (!singleHandlerContracts.TryGetValue(reg.ServiceTypeName, out var handlerNames))
+                if (!contracts.TryGetValue(reg.ServiceTypeName, out var handlerNames))
                 {
                     handlerNames = [];
-                    singleHandlerContracts[reg.ServiceTypeName] = handlerNames;
+                    contracts[reg.ServiceTypeName] = handlerNames;
                 }
 
                 handlerNames.Add(reg.HandlerTypeName);
             }
         }
 
-        // Report PULSE002 for duplicate single-handler contracts and track them for deduplication.
+        return contracts;
+    }
+
+    /// <summary>
+    /// Reports PULSE002 for every service type that has more than one registered handler, and
+    /// returns the set of duplicated service type names for downstream deduplication.
+    /// </summary>
+    /// <param name="spc">The production context used to emit diagnostics.</param>
+    /// <param name="singleHandlerContracts">
+    /// The map of service type names to handler type names produced by
+    /// <see cref="BuildSingleHandlerContracts"/>.
+    /// </param>
+    /// <returns>The set of service type names that have duplicate registrations.</returns>
+    private static HashSet<string> ReportDuplicateHandlerDiagnostics(
+        SourceProductionContext spc,
+        Dictionary<string, List<string>> singleHandlerContracts
+    )
+    {
         var duplicatedServiceTypes = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var kvp in singleHandlerContracts)
         {
             if (kvp.Value.Count > 1)
@@ -289,8 +366,24 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
         }
 
+        return duplicatedServiceTypes;
+    }
+
+    /// <summary>
+    /// Assembles the final deduplicated list of <see cref="HandlerRegistration"/> entries to emit.
+    /// For service types with duplicate registrations only the first encountered handler is included.
+    /// </summary>
+    /// <param name="handlers">The collected handler infos to flatten.</param>
+    /// <param name="duplicatedServiceTypes">Service type names that have more than one registered handler.</param>
+    /// <returns>The deduplicated list of registrations ready for code generation.</returns>
+    private static List<HandlerRegistration> BuildRegistrations(
+        ImmutableArray<HandlerInfo> handlers,
+        HashSet<string> duplicatedServiceTypes
+    )
+    {
         var emittedServiceTypes = new HashSet<string>(StringComparer.Ordinal);
         var allRegistrations = new List<HandlerRegistration>();
+
         foreach (var handler in handlers)
         {
             foreach (var reg in handler.Registrations)
@@ -309,15 +402,19 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
         }
 
-        if (allRegistrations.Count == 0)
-        {
-            return;
-        }
-
-        var source = GenerateSource(allRegistrations, rootNamespace, assemblyName);
-        spc.AddSource("PulseRegistrations.Handlers.g.cs", source);
+        return allRegistrations;
     }
 
+    /// <summary>
+    /// Emits the C# source for the <c>PulseRegistrationExtensions</c> extension method that
+    /// registers all discovered handlers into the DI container.
+    /// </summary>
+    /// <param name="registrations">The deduplicated list of registrations to emit.</param>
+    /// <param name="rootNamespace">
+    /// The target project's root namespace, or <see langword="null"/> to use the default.
+    /// </param>
+    /// <param name="assemblyName">The target assembly name used to derive the generated method name.</param>
+    /// <returns>The generated C# source text.</returns>
     private static string GenerateSource(
         List<HandlerRegistration> registrations,
         string? rootNamespace,
@@ -397,6 +494,95 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// Reads the <c>Lifetime</c> named argument from the <c>[PulseHandler]</c> attribute data.
+    /// Returns <see cref="DefaultLifetime"/> when no explicit value is set.
+    /// </summary>
+    private static int ReadLifetime(ImmutableArray<AttributeData> attributes)
+    {
+        var lifetime = DefaultLifetime;
+
+        foreach (var attr in attributes)
+        {
+            foreach (var namedArg in attr.NamedArguments)
+            {
+                if (string.Equals(namedArg.Key, "Lifetime", StringComparison.Ordinal) && !namedArg.Value.IsNull)
+                {
+                    // When IsNull is false, Value is guaranteed to be non-null by the Roslyn API contract.
+                    lifetime = (int)namedArg.Value.Value!;
+                }
+            }
+        }
+
+        return lifetime;
+    }
+
+    /// <summary>
+    /// Resolves the <see cref="HandlerKind"/> for a given interface metadata name.
+    /// Returns <see langword="true"/> when the metadata name matches a known Pulse handler interface.
+    /// </summary>
+    private static bool TryGetHandlerKind(string metadataName, out HandlerKind kind)
+    {
+        if (
+            string.Equals(metadataName, CommandHandlerInterfaceName, StringComparison.Ordinal)
+            || string.Equals(metadataName, CommandHandlerSingleInterfaceName, StringComparison.Ordinal)
+        )
+        {
+            kind = HandlerKind.Command;
+            return true;
+        }
+
+        if (string.Equals(metadataName, QueryHandlerInterfaceName, StringComparison.Ordinal))
+        {
+            kind = HandlerKind.Query;
+            return true;
+        }
+
+        if (string.Equals(metadataName, EventHandlerInterfaceName, StringComparison.Ordinal))
+        {
+            kind = HandlerKind.Event;
+            return true;
+        }
+
+        if (string.Equals(metadataName, StreamQueryHandlerInterfaceName, StringComparison.Ordinal))
+        {
+            kind = HandlerKind.StreamQuery;
+            return true;
+        }
+
+        kind = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Builds the list of <see cref="HandlerRegistration"/> entries for all recognized Pulse handler
+    /// interfaces implemented by <paramref name="classSymbol"/>.
+    /// </summary>
+    private static List<HandlerRegistration> BuildHandlerRegistrations(INamedTypeSymbol classSymbol, int lifetime)
+    {
+        var registrations = new List<HandlerRegistration>();
+        var handlerTypeName = GetFullyQualifiedName(classSymbol);
+
+        foreach (var iface in classSymbol.AllInterfaces)
+        {
+            var metadataName = GetFullMetadataName(iface.OriginalDefinition);
+
+            if (TryGetHandlerKind(metadataName, out var kind))
+            {
+                registrations.Add(
+                    new HandlerRegistration(
+                        handlerTypeName: handlerTypeName,
+                        serviceTypeName: GetFullyQualifiedName(iface),
+                        kind: kind,
+                        lifetime: lifetime
+                    )
+                );
+            }
+        }
+
+        return registrations;
+    }
+
+    /// <summary>
     /// Returns the fully qualified name of a type symbol using the <c>global::</c> prefix,
     /// suitable for emitting in generated source.
     /// </summary>
@@ -433,10 +619,22 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// </summary>
     private readonly struct HandlerInfo : IEquatable<HandlerInfo>
     {
+        /// <summary>Gets the fully qualified name of the handler type.</summary>
         public string HandlerTypeName { get; }
+
+        /// <summary>Gets the handler interface registrations discovered for this type.</summary>
         public HandlerRegistration[] Registrations { get; }
+
+        /// <summary>Gets the source location of the handler type declaration for diagnostic reporting.</summary>
         public Location Location { get; }
 
+        /// <summary>
+        /// Initializes a new <see cref="HandlerInfo"/> with the given type name, registrations,
+        /// and source location.
+        /// </summary>
+        /// <param name="handlerTypeName">The fully qualified name of the handler type.</param>
+        /// <param name="registrations">The handler interface registrations for this type.</param>
+        /// <param name="location">The source location of the type declaration.</param>
         public HandlerInfo(string handlerTypeName, HandlerRegistration[] registrations, Location location)
         {
             HandlerTypeName = handlerTypeName;
@@ -444,12 +642,15 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             Location = location;
         }
 
+        /// <inheritdoc />
         public bool Equals(HandlerInfo other) =>
             string.Equals(HandlerTypeName, other.HandlerTypeName, StringComparison.Ordinal)
             && RegistrationsEqual(Registrations, other.Registrations);
 
+        /// <inheritdoc />
         public override bool Equals(object obj) => obj is HandlerInfo other && Equals(other);
 
+        /// <inheritdoc />
         public override int GetHashCode()
         {
             unchecked
@@ -463,6 +664,14 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
         }
 
+        /// <summary>
+        /// Compares two <see cref="HandlerRegistration"/> arrays for element-wise equality.
+        /// </summary>
+        /// <param name="left">The left array to compare.</param>
+        /// <param name="right">The right array to compare.</param>
+        /// <returns>
+        /// <see langword="true"/> when both arrays have the same length and all elements are equal.
+        /// </returns>
         private static bool RegistrationsEqual(HandlerRegistration[] left, HandlerRegistration[] right)
         {
             if (left.Length != right.Length)
