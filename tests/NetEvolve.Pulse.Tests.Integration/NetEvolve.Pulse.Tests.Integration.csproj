@@ -48,17 +48,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\src\NetEvolve.Pulse.PostgreSql\Scripts\OutboxMessage.sql">
+    <None Include="..\..\src\NetEvolve.Pulse.PostgreSql\Scripts\**\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Scripts\PostgreSql\OutboxMessage.sql</Link>
+      <Link>Scripts\PostgreSql\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>
-    <None Include="..\..\src\NetEvolve.Pulse.SqlServer\Scripts\OutboxMessage.sql">
+    <None Include="..\..\src\NetEvolve.Pulse.SqlServer\Scripts\**\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Scripts\SqlServer\OutboxMessage.sql</Link>
+      <Link>Scripts\SqlServer\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>
-    <None Include="..\..\src\NetEvolve.Pulse.SQLite\Scripts\001_CreateOutboxTable.sql">
+    <None Include="..\..\src\NetEvolve.Pulse.SQLite\Scripts\**\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>Scripts\001_CreateOutboxTable.sql</Link>
+      <Link>Scripts\SQLite\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>
   </ItemGroup>
 
