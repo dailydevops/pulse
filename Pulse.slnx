@@ -33,7 +33,6 @@
     <Project Path="src/NetEvolve.Pulse.Polly/NetEvolve.Pulse.Polly.csproj" />
     <Project Path="src/NetEvolve.Pulse.HttpCorrelation/NetEvolve.Pulse.HttpCorrelation.csproj" />
     <Project Path="src/NetEvolve.Pulse.FluentValidation/NetEvolve.Pulse.FluentValidation.csproj" />
-    <Project Path="src/NetEvolve.Pulse.Attributes/NetEvolve.Pulse.Attributes.csproj" />
     <Project Path="src/NetEvolve.Pulse.RabbitMQ/NetEvolve.Pulse.RabbitMQ.csproj" />
     <Project Path="src/NetEvolve.Pulse.SourceGeneration/NetEvolve.Pulse.SourceGeneration.csproj" />
     <Project Path="src/NetEvolve.Pulse.AzureServiceBus/NetEvolve.Pulse.AzureServiceBus.csproj" />

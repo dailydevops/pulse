@@ -18,7 +18,8 @@ using NetEvolve.Pulse.SourceGeneration.Models;
 public sealed class PulseHandlerGenerator : IIncrementalGenerator
 {
     /// <summary>Fully qualified metadata name of the <c>[PulseHandler]</c> attribute.</summary>
-    private const string PulseHandlerAttributeFullName = "NetEvolve.Pulse.Attributes.PulseHandlerAttribute";
+    private const string PulseHandlerAttributeFullName =
+        "NetEvolve.Pulse.Extensibility.Attributes.PulseHandlerAttribute";
 
     /// <summary>Metadata name of the two-type-argument <c>ICommandHandler</c> interface.</summary>
     private const string CommandHandlerInterfaceName = "NetEvolve.Pulse.Extensibility.ICommandHandler`2";

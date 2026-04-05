@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Attributes;
+﻿namespace NetEvolve.Pulse.Extensibility.Attributes;
 
 /// <summary>
 /// Marks a handler class for automatic dependency injection registration by the Pulse source generator.
