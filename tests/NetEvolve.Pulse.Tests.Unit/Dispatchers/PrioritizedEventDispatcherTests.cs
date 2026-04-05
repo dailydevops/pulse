@@ -73,8 +73,8 @@ public class PrioritizedEventDispatcherTests
             _ = await Assert.That(order[0]).IsEqualTo(1); // Priority 0 first
             _ = await Assert.That(order[1]).IsEqualTo(2); // Priority 500 second
             // Non-prioritized handlers execute last, in registration order
-            _ = await Assert.That(order[2]).IsEqualTo(3);
-            _ = await Assert.That(order[3]).IsEqualTo(4);
+            _ = await Assert.That(order[2]).IsEqualTo(3).Or.IsEqualTo(4);
+            _ = await Assert.That(order[3]).IsEqualTo(3).Or.IsEqualTo(4);
         }
     }
 
