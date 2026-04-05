@@ -861,6 +861,48 @@ public class PulseHandlerGeneratorTests
         await VerifySources(diagnostics, generatedSources);
     }
 
+    [Test]
+    public async Task WhenOpenGenericHandlerAnnotatedThenPulse004Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Attributes;
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            [PulseHandler]
+            public class GenericHandler<TCommand, TResult> : ICommandHandler<TCommand, TResult>
+                where TCommand : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
+    [Test]
+    public async Task WhenOpenGenericHandlerNotAnnotatedThenNoPulse003()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public class GenericHandler<TCommand, TResult> : ICommandHandler<TCommand, TResult>
+                where TCommand : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources);
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
         string? rootNamespace = "TestAssembly",

@@ -42,4 +42,16 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true
     );
+
+    /// <summary>
+    /// PULSE004 – the annotated type is an open generic type that cannot be automatically registered.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OpenGenericHandlerNotSupported = new(
+        id: "PULSE004",
+        title: "Open generic type cannot be automatically registered",
+        messageFormat: "Type '{0}' is an open generic type and cannot be automatically registered by [PulseHandler]",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
 }

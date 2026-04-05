@@ -19,6 +19,13 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
     /// <summary>The service lifetime for the registration (0 = Singleton, 1 = Scoped, 2 = Transient).</summary>
     public int Lifetime { get; }
 
+    /// <summary>
+    /// Initializes a new <see cref="HandlerRegistration"/> with the specified type names, kind, and lifetime.
+    /// </summary>
+    /// <param name="handlerTypeName">The fully qualified name of the concrete handler class.</param>
+    /// <param name="serviceTypeName">The fully qualified name of the service interface.</param>
+    /// <param name="kind">The kind of handler contract.</param>
+    /// <param name="lifetime">The service lifetime for the registration.</param>
     public HandlerRegistration(string handlerTypeName, string serviceTypeName, HandlerKind kind, int lifetime)
     {
         HandlerTypeName = handlerTypeName;
@@ -27,14 +34,17 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
         Lifetime = lifetime;
     }
 
+    /// <inheritdoc />
     public bool Equals(HandlerRegistration other) =>
         string.Equals(HandlerTypeName, other.HandlerTypeName, StringComparison.Ordinal)
         && string.Equals(ServiceTypeName, other.ServiceTypeName, StringComparison.Ordinal)
         && Kind == other.Kind
         && Lifetime == other.Lifetime;
 
+    /// <inheritdoc />
     public override bool Equals(object obj) => obj is HandlerRegistration other && Equals(other);
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         unchecked
@@ -54,8 +64,15 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
 /// </summary>
 internal enum HandlerKind
 {
+    /// <summary>The handler processes command messages.</summary>
     Command,
+
+    /// <summary>The handler processes query messages.</summary>
     Query,
+
+    /// <summary>The handler processes event messages.</summary>
     Event,
+
+    /// <summary>The handler processes stream query messages.</summary>
     StreamQuery,
 }
