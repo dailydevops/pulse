@@ -20,13 +20,13 @@
         IsInSource: true,
         Kind: SourceFile,
         SourceSpan: {
-          Start: 160,
+          Start: 208,
           Length: 251
         },
         SourceTree: {
           FilePath: ,
           HasCompilationUnitRoot: true,
-          Length: 411,
+          Length: 459,
           Options: {
             DocumentationMode: Parse,
             Language: C#,
