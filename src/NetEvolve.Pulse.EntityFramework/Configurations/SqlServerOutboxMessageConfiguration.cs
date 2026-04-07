@@ -18,7 +18,7 @@ using NetEvolve.Pulse.Outbox;
 /// Column mappings are defined in <see cref="OutboxMessageConfigurationBase"/>. Only the
 /// index filter expressions are SQL Server-specific (bracket-quoted identifiers).
 /// <para><strong>Other Providers:</strong></para>
-/// Use <see cref="OutboxMessageConfigurationFactory.Create(string,IOptions{OutboxOptions})"/>
+/// Call <see cref="ModelBuilderExtensions.ApplyPulseConfiguration{TContext}(ModelBuilder, TContext)"/>
 /// to automatically select the correct configuration for your provider, or instantiate
 /// <see cref="PostgreSqlOutboxMessageConfiguration"/> or <see cref="SqliteOutboxMessageConfiguration"/> directly.
 /// <para><strong>Customization:</strong></para>
@@ -31,9 +31,8 @@ using NetEvolve.Pulse.Outbox;
 ///     // With default options (SQL Server)
 ///     modelBuilder.ApplyConfiguration(new SqlServerOutboxMessageConfiguration());
 ///
-///     // Provider-detected via factory
-///     modelBuilder.ApplyConfiguration(
-///         OutboxMessageConfigurationFactory.Create(this));
+///     // Via extension method (recommended)
+///     modelBuilder.ApplyPulseConfiguration(this);
 /// }
 /// </code>
 /// </example>

@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Configurations;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -16,18 +17,17 @@ using NetEvolve.Pulse.Outbox;
 /// overrides (column types, index filters) are intentionally omitted because the InMemory
 /// provider silently ignores them.
 /// <para><strong>Usage:</strong></para>
-/// Either instantiate this class directly or use
-/// <see cref="OutboxMessageConfigurationFactory.Create(string,IOptions{OutboxOptions})"/>
-/// with the InMemory provider name. The factory automatically selects this configuration
-/// when it detects <c>Microsoft.EntityFrameworkCore.InMemory</c> as the active provider.
+/// Either instantiate this class directly or call
+/// <see cref="ModelBuilderExtensions.ApplyPulseConfiguration{TContext}(ModelBuilder, TContext)"/>,
+/// which automatically selects this configuration when it detects
+/// <c>Microsoft.EntityFrameworkCore.InMemory</c> as the active provider.
 /// </remarks>
 /// <example>
 /// <code>
 /// protected override void OnModelCreating(ModelBuilder modelBuilder)
 /// {
-///     // Via factory (recommended — works for all providers including InMemory)
-///     modelBuilder.ApplyConfiguration(
-///         OutboxMessageConfigurationFactory.Create(this));
+///     // Via extension method (recommended — works for all providers)
+///     modelBuilder.ApplyPulseConfiguration(this);
 /// }
 /// </code>
 /// </example>

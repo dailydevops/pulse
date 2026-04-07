@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
+using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -181,11 +182,21 @@ public sealed class OutboxMessageConfigurationMetadataTests
     private static IMutableEntityType GetConfiguredEntityType(string providerName, OutboxOptions? options = null)
     {
         var modelBuilder = new ModelBuilder();
+        var resolvedOptions = Options.Create(options ?? new OutboxOptions());
 
-        _ = modelBuilder.ApplyConfiguration(
-            OutboxMessageConfigurationFactory.Create(providerName, Options.Create(options ?? new OutboxOptions()))
-        );
+        IEntityTypeConfiguration<OutboxMessage> configuration = providerName switch
+        {
+            "Npgsql.EntityFrameworkCore.PostgreSQL" => new PostgreSqlOutboxMessageConfiguration(resolvedOptions),
+            "Microsoft.EntityFrameworkCore.Sqlite" => new SqliteOutboxMessageConfiguration(resolvedOptions),
+            "Microsoft.EntityFrameworkCore.SqlServer" => new SqlServerOutboxMessageConfiguration(resolvedOptions),
+            "Pomelo.EntityFrameworkCore.MySql" or "MySql.EntityFrameworkCore" => new MySqlOutboxMessageConfiguration(
+                resolvedOptions
+            ),
+            "Microsoft.EntityFrameworkCore.InMemory" => new InMemoryOutboxMessageConfiguration(resolvedOptions),
+            _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
+        };
 
+        _ = modelBuilder.ApplyConfiguration(configuration);
         return modelBuilder.Model.FindEntityType(typeof(OutboxMessage))!;
     }
 

@@ -18,7 +18,8 @@ using NetEvolve.Pulse.Outbox;
 /// SQLite does not support named schemas. If <see cref="OutboxOptions.Schema"/> is set,
 /// it will be passed to EF Core which silently ignores it for SQLite.
 /// <para><strong>Usage:</strong></para>
-/// Either instantiate this class directly or use <see cref="OutboxMessageConfigurationFactory.Create(string,IOptions{OutboxOptions})"/>
+/// Either instantiate this class directly or call
+/// <see cref="ModelBuilderExtensions.ApplyPulseConfiguration{TContext}(ModelBuilder, TContext)"/>
 /// with the SQLite provider name.
 /// <para><strong>Customization:</strong></para>
 /// Override schema and table names via <see cref="OutboxOptions"/> before applying this configuration.
@@ -30,9 +31,8 @@ using NetEvolve.Pulse.Outbox;
 ///     // Directly
 ///     modelBuilder.ApplyConfiguration(new SqliteOutboxMessageConfiguration());
 ///
-///     // Via factory (recommended)
-///     modelBuilder.ApplyConfiguration(
-///         OutboxMessageConfigurationFactory.Create(this));
+///     // Via extension method (recommended)
+///     modelBuilder.ApplyPulseConfiguration(this);
 /// }
 /// </code>
 /// </example>
