@@ -1,9 +1,11 @@
-namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("SQLite")]
 public sealed class SQLiteOutboxTransactionScopeTests
 {
     [Test]

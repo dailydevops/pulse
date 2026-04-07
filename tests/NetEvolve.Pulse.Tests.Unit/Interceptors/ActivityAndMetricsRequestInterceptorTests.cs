@@ -1,10 +1,12 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Core;
 
+[TestGroup("Interceptors")]
 public class ActivityAndMetricsRequestInterceptorTests
 {
     [Test]

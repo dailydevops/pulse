@@ -1,11 +1,13 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.PostgreSql;
 
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
-using static global::NetEvolve.Pulse.Outbox.PostgreSqlOutboxOptionsExtensions;
-using OutboxOptions = global::NetEvolve.Pulse.Outbox.OutboxOptions;
+using static NetEvolve.Pulse.Outbox.PostgreSqlOutboxOptionsExtensions;
+using OutboxOptions = Pulse.Outbox.OutboxOptions;
 
+[TestGroup("PostgreSql")]
 public sealed class PostgreSqlOutboxOptionsExtensionsTests
 {
     [Test]

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.AzureServiceBus;
+﻿namespace NetEvolve.Pulse.Tests.Unit.AzureServiceBus;
 
 using System.Collections.Generic;
 using System.Globalization;
@@ -6,12 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("AzureServiceBus")]
 public sealed class AzureServiceBusMessageTransportTests
 {
     private const string FakeConnectionString =
@@ -414,7 +416,7 @@ public sealed class AzureServiceBusMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
-            BatchedMessages.Add(messages.ToList());
+            BatchedMessages.Add([.. messages]);
             return Task.CompletedTask;
         }
 

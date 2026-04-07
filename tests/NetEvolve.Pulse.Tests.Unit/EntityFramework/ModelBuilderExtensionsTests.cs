@@ -3,10 +3,12 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("EntityFramework")]
 public sealed class ModelBuilderExtensionsTests
 {
     [Test]
@@ -18,7 +20,7 @@ public sealed class ModelBuilderExtensionsTests
         await using var context = new TestDbContext(options);
 
         _ = await Assert
-            .That(() => ModelBuilderExtensions.ApplyPulseConfiguration<TestDbContext>(null!, context))
+            .That(() => ModelBuilderExtensions.ApplyPulseConfiguration(null!, context))
             .Throws<ArgumentNullException>();
     }
 

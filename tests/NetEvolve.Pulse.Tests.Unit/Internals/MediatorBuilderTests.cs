@@ -1,10 +1,12 @@
-namespace NetEvolve.Pulse.Tests.Unit.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
+[TestGroup("Internals")]
 public class MediatorBuilderTests
 {
     [Test]

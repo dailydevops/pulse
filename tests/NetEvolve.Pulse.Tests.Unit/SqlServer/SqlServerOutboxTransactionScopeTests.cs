@@ -1,9 +1,11 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
 
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("SqlServer")]
 public sealed class SqlServerOutboxTransactionScopeTests
 {
     [Test]

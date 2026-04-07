@@ -7,6 +7,7 @@ using global::Polly;
 using global::Polly.CircuitBreaker;
 using global::Polly.Retry;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
@@ -18,6 +19,7 @@ using TUnit.Core;
     "CA2000:Dispose objects before losing scope",
     Justification = "ServiceProvider instances are short-lived within test methods"
 )]
+[TestGroup("Polly")]
 public sealed class PollyRequestInterceptorTests
 {
     private static ServiceProvider CreateServiceProvider<TRequest, TResponse>(

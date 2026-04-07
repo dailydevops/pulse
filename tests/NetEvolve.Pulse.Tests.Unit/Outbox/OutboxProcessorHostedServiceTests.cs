@@ -1,9 +1,10 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -13,10 +14,9 @@ using TUnit.Core;
 /// Unit tests for <see cref="OutboxProcessorHostedService"/>.
 /// Tests constructor validation, message processing logic, and error handling.
 /// </summary>
+[TestGroup("Outbox")]
 public sealed class OutboxProcessorHostedServiceTests
 {
-    #region Constructor Tests
-
     [Test]
     public async Task Constructor_WithNullRepository_ThrowsArgumentNullException()
     {
@@ -86,10 +86,6 @@ public sealed class OutboxProcessorHostedServiceTests
         _ = await Assert.That(service).IsNotNull();
     }
 
-    #endregion
-
-    #region StartAsync/StopAsync Tests
-
     [Test]
     public async Task StartAsync_WithCancellationToken_StartsProcessing()
     {
@@ -133,10 +129,6 @@ public sealed class OutboxProcessorHostedServiceTests
         // Test passes if no exceptions thrown during graceful shutdown
         _ = await Assert.That(repository.GetPendingCallCount).IsGreaterThanOrEqualTo(1);
     }
-
-    #endregion
-
-    #region Message Processing Tests
 
     [Test]
     public async Task ExecuteAsync_WithPendingMessages_ProcessesAndCompletesMessages()
@@ -222,10 +214,6 @@ public sealed class OutboxProcessorHostedServiceTests
         _ = await Assert.That(repository.GetPendingCallCount).IsGreaterThanOrEqualTo(2);
     }
 
-    #endregion
-
-    #region Error Handling Tests
-
     [Test]
     public async Task ExecuteAsync_WithTransportFailure_MarksMessageAsFailed()
     {
@@ -303,10 +291,6 @@ public sealed class OutboxProcessorHostedServiceTests
         // Message should eventually be completed after retry
         _ = await Assert.That(repository.CompletedMessageIds).Contains(message.Id);
     }
-
-    #endregion
-
-    #region Batch Processing Tests
 
     [Test]
     public async Task ExecuteAsync_WithBatchSendingEnabled_SendsInBatch()
@@ -405,10 +389,6 @@ public sealed class OutboxProcessorHostedServiceTests
         // First batch should have processed 2 messages
         _ = await Assert.That(repository.LastBatchSizeRequested).IsEqualTo(2);
     }
-
-    #endregion
-
-    #region Per-Event-Type Override Tests
 
     [Test]
     public async Task ExecuteAsync_WithPerEventTypeMaxRetryCount_UsesOverrideForMatchingEventType()
@@ -619,10 +599,6 @@ public sealed class OutboxProcessorHostedServiceTests
             _ = await Assert.That(globalOptions.GetEffectiveEnableBatchSending(typeof(NullOverrideEvent))).IsTrue();
         }
     }
-
-    #endregion
-
-    #region Metrics Tests
 
     [Test]
     [NotInParallel("OutboxMetrics")]
@@ -862,10 +838,6 @@ public sealed class OutboxProcessorHostedServiceTests
         }
     }
 
-    #endregion
-
-    #region Exponential Backoff Tests
-
     [Test]
     public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAt()
     {
@@ -1028,10 +1000,6 @@ public sealed class OutboxProcessorHostedServiceTests
         _ = await Assert.That(failedForRetry.Count).IsEqualTo(1);
     }
 
-    #endregion
-
-    #region Helper Methods
-
     private static ILogger<OutboxProcessorHostedService> CreateLogger() =>
         new ServiceCollection()
             .AddLogging()
@@ -1048,10 +1016,6 @@ public sealed class OutboxProcessorHostedServiceTests
             UpdatedAt = DateTimeOffset.UtcNow,
             Status = OutboxMessageStatus.Pending,
         };
-
-    #endregion
-
-    #region Test Doubles
 
     private sealed class InMemoryOutboxRepository : IOutboxRepository
     {
@@ -1349,6 +1313,4 @@ public sealed class OutboxProcessorHostedServiceTests
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
     }
-
-    #endregion
 }

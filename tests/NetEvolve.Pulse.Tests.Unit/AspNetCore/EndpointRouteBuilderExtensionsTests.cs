@@ -1,12 +1,14 @@
-namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
+﻿namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
 
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
 using PulseEndpoints = EndpointRouteBuilderExtensions;
 
+[TestGroup("AspNetCore")]
 public sealed class EndpointRouteBuilderExtensionsTests
 {
     // Represents an undefined CommandHttpMethod value used to verify validation behaviour.

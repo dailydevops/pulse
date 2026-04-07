@@ -1,14 +1,16 @@
-namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation;
+﻿namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation;
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("HttpCorrelation")]
 public sealed class HttpCorrelationExtensionsTests
 {
     [Test]

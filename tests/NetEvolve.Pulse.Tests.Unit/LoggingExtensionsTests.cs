@@ -1,13 +1,15 @@
-namespace NetEvolve.Pulse.Tests.Unit;
+﻿namespace NetEvolve.Pulse.Tests.Unit;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
+[TestGroup("Logging")]
 public class LoggingExtensionsTests
 {
     [Test]

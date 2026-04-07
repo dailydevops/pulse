@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
@@ -7,10 +8,9 @@ using TUnit.Core;
 /// Unit tests for exponential backoff calculation in <see cref="OutboxProcessorOptions"/>.
 /// Tests backoff formula, jitter application, and delay clamping.
 /// </summary>
+[TestGroup("Outbox")]
 public sealed class ExponentialBackoffTests
 {
-    #region Backoff Calculation Tests
-
     [Test]
     [Arguments(0, 5)]
     [Arguments(1, 10)]
@@ -127,10 +127,6 @@ public sealed class ExponentialBackoffTests
         _ = await Assert.That((nextRetryAt - expectedTime).TotalMilliseconds).IsGreaterThanOrEqualTo(-100);
     }
 
-    #endregion
-
-    #region Configuration Validation Tests
-
     [Test]
     public async Task OutboxProcessorOptions_HasCorrectDefaults()
     {
@@ -161,10 +157,6 @@ public sealed class ExponentialBackoffTests
         _ = await Assert.That(options.BackoffMultiplier).IsEqualTo(1.5);
         _ = await Assert.That(options.AddJitter).IsFalse();
     }
-
-    #endregion
-
-    #region Edge Cases
 
     [Test]
     public async Task ComputeNextRetryAt_WithLargeRetryCount_DoesNotOverflow()
@@ -210,6 +202,4 @@ public sealed class ExponentialBackoffTests
         _ = await Assert.That((nextRetryAt - expectedTime).TotalMilliseconds).IsLessThanOrEqualTo(100);
         _ = await Assert.That((nextRetryAt - expectedTime).TotalMilliseconds).IsGreaterThanOrEqualTo(-100);
     }
-
-    #endregion
 }

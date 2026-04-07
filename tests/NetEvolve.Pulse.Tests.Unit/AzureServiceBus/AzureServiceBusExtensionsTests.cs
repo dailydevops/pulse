@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Tests.Unit.AzureServiceBus;
+﻿namespace NetEvolve.Pulse.Tests.Unit.AzureServiceBus;
 
 using Azure.Core;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -11,6 +12,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("AzureServiceBus")]
 public sealed class AzureServiceBusExtensionsTests
 {
     private const string FakeConnectionString =

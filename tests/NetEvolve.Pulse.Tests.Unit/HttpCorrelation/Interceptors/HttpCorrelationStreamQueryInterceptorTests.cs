@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Http.Correlation.Abstractions;
 using NetEvolve.Http.Correlation.AspNetCore;
 using NetEvolve.Http.Correlation.TestGenerator;
@@ -23,6 +24,7 @@ using TUnit.Core;
     "CA2000:Dispose objects before losing scope",
     Justification = "ServiceProvider instances are short-lived within test methods"
 )]
+[TestGroup("HttpCorrelation")]
 public sealed class HttpCorrelationStreamQueryInterceptorTests
 {
     [Test]

@@ -1,9 +1,11 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Dispatchers;
 
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
 
+[TestGroup("Dispatchers")]
 public class ParallelEventDispatcherTests
 {
     [Test]

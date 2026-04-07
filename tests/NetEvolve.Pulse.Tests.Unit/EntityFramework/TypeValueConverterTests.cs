@@ -2,10 +2,12 @@
 
 using System;
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Configurations;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("EntityFramework")]
 public sealed class TypeValueConverterTests
 {
     [Test]

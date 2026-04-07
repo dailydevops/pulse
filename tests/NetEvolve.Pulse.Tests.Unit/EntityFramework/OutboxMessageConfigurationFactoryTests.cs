@@ -4,10 +4,12 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("EntityFramework")]
 public sealed class OutboxMessageConfigurationFactoryTests
 {
     [Test]

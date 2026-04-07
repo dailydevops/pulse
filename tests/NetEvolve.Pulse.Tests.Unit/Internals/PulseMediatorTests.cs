@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
+[TestGroup("Internals")]
 public class PulseMediatorTests
 {
     [Test]

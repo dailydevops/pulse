@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Interceptors;
+﻿namespace NetEvolve.Pulse.Interceptors;
 
 using Microsoft.Extensions.Logging;
 
@@ -58,7 +58,7 @@ internal static partial class LoggingMessages
     /// Logs the beginning of a stream query enumeration.
     /// </summary>
     /// <remarks>
-    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when enumeration of an <see cref="NetEvolve.Pulse.Extensibility.IStreamQuery{TResponse}"/> starts.
+    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when enumeration of an <see cref="Extensibility.IStreamQuery{TResponse}"/> starts.
     /// </remarks>
     [LoggerMessage(Message = "Streaming '{StreamQueryName}' (CorrelationId: {CorrelationId})")]
     internal static partial void LogBeginStreamQuery(
@@ -72,7 +72,7 @@ internal static partial class LoggingMessages
     /// Logs the successful completion of a stream query enumeration.
     /// </summary>
     /// <remarks>
-    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when an <see cref="NetEvolve.Pulse.Extensibility.IStreamQuery{TResponse}"/> sequence is fully consumed.
+    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when an <see cref="Extensibility.IStreamQuery{TResponse}"/> sequence is fully consumed.
     /// </remarks>
     [LoggerMessage(Message = "Streamed '{StreamQueryName}' in {ElapsedMs:F2}ms (CorrelationId: {CorrelationId})")]
     internal static partial void LogEndStreamQuery(
@@ -87,7 +87,7 @@ internal static partial class LoggingMessages
     /// Logs a warning when a stream query exceeds the configured slow-stream threshold.
     /// </summary>
     /// <remarks>
-    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when an <see cref="NetEvolve.Pulse.Extensibility.IStreamQuery{TResponse}"/> exceeds the slow threshold.
+    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when an <see cref="Extensibility.IStreamQuery{TResponse}"/> exceeds the slow threshold.
     /// </remarks>
     [LoggerMessage(
         Level = LogLevel.Warning,
@@ -105,7 +105,7 @@ internal static partial class LoggingMessages
     /// Logs an error when a stream query fails during enumeration.
     /// </summary>
     /// <remarks>
-    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when an <see cref="NetEvolve.Pulse.Extensibility.IStreamQuery{TResponse}"/> throws an exception.
+    /// Emitted by <c>LoggingStreamQueryInterceptor</c> when an <see cref="Extensibility.IStreamQuery{TResponse}"/> throws an exception.
     /// </remarks>
     [LoggerMessage(
         Level = LogLevel.Error,

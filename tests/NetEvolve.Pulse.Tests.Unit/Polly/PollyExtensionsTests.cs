@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Polly;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Polly;
 
 using System;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using global::Polly;
 using global::Polly.Retry;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Assertions;
@@ -13,6 +14,7 @@ using TUnit.Assertions.Extensions;
 using TUnit.Core;
 using TUnit.Mocks;
 
+[TestGroup("Polly")]
 public sealed class PollyExtensionsTests
 {
     [Test]
