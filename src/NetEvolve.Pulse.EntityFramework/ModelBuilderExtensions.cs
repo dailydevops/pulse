@@ -1,6 +1,10 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Configurations;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
@@ -8,6 +12,37 @@ using NetEvolve.Pulse.Outbox;
 /// </summary>
 public static class ModelBuilderExtensions
 {
+    /// <summary>
+    /// The provider name for the EF Core InMemory provider (<c>Microsoft.EntityFrameworkCore.InMemory</c>).
+    /// Intended for testing only.
+    /// </summary>
+    private const string InMemoryProviderName = "Microsoft.EntityFrameworkCore.InMemory";
+
+    /// <summary>
+    /// The provider name for Npgsql (PostgreSQL).
+    /// </summary>
+    private const string NpgsqlProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL";
+
+    /// <summary>
+    /// The provider name for Microsoft.EntityFrameworkCore.Sqlite.
+    /// </summary>
+    private const string SqliteProviderName = "Microsoft.EntityFrameworkCore.Sqlite";
+
+    /// <summary>
+    /// The provider name for Microsoft.EntityFrameworkCore.SqlServer.
+    /// </summary>
+    private const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
+
+    /// <summary>
+    /// The provider name for Pomelo MySQL (<c>Pomelo.EntityFrameworkCore.MySql</c>).
+    /// </summary>
+    private const string PomeloMySqlProviderName = "Pomelo.EntityFrameworkCore.MySql";
+
+    /// <summary>
+    /// The provider name for the Oracle MySQL provider (<c>MySql.EntityFrameworkCore</c>).
+    /// </summary>
+    private const string OracleMySqlProviderName = "MySql.EntityFrameworkCore";
+
     /// <summary>
     /// Applies all Pulse-related entity configurations to the model builder.
     /// </summary>
@@ -21,11 +56,54 @@ public static class ModelBuilderExtensions
         ArgumentNullException.ThrowIfNull(modelBuilder);
         ArgumentNullException.ThrowIfNull(context);
 
+        var providerName = context.Database.ProviderName;
+
         if (context is IOutboxDbContext)
         {
-            _ = modelBuilder.ApplyConfiguration(OutboxMessageConfigurationFactory.Create(context));
+            var configuration = GetOutboxConfiguration(context, providerName);
+
+            _ = modelBuilder.ApplyConfiguration(configuration);
         }
 
         return modelBuilder;
+    }
+
+    /// <summary>
+    /// Selects and instantiates the provider-appropriate <see cref="IEntityTypeConfiguration{TEntity}"/>
+    /// for <see cref="OutboxMessage"/> based on the active EF Core provider.
+    /// </summary>
+    /// <typeparam name="TContext">The DbContext type, used to resolve registered <see cref="OutboxOptions"/>.</typeparam>
+    /// <param name="context">The DbContext instance used to resolve <see cref="IOptions{TOptions}"/> of <see cref="OutboxOptions"/>.</param>
+    /// <param name="providerName">The EF Core provider name read from <see cref="Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.ProviderName"/>.</param>
+    /// <returns>A provider-specific <see cref="IEntityTypeConfiguration{TEntity}"/> for <see cref="OutboxMessage"/>.</returns>
+    /// <exception cref="NotSupportedException">Thrown when <paramref name="providerName"/> is not a supported EF Core provider.</exception>
+    private static IEntityTypeConfiguration<OutboxMessage> GetOutboxConfiguration<TContext>(
+        TContext context,
+        string? providerName
+    )
+        where TContext : DbContext
+    {
+        IOptions<OutboxOptions>? resolvedOptions = null;
+        try
+        {
+            // EF Core's GetService throws InvalidOperationException when the service is not
+            // registered (instead of returning null), so we catch and fall back to defaults.
+            resolvedOptions = context.GetService<IOptions<OutboxOptions>>();
+        }
+        catch (InvalidOperationException)
+        {
+            // IOptions<OutboxOptions> not registered; use default options.
+        }
+
+        resolvedOptions ??= Options.Create(new OutboxOptions());
+        return providerName switch
+        {
+            NpgsqlProviderName => new PostgreSqlOutboxMessageConfiguration(resolvedOptions),
+            SqliteProviderName => new SqliteOutboxMessageConfiguration(resolvedOptions),
+            SqlServerProviderName => new SqlServerOutboxMessageConfiguration(resolvedOptions),
+            PomeloMySqlProviderName or OracleMySqlProviderName => new MySqlOutboxMessageConfiguration(resolvedOptions),
+            InMemoryProviderName => new InMemoryOutboxMessageConfiguration(resolvedOptions),
+            _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
+        };
     }
 }
