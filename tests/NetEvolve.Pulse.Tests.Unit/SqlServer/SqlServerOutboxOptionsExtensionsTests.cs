@@ -1,11 +1,13 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
 
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
-using static global::NetEvolve.Pulse.Outbox.SqlServerOutboxOptionsExtensions;
-using OutboxOptions = global::NetEvolve.Pulse.Outbox.OutboxOptions;
+using static NetEvolve.Pulse.Outbox.SqlServerOutboxOptionsExtensions;
+using OutboxOptions = Pulse.Outbox.OutboxOptions;
 
+[TestGroup("SqlServer")]
 public sealed class SqlServerOutboxOptionsExtensionsTests
 {
     [Test]

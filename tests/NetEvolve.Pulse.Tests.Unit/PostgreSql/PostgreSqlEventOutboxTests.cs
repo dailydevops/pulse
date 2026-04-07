@@ -3,12 +3,14 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using Npgsql;
 using TUnit.Core;
 
+[TestGroup("PostgreSql")]
 public sealed class PostgreSqlEventOutboxTests
 {
     [Test]

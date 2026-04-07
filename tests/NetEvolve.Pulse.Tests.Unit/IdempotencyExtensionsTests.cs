@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Tests.Unit;
+﻿namespace NetEvolve.Pulse.Tests.Unit;
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Interceptors;
@@ -12,6 +13,7 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("Idempotency")]
 public sealed class IdempotencyExtensionsTests
 {
     [Test]

@@ -3,9 +3,11 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("SqlServer")]
 public sealed class SqlServerOutboxRepositoryTests
 {
     private const string ValidConnectionString = "Server=.;Database=Test;Integrated Security=true;";

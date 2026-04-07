@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Tests.Unit;
+﻿namespace NetEvolve.Pulse.Tests.Unit;
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
@@ -11,6 +12,7 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("Dispatchers")]
 public sealed class EventDispatcherExtensionsTests
 {
     [Test]

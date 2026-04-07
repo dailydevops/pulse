@@ -1,8 +1,10 @@
-namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using TUnit.Core;
 
+[TestGroup("Outbox")]
 public sealed class OutboxStatisticsTests
 {
     [Test]

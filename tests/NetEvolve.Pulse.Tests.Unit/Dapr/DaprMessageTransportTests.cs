@@ -4,11 +4,13 @@ using System;
 using System.Threading.Tasks;
 using global::Dapr.Client;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("Dapr")]
 public sealed class DaprMessageTransportTests
 {
     [Test]

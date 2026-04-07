@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.FluentValidation.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.FluentValidation.Interceptors;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -6,12 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using global::FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("FluentValidation")]
 public sealed class FluentValidationRequestInterceptorTests
 {
     [Test]

@@ -3,11 +3,13 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Core;
 using TUnit.Mocks;
 
+[TestGroup("Interceptors")]
 public class LoggingEventInterceptorTests
 {
     private static LoggingEventInterceptor<TEvent> CreateInterceptor<TEvent>(

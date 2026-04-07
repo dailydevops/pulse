@@ -16,7 +16,7 @@ using NetEvolve.Pulse.Extensibility;
 /// </list>
 /// <para><strong>Execution Behavior:</strong></para>
 /// Priority groups execute sequentially in ascending priority order. Within each group, handlers
-/// execute in parallel using <see cref="System.Threading.Tasks.Parallel"/>.
+/// execute in parallel using <see cref="Parallel"/>.
 /// This ensures predictable ordering between groups while maximising throughput within each group.
 /// <para><strong>Error Handling:</strong></para>
 /// Individual handler failures do not prevent other handlers from executing, including handlers

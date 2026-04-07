@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Kafka;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Kafka;
 
 using System;
 using System.Collections.Generic;
@@ -8,12 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("Kafka")]
 public sealed class KafkaMessageTransportTests
 {
     [Test]

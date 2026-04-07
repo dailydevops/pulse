@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
@@ -9,6 +10,7 @@ using TUnit.Core;
 /// <summary>
 /// Unit tests for <see cref="RateLimitedEventDispatcher"/>.
 /// </summary>
+[TestGroup("Dispatchers")]
 public class RateLimitedEventDispatcherTests
 {
     [Test]

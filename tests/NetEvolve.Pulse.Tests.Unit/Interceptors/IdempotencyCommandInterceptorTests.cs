@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
@@ -17,6 +18,7 @@ using TUnit.Core;
     "CA2000:Dispose objects before losing scope",
     Justification = "ServiceProvider instances are short-lived within test methods"
 )]
+[TestGroup("Interceptors")]
 public sealed class IdempotencyCommandInterceptorTests
 {
     [Test]
@@ -213,8 +215,6 @@ public sealed class IdempotencyCommandInterceptorTests
         _ = await Assert.That(store.StoreCallCount).IsEqualTo(0);
     }
 
-    #region Test Types
-
     private sealed record TestCommand : IIdempotentCommand<string>
     {
         public string? CorrelationId { get; set; }
@@ -249,6 +249,4 @@ public sealed class IdempotencyCommandInterceptorTests
             return Task.CompletedTask;
         }
     }
-
-    #endregion
 }

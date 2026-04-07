@@ -3,9 +3,11 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("EntityFramework")]
 public sealed class EntityFrameworkOutboxRepositoryTests
 {
     [Test]

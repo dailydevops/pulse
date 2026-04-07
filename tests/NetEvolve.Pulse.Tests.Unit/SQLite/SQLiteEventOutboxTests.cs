@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
 using System.Reflection;
@@ -6,11 +6,13 @@ using System.Reflection.Emit;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("SQLite")]
 public sealed class SQLiteEventOutboxTests
 {
     [Test]
@@ -216,7 +218,7 @@ public sealed class SQLiteEventOutboxTests
             typeName,
             TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Sealed,
             typeof(object),
-            new[] { typeof(IEvent) }
+            [typeof(IEvent)]
         );
 
         var idField = typeBuilder.DefineField("_id", typeof(string), FieldAttributes.Private);
@@ -276,7 +278,7 @@ public sealed class SQLiteEventOutboxTests
                 | MethodAttributes.SpecialName
                 | MethodAttributes.HideBySig,
             null,
-            new[] { propertyType }
+            [propertyType]
         );
         var setIl = setMethod.GetILGenerator();
         setIl.Emit(OpCodes.Ldarg_0);

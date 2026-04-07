@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
@@ -16,6 +17,7 @@ using TUnit.Core;
 /// Unit tests for <see cref="OutboxExtensions.AddOutbox"/>.
 /// Tests service registration including the open-generic <see cref="OutboxEventHandler{TEvent}"/>.
 /// </summary>
+[TestGroup("Outbox")]
 public sealed class OutboxExtensionsTests
 {
     [Test]

@@ -1,15 +1,17 @@
-namespace NetEvolve.Pulse.Tests.Unit.FluentValidation;
+﻿namespace NetEvolve.Pulse.Tests.Unit.FluentValidation;
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("FluentValidation")]
 public sealed class FluentValidationExtensionsTests
 {
     [Test]

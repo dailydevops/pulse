@@ -3,9 +3,11 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
 
+[TestGroup("HandlerRegistration")]
 public class HandlerRegistrationExtensionsTests
 {
     [Test]

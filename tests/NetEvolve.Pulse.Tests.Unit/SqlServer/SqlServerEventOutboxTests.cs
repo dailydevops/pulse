@@ -4,11 +4,13 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("SqlServer")]
 public sealed class SqlServerEventOutboxTests
 {
     [Test]
@@ -20,7 +22,7 @@ public sealed class SqlServerEventOutboxTests
     [Test]
     public async Task Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
-        using var connection = new SqlConnection("Server=.;Encrypt=true;");
+        await using var connection = new SqlConnection("Server=.;Encrypt=true;");
 
         _ = await Assert
             .That(() => new SqlServerEventOutbox(connection, null!, TimeProvider.System))
@@ -30,7 +32,7 @@ public sealed class SqlServerEventOutboxTests
     [Test]
     public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
-        using var connection = new SqlConnection("Server=.;Encrypt=true;");
+        await using var connection = new SqlConnection("Server=.;Encrypt=true;");
 
         _ = await Assert
             .That(() => new SqlServerEventOutbox(connection, Options.Create(new OutboxOptions()), null!))
@@ -40,7 +42,7 @@ public sealed class SqlServerEventOutboxTests
     [Test]
     public async Task Constructor_WithValidArguments_CreatesInstance()
     {
-        using var connection = new SqlConnection("Server=.;Encrypt=true;");
+        await using var connection = new SqlConnection("Server=.;Encrypt=true;");
 
         var outbox = new SqlServerEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
 
@@ -50,7 +52,7 @@ public sealed class SqlServerEventOutboxTests
     [Test]
     public async Task Constructor_WithTransaction_CreatesInstance()
     {
-        using var connection = new SqlConnection("Server=.;Encrypt=true;");
+        await using var connection = new SqlConnection("Server=.;Encrypt=true;");
 
         var outbox = new SqlServerEventOutbox(
             connection,
@@ -65,7 +67,7 @@ public sealed class SqlServerEventOutboxTests
     [Test]
     public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
     {
-        using var connection = new SqlConnection("Server=.;Encrypt=true;");
+        await using var connection = new SqlConnection("Server=.;Encrypt=true;");
         var outbox = new SqlServerEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
 
         _ = await Assert
@@ -76,7 +78,7 @@ public sealed class SqlServerEventOutboxTests
     [Test]
     public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException()
     {
-        using var connection = new SqlConnection("Server=.;Encrypt=true;");
+        await using var connection = new SqlConnection("Server=.;Encrypt=true;");
         var outbox = new SqlServerEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
         var message = new TestEvent
         {

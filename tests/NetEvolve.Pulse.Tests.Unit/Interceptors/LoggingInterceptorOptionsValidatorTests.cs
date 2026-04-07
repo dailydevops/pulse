@@ -1,9 +1,11 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Core;
 
+[TestGroup("Interceptors")]
 public class LoggingInterceptorOptionsValidatorTests
 {
     private static readonly LoggingInterceptorOptionsValidator _validator = new();

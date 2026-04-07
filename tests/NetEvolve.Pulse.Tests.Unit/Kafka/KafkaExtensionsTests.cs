@@ -1,6 +1,7 @@
-namespace NetEvolve.Pulse.Tests.Unit.Kafka;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Kafka;
 
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -8,6 +9,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("Kafka")]
 public sealed class KafkaExtensionsTests
 {
     [Test]

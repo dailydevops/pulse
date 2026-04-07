@@ -3,9 +3,11 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
+[TestGroup("PostgreSql")]
 public sealed class PostgreSqlOutboxManagementTests
 {
     private const string ValidConnectionString = "Host=localhost;Database=Test;Username=postgres;Password=secret;";

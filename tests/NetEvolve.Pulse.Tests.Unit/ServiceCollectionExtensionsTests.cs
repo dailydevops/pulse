@@ -2,11 +2,13 @@
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
+[TestGroup("ServiceCollection")]
 public class ServiceCollectionExtensionsTests
 {
     [Test]

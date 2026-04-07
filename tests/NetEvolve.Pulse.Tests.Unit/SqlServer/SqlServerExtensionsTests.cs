@@ -1,10 +1,11 @@
-namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
+﻿namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
 
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -12,6 +13,7 @@ using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 using TUnit.Mocks;
 
+[TestGroup("SqlServer")]
 public sealed class SqlServerExtensionsTests
 {
     [Test]

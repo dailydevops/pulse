@@ -4,9 +4,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
 
+[TestGroup("AssemblyScanning")]
 public class AssemblyScanningExtensionsTests
 {
     [Test]

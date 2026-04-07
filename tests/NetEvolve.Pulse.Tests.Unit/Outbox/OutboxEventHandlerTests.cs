@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System.Threading.Tasks;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -10,10 +11,9 @@ using TUnit.Core;
 /// Unit tests for <see cref="OutboxEventHandler{TEvent}"/>.
 /// Tests outbox delegation and in-process event exclusion semantics.
 /// </summary>
+[TestGroup("Outbox")]
 public sealed class OutboxEventHandlerTests
 {
-    #region HandleAsync Tests
-
     [Test]
     public async Task HandleAsync_WithRegularEvent_StoresEventInOutbox()
     {
@@ -83,10 +83,6 @@ public sealed class OutboxEventHandlerTests
         _ = await Assert.That(() => handler.HandleAsync(@event, cts.Token)).Throws<OperationCanceledException>();
     }
 
-    #endregion
-
-    #region Test Doubles
-
     private sealed class TrackingEventOutbox : IEventOutbox
     {
         public List<IEvent> StoredEvents { get; } = [];
@@ -123,6 +119,4 @@ public sealed class OutboxEventHandlerTests
         public DateTimeOffset? PublishedAt { get; set; }
         public bool HandleInProcess => false;
     }
-
-    #endregion
 }

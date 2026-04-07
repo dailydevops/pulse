@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -12,6 +13,7 @@ using TUnit.Core;
 /// <summary>
 /// Database-focused tests for <see cref="SQLiteOutboxManagement"/> using an in-memory SQLite database.
 /// </summary>
+[TestGroup("SQLite")]
 public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
 {
     private readonly string _dbIdentifier = $"mgmt_{Guid.NewGuid():N}";

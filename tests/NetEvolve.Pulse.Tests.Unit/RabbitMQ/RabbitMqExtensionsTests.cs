@@ -1,12 +1,14 @@
-namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
+﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
+[TestGroup("RabbitMQ")]
 public sealed class RabbitMqExtensionsTests
 {
     [Test]

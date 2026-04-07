@@ -7,6 +7,7 @@ using global::Polly;
 using global::Polly.CircuitBreaker;
 using global::Polly.Retry;
 using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
@@ -18,6 +19,7 @@ using TUnit.Core;
     "CA2000:Dispose objects before losing scope",
     Justification = "ServiceProvider instances are short-lived within test methods"
 )]
+[TestGroup("Polly")]
 public sealed class PollyEventInterceptorTests
 {
     private static ServiceProvider CreateServiceProvider<TEvent>(
@@ -113,7 +115,7 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                (evt, _) =>
+                (_, _) =>
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
@@ -149,7 +151,7 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                (evt, _) =>
+                (_, _) =>
                 {
                     attemptCount++;
                     if (attemptCount < 3)
@@ -191,7 +193,7 @@ public sealed class PollyEventInterceptorTests
                 await interceptor
                     .HandleAsync(
                         message,
-                        (evt, _) =>
+                        (_, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Persistent failure");
@@ -231,7 +233,7 @@ public sealed class PollyEventInterceptorTests
         await interceptor
             .HandleAsync(
                 message,
-                (evt, _) =>
+                (_, _) =>
                 {
                     attemptCount++;
                     if (attemptCount < 2)
@@ -274,7 +276,7 @@ public sealed class PollyEventInterceptorTests
                 await interceptor
                     .HandleAsync(
                         message,
-                        (evt, _) =>
+                        (_, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
@@ -289,7 +291,7 @@ public sealed class PollyEventInterceptorTests
                 await interceptor
                     .HandleAsync(
                         message,
-                        (evt, _) =>
+                        (_, _) =>
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
@@ -302,7 +304,7 @@ public sealed class PollyEventInterceptorTests
         // Circuit should be open now, next request should be rejected immediately
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(message, (evt, _) => Task.CompletedTask).ConfigureAwait(false)
+                await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false)
             )
             .Throws<BrokenCircuitException>();
 

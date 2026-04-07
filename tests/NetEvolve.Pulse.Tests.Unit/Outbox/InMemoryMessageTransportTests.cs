@@ -1,8 +1,9 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -12,10 +13,9 @@ using TUnit.Core;
 /// Unit tests for <see cref="InMemoryMessageTransport"/>.
 /// Tests constructor validation, event deserialization, and mediator dispatch.
 /// </summary>
+[TestGroup("Outbox")]
 public sealed class InMemoryMessageTransportTests
 {
-    #region Constructor Tests
-
     [Test]
     public async Task Constructor_WithNullMediator_ThrowsArgumentNullException()
     {
@@ -47,10 +47,6 @@ public sealed class InMemoryMessageTransportTests
 
         _ = await Assert.That(transport).IsNotNull();
     }
-
-    #endregion
-
-    #region SendAsync Tests
 
     [Test]
     public async Task SendAsync_WithNullMessage_ThrowsArgumentNullException()
@@ -197,10 +193,6 @@ public sealed class InMemoryMessageTransportTests
         }
     }
 
-    #endregion
-
-    #region Helper Methods
-
     private static OutboxMessage CreateOutboxMessage(TestTransportEvent @event)
     {
         var payload = JsonSerializer.Serialize(@event, @event.GetType());
@@ -216,10 +208,6 @@ public sealed class InMemoryMessageTransportTests
             Status = OutboxMessageStatus.Processing,
         };
     }
-
-    #endregion
-
-    #region Test Doubles
 
 #pragma warning disable CS8767 // Nullability of reference types in type of parameter doesn't match
     private sealed class TestMediator : IMediator
@@ -309,6 +297,4 @@ public sealed class InMemoryMessageTransportTests
     {
         public string Value { get; set; } = string.Empty;
     }
-
-    #endregion
 }
