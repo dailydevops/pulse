@@ -37,7 +37,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         {
             _ = await Assert.That(capturedActivity).IsNotNull();
             _ = await Assert.That(capturedActivity!.DisplayName).IsEqualTo("StreamQuery.TestStreamQuery");
-            _ = await Assert.That(capturedActivity.GetTagItem("query.type")).IsEqualTo("TestStreamQuery");
+            _ = await Assert.That(capturedActivity.GetTagItem("pulse.request.type")).IsEqualTo("StreamQuery");
+            _ = await Assert.That(capturedActivity.GetTagItem("pulse.request.name")).IsEqualTo("TestStreamQuery");
+            _ = await Assert.That(capturedActivity.GetTagItem("pulse.response.type")).IsEqualTo("Int32");
         }
     }
 
@@ -115,6 +117,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
                 .IsEqualTo("System.InvalidOperationException");
             _ = await Assert.That(capturedActivity.GetTagItem("pulse.exception.message")).IsEqualTo("Test exception");
             _ = await Assert.That(capturedActivity.GetTagItem("pulse.exception.stacktrace")).IsNotNull();
+            _ = await Assert.That(capturedActivity.GetTagItem("pulse.exception.timestamp")).IsNotNull();
+            _ = await Assert.That(capturedActivity.GetTagItem("pulse.response.timestamp")).IsNull();
         }
     }
 
@@ -145,6 +149,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         {
             _ = await Assert.That(capturedActivity).IsNotNull();
             _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
+#pragma warning disable CS8605 // Unboxing a possibly null value.
+            _ = await Assert.That((bool)capturedActivity.GetTagItem("pulse.success")).IsTrue();
+#pragma warning restore CS8605 // Unboxing a possibly null value.
         }
     }
 
@@ -192,6 +199,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         {
             _ = await Assert.That(capturedActivity).IsNotNull();
             _ = await Assert.That(capturedActivity!.GetTagItem("pulse.request.timestamp")).IsNotNull();
+            _ = await Assert.That(capturedActivity.GetTagItem("pulse.response.timestamp")).IsNotNull();
         }
     }
 

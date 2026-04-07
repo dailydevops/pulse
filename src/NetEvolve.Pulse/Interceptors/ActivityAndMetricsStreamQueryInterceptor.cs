@@ -48,10 +48,16 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     );
 
     /// <summary>
-    /// Cached query type name derived from the generic type parameter.
+    /// Cached query name derived from the generic type parameter.
     /// Static fields in generic types are per type instantiation, so this is computed once per <typeparamref name="TQuery"/>.
     /// </summary>
     private static readonly string QueryName = typeof(TQuery).Name;
+
+    /// <summary>
+    /// Cached response type name derived from the generic type parameter.
+    /// Static fields in generic types are per type instantiation, so this is computed once per <typeparamref name="TResponse"/>.
+    /// </summary>
+    private static readonly string ResponseTypeName = typeof(TResponse).Name;
 
     /// <summary>
     /// Time provider for consistent timestamp generation, supporting testability.
@@ -69,7 +75,8 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     /// This method wraps stream query execution with comprehensive telemetry:
     /// <list type="bullet">
     /// <item>Creates an OpenTelemetry activity for distributed tracing</item>
-    /// <item>Tags the activity with query type</item>
+    /// <item>Tags the activity with query name, request type, and response type</item>
+    /// <item>Records request and response timestamps on the activity</item>
     /// <item>Increments stream query counter metrics</item>
     /// <item>Measures and records execution duration</item>
     /// <item>Captures exception details on failure</item>
@@ -83,7 +90,14 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
-        var tags = new TagList { { StreamQueryType, QueryName } };
+        const string requestType = "StreamQuery";
+
+        var tags = new TagList
+        {
+            { RequestType, requestType },
+            { RequestName, QueryName },
+            { ResponseType, ResponseTypeName },
+        };
 
         using var activity = Defaults.ActivitySource.StartActivity(
             $"StreamQuery.{QueryName}",
@@ -163,7 +177,11 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
             var endTime = _timeProvider.GetUtcNow();
 
             // Mark activity as successful
-            _ = activity?.SetStatus(ActivityStatusCode.Ok).SetEndTime(endTime.UtcDateTime).SetTag(Success, true);
+            _ = activity
+                ?.SetStatus(ActivityStatusCode.Ok)
+                .SetEndTime(endTime.UtcDateTime)
+                .SetTag(ResponseTimestamp, endTime)
+                .SetTag(Success, true);
 
             // Record successful execution duration
             StreamQueryDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
