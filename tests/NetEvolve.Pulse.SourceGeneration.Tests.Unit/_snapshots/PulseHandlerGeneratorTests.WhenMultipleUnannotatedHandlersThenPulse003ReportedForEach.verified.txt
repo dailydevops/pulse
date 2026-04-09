@@ -30,7 +30,7 @@
           Options: {
             DocumentationMode: Parse,
             Language: C#,
-            LanguageVersion: CSharp14
+            LanguageVersion: CSharpLatest
           }
         }
       },
@@ -67,7 +67,7 @@
           Options: {
             DocumentationMode: Parse,
             Language: C#,
-            LanguageVersion: CSharp14
+            LanguageVersion: CSharpLatest
           }
         }
       },

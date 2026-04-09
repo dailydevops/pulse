@@ -5,9 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
+[TestGroup("SourceGeneration")]
+[TestGroup("SourceGeneration.PulseHandler")]
 public class PulseHandlerGeneratorTests
 {
     [Test]
