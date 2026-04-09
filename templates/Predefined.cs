@@ -22,15 +22,9 @@ internal static partial class Predefined
         DerivePathInfo(
             (sourceFile, projectDirectory, type, method) =>
             {
-                var relativePath =
-                    Path.GetDirectoryName(sourceFile) is string sourceDirectory
-                    && !projectDirectory.Equals(sourceDirectory, StringComparison.OrdinalIgnoreCase)
-                        ? sourceDirectory.Replace(
-                            projectDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                            string.Empty,
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                        : string.Empty;
+                // Derive a relative path for snapshots based on the source file's directory structure,
+                // ensuring that snapshots are organized under a "_snapshots" folder within the project directory.
+                var relativePath = Path.GetRelativePath(projectDirectory, Path.GetDirectoryName(sourceFile) ?? string.Empty);
                 var directory = Path.Combine(projectDirectory, "_snapshots", relativePath);
                 _ = Directory.CreateDirectory(directory);
                 return new(directory, type.Name, method.Name);
@@ -42,10 +36,10 @@ internal static partial class Predefined
         VerifierSettings.SortPropertiesAlphabetically();
 
         VerifierSettings.ScrubLinesWithReplace(line =>
-            ScrubLangVersion().Replace(line, "LanguageVersion: CSharpLatest")
-        );
-
-        VerifierSettings.ScrubLinesWithReplace(line => ScrubGeneatedCodeVersion().Replace(line, "$1{version}$2"));
+        {
+            line = ScrubLangVersion().Replace(line, "CSharpLatest");
+            return ScrubGeneatedCodeVersion().Replace(line, "$1{version}$2");
+        });
 
         VerifierSettings.AddExtraSettings(o =>
         {
@@ -55,7 +49,7 @@ internal static partial class Predefined
     }
 
     /// <summary>Matches <c>LanguageVersion: CSharp&lt;N&gt;</c> tokens for version-agnostic scrubbing.</summary>
-    [GeneratedRegex(@"LanguageVersion: CSharp\d+")]
+    [GeneratedRegex(@"CSharp\d+")]
     private static partial Regex ScrubLangVersion();
 
     /// <summary>
