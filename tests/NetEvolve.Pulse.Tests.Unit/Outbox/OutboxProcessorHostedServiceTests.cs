@@ -1045,6 +1045,7 @@ public sealed class OutboxProcessorHostedServiceTests
         {
             lock (_lock)
             {
+                GetPendingCallCount++;
                 var count = _messages.Count(m => m.Status == OutboxMessageStatus.Pending);
                 return Task.FromResult((long)count);
             }
