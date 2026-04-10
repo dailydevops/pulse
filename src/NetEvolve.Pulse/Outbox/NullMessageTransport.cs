@@ -14,5 +14,9 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 internal sealed class NullMessageTransport : IMessageTransport
 {
     /// <inheritdoc/>
-    public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Task.CompletedTask;
+    }
 }
