@@ -87,10 +87,10 @@ internal sealed partial class PulseMediator : IMediator
         await using (scope.ConfigureAwait(false))
         {
             // Retrieve all handlers for the event type from the new scope
-            var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>();
+            var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToArray();
 
             // If there are no handlers, simply return
-            if (handlers?.Any() != true)
+            if (handlers.Length == 0)
             {
                 return;
             }
