@@ -116,6 +116,10 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     }
 
     /// <inheritdoc />
+    public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default) =>
+        _context.OutboxMessages.LongCountAsync(m => m.Status == OutboxMessageStatus.Pending, cancellationToken);
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
         int maxRetryCount,
         int batchSize,
