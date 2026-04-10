@@ -24,7 +24,10 @@ internal static partial class Predefined
             {
                 // Derive a relative path for snapshots based on the source file's directory structure,
                 // ensuring that snapshots are organized under a "_snapshots" folder within the project directory.
-                var relativePath = Path.GetRelativePath(projectDirectory, Path.GetDirectoryName(sourceFile) ?? string.Empty);
+                var relativePath = Path.GetRelativePath(
+                    projectDirectory,
+                    Path.GetDirectoryName(sourceFile) ?? string.Empty
+                );
                 var directory = Path.Combine(projectDirectory, "_snapshots", relativePath);
                 _ = Directory.CreateDirectory(directory);
                 return new(directory, type.Name, method.Name);
