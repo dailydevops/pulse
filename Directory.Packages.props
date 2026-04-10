@@ -44,9 +44,10 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.11.0" />
     <PackageVersion Include="TUnit" Version="1.33.0" />
-    <PackageVersion Include="TUnit.Mocks" Version="1.30.8-beta" />
-    <PackageVersion Include="TUnit.Mocks.Http" Version="1.30.8-beta" />
-    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.30.8-beta" />
+    <PackageVersion Include="TUnit.AspNetCore" Version="1.33.0" />
+    <PackageVersion Include="TUnit.Mocks" Version="1.33.0-beta" />
+    <PackageVersion Include="TUnit.Mocks.Http" Version="1.33.0-beta" />
+    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.33.0-beta" />
     <PackageVersion Include="Verify.TUnit" Version="31.15.0" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 8" Condition="'$(TargetFramework)' == 'net8.0'">
@@ -54,6 +55,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.25" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.25" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.25" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.25" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.25" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 9" Condition="'$(TargetFramework)' == 'net9.0'">
@@ -61,6 +63,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.14" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.14" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 10" Condition="'$(TargetFramework)' == 'net10.0'">
@@ -68,6 +71,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.5" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.5" />
   </ItemGroup>
 </Project>

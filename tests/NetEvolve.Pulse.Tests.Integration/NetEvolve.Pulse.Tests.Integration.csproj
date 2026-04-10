@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
@@ -28,6 +29,7 @@
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.RabbitMq" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="TUnit.AspNetCore" />
     <PackageReference Include="Verify.TUnit" />
   </ItemGroup>
 
@@ -64,5 +66,9 @@
 
   <ItemGroup>
     <AssemblyAttribute Include="NetEvolve.Extensions.TUnit.IntegrationTestAttribute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\templates\Predefined.cs" Link="Predefined.cs" />
   </ItemGroup>
 </Project>
