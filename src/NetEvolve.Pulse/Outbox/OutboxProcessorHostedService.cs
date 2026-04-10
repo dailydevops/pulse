@@ -129,9 +129,6 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     continue;
                 }
 
-                // Refresh the pending count gauge before processing
-                await RefreshPendingCountAsync(stoppingToken).ConfigureAwait(false);
-
                 var batchStartTime = Stopwatch.GetTimestamp();
                 var processedCount = await ProcessBatchAsync(stoppingToken).ConfigureAwait(false);
                 var elapsed = Stopwatch.GetElapsedTime(batchStartTime).TotalMilliseconds;
@@ -212,10 +209,16 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     private async Task<int> ProcessBatchAsync(CancellationToken cancellationToken)
     {
         var batchSize = _options.BatchSize;
+        // Refresh the pending count gauge before processing
+        await RefreshPendingCountAsync(cancellationToken).ConfigureAwait(false);
 
-        var messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<OutboxMessage> messages = [];
 
-        batchSize -= messages.Count;
+        if (_pendingCount > 0)
+        {
+            messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
+            batchSize -= messages.Count;
+        }
 
         if (batchSize > 0)
         {
