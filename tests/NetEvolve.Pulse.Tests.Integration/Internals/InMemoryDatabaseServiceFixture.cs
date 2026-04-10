@@ -2,7 +2,11 @@
 
 internal sealed class InMemoryDatabaseServiceFixture : IDatabaseServiceFixture
 {
-    public string ConnectionString => Guid.NewGuid().ToString("N");
+    internal sealed class InMemoryDatabaseServiceFixture : IDatabaseServiceFixture
+    {
+        private readonly string _connectionString = Guid.NewGuid().ToString("N");
+        public string ConnectionString => _connectionString;
+    }
 
     public DatabaseType DatabaseType => DatabaseType.InMemory;
 
