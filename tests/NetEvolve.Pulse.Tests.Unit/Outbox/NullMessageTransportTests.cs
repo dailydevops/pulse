@@ -27,8 +27,6 @@ public sealed class NullMessageTransportTests
         };
 
         await transport.SendAsync(message).ConfigureAwait(false);
-
-        _ = await Assert.That(true).IsTrue(); // No exception means success
     }
 
     [Test]
@@ -37,8 +35,6 @@ public sealed class NullMessageTransportTests
         var transport = new NullMessageTransport();
 
         await transport.SendAsync(null!).ConfigureAwait(false);
-
-        _ = await Assert.That(true).IsTrue(); // NullMessageTransport discards all messages without validation
     }
 
     [Test]
@@ -58,7 +54,5 @@ public sealed class NullMessageTransportTests
         await cts.CancelAsync().ConfigureAwait(false);
 
         await transport.SendAsync(message, cts.Token).ConfigureAwait(false);
-
-        _ = await Assert.That(true).IsTrue(); // NullMessageTransport ignores cancellation
     }
 }
