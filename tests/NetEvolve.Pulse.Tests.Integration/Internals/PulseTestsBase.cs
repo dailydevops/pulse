@@ -43,11 +43,11 @@ public abstract class PulseTestsBase
             .ConfigureWebHost(webBuilder => _ = webBuilder.UseTestServer().Configure(applicationBuilder => { }))
             .Build();
 
+        var databaseCreated = await DatabaseInitializer.CreateDatabaseAsync(host.Services).ConfigureAwait(false);
+
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
 
         using var server = host.GetTestServer();
-
-        var databaseCreated = await DatabaseInitializer.CreateDatabaseAsync(host.Services).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -55,7 +55,8 @@ public abstract class PulseTestsBase
 
             if (databaseCreated)
             {
-                await testableCode.Invoke(server.Services, cancellationToken).ConfigureAwait(false);
+                await using var scope = server.Services.CreateAsyncScope();
+                await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -64,4 +65,21 @@ public abstract class PulseTestsBase
 
     protected static Task[] PublishEvents<TEvent>(IMediator mediator, int count, Func<int, TEvent> eventFactory)
         where TEvent : IEvent => [.. Enumerable.Range(0, count).Select(x => mediator.PublishAsync(eventFactory(x)))];
+
+    protected static async Task PublishEventsAsync<TEvent>(
+        IMediator mediator,
+        int count,
+        Func<int, TEvent> eventFactory,
+        CancellationToken cancellationToken = default
+    )
+        where TEvent : IEvent
+    {
+        ArgumentNullException.ThrowIfNull(mediator);
+        ArgumentNullException.ThrowIfNull(eventFactory);
+
+        for (var i = 0; i < count; i++)
+        {
+            await mediator.PublishAsync(eventFactory(i), cancellationToken).ConfigureAwait(false);
+        }
+    }
 }

@@ -240,7 +240,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         IReadOnlyList<OutboxMessage> messages = [];
 
-        if (_pendingCount > 0)
+        if (Volatile.Read(ref _pendingCount) > 0)
         {
             messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
             batchSize -= messages.Count;

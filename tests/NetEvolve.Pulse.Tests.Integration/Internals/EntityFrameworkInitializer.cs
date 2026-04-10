@@ -3,12 +3,14 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 
-internal sealed class EntityFrameworkInitializer : IDatabaseInitializer
+public sealed class EntityFrameworkInitializer : IDatabaseInitializer
 {
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService) =>
         mediatorBuilder.AddEntityFrameworkOutbox<TestDbContext>();
@@ -48,12 +50,12 @@ internal sealed class EntityFrameworkInitializer : IDatabaseInitializer
     /// </summary>
     private sealed class SQLiteBusyTimeoutInterceptor : DbConnectionInterceptor
     {
-        private const string BusyTimeoutPragma = "PRAGMA busy_timeout = 60000;"; // 60 s
+        private const string Pragmas = "PRAGMA busy_timeout = 60000; PRAGMA journal_mode = WAL;";
 
         public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
         {
             using var command = connection.CreateCommand();
-            command.CommandText = BusyTimeoutPragma;
+            command.CommandText = Pragmas;
             _ = command.ExecuteNonQuery();
         }
 
@@ -64,7 +66,7 @@ internal sealed class EntityFrameworkInitializer : IDatabaseInitializer
         )
         {
             await using var command = connection.CreateCommand();
-            command.CommandText = BusyTimeoutPragma;
+            command.CommandText = Pragmas;
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
