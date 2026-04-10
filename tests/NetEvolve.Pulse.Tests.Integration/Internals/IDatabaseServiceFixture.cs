@@ -8,18 +8,3 @@ public interface IDatabaseServiceFixture : IAsyncDisposable, IAsyncInitializer
 
     DatabaseType DatabaseType { get; }
 }
-
-public interface IDatabaseInitializer
-{
-    ValueTask InitializeAsync(IDatabaseServiceFixture databaseService);
-}
-
-public sealed class EntityFrameworkInitializer : IDatabaseInitializer
-{
-    public ValueTask InitializeAsync(IDatabaseServiceFixture databaseService) => throw new NotImplementedException();
-}
-
-public sealed class AdoNetDatabaseInitializer : IDatabaseInitializer
-{
-    public ValueTask InitializeAsync(IDatabaseServiceFixture databaseService) => throw new NotImplementedException();
-}

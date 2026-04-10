@@ -1,6 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
-public sealed class SQLiteDatabaseServiceFixture : IDatabaseServiceFixture
+internal sealed class SQLiteDatabaseServiceFixture : IDatabaseServiceFixture
 {
     public string ConnectionString => $"Data Source={DatabaseFile};";
 
