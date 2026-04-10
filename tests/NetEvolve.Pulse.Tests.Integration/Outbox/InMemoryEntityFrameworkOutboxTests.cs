@@ -8,7 +8,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 )]
 [TestGroup("InMemory")]
 [TestGroup("EntityFramework")]
-[Explicit]
 [InheritsTests]
 public class InMemoryEntityFrameworkOutboxTests(
     IDatabaseServiceFixture databaseServiceFixture,

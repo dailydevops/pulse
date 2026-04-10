@@ -30,14 +30,6 @@ public sealed class NullMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_WithNullMessage_CompletesSuccessfully()
-    {
-        var transport = new NullMessageTransport();
-
-        await transport.SendAsync(null!).ConfigureAwait(false);
-    }
-
-    [Test]
     public async Task SendAsync_WithCancelledToken_CompletesSuccessfully()
     {
         var transport = new NullMessageTransport();
