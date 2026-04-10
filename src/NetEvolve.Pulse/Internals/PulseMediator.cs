@@ -70,8 +70,10 @@ internal sealed partial class PulseMediator : IMediator
     /// The event's <see cref="IEvent.PublishedAt"/> property is automatically set before handlers execute.
     /// If any handler throws an exception, it is logged but does not prevent other handlers from executing.
     /// Event interceptors are applied in reverse registration order, allowing pre- and post-processing.
+    /// A new DI scope is created per invocation so that concurrent publishes each receive isolated scoped
+    /// services, preventing thread-safety violations caused by shared state across parallel calls.
     /// </remarks>
-    public Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
+    public async Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -79,17 +81,23 @@ internal sealed partial class PulseMediator : IMediator
         // Set the publication timestamp for tracking purposes
         message.PublishedAt = _timeProvider.GetUtcNow();
 
-        // Retrieve all handlers for the event type
-        var handlers = _serviceProvider.GetServices<IEventHandler<TEvent>>();
-
-        // If there are no handlers, simply return
-        if (handlers?.Any() != true)
+        // Create a new scope per publish so concurrent invocations each get isolated
+        // scoped services (e.g. a fresh DbContext), preventing thread-safety violations.
+        var scope = _serviceProvider.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
         {
-            return Task.CompletedTask;
-        }
+            // Retrieve all handlers for the event type from the new scope
+            var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToArray();
 
-        // Execute handlers through the interceptor pipeline and dispatcher
-        return ExecuteAsync(message, handlers, cancellationToken);
+            // If there are no handlers, simply return
+            if (handlers.Length == 0)
+            {
+                return;
+            }
+
+            // Execute handlers through the interceptor pipeline and dispatcher using scoped services
+            await ExecuteAsync(message, handlers, scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -161,17 +169,19 @@ internal sealed partial class PulseMediator : IMediator
     /// <typeparam name="TEvent">The type of event being processed.</typeparam>
     /// <param name="msg">The event to process.</param>
     /// <param name="handlers">The collection of handlers to dispatch the event to.</param>
+    /// <param name="serviceProvider">The scoped service provider for resolving interceptors and dispatchers.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous execution of the event through the interceptor pipeline.</returns>
     private Task ExecuteAsync<TEvent>(
         TEvent msg,
         IEnumerable<IEventHandler<TEvent>> handlers,
+        IServiceProvider serviceProvider,
         CancellationToken cancellationToken
     )
         where TEvent : IEvent
     {
         // Resolve dispatcher: keyed by event type first, then global, then default
-        var dispatcher = _serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
+        var dispatcher = serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
 
         // Create the dispatch action that uses the resolved dispatcher
         Task DispatchAsync(TEvent message, CancellationToken token) =>
@@ -181,7 +191,7 @@ internal sealed partial class PulseMediator : IMediator
         var next = DispatchAsync;
 
         // Retrieve all registered event interceptors and reverse for correct pipeline order
-        var interceptors = _serviceProvider.GetServices<IEventInterceptor<TEvent>>().Reverse().ToArray();
+        var interceptors = serviceProvider.GetServices<IEventInterceptor<TEvent>>().Reverse().ToArray();
         if (interceptors.Length == 0)
         {
             // No interceptors registered, execute dispatcher directly
