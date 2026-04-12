@@ -71,6 +71,11 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
         {
             var connectionString = databaseService.ConnectionString;
 
+            // Disable EF Core's global internal service provider cache so that each test
+            // gets a freshly-built model (with its own table name) instead of reusing a
+            // cached model from a previous test that used the same connection string.
+            _ = options.EnableServiceProviderCaching(false);
+
             _ = databaseService.DatabaseType switch
             {
                 DatabaseType.InMemory => options.UseInMemoryDatabase(connectionString),
