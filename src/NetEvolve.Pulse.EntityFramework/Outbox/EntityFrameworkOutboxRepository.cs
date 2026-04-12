@@ -120,6 +120,12 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
         _context.OutboxMessages.LongCountAsync(m => m.Status == OutboxMessageStatus.Pending, cancellationToken);
 
     /// <inheritdoc />
+    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
+        // A simple connectivity check to ensure the database is reachable.
+        =>
+        _context.Database.CanConnectAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
         int maxRetryCount,
         int batchSize,

@@ -70,6 +70,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>The transport used to deliver outbox messages to their destination.</summary>
     private readonly IMessageTransport _transport;
 
+    /// <summary>The application lifetime used to defer processing until the application has fully started.</summary>
+    private readonly IHostApplicationLifetime _lifetime;
+
     /// <summary>The resolved processor configuration options controlling polling, batch size, and retry behaviour.</summary>
     private readonly OutboxProcessorOptions _options;
 
@@ -84,22 +87,26 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// </summary>
     /// <param name="repository">The repository for outbox message persistence.</param>
     /// <param name="transport">The transport for sending messages.</param>
+    /// <param name="lifetime">The application lifetime for coordinating startup and shutdown.</param>
     /// <param name="options">The processor configuration options.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
     public OutboxProcessorHostedService(
         IOutboxRepository repository,
         IMessageTransport transport,
+        IHostApplicationLifetime lifetime,
         IOptions<OutboxProcessorOptions> options,
         ILogger<OutboxProcessorHostedService> logger
     )
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(transport);
+        ArgumentNullException.ThrowIfNull(lifetime);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
 
         _repository = repository;
         _transport = transport;
+        _lifetime = lifetime;
         _options = options.Value;
         _logger = logger;
 
@@ -114,15 +121,34 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var applicationStarted = new TaskCompletionSource();
+        _ = _lifetime.ApplicationStarted.Register(() => applicationStarted.TrySetResult());
+
+        await applicationStarted.Task.ConfigureAwait(false);
+
         LogProcessorStarted(_logger, _options.PollingInterval, _options.BatchSize);
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            if (_options.DisableProcessing)
+            {
+                await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+            }
+
             try
             {
+                // Check database health before processing
+                var isDatabaseHealthy = await _repository.IsHealthyAsync(stoppingToken).ConfigureAwait(false);
+                if (!isDatabaseHealthy)
+                {
+                    LogDatabaseUnhealthy(_logger);
+                    await Task.Delay(_options.PollingInterval * 2, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 // Check transport health before processing
-                var isHealthy = await _transport.IsHealthyAsync(stoppingToken).ConfigureAwait(false);
-                if (!isHealthy)
+                var isTransportHealthy = await _transport.IsHealthyAsync(stoppingToken).ConfigureAwait(false);
+                if (!isTransportHealthy)
                 {
                     LogTransportUnhealthy(_logger);
                     await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
@@ -569,4 +595,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>Logs a warning when recording an outbox metric fails, so metric errors never interrupt processing.</summary>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to record outbox metric")]
     private static partial void LogMetricRecordingWarning(ILogger logger, Exception exception);
+
+    /// <summary>Logs an error that the database is currently unhealthy and the processing cycle is being skipped.</summary>
+    [LoggerMessage(Level = LogLevel.Error, Message = "Database is unhealthy, skipping processing cycle")]
+    private static partial void LogDatabaseUnhealthy(ILogger logger);
 }

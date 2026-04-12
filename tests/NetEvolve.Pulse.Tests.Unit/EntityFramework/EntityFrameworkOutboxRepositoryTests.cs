@@ -55,4 +55,18 @@ public sealed class EntityFrameworkOutboxRepositoryTests
             .That(async () => await repository.AddAsync(null!).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
+
+    [Test]
+    public async Task IsHealthyAsync_WithInMemoryProvider_ReturnsTrue()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(nameof(IsHealthyAsync_WithInMemoryProvider_ReturnsTrue))
+            .Options;
+        await using var context = new TestDbContext(options);
+        var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+
+        var result = await repository.IsHealthyAsync(CancellationToken.None).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsTrue();
+    }
 }
