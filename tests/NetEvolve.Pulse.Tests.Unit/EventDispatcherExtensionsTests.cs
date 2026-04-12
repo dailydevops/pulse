@@ -16,13 +16,15 @@ using TUnit.Core;
 public sealed class EventDispatcherExtensionsTests
 {
     [Test]
-    public async Task UseDefaultEventDispatcher_NullBuilder_ThrowsArgumentNullException() =>
+    public async Task UseDefaultEventDispatcher_NullBuilder_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => EventDispatcherExtensions.UseDefaultEventDispatcher<SequentialEventDispatcher>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task UseDefaultEventDispatcher_RegistersDispatcherAsSingleton()
+    public async Task UseDefaultEventDispatcher_RegistersDispatcherAsSingleton(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -43,7 +45,9 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseDefaultEventDispatcher_WithCustomLifetime_RegistersWithSpecifiedLifetime()
+    public async Task UseDefaultEventDispatcher_WithCustomLifetime_RegistersWithSpecifiedLifetime(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -62,7 +66,9 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseDefaultEventDispatcher_CalledMultipleTimes_ReplacesRegistration()
+    public async Task UseDefaultEventDispatcher_CalledMultipleTimes_ReplacesRegistration(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -82,7 +88,7 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseDefaultEventDispatcher_DoesNotRemoveKeyedDispatchers()
+    public async Task UseDefaultEventDispatcher_DoesNotRemoveKeyedDispatchers(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -109,7 +115,7 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseDefaultEventDispatcher_ReturnsSameBuilder()
+    public async Task UseDefaultEventDispatcher_ReturnsSameBuilder(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -124,7 +130,7 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseDefaultEventDispatcher_WithFactory_RegistersDispatcher()
+    public async Task UseDefaultEventDispatcher_WithFactory_RegistersDispatcher(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -150,7 +156,9 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseDefaultEventDispatcher_WithFactory_WithNullFactory_ThrowsArgumentNullException()
+    public async Task UseDefaultEventDispatcher_WithFactory_WithNullFactory_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -160,13 +168,15 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_NullBuilder_ThrowsArgumentNullException() =>
+    public async Task UseEventDispatcherFor_NullBuilder_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => EventDispatcherExtensions.UseEventDispatcherFor<TestEvent, SequentialEventDispatcher>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task UseEventDispatcherFor_RegistersKeyedDispatcher()
+    public async Task UseEventDispatcherFor_RegistersKeyedDispatcher(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -189,7 +199,9 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_WithCustomLifetime_RegistersWithSpecifiedLifetime()
+    public async Task UseEventDispatcherFor_WithCustomLifetime_RegistersWithSpecifiedLifetime(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -208,7 +220,9 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_CalledMultipleTimes_ReplacesRegistration()
+    public async Task UseEventDispatcherFor_CalledMultipleTimes_ReplacesRegistration(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -228,7 +242,7 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_DifferentEventTypes_RegistersSeparately()
+    public async Task UseEventDispatcherFor_DifferentEventTypes_RegistersSeparately(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -257,7 +271,7 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_DoesNotAffectGlobalDispatcher()
+    public async Task UseEventDispatcherFor_DoesNotAffectGlobalDispatcher(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -282,7 +296,7 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_WithFactory_RegistersKeyedDispatcher()
+    public async Task UseEventDispatcherFor_WithFactory_RegistersKeyedDispatcher(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -310,7 +324,9 @@ public sealed class EventDispatcherExtensionsTests
     }
 
     [Test]
-    public async Task UseEventDispatcherFor_WithFactory_WithNullFactory_ThrowsArgumentNullException()
+    public async Task UseEventDispatcherFor_WithFactory_WithNullFactory_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);

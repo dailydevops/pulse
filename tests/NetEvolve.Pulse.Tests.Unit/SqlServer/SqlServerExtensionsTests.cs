@@ -17,31 +17,41 @@ using TUnit.Mocks;
 public sealed class SqlServerExtensionsTests
 {
     [Test]
-    public async Task AddSqlServerOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddSqlServerOutbox_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => SqlServerExtensions.AddSqlServerOutbox(null!, "Server=.;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddSqlServerOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
+    public async Task AddSqlServerOutbox_WithNullConnectionString_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddSqlServerOutbox((string)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddSqlServerOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
+    public async Task AddSqlServerOutbox_WithEmptyConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddSqlServerOutbox(string.Empty))
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task AddSqlServerOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
+    public async Task AddSqlServerOutbox_WithWhitespaceConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddSqlServerOutbox("   "))
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task AddSqlServerOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining()
+    public async Task AddSqlServerOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining(
+        CancellationToken cancellationToken
+    )
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -52,7 +62,9 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped()
+    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;"));
@@ -67,7 +79,9 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton()
+    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddSqlServerOutbox("Server=.;Encrypt=true;"));
@@ -82,7 +96,7 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithConfigureOptions_AppliesOptions()
+    public async Task AddSqlServerOutbox_WithConfigureOptions_AppliesOptions(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -96,19 +110,23 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddSqlServerOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => SqlServerExtensions.AddSqlServerOutbox(null!, _ => "Server=.;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException() =>
+    public async Task AddSqlServerOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddSqlServerOutbox((Func<IServiceProvider, string>)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFactory_ReturnsConfiguratorForChaining()
+    public async Task AddSqlServerOutbox_WithFactory_ReturnsConfiguratorForChaining(CancellationToken cancellationToken)
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -119,7 +137,9 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFactory_RegistersOutboxRepositoryAsScoped()
+    public async Task AddSqlServerOutbox_WithFactory_RegistersOutboxRepositoryAsScoped(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;Encrypt=true;"));
@@ -134,7 +154,9 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
+    public async Task AddSqlServerOutbox_WithFactory_WithConfigureOptions_AppliesOptions(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -150,7 +172,9 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped()
+    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;"));
@@ -165,7 +189,9 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
-    public async Task AddSqlServerOutbox_WithFactory_RegistersOutboxManagementAsScoped()
+    public async Task AddSqlServerOutbox_WithFactory_RegistersOutboxManagementAsScoped(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;Encrypt=true;"));

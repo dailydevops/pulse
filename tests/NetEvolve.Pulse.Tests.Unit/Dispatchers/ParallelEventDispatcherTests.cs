@@ -9,7 +9,7 @@ using TUnit.Core;
 public class ParallelEventDispatcherTests
 {
     [Test]
-    public async Task DispatchAsync_WithMultipleHandlers_InvokesAllHandlers()
+    public async Task DispatchAsync_WithMultipleHandlers_InvokesAllHandlers(CancellationToken cancellationToken)
     {
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
@@ -26,7 +26,7 @@ public class ParallelEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -40,7 +40,7 @@ public class ParallelEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithNoHandlers_CompletesSuccessfully()
+    public async Task DispatchAsync_WithNoHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
@@ -51,13 +51,13 @@ public class ParallelEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
     }
 
     [Test]
-    public async Task DispatchAsync_WithSingleHandler_InvokesHandler()
+    public async Task DispatchAsync_WithSingleHandler_InvokesHandler(CancellationToken cancellationToken)
     {
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
@@ -69,7 +69,7 @@ public class ParallelEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -77,13 +77,13 @@ public class ParallelEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithCancellation_RespectsToken()
+    public async Task DispatchAsync_WithCancellation_RespectsToken(CancellationToken cancellationToken)
     {
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
         var invokedHandlers = new List<int>();
         var handlers = new List<IEventHandler<TestEvent>> { new TestEventHandler(1, invokedHandlers) };
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await cts.CancelAsync().ConfigureAwait(false);
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>

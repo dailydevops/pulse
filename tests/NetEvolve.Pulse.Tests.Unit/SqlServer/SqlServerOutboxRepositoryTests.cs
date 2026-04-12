@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
+namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
 
 using System;
 using System.Threading.Tasks;
@@ -13,7 +13,9 @@ public sealed class SqlServerOutboxRepositoryTests
     private const string ValidConnectionString = "Server=.;Database=Test;Integrated Security=true;";
 
     [Test]
-    public async Task Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullConnectionString_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new SqlServerOutboxRepository(
@@ -24,7 +26,9 @@ public sealed class SqlServerOutboxRepositoryTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException() =>
+    public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new SqlServerOutboxRepository(
@@ -35,7 +39,9 @@ public sealed class SqlServerOutboxRepositoryTests
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException() =>
+    public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new SqlServerOutboxRepository(
@@ -46,13 +52,15 @@ public sealed class SqlServerOutboxRepositoryTests
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = await Assert
             .That(() => new SqlServerOutboxRepository(null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new SqlServerOutboxRepository(
@@ -63,7 +71,7 @@ public sealed class SqlServerOutboxRepositoryTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance()
+    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
     {
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
@@ -74,7 +82,7 @@ public sealed class SqlServerOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithTransactionScope_CreatesInstance()
+    public async Task Constructor_WithTransactionScope_CreatesInstance(CancellationToken cancellationToken)
     {
         var transactionScope = new SqlServerOutboxTransactionScope(null);
 
@@ -88,7 +96,7 @@ public sealed class SqlServerOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithCustomSchema_CreatesInstance()
+    public async Task Constructor_WithCustomSchema_CreatesInstance(CancellationToken cancellationToken)
     {
         var options = new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "custom" };
 
@@ -98,7 +106,7 @@ public sealed class SqlServerOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithNullSchema_CreatesInstance()
+    public async Task Constructor_WithNullSchema_CreatesInstance(CancellationToken cancellationToken)
     {
         var options = new OutboxOptions { ConnectionString = ValidConnectionString, Schema = null };
 
@@ -108,7 +116,7 @@ public sealed class SqlServerOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithEmptySchema_CreatesInstance()
+    public async Task Constructor_WithEmptySchema_CreatesInstance(CancellationToken cancellationToken)
     {
         var options = new OutboxOptions { ConnectionString = ValidConnectionString, Schema = string.Empty };
 
@@ -118,7 +126,7 @@ public sealed class SqlServerOutboxRepositoryTests
     }
 
     [Test]
-    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException()
+    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
@@ -126,7 +134,7 @@ public sealed class SqlServerOutboxRepositoryTests
         );
 
         _ = await Assert
-            .That(async () => await repository.AddAsync(null!).ConfigureAwait(false))
+            .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 }

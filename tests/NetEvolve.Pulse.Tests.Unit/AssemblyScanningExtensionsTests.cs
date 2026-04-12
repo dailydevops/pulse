@@ -12,7 +12,9 @@ using TUnit.Core;
 public class AssemblyScanningExtensionsTests
 {
     [Test]
-    public void AddHandlersFromAssembly_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddHandlersFromAssembly_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         IMediatorBuilder? configurator = null;
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -21,7 +23,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddHandlersFromAssembly_WithNullAssembly_ThrowsArgumentNullException()
+    public void AddHandlersFromAssembly_WithNullAssembly_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         Assembly? assembly = null;
@@ -32,7 +36,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssembly_RegistersCommandHandlers()
+    public async Task AddHandlersFromAssembly_RegistersCommandHandlers(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -52,7 +56,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssembly_RegistersQueryHandlers()
+    public async Task AddHandlersFromAssembly_RegistersQueryHandlers(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -70,7 +74,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssembly_RegistersEventHandlers()
+    public async Task AddHandlersFromAssembly_RegistersEventHandlers(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -88,7 +92,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssembly_WithCustomLifetime_RegistersHandlersWithSpecifiedLifetime()
+    public async Task AddHandlersFromAssembly_WithCustomLifetime_RegistersHandlersWithSpecifiedLifetime(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -112,7 +118,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssembly_DoesNotRegisterAbstractClasses()
+    public async Task AddHandlersFromAssembly_DoesNotRegisterAbstractClasses(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -125,7 +131,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssembly_ReturnsConfigurator()
+    public async Task AddHandlersFromAssembly_ReturnsConfigurator(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -146,7 +152,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddHandlersFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddHandlersFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         IMediatorBuilder? configurator = null;
 
@@ -156,7 +164,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssemblyContaining_RegistersHandlersFromMarkerTypeAssembly()
+    public async Task AddHandlersFromAssemblyContaining_RegistersHandlersFromMarkerTypeAssembly(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
 
@@ -174,7 +184,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssemblyContaining_WithCustomLifetime_RegistersHandlersWithSpecifiedLifetime()
+    public async Task AddHandlersFromAssemblyContaining_WithCustomLifetime_RegistersHandlersWithSpecifiedLifetime(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
 
@@ -194,7 +206,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssemblyContaining_ReturnsConfigurator()
+    public async Task AddHandlersFromAssemblyContaining_ReturnsConfigurator(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -214,7 +226,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddHandlersFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddHandlersFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         IMediatorBuilder? configurator = null;
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
@@ -223,7 +237,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddHandlersFromAssemblies_WithNullAssemblies_ThrowsArgumentNullException()
+    public void AddHandlersFromAssemblies_WithNullAssemblies_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         Assembly[]? assemblies = null;
@@ -234,7 +250,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssemblies_RegistersHandlersFromAllAssemblies()
+    public async Task AddHandlersFromAssemblies_RegistersHandlersFromAllAssemblies(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assemblies = new[]
@@ -253,7 +269,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssemblies_WithCustomLifetime_RegistersHandlersWithSpecifiedLifetime()
+    public async Task AddHandlersFromAssemblies_WithCustomLifetime_RegistersHandlersWithSpecifiedLifetime(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
@@ -272,7 +290,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddHandlersFromAssemblies_ReturnsConfigurator()
+    public async Task AddHandlersFromAssemblies_ReturnsConfigurator(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
@@ -344,7 +362,9 @@ public class AssemblyScanningExtensionsTests
 
     // Interceptor scanning tests
     [Test]
-    public void AddInterceptorsFromAssembly_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddInterceptorsFromAssembly_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         IMediatorBuilder? configurator = null;
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -353,7 +373,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddInterceptorsFromAssembly_WithNullAssembly_ThrowsArgumentNullException()
+    public void AddInterceptorsFromAssembly_WithNullAssembly_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         Assembly? assembly = null;
@@ -364,7 +386,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssembly_RegistersRequestInterceptors()
+    public async Task AddInterceptorsFromAssembly_RegistersRequestInterceptors(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -384,7 +406,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssembly_RegistersCommandInterceptors()
+    public async Task AddInterceptorsFromAssembly_RegistersCommandInterceptors(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -404,7 +426,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssembly_RegistersQueryInterceptors()
+    public async Task AddInterceptorsFromAssembly_RegistersQueryInterceptors(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -424,7 +446,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssembly_RegistersEventInterceptors()
+    public async Task AddInterceptorsFromAssembly_RegistersEventInterceptors(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -442,7 +464,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssembly_WithCustomLifetime_RegistersInterceptorsWithSpecifiedLifetime()
+    public async Task AddInterceptorsFromAssembly_WithCustomLifetime_RegistersInterceptorsWithSpecifiedLifetime(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -474,7 +498,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssembly_ReturnsConfigurator()
+    public async Task AddInterceptorsFromAssembly_ReturnsConfigurator(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assembly = typeof(AssemblyScanningExtensionsTests).Assembly;
@@ -495,7 +519,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddInterceptorsFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddInterceptorsFromAssemblies_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         IMediatorBuilder? configurator = null;
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
@@ -504,7 +530,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddInterceptorsFromAssemblies_WithNullAssemblies_ThrowsArgumentNullException()
+    public void AddInterceptorsFromAssemblies_WithNullAssemblies_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         Assembly[]? assemblies = null;
@@ -515,7 +543,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssemblies_RegistersInterceptorsFromAllAssemblies()
+    public async Task AddInterceptorsFromAssemblies_RegistersInterceptorsFromAllAssemblies(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
@@ -540,7 +570,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssemblies_ReturnsConfigurator()
+    public async Task AddInterceptorsFromAssemblies_ReturnsConfigurator(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var assemblies = new[] { typeof(AssemblyScanningExtensionsTests).Assembly };
@@ -561,7 +591,7 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public async Task AddInterceptorsFromAssemblyContaining_RegistersInterceptors()
+    public async Task AddInterceptorsFromAssemblyContaining_RegistersInterceptors(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
 
@@ -585,7 +615,9 @@ public class AssemblyScanningExtensionsTests
     }
 
     [Test]
-    public void AddInterceptorsFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddInterceptorsFromAssemblyContaining_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         IMediatorBuilder? configurator = null;
 

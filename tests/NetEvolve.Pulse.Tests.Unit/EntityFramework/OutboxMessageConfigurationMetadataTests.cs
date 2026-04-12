@@ -15,7 +15,9 @@ using TUnit.Core;
 public sealed class OutboxMessageConfigurationMetadataTests
 {
     [Test]
-    public async Task Create_WithSqlServerProvider_AppliesSqlServerFiltersAndColumnTypes()
+    public async Task Create_WithSqlServerProvider_AppliesSqlServerFiltersAndColumnTypes(
+        CancellationToken cancellationToken
+    )
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.SqlServer");
 
@@ -42,7 +44,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithPostgreSqlProvider_AppliesPostgreSqlFiltersAndColumnTypes()
+    public async Task Create_WithPostgreSqlProvider_AppliesPostgreSqlFiltersAndColumnTypes(
+        CancellationToken cancellationToken
+    )
     {
         var entityType = GetConfiguredEntityType("Npgsql.EntityFrameworkCore.PostgreSQL");
 
@@ -67,7 +71,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithSqliteProvider_AppliesSqliteFiltersAndColumnTypes()
+    public async Task Create_WithSqliteProvider_AppliesSqliteFiltersAndColumnTypes(CancellationToken cancellationToken)
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.Sqlite");
 
@@ -92,7 +96,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithMySqlProvider_AppliesMySqlColumnTypesAndNoFilteredIndexes()
+    public async Task Create_WithMySqlProvider_AppliesMySqlColumnTypesAndNoFilteredIndexes(
+        CancellationToken cancellationToken
+    )
     {
         var entityType = GetConfiguredEntityType("Pomelo.EntityFrameworkCore.MySql");
 
@@ -119,7 +125,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithInMemoryProvider_UsesBaseDefaultsWithoutColumnTypeOverrides()
+    public async Task Create_WithInMemoryProvider_UsesBaseDefaultsWithoutColumnTypeOverrides(
+        CancellationToken cancellationToken
+    )
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.InMemory");
 
@@ -139,7 +147,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithWhitespaceSchema_UsesDefaultSchemaAndConfiguredTableName()
+    public async Task Create_WithWhitespaceSchema_UsesDefaultSchemaAndConfiguredTableName(
+        CancellationToken cancellationToken
+    )
     {
         var entityType = GetConfiguredEntityType(
             "Microsoft.EntityFrameworkCore.SqlServer",
@@ -154,7 +164,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithSchemaContainingWhitespace_StoresTrimmedSchema()
+    public async Task Create_WithSchemaContainingWhitespace_StoresTrimmedSchema(CancellationToken cancellationToken)
     {
         var entityType = GetConfiguredEntityType(
             "Microsoft.EntityFrameworkCore.SqlServer",
@@ -165,7 +175,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithSqlServerProvider_AppliesOutboxBaseDefaultValues()
+    public async Task Create_WithSqlServerProvider_AppliesOutboxBaseDefaultValues(CancellationToken cancellationToken)
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.SqlServer");
 

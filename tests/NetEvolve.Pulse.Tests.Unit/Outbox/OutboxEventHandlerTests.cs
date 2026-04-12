@@ -15,13 +15,13 @@ using TUnit.Core;
 public sealed class OutboxEventHandlerTests
 {
     [Test]
-    public async Task HandleAsync_WithRegularEvent_StoresEventInOutbox()
+    public async Task HandleAsync_WithRegularEvent_StoresEventInOutbox(CancellationToken cancellationToken)
     {
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestRegularEvent>(outbox);
         var @event = new TestRegularEvent();
 
-        await handler.HandleAsync(@event).ConfigureAwait(false);
+        await handler.HandleAsync(@event, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -31,25 +31,27 @@ public sealed class OutboxEventHandlerTests
     }
 
     [Test]
-    public async Task HandleAsync_WithInProcessEvent_SkipsOutbox()
+    public async Task HandleAsync_WithInProcessEvent_SkipsOutbox(CancellationToken cancellationToken)
     {
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestInProcessEvent>(outbox);
         var @event = new TestInProcessEvent();
 
-        await handler.HandleAsync(@event).ConfigureAwait(false);
+        await handler.HandleAsync(@event, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(outbox.StoredEvents).IsEmpty();
     }
 
     [Test]
-    public async Task HandleAsync_WithInProcessEventAndHandleInProcessFalse_StoresEventInOutbox()
+    public async Task HandleAsync_WithInProcessEventAndHandleInProcessFalse_StoresEventInOutbox(
+        CancellationToken cancellationToken
+    )
     {
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestOptOutInProcessEvent>(outbox);
         var @event = new TestOptOutInProcessEvent();
 
-        await handler.HandleAsync(@event).ConfigureAwait(false);
+        await handler.HandleAsync(@event, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -59,12 +61,12 @@ public sealed class OutboxEventHandlerTests
     }
 
     [Test]
-    public async Task HandleAsync_WithCancellationToken_PassesTokenToOutbox()
+    public async Task HandleAsync_WithCancellationToken_PassesTokenToOutbox(CancellationToken cancellationToken)
     {
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestRegularEvent>(outbox);
         var @event = new TestRegularEvent();
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         await handler.HandleAsync(@event, cts.Token).ConfigureAwait(false);
 
@@ -72,12 +74,12 @@ public sealed class OutboxEventHandlerTests
     }
 
     [Test]
-    public async Task HandleAsync_WithCancelledToken_PropagatesCancellation()
+    public async Task HandleAsync_WithCancelledToken_PropagatesCancellation(CancellationToken cancellationToken)
     {
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestRegularEvent>(outbox);
         var @event = new TestRegularEvent();
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await cts.CancelAsync().ConfigureAwait(false);
 
         _ = await Assert.That(() => handler.HandleAsync(@event, cts.Token)).Throws<OperationCanceledException>();

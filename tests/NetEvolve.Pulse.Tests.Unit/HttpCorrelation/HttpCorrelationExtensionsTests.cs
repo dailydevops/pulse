@@ -14,13 +14,15 @@ using TUnit.Core;
 public sealed class HttpCorrelationExtensionsTests
 {
     [Test]
-    public async Task AddHttpCorrelationEnrichment_NullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddHttpCorrelationEnrichment_NullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => HttpCorrelationExtensions.AddHttpCorrelationEnrichment(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_RegistersRequestInterceptor()
+    public async Task AddHttpCorrelationEnrichment_RegistersRequestInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -34,7 +36,7 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_RegistersEventInterceptor()
+    public async Task AddHttpCorrelationEnrichment_RegistersEventInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -48,7 +50,9 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateRequestInterceptor()
+    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateRequestInterceptor(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -69,7 +73,9 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateEventInterceptor()
+    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateEventInterceptor(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -90,7 +96,7 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_ReturnsSameConfigurator()
+    public async Task AddHttpCorrelationEnrichment_ReturnsSameConfigurator(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -102,7 +108,9 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_WithoutAccessorRegistered_InterceptorResolvesSuccessfully()
+    public async Task AddHttpCorrelationEnrichment_WithoutAccessorRegistered_InterceptorResolvesSuccessfully(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange — IHttpCorrelationAccessor is intentionally NOT registered
         var services = new ServiceCollection();
@@ -119,7 +127,7 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_RegistersStreamQueryInterceptor()
+    public async Task AddHttpCorrelationEnrichment_RegistersStreamQueryInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -133,7 +141,9 @@ public sealed class HttpCorrelationExtensionsTests
     }
 
     [Test]
-    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateStreamQueryInterceptor()
+    public async Task AddHttpCorrelationEnrichment_CalledMultipleTimes_DoesNotDuplicateStreamQueryInterceptor(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();

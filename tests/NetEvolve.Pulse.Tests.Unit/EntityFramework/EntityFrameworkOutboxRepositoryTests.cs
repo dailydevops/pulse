@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
+namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
 using System.Threading.Tasks;
@@ -11,13 +11,13 @@ using TUnit.Core;
 public sealed class EntityFrameworkOutboxRepositoryTests
 {
     [Test]
-    public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullContext_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = await Assert
             .That(() => new EntityFrameworkOutboxRepository<TestDbContext>(null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException))
@@ -30,7 +30,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance()
+    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithValidArguments_CreatesInstance))
@@ -43,7 +43,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
     }
 
     [Test]
-    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException()
+    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(AddAsync_WithNullMessage_ThrowsArgumentNullException))
@@ -52,12 +52,12 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
 
         _ = await Assert
-            .That(async () => await repository.AddAsync(null!).ConfigureAwait(false))
+            .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task IsHealthyAsync_WithInMemoryProvider_ReturnsTrue()
+    public async Task IsHealthyAsync_WithInMemoryProvider_ReturnsTrue(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(IsHealthyAsync_WithInMemoryProvider_ReturnsTrue))
@@ -65,7 +65,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         await using var context = new TestDbContext(options);
         var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
 
-        var result = await repository.IsHealthyAsync(CancellationToken.None).ConfigureAwait(false);
+        var result = await repository.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsTrue();
     }

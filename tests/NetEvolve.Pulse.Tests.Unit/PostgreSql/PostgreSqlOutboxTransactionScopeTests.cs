@@ -9,7 +9,7 @@ using TUnit.Core;
 public sealed class PostgreSqlOutboxTransactionScopeTests
 {
     [Test]
-    public async Task Constructor_WithDefaultParameter_CreatesInstance()
+    public async Task Constructor_WithDefaultParameter_CreatesInstance(CancellationToken cancellationToken)
     {
         var scope = new PostgreSqlOutboxTransactionScope();
 
@@ -17,7 +17,7 @@ public sealed class PostgreSqlOutboxTransactionScopeTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTransaction_CreatesInstance()
+    public async Task Constructor_WithNullTransaction_CreatesInstance(CancellationToken cancellationToken)
     {
         var scope = new PostgreSqlOutboxTransactionScope(null);
 
@@ -25,7 +25,7 @@ public sealed class PostgreSqlOutboxTransactionScopeTests
     }
 
     [Test]
-    public async Task GetCurrentTransaction_WithDefaultParameter_ReturnsNull()
+    public async Task GetCurrentTransaction_WithDefaultParameter_ReturnsNull(CancellationToken cancellationToken)
     {
         var scope = new PostgreSqlOutboxTransactionScope();
 
@@ -35,7 +35,7 @@ public sealed class PostgreSqlOutboxTransactionScopeTests
     }
 
     [Test]
-    public async Task GetCurrentTransaction_WithNullTransaction_ReturnsNull()
+    public async Task GetCurrentTransaction_WithNullTransaction_ReturnsNull(CancellationToken cancellationToken)
     {
         var scope = new PostgreSqlOutboxTransactionScope(null);
 

@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
 using System.Threading.Tasks;
@@ -11,19 +11,23 @@ using TUnit.Core;
 public sealed class SQLiteOutboxRepositoryTests
 {
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = await Assert
             .That(() => new SQLiteOutboxRepository(null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => new SQLiteOutboxRepository(Options.Create(new OutboxOptions()), null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException() =>
+    public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxRepository(
@@ -34,7 +38,9 @@ public sealed class SQLiteOutboxRepositoryTests
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException() =>
+    public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxRepository(
@@ -45,7 +51,7 @@ public sealed class SQLiteOutboxRepositoryTests
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task Constructor_WithValidOptions_CreatesInstance()
+    public async Task Constructor_WithValidOptions_CreatesInstance(CancellationToken cancellationToken)
     {
         var repository = new SQLiteOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
@@ -56,7 +62,7 @@ public sealed class SQLiteOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithTransactionScope_CreatesInstance()
+    public async Task Constructor_WithTransactionScope_CreatesInstance(CancellationToken cancellationToken)
     {
         var transactionScope = new SQLiteOutboxTransactionScope(null);
 
@@ -70,7 +76,7 @@ public sealed class SQLiteOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithCustomTableName_CreatesInstance()
+    public async Task Constructor_WithCustomTableName_CreatesInstance(CancellationToken cancellationToken)
     {
         var options = new OutboxOptions
         {
@@ -85,7 +91,7 @@ public sealed class SQLiteOutboxRepositoryTests
     }
 
     [Test]
-    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException()
+    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var repository = new SQLiteOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
@@ -93,7 +99,7 @@ public sealed class SQLiteOutboxRepositoryTests
         );
 
         _ = await Assert
-            .That(async () => await repository.AddAsync(null!).ConfigureAwait(false))
+            .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 }

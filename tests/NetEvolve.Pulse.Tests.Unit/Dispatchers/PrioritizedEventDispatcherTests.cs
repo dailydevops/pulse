@@ -14,7 +14,7 @@ using TUnit.Core;
 public class PrioritizedEventDispatcherTests
 {
     [Test]
-    public async Task DispatchAsync_WithPrioritizedHandlers_ExecutesInPriorityOrder()
+    public async Task DispatchAsync_WithPrioritizedHandlers_ExecutesInPriorityOrder(CancellationToken cancellationToken)
     {
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
@@ -27,12 +27,7 @@ public class PrioritizedEventDispatcherTests
         };
 
         await dispatcher
-            .DispatchAsync(
-                message,
-                handlers,
-                (handler, msg, ct) => handler.HandleAsync(msg, ct),
-                CancellationToken.None
-            )
+            .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
             .ConfigureAwait(false);
 
         var order = executionOrder.ToArray();
@@ -46,7 +41,7 @@ public class PrioritizedEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithNonPrioritizedHandlers_ExecutesLast()
+    public async Task DispatchAsync_WithNonPrioritizedHandlers_ExecutesLast(CancellationToken cancellationToken)
     {
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
@@ -60,12 +55,7 @@ public class PrioritizedEventDispatcherTests
         };
 
         await dispatcher
-            .DispatchAsync(
-                message,
-                handlers,
-                (handler, msg, ct) => handler.HandleAsync(msg, ct),
-                CancellationToken.None
-            )
+            .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
             .ConfigureAwait(false);
 
         var order = executionOrder.ToArray();
@@ -80,7 +70,7 @@ public class PrioritizedEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithEqualPriority_PreservesRegistrationOrder()
+    public async Task DispatchAsync_WithEqualPriority_PreservesRegistrationOrder(CancellationToken cancellationToken)
     {
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
@@ -93,12 +83,7 @@ public class PrioritizedEventDispatcherTests
         };
 
         await dispatcher
-            .DispatchAsync(
-                message,
-                handlers,
-                (handler, msg, ct) => handler.HandleAsync(msg, ct),
-                CancellationToken.None
-            )
+            .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
             .ConfigureAwait(false);
 
         var order = executionOrder.ToArray();
@@ -112,7 +97,7 @@ public class PrioritizedEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithCancellation_StopsExecution()
+    public async Task DispatchAsync_WithCancellation_StopsExecution(CancellationToken cancellationToken)
     {
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
@@ -142,19 +127,14 @@ public class PrioritizedEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithEmptyHandlers_CompletesSuccessfully()
+    public async Task DispatchAsync_WithEmptyHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var handlers = Enumerable.Empty<IEventHandler<TestEvent>>();
 
         await dispatcher
-            .DispatchAsync(
-                message,
-                handlers,
-                (handler, msg, ct) => handler.HandleAsync(msg, ct),
-                CancellationToken.None
-            )
+            .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
             .ConfigureAwait(false);
     }
 

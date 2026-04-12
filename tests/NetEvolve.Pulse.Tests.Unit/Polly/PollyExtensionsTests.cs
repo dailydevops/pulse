@@ -18,21 +18,25 @@ using TUnit.Mocks;
 public sealed class PollyExtensionsTests
 {
     [Test]
-    public async Task AddPollyRequestPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddPollyRequestPolicies_NullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => PollyExtensions.AddPollyRequestPolicies<TestCommand, string>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyRequestPolicies_NullConfigure_ThrowsArgumentNullException() =>
+    public async Task AddPollyRequestPolicies_NullConfigure_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPollyRequestPolicies<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyRequestPolicies_RegistersPipelineAndInterceptor()
+    public async Task AddPollyRequestPolicies_RegistersPipelineAndInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -55,7 +59,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_VoidCommand_RegistersPipelineAndInterceptor()
+    public async Task AddPollyRequestPolicies_VoidCommand_RegistersPipelineAndInterceptor(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -74,21 +80,25 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyEventPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddPollyEventPolicies_NullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => PollyExtensions.AddPollyEventPolicies<TestEvent>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyEventPolicies_NullConfigure_ThrowsArgumentNullException() =>
+    public async Task AddPollyEventPolicies_NullConfigure_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPollyEventPolicies<TestEvent>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyEventPolicies_RegistersPipelineAndInterceptor()
+    public async Task AddPollyEventPolicies_RegistersPipelineAndInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -111,7 +121,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyRequestPolicies_WithDifferentLifetimes_RespectsLifetime(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -137,7 +149,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered()
+    public async Task AddPollyRequestPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -164,7 +178,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_CalledTwice_SecondConfigurationIsApplied()
+    public async Task AddPollyRequestPolicies_CalledTwice_SecondConfigurationIsApplied(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var firstFactoryInvoked = false;
@@ -196,7 +212,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_VoidCommand_CalledTwice_ReplacesExistingRegistration()
+    public async Task AddPollyRequestPolicies_VoidCommand_CalledTwice_ReplacesExistingRegistration(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -217,7 +235,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_CalledTwice_ReplacesExistingRegistration()
+    public async Task AddPollyRequestPolicies_CalledTwice_ReplacesExistingRegistration(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -242,7 +262,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyEventPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered()
+    public async Task AddPollyEventPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -267,7 +289,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyEventPolicies_CalledTwice_SecondConfigurationIsApplied()
+    public async Task AddPollyEventPolicies_CalledTwice_SecondConfigurationIsApplied(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var firstFactoryInvoked = false;
@@ -299,7 +323,7 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyEventPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyEventPolicies_WithDifferentLifetimes_RespectsLifetime(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -325,7 +349,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyEventPolicies_CalledTwice_ReplacesExistingRegistration()
+    public async Task AddPollyEventPolicies_CalledTwice_ReplacesExistingRegistration(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -350,21 +376,25 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyQueryPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddPollyQueryPolicies_NullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => PollyExtensions.AddPollyQueryPolicies<TestQuery, string>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyQueryPolicies_NullConfigure_ThrowsArgumentNullException() =>
+    public async Task AddPollyQueryPolicies_NullConfigure_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPollyQueryPolicies<TestQuery, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyQueryPolicies_RegistersPipelineAndInterceptor()
+    public async Task AddPollyQueryPolicies_RegistersPipelineAndInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -387,7 +417,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyQueryPolicies_CalledTwice_ReplacesExistingRegistration()
+    public async Task AddPollyQueryPolicies_CalledTwice_ReplacesExistingRegistration(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -412,21 +444,25 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyCommandPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddPollyCommandPolicies_NullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => PollyExtensions.AddPollyCommandPolicies<TestCommand, string>(null!, _ => { }))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyCommandPolicies_NullConfigure_ThrowsArgumentNullException() =>
+    public async Task AddPollyCommandPolicies_NullConfigure_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         // Act & Assert
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPollyCommandPolicies<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPollyCommandPolicies_RegistersPipelineAndInterceptor()
+    public async Task AddPollyCommandPolicies_RegistersPipelineAndInterceptor(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -449,7 +485,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyCommandPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyCommandPolicies_WithDifferentLifetimes_RespectsLifetime(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -475,7 +513,9 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyCommandPolicies_CalledTwice_ReplacesExistingRegistration()
+    public async Task AddPollyCommandPolicies_CalledTwice_ReplacesExistingRegistration(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();

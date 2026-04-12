@@ -9,7 +9,7 @@ using TUnit.Core;
 public class SequentialEventDispatcherTests
 {
     [Test]
-    public async Task DispatchAsync_WithMultipleHandlers_InvokesAllHandlersInOrder()
+    public async Task DispatchAsync_WithMultipleHandlers_InvokesAllHandlersInOrder(CancellationToken cancellationToken)
     {
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
@@ -26,7 +26,7 @@ public class SequentialEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -40,7 +40,7 @@ public class SequentialEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithNoHandlers_CompletesSuccessfully()
+    public async Task DispatchAsync_WithNoHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
@@ -51,13 +51,13 @@ public class SequentialEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
     }
 
     [Test]
-    public async Task DispatchAsync_WithSingleHandler_InvokesHandler()
+    public async Task DispatchAsync_WithSingleHandler_InvokesHandler(CancellationToken cancellationToken)
     {
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
@@ -69,7 +69,7 @@ public class SequentialEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -77,7 +77,7 @@ public class SequentialEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_WithCancellationBetweenHandlers_StopsExecution()
+    public async Task DispatchAsync_WithCancellationBetweenHandlers_StopsExecution(CancellationToken cancellationToken)
     {
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
@@ -105,7 +105,7 @@ public class SequentialEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_ExecutesSequentially_NotInParallel()
+    public async Task DispatchAsync_ExecutesSequentially_NotInParallel(CancellationToken cancellationToken)
     {
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
@@ -151,7 +151,7 @@ public class SequentialEventDispatcherTests
                 testEvent,
                 handlers,
                 async (handler, evt, ct) => await handler.HandleAsync(evt, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
 

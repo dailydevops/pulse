@@ -17,11 +17,14 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand, TResponse> — null-argument guards
 
     [Test]
-    public void MapCommand_WithResponseAndNullEndpoints_ThrowsArgumentNullException() =>
-        _ = Assert.Throws<ArgumentNullException>(() => PulseEndpoints.MapCommand<TestCommand, string>(null!, "/test"));
+    public void MapCommand_WithResponseAndNullEndpoints_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) => _ = Assert.Throws<ArgumentNullException>(() => PulseEndpoints.MapCommand<TestCommand, string>(null!, "/test"));
 
     [Test]
-    public async Task MapCommand_WithResponseAndNullPattern_ThrowsArgumentNullException()
+    public async Task MapCommand_WithResponseAndNullPattern_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -31,7 +34,9 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand, TResponse> — httpMethod validation
 
     [Test]
-    public async Task MapCommand_WithResponse_WithUndefinedMethod_ThrowsArgumentOutOfRangeException()
+    public async Task MapCommand_WithResponse_WithUndefinedMethod_ThrowsArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -43,7 +48,9 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand, TResponse> — valid cases
 
     [Test]
-    public async Task MapCommand_WithResponse_DefaultPost_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_WithResponse_DefaultPost_ReturnsRouteHandlerBuilder(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -53,7 +60,9 @@ public sealed class EndpointRouteBuilderExtensionsTests
     }
 
     [Test]
-    public async Task MapCommand_WithResponse_WithPutMethod_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_WithResponse_WithPutMethod_ReturnsRouteHandlerBuilder(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -63,7 +72,9 @@ public sealed class EndpointRouteBuilderExtensionsTests
     }
 
     [Test]
-    public async Task MapCommand_WithResponse_WithPatchMethod_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_WithResponse_WithPatchMethod_ReturnsRouteHandlerBuilder(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -73,7 +84,9 @@ public sealed class EndpointRouteBuilderExtensionsTests
     }
 
     [Test]
-    public async Task MapCommand_WithResponse_WithDeleteMethod_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_WithResponse_WithDeleteMethod_ReturnsRouteHandlerBuilder(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -85,11 +98,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand> (void) — null-argument guards
 
     [Test]
-    public void MapCommand_VoidAndNullEndpoints_ThrowsArgumentNullException() =>
+    public void MapCommand_VoidAndNullEndpoints_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = Assert.Throws<ArgumentNullException>(() => PulseEndpoints.MapCommand<VoidTestCommand>(null!, "/test"));
 
     [Test]
-    public async Task MapCommand_VoidAndNullPattern_ThrowsArgumentNullException()
+    public async Task MapCommand_VoidAndNullPattern_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -99,7 +112,9 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand> (void) — httpMethod validation
 
     [Test]
-    public async Task MapCommand_Void_WithUndefinedMethod_ThrowsArgumentOutOfRangeException()
+    public async Task MapCommand_Void_WithUndefinedMethod_ThrowsArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    )
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -111,7 +126,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapCommand<TCommand> (void) — valid cases
 
     [Test]
-    public async Task MapCommand_Void_DefaultPost_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_Void_DefaultPost_ReturnsRouteHandlerBuilder(CancellationToken cancellationToken)
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -121,7 +136,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     }
 
     [Test]
-    public async Task MapCommand_Void_WithDeleteMethod_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_Void_WithDeleteMethod_ReturnsRouteHandlerBuilder(CancellationToken cancellationToken)
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -131,7 +146,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     }
 
     [Test]
-    public async Task MapCommand_Void_WithPutMethod_ReturnsRouteHandlerBuilder()
+    public async Task MapCommand_Void_WithPutMethod_ReturnsRouteHandlerBuilder(CancellationToken cancellationToken)
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -143,11 +158,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     // MapQuery — null-argument guards
 
     [Test]
-    public void MapQuery_WithNullEndpoints_ThrowsArgumentNullException() =>
+    public void MapQuery_WithNullEndpoints_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = Assert.Throws<ArgumentNullException>(() => PulseEndpoints.MapQuery<TestQuery, string>(null!, "/test"));
 
     [Test]
-    public async Task MapQuery_WithNullPattern_ThrowsArgumentNullException()
+    public async Task MapQuery_WithNullPattern_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 
@@ -155,7 +170,7 @@ public sealed class EndpointRouteBuilderExtensionsTests
     }
 
     [Test]
-    public async Task MapQuery_ReturnsRouteHandlerBuilder()
+    public async Task MapQuery_ReturnsRouteHandlerBuilder(CancellationToken cancellationToken)
     {
         await using var endpoints = WebApplication.CreateBuilder().Build();
 

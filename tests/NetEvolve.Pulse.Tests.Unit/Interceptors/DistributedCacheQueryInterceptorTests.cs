@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
@@ -16,7 +16,7 @@ public class DistributedCacheQueryInterceptorTests
     private static IOptions<QueryCachingOptions> DefaultOptions => Options.Create(new QueryCachingOptions());
 
     [Test]
-    public async Task HandleAsync_QueryNotCacheable_AlwaysCallsHandler()
+    public async Task HandleAsync_QueryNotCacheable_AlwaysCallsHandler(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -33,7 +33,8 @@ public class DistributedCacheQueryInterceptorTests
                 {
                     handlerCallCount++;
                     return Task.FromResult("handler-result");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -45,7 +46,7 @@ public class DistributedCacheQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_CacheMiss_CallsHandlerAndStoresResult()
+    public async Task HandleAsync_CacheMiss_CallsHandlerAndStoresResult(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -62,7 +63,8 @@ public class DistributedCacheQueryInterceptorTests
                 {
                     handlerCallCount++;
                     return Task.FromResult("cached-value");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -74,14 +76,14 @@ public class DistributedCacheQueryInterceptorTests
 
         // Verify the value was written to the cache
         var cache = provider.GetRequiredService<IDistributedCache>();
-        var bytes = await cache.GetAsync("test-key").ConfigureAwait(false);
+        var bytes = await cache.GetAsync("test-key", cancellationToken).ConfigureAwait(false);
         _ = await Assert.That(bytes).IsNotNull();
         var deserialised = JsonSerializer.Deserialize<string>(bytes!);
         _ = await Assert.That(deserialised).IsEqualTo("cached-value");
     }
 
     [Test]
-    public async Task HandleAsync_CacheHit_ReturnsCachedValueWithoutCallingHandler()
+    public async Task HandleAsync_CacheHit_ReturnsCachedValueWithoutCallingHandler(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -90,7 +92,7 @@ public class DistributedCacheQueryInterceptorTests
         // Pre-populate the cache
         var cache = provider.GetRequiredService<IDistributedCache>();
         var serialized = JsonSerializer.SerializeToUtf8Bytes("cached-result");
-        await cache.SetAsync("hit-key", serialized).ConfigureAwait(false);
+        await cache.SetAsync("hit-key", serialized, cancellationToken).ConfigureAwait(false);
 
         var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(provider, DefaultOptions);
         var query = new CacheableQuery("hit-key");
@@ -103,7 +105,8 @@ public class DistributedCacheQueryInterceptorTests
                 {
                     handlerCallCount++;
                     return Task.FromResult("handler-result");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -115,7 +118,7 @@ public class DistributedCacheQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithExpiry_StoresEntryWithAbsoluteExpiration()
+    public async Task HandleAsync_WithExpiry_StoresEntryWithAbsoluteExpiration(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -128,18 +131,18 @@ public class DistributedCacheQueryInterceptorTests
         var query = new CacheableQueryWithExpiry("expiry-key", TimeSpan.FromSeconds(60));
 
         var result = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("expiry-value"))
+            .HandleAsync(query, (_, _) => Task.FromResult("expiry-value"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("expiry-value");
 
         var cache = provider.GetRequiredService<IDistributedCache>();
-        var bytes = await cache.GetAsync("expiry-key").ConfigureAwait(false);
+        var bytes = await cache.GetAsync("expiry-key", cancellationToken).ConfigureAwait(false);
         _ = await Assert.That(bytes).IsNotNull();
     }
 
     [Test]
-    public async Task HandleAsync_WithNullExpiry_StoresEntryWithoutExpiration()
+    public async Task HandleAsync_WithNullExpiry_StoresEntryWithoutExpiration(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -149,18 +152,18 @@ public class DistributedCacheQueryInterceptorTests
         var query = new CacheableQuery("no-expiry-key");
 
         var result = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("no-expiry-value"))
+            .HandleAsync(query, (_, _) => Task.FromResult("no-expiry-value"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("no-expiry-value");
 
         var cache = provider.GetRequiredService<IDistributedCache>();
-        var bytes = await cache.GetAsync("no-expiry-key").ConfigureAwait(false);
+        var bytes = await cache.GetAsync("no-expiry-key", cancellationToken).ConfigureAwait(false);
         _ = await Assert.That(bytes).IsNotNull();
     }
 
     [Test]
-    public async Task HandleAsync_NoCacheRegistered_FallsThroughToHandler()
+    public async Task HandleAsync_NoCacheRegistered_FallsThroughToHandler(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         // Do NOT register IDistributedCache
@@ -177,7 +180,8 @@ public class DistributedCacheQueryInterceptorTests
                 {
                     handlerCallCount++;
                     return Task.FromResult("fallthrough-result");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -189,7 +193,7 @@ public class DistributedCacheQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_ExpiredCacheEntry_CallsHandlerAndRefreshesCache()
+    public async Task HandleAsync_ExpiredCacheEntry_CallsHandlerAndRefreshesCache(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -202,11 +206,12 @@ public class DistributedCacheQueryInterceptorTests
             .SetAsync(
                 "expired-key",
                 serialized,
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(1) }
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(1) },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
-        await Task.Delay(50).ConfigureAwait(false); // Allow the entry to expire
+        await Task.Delay(50, cancellationToken).ConfigureAwait(false); // Allow the entry to expire
 
         var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(provider, DefaultOptions);
         var query = new CacheableQuery("expired-key");
@@ -219,7 +224,8 @@ public class DistributedCacheQueryInterceptorTests
                 {
                     handlerCallCount++;
                     return Task.FromResult("fresh-value");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -231,7 +237,9 @@ public class DistributedCacheQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_SlidingExpirationMode_StoresEntryWithSlidingExpiration()
+    public async Task HandleAsync_SlidingExpirationMode_StoresEntryWithSlidingExpiration(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -242,19 +250,21 @@ public class DistributedCacheQueryInterceptorTests
         var query = new CacheableQueryWithExpiry("sliding-key", TimeSpan.FromSeconds(60));
 
         var result = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("sliding-value"))
+            .HandleAsync(query, (_, _) => Task.FromResult("sliding-value"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("sliding-value");
 
         // Entry should still be accessible after being stored with sliding expiration
         var cache = provider.GetRequiredService<IDistributedCache>();
-        var bytes = await cache.GetAsync("sliding-key").ConfigureAwait(false);
+        var bytes = await cache.GetAsync("sliding-key", cancellationToken).ConfigureAwait(false);
         _ = await Assert.That(bytes).IsNotNull();
     }
 
     [Test]
-    public async Task HandleAsync_CustomJsonSerializerOptions_UsedForSerializationAndDeserialization()
+    public async Task HandleAsync_CustomJsonSerializerOptions_UsedForSerializationAndDeserialization(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -267,21 +277,21 @@ public class DistributedCacheQueryInterceptorTests
         var query = new CacheableQuery("custom-json-key");
 
         var result = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("custom-json-value"))
+            .HandleAsync(query, (_, _) => Task.FromResult("custom-json-value"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("custom-json-value");
 
         // Second call should return from cache using the same custom options
         var cachedResult = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("should-not-be-returned"))
+            .HandleAsync(query, (_, _) => Task.FromResult("should-not-be-returned"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(cachedResult).IsEqualTo("custom-json-value");
     }
 
     [Test]
-    public async Task HandleAsync_DefaultExpiry_UsedWhenQueryExpiryIsNull()
+    public async Task HandleAsync_DefaultExpiry_UsedWhenQueryExpiryIsNull(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -292,19 +302,19 @@ public class DistributedCacheQueryInterceptorTests
         var query = new CacheableQuery("default-expiry-key");
 
         var result = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("default-expiry-value"))
+            .HandleAsync(query, (_, _) => Task.FromResult("default-expiry-value"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("default-expiry-value");
 
         // Entry should be present (default expiry applied)
         var cache = provider.GetRequiredService<IDistributedCache>();
-        var bytes = await cache.GetAsync("default-expiry-key").ConfigureAwait(false);
+        var bytes = await cache.GetAsync("default-expiry-key", cancellationToken).ConfigureAwait(false);
         _ = await Assert.That(bytes).IsNotNull();
     }
 
     [Test]
-    public async Task HandleAsync_DefaultExpiry_NotUsedWhenQueryExpiryIsProvided()
+    public async Task HandleAsync_DefaultExpiry_NotUsedWhenQueryExpiryIsProvided(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
@@ -316,14 +326,14 @@ public class DistributedCacheQueryInterceptorTests
         var query = new CacheableQueryWithExpiry("query-expiry-key", TimeSpan.FromMinutes(10));
 
         var result = await interceptor
-            .HandleAsync(query, (_, _) => Task.FromResult("query-expiry-value"))
+            .HandleAsync(query, (_, _) => Task.FromResult("query-expiry-value"), cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("query-expiry-value");
 
         // Entry should still be present because the query's own expiry (10 min) overrode DefaultExpiry (1 ms)
         var cache = provider.GetRequiredService<IDistributedCache>();
-        var bytes = await cache.GetAsync("query-expiry-key").ConfigureAwait(false);
+        var bytes = await cache.GetAsync("query-expiry-key", cancellationToken).ConfigureAwait(false);
         _ = await Assert.That(bytes).IsNotNull();
     }
 

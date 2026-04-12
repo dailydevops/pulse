@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Dapr;
+namespace NetEvolve.Pulse.Tests.Unit.Dapr;
 
 using System;
 using System.Threading.Tasks;
@@ -14,7 +14,9 @@ using TUnit.Core;
 public sealed class DaprMessageTransportTests
 {
     [Test]
-    public async Task Constructor_When_daprClient_is_null_throws_ArgumentNullException() =>
+    public async Task Constructor_When_daprClient_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() =>
                 new DaprMessageTransport(
@@ -26,7 +28,9 @@ public sealed class DaprMessageTransportTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_When_topicNameResolver_is_null_throws_ArgumentNullException()
+    public async Task Constructor_When_topicNameResolver_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         using var daprClient = new DaprClientBuilder().Build();
 
@@ -36,7 +40,7 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_options_is_null_throws_ArgumentNullException()
+    public async Task Constructor_When_options_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
         using var daprClient = new DaprClientBuilder().Build();
 
@@ -46,7 +50,7 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_With_valid_arguments_creates_instance()
+    public async Task Constructor_With_valid_arguments_creates_instance(CancellationToken cancellationToken)
     {
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
@@ -59,7 +63,7 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_When_message_is_null_throws_ArgumentNullException()
+    public async Task SendAsync_When_message_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
@@ -68,11 +72,11 @@ public sealed class DaprMessageTransportTests
             Options.Create(new DaprMessageTransportOptions())
         );
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!));
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!, cancellationToken));
     }
 
     [Test]
-    public async Task IsHealthyAsync_Delegates_to_DaprClient()
+    public async Task IsHealthyAsync_Delegates_to_DaprClient(CancellationToken cancellationToken)
     {
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
@@ -82,7 +86,7 @@ public sealed class DaprMessageTransportTests
         );
 
         // Without a running Dapr sidecar, CheckHealthAsync returns false (connection refused → false, not throw)
-        var result = await transport.IsHealthyAsync();
+        var result = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(result).IsTypeOf<bool>();
     }

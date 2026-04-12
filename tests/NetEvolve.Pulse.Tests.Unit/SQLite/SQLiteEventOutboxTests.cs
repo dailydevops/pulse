@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
 using System.Reflection;
@@ -16,13 +16,13 @@ using TUnit.Core;
 public sealed class SQLiteEventOutboxTests
 {
     [Test]
-    public async Task Constructor_WithNullConnection_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullConnection_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = await Assert
             .That(() => new SQLiteEventOutbox(null!, Options.Create(new OutboxOptions()), TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -32,7 +32,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -42,7 +42,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance()
+    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -52,7 +52,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithTransaction_CreatesInstance()
+    public async Task Constructor_WithTransaction_CreatesInstance(CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -67,7 +67,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
+    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         var outbox = new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
@@ -78,7 +78,9 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException()
+    public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         var outbox = new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
@@ -88,16 +90,16 @@ public sealed class SQLiteEventOutboxTests
         };
 
         _ = await Assert
-            .That(async () => await outbox.StoreAsync(message).ConfigureAwait(false))
+            .That(async () => await outbox.StoreAsync(message, cancellationToken).ConfigureAwait(false))
             .Throws<InvalidOperationException>();
     }
 
     [Test]
-    public async Task StoreAsync_WithValidEvent_PersistsRow()
+    public async Task StoreAsync_WithValidEvent_PersistsRow(CancellationToken cancellationToken)
     {
         var connectionString = $"Data Source=store_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         await using var keepAlive = new SqliteConnection(connectionString);
-        await keepAlive.OpenAsync().ConfigureAwait(false);
+        await keepAlive.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         await using (
             var create = new SqliteCommand(
@@ -121,11 +123,11 @@ public sealed class SQLiteEventOutboxTests
             )
         )
         {
-            _ = await create.ExecuteNonQueryAsync().ConfigureAwait(false);
+            _ = await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         await using var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var outbox = new SQLiteEventOutbox(
             connection,
@@ -135,15 +137,15 @@ public sealed class SQLiteEventOutboxTests
 
         var evt = new TestEvent { CorrelationId = "corr" };
 
-        await outbox.StoreAsync(evt).ConfigureAwait(false);
+        await outbox.StoreAsync(evt, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT \"EventType\",\"CorrelationId\",\"Status\",\"Payload\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", evt.Id);
-        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-        _ = await reader.ReadAsync().ConfigureAwait(false);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        _ = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -155,11 +157,13 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithOversizedEventType_ThrowsInvalidOperationException()
+    public async Task StoreAsync_WithOversizedEventType_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
     {
         var connectionString = $"Data Source=type_{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
         await using var keepAlive = new SqliteConnection(connectionString);
-        await keepAlive.OpenAsync().ConfigureAwait(false);
+        await keepAlive.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using (
             var create = new SqliteCommand(
                 """
@@ -182,11 +186,11 @@ public sealed class SQLiteEventOutboxTests
             )
         )
         {
-            _ = await create.ExecuteNonQueryAsync().ConfigureAwait(false);
+            _ = await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         await using var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var outbox = new SQLiteEventOutbox(
             connection,
@@ -197,7 +201,7 @@ public sealed class SQLiteEventOutboxTests
         var longEvent = CreateLongTypeEvent();
 
         _ = await Assert
-            .That(async () => await outbox.StoreAsync(longEvent).ConfigureAwait(false))
+            .That(async () => await outbox.StoreAsync(longEvent, cancellationToken).ConfigureAwait(false))
             .Throws<InvalidOperationException>();
     }
 

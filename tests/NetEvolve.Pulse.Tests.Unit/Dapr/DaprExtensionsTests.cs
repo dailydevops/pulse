@@ -18,11 +18,12 @@ using TUnit.Core;
 public sealed class DaprExtensionsTests
 {
     [Test]
-    public async Task UseDaprTransport_When_configurator_is_null_throws_ArgumentNullException() =>
-        _ = await Assert.That(() => DaprExtensions.UseDaprTransport(null!)).Throws<ArgumentNullException>();
+    public async Task UseDaprTransport_When_configurator_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    ) => _ = await Assert.That(() => DaprExtensions.UseDaprTransport(null!)).Throws<ArgumentNullException>();
 
     [Test]
-    public async Task UseDaprTransport_Registers_transport_as_singleton()
+    public async Task UseDaprTransport_Registers_transport_as_singleton(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseDaprTransport());
@@ -37,7 +38,7 @@ public sealed class DaprExtensionsTests
     }
 
     [Test]
-    public async Task UseDaprTransport_Replaces_existing_transport()
+    public async Task UseDaprTransport_Replaces_existing_transport(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
@@ -48,7 +49,7 @@ public sealed class DaprExtensionsTests
     }
 
     [Test]
-    public async Task UseDaprTransport_Configures_options()
+    public async Task UseDaprTransport_Configures_options(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseDaprTransport(o => o.PubSubName = "custom-pubsub"));
@@ -60,7 +61,9 @@ public sealed class DaprExtensionsTests
     }
 
     [Test]
-    public async Task UseDaprTransport_Without_configureOptions_uses_default_PubSubName()
+    public async Task UseDaprTransport_Without_configureOptions_uses_default_PubSubName(
+        CancellationToken cancellationToken
+    )
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseDaprTransport());
@@ -72,7 +75,7 @@ public sealed class DaprExtensionsTests
     }
 
     [Test]
-    public async Task UseDaprTransport_Returns_same_configurator_for_chaining()
+    public async Task UseDaprTransport_Returns_same_configurator_for_chaining(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         IMediatorBuilder? captured = null;

@@ -17,37 +17,49 @@ using TUnit.Mocks;
 public sealed class SQLiteExtensionsTests
 {
     [Test]
-    public async Task UseSQLiteOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
+    public async Task UseSQLiteOutbox_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => SQLiteExtensions.UseSQLiteOutbox(null!, "Data Source=:memory:"))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task UseSQLiteOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
+    public async Task UseSQLiteOutbox_WithNullConnectionString_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.UseSQLiteOutbox((string)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task UseSQLiteOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
+    public async Task UseSQLiteOutbox_WithEmptyConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.UseSQLiteOutbox(string.Empty))
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task UseSQLiteOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
+    public async Task UseSQLiteOutbox_WithWhitespaceConnectionString_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.UseSQLiteOutbox("   "))
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task UseSQLiteOutbox_WithNullConfigureOptions_ThrowsArgumentNullException() =>
+    public async Task UseSQLiteOutbox_WithNullConfigureOptions_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.UseSQLiteOutbox((Action<OutboxOptions>)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task UseSQLiteOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining()
+    public async Task UseSQLiteOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining(
+        CancellationToken cancellationToken
+    )
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -58,7 +70,9 @@ public sealed class SQLiteExtensionsTests
     }
 
     [Test]
-    public async Task UseSQLiteOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped()
+    public async Task UseSQLiteOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().UseSQLiteOutbox("Data Source=:memory:"));
@@ -73,7 +87,9 @@ public sealed class SQLiteExtensionsTests
     }
 
     [Test]
-    public async Task UseSQLiteOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped()
+    public async Task UseSQLiteOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().UseSQLiteOutbox("Data Source=:memory:"));
@@ -88,7 +104,9 @@ public sealed class SQLiteExtensionsTests
     }
 
     [Test]
-    public async Task UseSQLiteOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton()
+    public async Task UseSQLiteOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseSQLiteOutbox("Data Source=:memory:"));
@@ -103,7 +121,7 @@ public sealed class SQLiteExtensionsTests
     }
 
     [Test]
-    public async Task UseSQLiteOutbox_WithConfigureOptions_AppliesTableName()
+    public async Task UseSQLiteOutbox_WithConfigureOptions_AppliesTableName(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -117,7 +135,7 @@ public sealed class SQLiteExtensionsTests
     }
 
     [Test]
-    public async Task UseSQLiteOutbox_WithConfigureAction_AppliesOptions()
+    public async Task UseSQLiteOutbox_WithConfigureAction_AppliesOptions(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -143,7 +161,9 @@ public sealed class SQLiteExtensionsTests
     }
 
     [Test]
-    public async Task UseSQLiteOutbox_WithConfigureAction_ReturnsConfiguratorForChaining()
+    public async Task UseSQLiteOutbox_WithConfigureAction_ReturnsConfiguratorForChaining(
+        CancellationToken cancellationToken
+    )
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());

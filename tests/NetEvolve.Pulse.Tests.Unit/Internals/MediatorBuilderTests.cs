@@ -10,7 +10,7 @@ using TUnit.Core;
 public class MediatorBuilderTests
 {
     [Test]
-    public async Task Constructor_WithNullServices_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullServices_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         IServiceCollection? services = null;
 
@@ -18,7 +18,7 @@ public class MediatorBuilderTests
     }
 
     [Test]
-    public async Task Constructor_WithValidServices_CreatesInstance()
+    public async Task Constructor_WithValidServices_CreatesInstance(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
 
@@ -32,7 +32,7 @@ public class MediatorBuilderTests
     }
 
     [Test]
-    public async Task Services_ReturnsProvidedServiceCollection()
+    public async Task Services_ReturnsProvidedServiceCollection(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);

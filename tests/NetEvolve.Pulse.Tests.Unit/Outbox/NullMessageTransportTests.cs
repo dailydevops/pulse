@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -13,7 +13,7 @@ using TUnit.Core;
 public sealed class NullMessageTransportTests
 {
     [Test]
-    public async Task SendAsync_WithValidMessage_CompletesSuccessfully()
+    public async Task SendAsync_WithValidMessage_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var transport = new NullMessageTransport();
         var message = new OutboxMessage
@@ -26,11 +26,11 @@ public sealed class NullMessageTransportTests
             Status = OutboxMessageStatus.Processing,
         };
 
-        await transport.SendAsync(message).ConfigureAwait(false);
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
     }
 
     [Test]
-    public async Task SendAsync_WithCancelledToken_CompletesSuccessfully()
+    public async Task SendAsync_WithCancelledToken_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var transport = new NullMessageTransport();
         var message = new OutboxMessage
@@ -42,7 +42,7 @@ public sealed class NullMessageTransportTests
             UpdatedAt = DateTimeOffset.UtcNow,
             Status = OutboxMessageStatus.Processing,
         };
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await cts.CancelAsync().ConfigureAwait(false);
 
         await transport.SendAsync(message, cts.Token).ConfigureAwait(false);

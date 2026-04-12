@@ -13,13 +13,13 @@ using TUnit.Core;
 public sealed class EntityFrameworkOutboxManagementTests
 {
     [Test]
-    public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
+    public async Task Constructor_WithNullContext_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
         _ = await Assert
             .That(() => new EntityFrameworkOutboxManagement<TestDbContext>(null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException))
@@ -32,7 +32,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance()
+    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithValidArguments_CreatesInstance))
@@ -45,7 +45,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException()
+    public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(
@@ -61,7 +63,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
+    public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException))
@@ -75,7 +79,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException()
+    public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException))
@@ -84,12 +90,16 @@ public sealed class EntityFrameworkOutboxManagementTests
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
         _ = await Assert
-            .That(async () => await management.GetDeadLetterMessagesAsync(page: -1).ConfigureAwait(false))
+            .That(async () =>
+                await management
+                    .GetDeadLetterMessagesAsync(page: -1, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false)
+            )
             .Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList()
+    public async Task GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList))
@@ -97,13 +107,17 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using var context = new TestDbContext(options);
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.GetDeadLetterMessagesAsync().ConfigureAwait(false);
+        var result = await management
+            .GetDeadLetterMessagesAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEmpty();
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithDeadLetterMessages_ReturnsMessages()
+    public async Task GetDeadLetterMessagesAsync_WithDeadLetterMessages_ReturnsMessages(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithDeadLetterMessages_ReturnsMessages))
@@ -132,18 +146,22 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.Pending,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.GetDeadLetterMessagesAsync().ConfigureAwait(false);
+        var result = await management
+            .GetDeadLetterMessagesAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(result).Count().IsEqualTo(1);
         _ = await Assert.That(result[0].Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
     }
 
     [Test]
-    public async Task GetDeadLetterMessageAsync_WithExistingDeadLetterMessage_ReturnsMessage()
+    public async Task GetDeadLetterMessageAsync_WithExistingDeadLetterMessage_ReturnsMessage(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithExistingDeadLetterMessage_ReturnsMessage))
@@ -162,18 +180,20 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.DeadLetter,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.GetDeadLetterMessageAsync(messageId).ConfigureAwait(false);
+        var result = await management.GetDeadLetterMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsNotNull();
         _ = await Assert.That(result!.Id).IsEqualTo(messageId);
     }
 
     [Test]
-    public async Task GetDeadLetterMessageAsync_WithNonDeadLetterMessage_ReturnsNull()
+    public async Task GetDeadLetterMessageAsync_WithNonDeadLetterMessage_ReturnsNull(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithNonDeadLetterMessage_ReturnsNull))
@@ -192,17 +212,17 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.Completed,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.GetDeadLetterMessageAsync(messageId).ConfigureAwait(false);
+        var result = await management.GetDeadLetterMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsNull();
     }
 
     [Test]
-    public async Task GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull()
+    public async Task GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull))
@@ -210,13 +230,15 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using var context = new TestDbContext(options);
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.GetDeadLetterMessageAsync(Guid.NewGuid()).ConfigureAwait(false);
+        var result = await management
+            .GetDeadLetterMessageAsync(Guid.NewGuid(), cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsNull();
     }
 
     [Test]
-    public async Task GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero()
+    public async Task GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero))
@@ -224,13 +246,15 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using var context = new TestDbContext(options);
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var count = await management.GetDeadLetterCountAsync().ConfigureAwait(false);
+        var count = await management.GetDeadLetterCountAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(count).IsEqualTo(0L);
     }
 
     [Test]
-    public async Task GetDeadLetterCountAsync_WithDeadLetterMessages_ReturnsCorrectCount()
+    public async Task GetDeadLetterCountAsync_WithDeadLetterMessages_ReturnsCorrectCount(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterCountAsync_WithDeadLetterMessages_ReturnsCorrectCount))
@@ -263,11 +287,11 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.Pending,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var count = await management.GetDeadLetterCountAsync().ConfigureAwait(false);
+        var count = await management.GetDeadLetterCountAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(count).IsEqualTo(3L);
     }
@@ -276,7 +300,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Skip(
         "The EF Core InMemory provider does not support ExecuteUpdateAsync (bulk updates). Covered by integration tests."
     )]
-    public async Task ReplayMessageAsync_WithExistingDeadLetterMessage_ReturnsTrueAndResetsMessage()
+    public async Task ReplayMessageAsync_WithExistingDeadLetterMessage_ReturnsTrueAndResetsMessage(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithExistingDeadLetterMessage_ReturnsTrueAndResetsMessage))
@@ -297,15 +323,15 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.DeadLetter,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.ReplayMessageAsync(messageId).ConfigureAwait(false);
+        var result = await management.ReplayMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsTrue();
 
-        var message = await context.OutboxMessages.FindAsync(messageId).ConfigureAwait(false);
+        var message = await context.OutboxMessages.FindAsync([messageId], cancellationToken).ConfigureAwait(false);
         using (Assert.Multiple())
         {
             _ = await Assert.That(message!.Status).IsEqualTo(OutboxMessageStatus.Pending);
@@ -318,7 +344,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Skip(
         "The EF Core InMemory provider does not support ExecuteUpdateAsync (bulk updates). Covered by integration tests."
     )]
-    public async Task ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse()
+    public async Task ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse))
@@ -337,11 +363,11 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.Failed,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.ReplayMessageAsync(messageId).ConfigureAwait(false);
+        var result = await management.ReplayMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsFalse();
     }
@@ -350,7 +376,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Skip(
         "The EF Core InMemory provider does not support ExecuteUpdateAsync (bulk updates). Covered by integration tests."
     )]
-    public async Task ReplayMessageAsync_WithUnknownId_ReturnsFalse()
+    public async Task ReplayMessageAsync_WithUnknownId_ReturnsFalse(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithUnknownId_ReturnsFalse))
@@ -358,7 +384,7 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using var context = new TestDbContext(options);
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var result = await management.ReplayMessageAsync(Guid.NewGuid()).ConfigureAwait(false);
+        var result = await management.ReplayMessageAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsFalse();
     }
@@ -367,7 +393,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Skip(
         "The EF Core InMemory provider does not support ExecuteUpdateAsync (bulk updates). Covered by integration tests."
     )]
-    public async Task ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero()
+    public async Task ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero))
@@ -375,7 +401,7 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using var context = new TestDbContext(options);
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var count = await management.ReplayAllDeadLetterAsync().ConfigureAwait(false);
+        var count = await management.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(count).IsEqualTo(0);
     }
@@ -384,7 +410,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Skip(
         "The EF Core InMemory provider does not support ExecuteUpdateAsync (bulk updates). Covered by integration tests."
     )]
-    public async Task ReplayAllDeadLetterAsync_WithDeadLetterMessages_ResetsAllAndReturnsCount()
+    public async Task ReplayAllDeadLetterAsync_WithDeadLetterMessages_ResetsAllAndReturnsCount(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_WithDeadLetterMessages_ResetsAllAndReturnsCount))
@@ -419,17 +447,17 @@ public sealed class EntityFrameworkOutboxManagementTests
                 Status = OutboxMessageStatus.Pending,
             }
         );
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var count = await management.ReplayAllDeadLetterAsync().ConfigureAwait(false);
+        var count = await management.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(count).IsEqualTo(3);
     }
 
     [Test]
-    public async Task GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics()
+    public async Task GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics))
@@ -437,7 +465,7 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using var context = new TestDbContext(options);
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var statistics = await management.GetStatisticsAsync().ConfigureAwait(false);
+        var statistics = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -451,7 +479,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     }
 
     [Test]
-    public async Task GetStatisticsAsync_WithMessages_ReturnsCorrectCounts()
+    public async Task GetStatisticsAsync_WithMessages_ReturnsCorrectCounts(CancellationToken cancellationToken)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetStatisticsAsync_WithMessages_ReturnsCorrectCounts))
@@ -487,11 +515,11 @@ public sealed class EntityFrameworkOutboxManagementTests
             );
         }
 
-        _ = await context.SaveChangesAsync().ConfigureAwait(false);
+        _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
 
-        var statistics = await management.GetStatisticsAsync().ConfigureAwait(false);
+        var statistics = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {

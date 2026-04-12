@@ -12,7 +12,9 @@ using TUnit.Core;
 public sealed class ModelBuilderExtensionsTests
 {
     [Test]
-    public async Task ApplyPulseConfiguration_When_modelBuilder_is_null_throws_ArgumentNullException()
+    public async Task ApplyPulseConfiguration_When_modelBuilder_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ApplyPulseConfiguration_When_modelBuilder_is_null_throws_ArgumentNullException))
@@ -25,7 +27,9 @@ public sealed class ModelBuilderExtensionsTests
     }
 
     [Test]
-    public async Task ApplyPulseConfiguration_When_context_is_null_throws_ArgumentNullException()
+    public async Task ApplyPulseConfiguration_When_context_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var modelBuilder = new ModelBuilder();
 
@@ -35,7 +39,9 @@ public sealed class ModelBuilderExtensionsTests
     }
 
     [Test]
-    public async Task ApplyPulseConfiguration_When_context_is_not_IOutboxDbContext_returns_same_modelBuilder()
+    public async Task ApplyPulseConfiguration_When_context_is_not_IOutboxDbContext_returns_same_modelBuilder(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<PlainDbContext>()
             .UseInMemoryDatabase(
@@ -51,7 +57,9 @@ public sealed class ModelBuilderExtensionsTests
     }
 
     [Test]
-    public async Task ApplyPulseConfiguration_When_context_implements_IOutboxDbContext_returns_same_modelBuilder()
+    public async Task ApplyPulseConfiguration_When_context_implements_IOutboxDbContext_returns_same_modelBuilder(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(

@@ -13,7 +13,7 @@ using TUnit.Core;
 public class PulseMediatorTests
 {
     [Test]
-    public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullLogger_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         ILogger<PulseMediator>? logger = null;
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
@@ -26,7 +26,9 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task Constructor_WithNullServiceProvider_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullServiceProvider_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         var logger = new ServiceCollection()
             .AddLogging()
@@ -42,7 +44,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var logger = new ServiceCollection()
             .AddLogging()
@@ -58,7 +60,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task Constructor_WithValidParameters_CreatesInstance()
+    public async Task Constructor_WithValidParameters_CreatesInstance(CancellationToken cancellationToken)
     {
         var logger = new ServiceCollection()
             .AddLogging()
@@ -77,7 +79,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task PublishAsync_WithNullMessage_ThrowsArgumentNullException()
+    public async Task PublishAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -88,12 +90,12 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "message",
-            async () => await mediator.PublishAsync<TestEvent>(null!).ConfigureAwait(false)
+            async () => await mediator.PublishAsync<TestEvent>(null!, cancellationToken).ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task PublishAsync_WithNoHandlers_CompletesSuccessfully()
+    public async Task PublishAsync_WithNoHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -103,13 +105,13 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
+        await mediator.PublishAsync(testEvent, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(testEvent.PublishedAt).IsNotNull();
     }
 
     [Test]
-    public async Task PublishAsync_WithHandlers_InvokesAllHandlers()
+    public async Task PublishAsync_WithHandlers_InvokesAllHandlers(CancellationToken cancellationToken)
     {
         var handler1 = new TestEventHandler();
         var handler2 = new TestEventHandler();
@@ -123,7 +125,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
+        await mediator.PublishAsync(testEvent, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -135,7 +137,9 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task PublishAsync_WithHandlerException_ContinuesExecutingOtherHandlersAndThrowsAggregate()
+    public async Task PublishAsync_WithHandlerException_ContinuesExecutingOtherHandlersAndThrowsAggregate(
+        CancellationToken cancellationToken
+    )
     {
         var handler1 = new ThrowingEventHandler();
         var handler2 = new TestEventHandler();
@@ -151,7 +155,7 @@ public class PulseMediatorTests
 
         // Act & Assert - PublishAsync throws AggregateException containing the handler failure
         var exception = await Assert.ThrowsAsync<AggregateException>(async () =>
-            await mediator.PublishAsync(testEvent).ConfigureAwait(false)
+            await mediator.PublishAsync(testEvent, cancellationToken).ConfigureAwait(false)
         );
 
         // Verify the exception contains the handler failure
@@ -163,7 +167,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task PublishAsync_SetsPublishedAtTimestamp()
+    public async Task PublishAsync_SetsPublishedAtTimestamp(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection().AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -173,7 +177,7 @@ public class PulseMediatorTests
         var testEvent = new TestEvent();
         var beforePublish = timeProvider.GetUtcNow();
 
-        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
+        await mediator.PublishAsync(testEvent, cancellationToken).ConfigureAwait(false);
 
         var afterPublish = timeProvider.GetUtcNow();
         var publishedAt = testEvent.PublishedAt;
@@ -186,7 +190,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task QueryAsync_WithNullQuery_ThrowsArgumentNullException()
+    public async Task QueryAsync_WithNullQuery_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -197,12 +201,12 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "query",
-            async () => await mediator.QueryAsync<TestQuery, string>(null!).ConfigureAwait(false)
+            async () => await mediator.QueryAsync<TestQuery, string>(null!, cancellationToken).ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task QueryAsync_WithNoHandler_ThrowsInvalidOperationException()
+    public async Task QueryAsync_WithNoHandler_ThrowsInvalidOperationException(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -213,12 +217,12 @@ public class PulseMediatorTests
         var query = new TestQuery();
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.QueryAsync<TestQuery, string>(query).ConfigureAwait(false)
+            await mediator.QueryAsync<TestQuery, string>(query, cancellationToken).ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task QueryAsync_WithHandler_InvokesHandlerAndReturnsResult()
+    public async Task QueryAsync_WithHandler_InvokesHandlerAndReturnsResult(CancellationToken cancellationToken)
     {
         var handler = new TestQueryHandler("test-result");
         var services = new ServiceCollection();
@@ -230,7 +234,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var query = new TestQuery();
 
-        var result = await mediator.QueryAsync<TestQuery, string>(query).ConfigureAwait(false);
+        var result = await mediator.QueryAsync<TestQuery, string>(query, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -241,7 +245,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task SendAsync_WithNullCommand_ThrowsArgumentNullException()
+    public async Task SendAsync_WithNullCommand_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -252,12 +256,12 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "command",
-            async () => await mediator.SendAsync<TestCommand, string>(null!).ConfigureAwait(false)
+            async () => await mediator.SendAsync<TestCommand, string>(null!, cancellationToken).ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task SendAsync_WithNoHandler_ThrowsInvalidOperationException()
+    public async Task SendAsync_WithNoHandler_ThrowsInvalidOperationException(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -268,12 +272,12 @@ public class PulseMediatorTests
         var command = new TestCommand();
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.SendAsync<TestCommand, string>(command).ConfigureAwait(false)
+            await mediator.SendAsync<TestCommand, string>(command, cancellationToken).ConfigureAwait(false)
         );
     }
 
     [Test]
-    public async Task SendAsync_WithHandler_InvokesHandlerAndReturnsResult()
+    public async Task SendAsync_WithHandler_InvokesHandlerAndReturnsResult(CancellationToken cancellationToken)
     {
         var handler = new TestCommandHandler("test-result");
         var services = new ServiceCollection();
@@ -285,7 +289,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var command = new TestCommand();
 
-        var result = await mediator.SendAsync<TestCommand, string>(command).ConfigureAwait(false);
+        var result = await mediator.SendAsync<TestCommand, string>(command, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -296,7 +300,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task SendAsync_WithInterceptor_InvokesInterceptorBeforeHandler()
+    public async Task SendAsync_WithInterceptor_InvokesInterceptorBeforeHandler(CancellationToken cancellationToken)
     {
         var handler = new TestCommandHandler("test-result");
         var interceptor = new TestCommandInterceptor();
@@ -310,7 +314,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var command = new TestCommand();
 
-        var result = await mediator.SendAsync<TestCommand, string>(command).ConfigureAwait(false);
+        var result = await mediator.SendAsync<TestCommand, string>(command, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -321,7 +325,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task QueryAsync_WithInterceptor_InvokesInterceptorBeforeHandler()
+    public async Task QueryAsync_WithInterceptor_InvokesInterceptorBeforeHandler(CancellationToken cancellationToken)
     {
         var handler = new TestQueryHandler("test-result");
         var interceptor = new TestQueryInterceptor();
@@ -335,7 +339,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var query = new TestQuery();
 
-        var result = await mediator.QueryAsync<TestQuery, string>(query).ConfigureAwait(false);
+        var result = await mediator.QueryAsync<TestQuery, string>(query, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -346,7 +350,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task PublishAsync_WithInterceptor_InvokesInterceptorBeforeHandlers()
+    public async Task PublishAsync_WithInterceptor_InvokesInterceptorBeforeHandlers(CancellationToken cancellationToken)
     {
         var handler = new TestEventHandler();
         var interceptor = new TestEventInterceptor();
@@ -360,7 +364,7 @@ public class PulseMediatorTests
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
         var testEvent = new TestEvent();
 
-        await mediator.PublishAsync(testEvent).ConfigureAwait(false);
+        await mediator.PublishAsync(testEvent, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -524,7 +528,7 @@ public class PulseMediatorTests
 
     // StreamQueryAsync tests
     [Test]
-    public async Task StreamQueryAsync_WithNullQuery_ThrowsArgumentNullException()
+    public async Task StreamQueryAsync_WithNullQuery_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -535,12 +539,14 @@ public class PulseMediatorTests
 
         _ = Assert.Throws<ArgumentNullException>(
             "query",
-            () => mediator.StreamQueryAsync<TestStreamQuery, string>(null!)
+            () => mediator.StreamQueryAsync<TestStreamQuery, string>(null!, cancellationToken)
         );
     }
 
     [Test]
-    public async Task StreamQueryAsync_WithNoHandler_ThrowsInvalidOperationException()
+    public async Task StreamQueryAsync_WithNoHandler_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -552,7 +558,7 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await foreach (var _ in mediator.StreamQueryAsync<TestStreamQuery, string>(query))
+            await foreach (var _ in mediator.StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken))
             {
                 // consume
             }
@@ -560,7 +566,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task StreamQueryAsync_WithHandler_YieldsAllItems()
+    public async Task StreamQueryAsync_WithHandler_YieldsAllItems(CancellationToken cancellationToken)
     {
         var expectedItems = new[] { "first", "second", "third" };
         var handler = new TestStreamQueryHandler(expectedItems);
@@ -574,7 +580,7 @@ public class PulseMediatorTests
         var query = new TestStreamQuery();
 
         var results = new List<string>();
-        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query))
+        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken))
         {
             results.Add(item);
         }
@@ -587,7 +593,9 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task StreamQueryAsync_WithInterceptor_InvokesInterceptorAndYieldsAllItems()
+    public async Task StreamQueryAsync_WithInterceptor_InvokesInterceptorAndYieldsAllItems(
+        CancellationToken cancellationToken
+    )
     {
         var expectedItems = new[] { "alpha", "beta" };
         var handler = new TestStreamQueryHandler(expectedItems);
@@ -603,7 +611,7 @@ public class PulseMediatorTests
         var query = new TestStreamQuery();
 
         var results = new List<string>();
-        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query))
+        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken))
         {
             results.Add(item);
         }

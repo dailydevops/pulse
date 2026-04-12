@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -24,13 +24,15 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithCommand_LogsBeginAndEndAtDebugLevel()
+    public async Task HandleAsync_WithCommand_LogsBeginAndEndAtDebugLevel(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var command = new TestCommand { CorrelationId = "corr-123" };
 
-        var result = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("ok")).ConfigureAwait(false);
+        var result = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("ok"), cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(result).IsEqualTo("ok");
         using (Assert.Multiple())
@@ -42,13 +44,15 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithCommand_LogsBeginAndEndAtInformationLevel()
+    public async Task HandleAsync_WithCommand_LogsBeginAndEndAtInformationLevel(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var command = new TestCommand();
 
-        _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("ok")).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("ok"), cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -59,13 +63,15 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithQuery_LogsQueryInMessage()
+    public async Task HandleAsync_WithQuery_LogsQueryInMessage(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestQuery, int>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestQuery();
 
-        _ = await interceptor.HandleAsync(query, (_, _) => Task.FromResult(42)).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(query, (_, _) => Task.FromResult(42), cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -75,19 +81,21 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithGenericRequest_LogsRequestInMessage()
+    public async Task HandleAsync_WithGenericRequest_LogsRequestInMessage(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestRequest, bool>>();
         var interceptor = CreateInterceptor(logger);
         var request = new TestRequest();
 
-        _ = await interceptor.HandleAsync(request, (_, _) => Task.FromResult(true)).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(request, (_, _) => Task.FromResult(true), cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(logger.Entries[0].Message).Contains("Request");
     }
 
     [Test]
-    public async Task HandleAsync_WithSlowRequest_LogsWarning()
+    public async Task HandleAsync_WithSlowRequest_LogsWarning(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(
@@ -103,7 +111,8 @@ public class LoggingRequestInterceptorTests
                 {
                     await Task.Delay(50, ct).ConfigureAwait(false);
                     return "ok";
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -113,7 +122,9 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithDisabledSlowRequestThreshold_DoesNotLogWarning()
+    public async Task HandleAsync_WithDisabledSlowRequestThreshold_DoesNotLogWarning(
+        CancellationToken cancellationToken
+    )
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
@@ -126,7 +137,8 @@ public class LoggingRequestInterceptorTests
                 {
                     await Task.Delay(50, ct).ConfigureAwait(false);
                     return "ok";
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -135,7 +147,7 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows()
+    public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
@@ -143,7 +155,9 @@ public class LoggingRequestInterceptorTests
         var expectedException = new InvalidOperationException("test error");
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(command, (_, _) => throw expectedException).ConfigureAwait(false)
+            await interceptor
+                .HandleAsync(command, (_, _) => throw expectedException, cancellationToken)
+                .ConfigureAwait(false)
         );
 
         _ = await Assert.That(exception).IsSameReferenceAs(expectedException);
@@ -157,19 +171,21 @@ public class LoggingRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_LogsCorrelationId()
+    public async Task HandleAsync_LogsCorrelationId(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand { CorrelationId = "my-correlation-id" };
 
-        _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("ok")).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("ok"), cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(logger.Entries[0].Message).Contains("my-correlation-id");
     }
 
     [Test]
-    public async Task HandleAsync_InvokesHandlerWithCorrectRequest()
+    public async Task HandleAsync_InvokesHandlerWithCorrectRequest(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
@@ -183,7 +199,8 @@ public class LoggingRequestInterceptorTests
                 {
                     received = cmd;
                     return Task.FromResult("ok");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 

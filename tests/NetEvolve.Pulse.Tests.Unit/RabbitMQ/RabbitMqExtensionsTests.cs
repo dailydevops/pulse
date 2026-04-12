@@ -12,7 +12,7 @@ using TUnit.Core;
 public sealed class RabbitMqExtensionsTests
 {
     [Test]
-    public async Task UseRabbitMqTransport_Registers_transport_service()
+    public async Task UseRabbitMqTransport_Registers_transport_service(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
@@ -23,7 +23,7 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Configures_options()
+    public async Task UseRabbitMqTransport_Configures_options(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseRabbitMqTransport(options => options.ExchangeName = "test-exchange"));
@@ -35,7 +35,9 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
+    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options(
+        CancellationToken cancellationToken
+    )
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
@@ -49,7 +51,7 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Replaces_existing_transport()
+    public async Task UseRabbitMqTransport_Replaces_existing_transport(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
@@ -65,7 +67,7 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_When_configurator_null_throws()
+    public async Task UseRabbitMqTransport_When_configurator_null_throws(CancellationToken cancellationToken)
     {
         IMediatorBuilder configurator = null!;
 
@@ -76,7 +78,7 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Returns_configurator_for_chaining()
+    public async Task UseRabbitMqTransport_Returns_configurator_for_chaining(CancellationToken cancellationToken)
     {
         IServiceCollection services = new ServiceCollection();
         IMediatorBuilder? returnedConfigurator = null;

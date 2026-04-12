@@ -22,7 +22,7 @@ public sealed class AzureServiceBusMessageTransportTests
     // ── Constructor guards ────────────────────────────────────────────────────
 
     [Test]
-    public async Task Constructor_When_client_is_null_throws_ArgumentNullException()
+    public async Task Constructor_When_client_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
         var resolver = new FakeTopicNameResolver();
         var options = Options.Create(new AzureServiceBusTransportOptions());
@@ -33,7 +33,9 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_resolver_is_null_throws_ArgumentNullException()
+    public async Task Constructor_When_resolver_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var options = Options.Create(new AzureServiceBusTransportOptions());
@@ -44,7 +46,7 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_options_is_null_throws_ArgumentNullException()
+    public async Task Constructor_When_options_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var resolver = new FakeTopicNameResolver();
@@ -57,7 +59,7 @@ public sealed class AzureServiceBusMessageTransportTests
     // ── IsHealthyAsync ────────────────────────────────────────────────────────
 
     [Test]
-    public async Task IsHealthyAsync_When_client_not_closed_returns_true()
+    public async Task IsHealthyAsync_When_client_not_closed_returns_true(CancellationToken cancellationToken)
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var resolver = new FakeTopicNameResolver();
@@ -65,13 +67,13 @@ public sealed class AzureServiceBusMessageTransportTests
 
         await using var transport = new AzureServiceBusMessageTransport(client, resolver, options);
 
-        var healthy = await transport.IsHealthyAsync();
+        var healthy = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(healthy).IsTrue();
     }
 
     [Test]
-    public async Task IsHealthyAsync_When_client_is_closed_returns_false()
+    public async Task IsHealthyAsync_When_client_is_closed_returns_false(CancellationToken cancellationToken)
     {
         // Note: DisposeAsync is a no-op (does not dispose injected dependencies).
         // Close the underlying client directly to test the health check.
@@ -83,7 +85,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
         await client.DisposeAsync();
 
-        var healthy = await transport.IsHealthyAsync();
+        var healthy = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -91,7 +93,7 @@ public sealed class AzureServiceBusMessageTransportTests
     // ── SendAsync null guard ──────────────────────────────────────────────────
 
     [Test]
-    public async Task SendAsync_When_message_is_null_throws_ArgumentNullException()
+    public async Task SendAsync_When_message_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var resolver = new FakeTopicNameResolver();
@@ -99,13 +101,13 @@ public sealed class AzureServiceBusMessageTransportTests
 
         await using var transport = new AzureServiceBusMessageTransport(client, resolver, options);
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!));
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!, cancellationToken));
     }
 
     // ── SendAsync happy path ──────────────────────────────────────────────────
 
     [Test]
-    public async Task SendAsync_Routes_message_to_resolver_topic()
+    public async Task SendAsync_Routes_message_to_resolver_topic(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver("orders");
@@ -114,14 +116,14 @@ public sealed class AzureServiceBusMessageTransportTests
         await using var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
 
         var message = CreateOutboxMessage();
-        await transport.SendAsync(message);
+        await transport.SendAsync(message, cancellationToken);
 
         _ = await Assert.That(fakeClient.GetSender("orders")).IsNotNull();
         _ = await Assert.That(fakeClient.GetSender("orders")!.SentMessages).HasSingleItem();
     }
 
     [Test]
-    public async Task SendAsync_Maps_required_fields_onto_ServiceBusMessage()
+    public async Task SendAsync_Maps_required_fields_onto_ServiceBusMessage(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver("my-topic");
@@ -130,7 +132,7 @@ public sealed class AzureServiceBusMessageTransportTests
         await using var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
 
         var outboxMessage = CreateOutboxMessage();
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         var sent = fakeClient.GetSender("my-topic")!.SentMessages[0];
         using (Assert.Multiple())
@@ -150,7 +152,7 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_Maps_optional_ProcessedAt_when_set()
+    public async Task SendAsync_Maps_optional_ProcessedAt_when_set(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver();
@@ -162,14 +164,14 @@ public sealed class AzureServiceBusMessageTransportTests
         var outboxMessage = CreateOutboxMessage();
         outboxMessage.ProcessedAt = processedAt;
 
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         var sent = fakeClient.GetSender("test-topic")!.SentMessages[0];
         _ = await Assert.That(sent.ApplicationProperties["processedAt"]).IsEqualTo(processedAt);
     }
 
     [Test]
-    public async Task SendAsync_Maps_optional_Error_when_set()
+    public async Task SendAsync_Maps_optional_Error_when_set(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver();
@@ -180,14 +182,14 @@ public sealed class AzureServiceBusMessageTransportTests
         var outboxMessage = CreateOutboxMessage();
         outboxMessage.Error = "Some processing error";
 
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         var sent = fakeClient.GetSender("test-topic")!.SentMessages[0];
         _ = await Assert.That(sent.ApplicationProperties["error"]).IsEqualTo("Some processing error");
     }
 
     [Test]
-    public async Task SendAsync_Does_not_add_processedAt_property_when_null()
+    public async Task SendAsync_Does_not_add_processedAt_property_when_null(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver();
@@ -197,7 +199,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
         var outboxMessage = CreateOutboxMessage(); // ProcessedAt is null by default
 
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         var sent = fakeClient.GetSender("test-topic")!.SentMessages[0];
         _ = await Assert.That(sent.ApplicationProperties.ContainsKey("processedAt")).IsFalse();
@@ -207,7 +209,9 @@ public sealed class AzureServiceBusMessageTransportTests
     // ── SendBatchAsync null/empty guards ──────────────────────────────────────
 
     [Test]
-    public async Task SendBatchAsync_When_messages_is_null_throws_ArgumentNullException()
+    public async Task SendBatchAsync_When_messages_is_null_throws_ArgumentNullException(
+        CancellationToken cancellationToken
+    )
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var resolver = new FakeTopicNameResolver();
@@ -215,11 +219,11 @@ public sealed class AzureServiceBusMessageTransportTests
 
         await using var transport = new AzureServiceBusMessageTransport(client, resolver, options);
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendBatchAsync(null!));
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendBatchAsync(null!, cancellationToken));
     }
 
     [Test]
-    public async Task SendBatchAsync_When_messages_is_empty_does_not_throw()
+    public async Task SendBatchAsync_When_messages_is_empty_does_not_throw(CancellationToken cancellationToken)
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var resolver = new FakeTopicNameResolver();
@@ -227,13 +231,15 @@ public sealed class AzureServiceBusMessageTransportTests
 
         await using var transport = new AzureServiceBusMessageTransport(client, resolver, options);
 
-        await transport.SendBatchAsync([]);
+        await transport.SendBatchAsync([], cancellationToken);
     }
 
     // ── SendBatchAsync – batching disabled ────────────────────────────────────
 
     [Test]
-    public async Task SendBatchAsync_BatchingDisabled_Sends_each_message_individually()
+    public async Task SendBatchAsync_BatchingDisabled_Sends_each_message_individually(
+        CancellationToken cancellationToken
+    )
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver("queue1");
@@ -242,7 +248,7 @@ public sealed class AzureServiceBusMessageTransportTests
         await using var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
 
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
-        await transport.SendBatchAsync(messages);
+        await transport.SendBatchAsync(messages, cancellationToken);
 
         var sender = fakeClient.GetSender("queue1")!;
         _ = await Assert.That(sender.SentMessages.Count).IsEqualTo(3);
@@ -250,7 +256,7 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_BatchingDisabled_Groups_messages_by_topic()
+    public async Task SendBatchAsync_BatchingDisabled_Groups_messages_by_topic(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new TopicPerEventTypeResolver();
@@ -265,7 +271,7 @@ public sealed class AzureServiceBusMessageTransportTests
             CreateOutboxMessage(typeof(TopicBEvent)),
         };
 
-        await transport.SendBatchAsync(messages);
+        await transport.SendBatchAsync(messages, cancellationToken);
 
         _ = await Assert.That(fakeClient.GetSender(nameof(TopicAEvent))!.SentMessages.Count).IsEqualTo(2);
         _ = await Assert.That(fakeClient.GetSender(nameof(TopicBEvent))!.SentMessages.Count).IsEqualTo(1);
@@ -274,7 +280,7 @@ public sealed class AzureServiceBusMessageTransportTests
     // ── SendBatchAsync – batching enabled ─────────────────────────────────────
 
     [Test]
-    public async Task SendBatchAsync_BatchingEnabled_Sends_messages_as_batch()
+    public async Task SendBatchAsync_BatchingEnabled_Sends_messages_as_batch(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new FakeTopicNameResolver("orders");
@@ -283,7 +289,7 @@ public sealed class AzureServiceBusMessageTransportTests
         await using var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
 
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
-        await transport.SendBatchAsync(messages);
+        await transport.SendBatchAsync(messages, cancellationToken);
 
         var sender = fakeClient.GetSender("orders")!;
         _ = await Assert.That(sender.SentMessages.Count).IsEqualTo(0);
@@ -292,7 +298,7 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_BatchingEnabled_Groups_messages_by_topic()
+    public async Task SendBatchAsync_BatchingEnabled_Groups_messages_by_topic(CancellationToken cancellationToken)
     {
         await using var fakeClient = new FakeServiceBusClient();
         var resolver = new TopicPerEventTypeResolver();
@@ -307,7 +313,7 @@ public sealed class AzureServiceBusMessageTransportTests
             CreateOutboxMessage(typeof(BetaEvent)),
         };
 
-        await transport.SendBatchAsync(messages);
+        await transport.SendBatchAsync(messages, cancellationToken);
 
         _ = await Assert.That(fakeClient.GetSender(nameof(AlphaEvent))!.BatchedMessages[0].Count).IsEqualTo(2);
         _ = await Assert.That(fakeClient.GetSender(nameof(BetaEvent))!.BatchedMessages[0].Count).IsEqualTo(1);

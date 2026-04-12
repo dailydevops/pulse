@@ -19,14 +19,14 @@ using TUnit.Core;
 public sealed class KafkaMessageTransportTests
 {
     [Test]
-    public async Task SendAsync_Maps_outbox_message_to_kafka_message()
+    public async Task SendAsync_Maps_outbox_message_to_kafka_message(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var transport = CreateTransport(producer, admin);
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         var kafkaMessage = producer.ProducedMessages.Single();
         using (Assert.Multiple())
@@ -42,7 +42,7 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_Propagates_ProduceException_on_delivery_failure()
+    public async Task SendAsync_Propagates_ProduceException_on_delivery_failure(CancellationToken cancellationToken)
     {
         var expectedError = new Error(ErrorCode.BrokerNotAvailable, "broker unavailable");
         using var producer = new FakeProducer { ProduceAsyncError = expectedError };
@@ -51,7 +51,7 @@ public sealed class KafkaMessageTransportTests
         var outboxMessage = CreateOutboxMessage();
 
         var exception = await Assert.ThrowsAsync<ProduceException<string, string>>(() =>
-            transport.SendAsync(outboxMessage)
+            transport.SendAsync(outboxMessage, cancellationToken)
         );
 
         _ = await Assert.That(exception).IsNotNull();
@@ -59,47 +59,47 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_Uses_topic_name_resolver_to_determine_topic()
+    public async Task SendAsync_Uses_topic_name_resolver_to_determine_topic(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         _ = await Assert.That(producer.ProducedTopics.Single()).IsEqualTo("resolved-topic");
     }
 
     [Test]
-    public async Task SendAsync_Routes_to_topic_from_resolver()
+    public async Task SendAsync_Routes_to_topic_from_resolver(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var transport = CreateTransport(producer, admin, topicName: "test-topic");
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage);
+        await transport.SendAsync(outboxMessage, cancellationToken);
 
         _ = await Assert.That(producer.ProducedTopics.Single()).IsEqualTo("test-topic");
     }
 
     [Test]
-    public async Task SendBatchAsync_Enqueues_all_messages_and_flushes()
+    public async Task SendBatchAsync_Enqueues_all_messages_and_flushes(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var transport = CreateTransport(producer, admin);
         var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
 
-        await transport.SendBatchAsync(messages);
+        await transport.SendBatchAsync(messages, cancellationToken);
 
         _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(messages.Length);
         _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
     }
 
     [Test]
-    public async Task SendBatchAsync_Collects_delivery_errors_as_AggregateException()
+    public async Task SendBatchAsync_Collects_delivery_errors_as_AggregateException(CancellationToken cancellationToken)
     {
         var error = new Error(ErrorCode.BrokerNotAvailable, "broker down");
         using var producer = new FakeProducer { DeliveryError = error };
@@ -107,45 +107,49 @@ public sealed class KafkaMessageTransportTests
         var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
-        var exception = await Assert.ThrowsAsync<AggregateException>(() => transport.SendBatchAsync(messages));
+        var exception = await Assert.ThrowsAsync<AggregateException>(() =>
+            transport.SendBatchAsync(messages, cancellationToken)
+        );
 
         _ = await Assert.That(exception).IsNotNull();
         _ = await Assert.That(exception!.InnerExceptions.Count).IsEqualTo(messages.Length);
     }
 
     [Test]
-    public async Task IsHealthyAsync_Returns_true_when_broker_metadata_is_available()
+    public async Task IsHealthyAsync_Returns_true_when_broker_metadata_is_available(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var transport = CreateTransport(producer, admin);
 
-        var healthy = await transport.IsHealthyAsync();
+        var healthy = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(healthy).IsTrue();
         _ = await Assert.That(admin.GetMetadataCallCount).IsEqualTo(1);
     }
 
     [Test]
-    public async Task IsHealthyAsync_Returns_false_when_no_brokers_in_metadata()
+    public async Task IsHealthyAsync_Returns_false_when_no_brokers_in_metadata(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 0 };
         var transport = CreateTransport(producer, admin);
 
-        var healthy = await transport.IsHealthyAsync();
+        var healthy = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(healthy).IsFalse();
     }
 
     [Test]
-    public async Task IsHealthyAsync_Returns_false_without_throwing_when_broker_is_unreachable()
+    public async Task IsHealthyAsync_Returns_false_without_throwing_when_broker_is_unreachable(
+        CancellationToken cancellationToken
+    )
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { ThrowOnGetMetadata = true };
         var transport = CreateTransport(producer, admin);
 
-        var healthy = await transport.IsHealthyAsync();
+        var healthy = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(healthy).IsFalse();
     }

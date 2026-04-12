@@ -18,13 +18,17 @@ using TUnit.Mocks;
 public sealed class EntityFrameworkExtensionsTests
 {
     [Test]
-    public async Task AddEntityFrameworkOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
+    public async Task AddEntityFrameworkOutbox_WithNullConfigurator_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => EntityFrameworkExtensions.AddEntityFrameworkOutbox<TestDbContext>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_WithValidConfigurator_ReturnsConfiguratorForChaining()
+    public async Task AddEntityFrameworkOutbox_WithValidConfigurator_ReturnsConfiguratorForChaining(
+        CancellationToken cancellationToken
+    )
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -35,7 +39,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_RegistersOutboxRepositoryAsScoped()
+    public async Task AddEntityFrameworkOutbox_RegistersOutboxRepositoryAsScoped(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDbContext<TestDbContext>(o =>
@@ -53,7 +57,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_RegistersEventOutboxAsScoped()
+    public async Task AddEntityFrameworkOutbox_RegistersEventOutboxAsScoped(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDbContext<TestDbContext>(o =>
@@ -71,7 +75,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_RegistersTransactionScopeAsScoped()
+    public async Task AddEntityFrameworkOutbox_RegistersTransactionScopeAsScoped(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDbContext<TestDbContext>(o =>
@@ -89,7 +93,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_RegistersTimeProviderAsSingleton()
+    public async Task AddEntityFrameworkOutbox_RegistersTimeProviderAsSingleton(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddEntityFrameworkOutbox<TestDbContext>());
@@ -104,7 +108,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_WithConfigureOptions_AppliesOptions()
+    public async Task AddEntityFrameworkOutbox_WithConfigureOptions_AppliesOptions(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDbContext<TestDbContext>(o =>
@@ -121,7 +125,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_WithTableNameOption_AppliesOptions()
+    public async Task AddEntityFrameworkOutbox_WithTableNameOption_AppliesOptions(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDbContext<TestDbContext>(o =>
@@ -138,7 +142,7 @@ public sealed class EntityFrameworkExtensionsTests
     }
 
     [Test]
-    public async Task AddEntityFrameworkOutbox_RegistersOutboxManagementAsScoped()
+    public async Task AddEntityFrameworkOutbox_RegistersOutboxManagementAsScoped(CancellationToken cancellationToken)
     {
         var services = new ServiceCollection();
         _ = services.AddDbContext<TestDbContext>(o =>

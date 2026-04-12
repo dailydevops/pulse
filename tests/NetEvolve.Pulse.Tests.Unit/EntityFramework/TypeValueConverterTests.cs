@@ -11,7 +11,7 @@ using TUnit.Core;
 public sealed class TypeValueConverterTests
 {
     [Test]
-    public async Task Constructor_Creates_instance()
+    public async Task Constructor_Creates_instance(CancellationToken cancellationToken)
     {
         var converter = new TypeValueConverter();
 
@@ -19,7 +19,9 @@ public sealed class TypeValueConverterTests
     }
 
     [Test]
-    public async Task ConvertToProvider_With_valid_type_returns_assembly_qualified_name()
+    public async Task ConvertToProvider_With_valid_type_returns_assembly_qualified_name(
+        CancellationToken cancellationToken
+    )
     {
         var converter = new TypeValueConverter();
         var toProvider = converter.ConvertToProvider;
@@ -34,7 +36,7 @@ public sealed class TypeValueConverterTests
     }
 
     [Test]
-    public async Task ConvertFromProvider_With_valid_type_name_returns_type()
+    public async Task ConvertFromProvider_With_valid_type_name_returns_type(CancellationToken cancellationToken)
     {
         var converter = new TypeValueConverter();
         var fromProvider = converter.ConvertFromProvider;
@@ -45,7 +47,9 @@ public sealed class TypeValueConverterTests
     }
 
     [Test]
-    public async Task ConvertFromProvider_With_invalid_type_name_throws_InvalidOperationException()
+    public async Task ConvertFromProvider_With_invalid_type_name_throws_InvalidOperationException(
+        CancellationToken cancellationToken
+    )
     {
         var converter = new TypeValueConverter();
         var fromProvider = converter.ConvertFromProvider;

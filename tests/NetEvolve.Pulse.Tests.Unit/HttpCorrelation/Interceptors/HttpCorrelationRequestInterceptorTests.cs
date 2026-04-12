@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -23,13 +23,15 @@ using TUnit.Core;
 public sealed class HttpCorrelationRequestInterceptorTests
 {
     [Test]
-    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException() =>
+    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    ) =>
         _ = await Assert
             .That(() => new HttpCorrelationRequestInterceptor<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_NoAccessorRegistered_DoesNotThrow()
+    public async Task Constructor_NoAccessorRegistered_DoesNotThrow(CancellationToken cancellationToken)
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -42,7 +44,7 @@ public sealed class HttpCorrelationRequestInterceptorTests
     }
 
     [Test]
-    public async Task Constructor_WithAccessorRegistered_DoesNotThrow()
+    public async Task Constructor_WithAccessorRegistered_DoesNotThrow(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -60,7 +62,7 @@ public sealed class HttpCorrelationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException()
+    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -69,12 +71,14 @@ public sealed class HttpCorrelationRequestInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(request, null!).ConfigureAwait(false))
+            .That(async () => await interceptor.HandleAsync(request, null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task HandleAsync_NoAccessorRegistered_PassesThroughWithoutModification()
+    public async Task HandleAsync_NoAccessorRegistered_PassesThroughWithoutModification(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -90,7 +94,8 @@ public sealed class HttpCorrelationRequestInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.FromResult("response");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -104,7 +109,9 @@ public sealed class HttpCorrelationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_AccessorHasCorrelationId_RequestAlreadyHasCorrelationId_DoesNotOverwrite()
+    public async Task HandleAsync_AccessorHasCorrelationId_RequestAlreadyHasCorrelationId_DoesNotOverwrite(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         const string existingId = "existing-id";
@@ -119,14 +126,16 @@ public sealed class HttpCorrelationRequestInterceptorTests
         var request = new TestCommand { CorrelationId = existingId };
 
         // Act
-        _ = await interceptor.HandleAsync(request, (_, _) => Task.FromResult("response")).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(request, (_, _) => Task.FromResult("response"), cancellationToken)
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(request.CorrelationId).IsEqualTo(existingId);
     }
 
     [Test]
-    public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyRequest()
+    public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyRequest(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -140,7 +149,9 @@ public sealed class HttpCorrelationRequestInterceptorTests
         var request = new TestCommand { CorrelationId = null };
 
         // Act
-        _ = await interceptor.HandleAsync(request, (_, _) => Task.FromResult("response")).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(request, (_, _) => Task.FromResult("response"), cancellationToken)
+            .ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(request.CorrelationId).IsNull();
