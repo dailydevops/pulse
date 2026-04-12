@@ -92,6 +92,13 @@ public sealed class OutboxProcessorOptions
     public bool AddJitter { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether to suspend outbox message dispatching.
+    /// When <see langword="true"/>, each polling cycle is preceded by an additional
+    /// <see cref="PollingInterval"/> delay without dispatching any messages.
+    /// </summary>
+    internal bool DisableProcessing { get; set; }
+
+    /// <summary>
     /// Gets per-event-type configuration overrides via a thread-safe concurrent dictionary.
     /// </summary>
     /// <remarks>

@@ -183,4 +183,20 @@ public interface IOutboxRepository
         int batchSize,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Checks whether the underlying storage backend is reachable and operational.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// <see langword="true"/> if the storage backend is reachable; otherwise, <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// The default implementation always returns <see langword="true"/>. Override to perform
+    /// a real connectivity check against the underlying storage backend (e.g., <c>CanConnectAsync</c>
+    /// for Entity Framework providers).
+    /// This result is evaluated before each processing cycle; an unhealthy result causes the cycle
+    /// to be skipped and delays the next poll by twice the configured <c>PollingInterval</c>.
+    /// </remarks>
+    Task<bool> IsHealthyAsync(CancellationToken cancellationToken) => Task.FromResult(true);
 }
