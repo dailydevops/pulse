@@ -133,6 +133,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             if (_options.DisableProcessing)
             {
                 await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                continue;
             }
 
             try
