@@ -23,6 +23,7 @@
     <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
     <PackageReference Include="NetEvolve.Http.Correlation.TestGenerator" />
     <PackageReference Include="Npgsql" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Testcontainers" />

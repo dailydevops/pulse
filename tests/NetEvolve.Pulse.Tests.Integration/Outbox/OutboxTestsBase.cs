@@ -30,7 +30,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(result).IsEqualTo(3);
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -53,7 +55,10 @@ public abstract class OutboxTestsBase(
                 _ = await Verify(result.OrderBy(x => x.Payload)).HashParameters().ConfigureAwait(false);
             },
             cancellationToken,
-            configureServices: services => services.AddSingleton<TimeProvider>(timeProvider)
+            configureServices: services =>
+                services
+                    .AddSingleton<TimeProvider>(timeProvider)
+                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
         );
     }
 
@@ -105,7 +110,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(remainingCount).IsEqualTo(2);
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -129,7 +136,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(pendingCount).IsEqualTo(0);
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -154,7 +163,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(pendingCount).IsEqualTo(0);
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -182,7 +193,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(failedForRetry.Count).IsEqualTo(1);
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -211,7 +224,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(failedForRetry.Count).IsEqualTo(3);
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -242,7 +257,10 @@ public abstract class OutboxTestsBase(
                 _ = await Assert.That(failedForRetry).IsEmpty();
             },
             cancellationToken,
-            configureServices: services => services.AddSingleton<TimeProvider>(timeProvider)
+            configureServices: services =>
+                services
+                    .AddSingleton<TimeProvider>(timeProvider)
+                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
         );
     }
 
@@ -270,7 +288,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(failedForRetry).IsEmpty();
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -299,7 +319,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(failedForRetry).IsEmpty();
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 
@@ -331,7 +353,10 @@ public abstract class OutboxTestsBase(
                 _ = await Assert.That(failedForRetry.Count).IsEqualTo(1);
             },
             cancellationToken,
-            configureServices: services => services.AddSingleton<TimeProvider>(timeProvider)
+            configureServices: services =>
+                services
+                    .AddSingleton<TimeProvider>(timeProvider)
+                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
         );
     }
 
@@ -363,7 +388,10 @@ public abstract class OutboxTestsBase(
                 _ = await Assert.That(deleted).IsEqualTo(3);
             },
             cancellationToken,
-            configureServices: services => services.AddSingleton<TimeProvider>(timeProvider)
+            configureServices: services =>
+                services
+                    .AddSingleton<TimeProvider>(timeProvider)
+                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
         );
     }
 
@@ -430,7 +458,9 @@ public abstract class OutboxTestsBase(
 
                     _ = await Assert.That(secondRetry).IsEmpty();
                 },
-                cancellationToken
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
 

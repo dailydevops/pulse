@@ -3,14 +3,14 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<SqlServerDatabaseServiceFixture, EntityFrameworkInitializer>(
+[ClassDataSource<PostgreSqlDatabaseServiceFixture, EntityFrameworkInitializer>(
     Shared = [SharedType.None, SharedType.None]
 )]
-[TestGroup("SqlServer")]
+[TestGroup("PostgreSql")]
 [TestGroup("EntityFramework")]
 [ParallelLimiter<ContainerParallelLimiter>]
 [InheritsTests]
-public class SqlServerEntityFrameworkOutboxTests(
+public class PostgreSqlEntityFrameworkOutboxTests(
     IDatabaseServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 ) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);

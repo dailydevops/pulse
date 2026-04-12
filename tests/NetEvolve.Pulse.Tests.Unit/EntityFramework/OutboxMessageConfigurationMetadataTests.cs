@@ -19,9 +19,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.SqlServer");
 
-        var pendingIndex = GetIndex(entityType, "IX_OutboxMessage_Status_CreatedAt");
-        var retryIndex = GetIndex(entityType, "IX_OutboxMessage_Status_NextRetryAt");
-        var completedIndex = GetIndex(entityType, "IX_OutboxMessage_Status_ProcessedAt");
+        var pendingIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_CreatedAt");
+        var retryIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_NextRetryAt");
+        var completedIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_ProcessedAt");
 
         using (Assert.Multiple())
         {
@@ -46,9 +46,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     {
         var entityType = GetConfiguredEntityType("Npgsql.EntityFrameworkCore.PostgreSQL");
 
-        var pendingIndex = GetIndex(entityType, "IX_OutboxMessage_Status_CreatedAt");
-        var retryIndex = GetIndex(entityType, "IX_OutboxMessage_Status_NextRetryAt");
-        var completedIndex = GetIndex(entityType, "IX_OutboxMessage_Status_ProcessedAt");
+        var pendingIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_CreatedAt");
+        var retryIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_NextRetryAt");
+        var completedIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_ProcessedAt");
 
         using (Assert.Multiple())
         {
@@ -71,9 +71,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.Sqlite");
 
-        var pendingIndex = GetIndex(entityType, "IX_OutboxMessage_Status_CreatedAt");
-        var retryIndex = GetIndex(entityType, "IX_OutboxMessage_Status_NextRetryAt");
-        var completedIndex = GetIndex(entityType, "IX_OutboxMessage_Status_ProcessedAt");
+        var pendingIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_CreatedAt");
+        var retryIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_NextRetryAt");
+        var completedIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_ProcessedAt");
 
         using (Assert.Multiple())
         {
@@ -96,9 +96,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     {
         var entityType = GetConfiguredEntityType("Pomelo.EntityFrameworkCore.MySql");
 
-        var pendingIndex = GetIndex(entityType, "IX_OutboxMessage_Status_CreatedAt");
-        var retryIndex = GetIndex(entityType, "IX_OutboxMessage_Status_NextRetryAt");
-        var completedIndex = GetIndex(entityType, "IX_OutboxMessage_Status_ProcessedAt");
+        var pendingIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_CreatedAt");
+        var retryIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_NextRetryAt");
+        var completedIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_ProcessedAt");
 
         using (Assert.Multiple())
         {
@@ -123,9 +123,9 @@ public sealed class OutboxMessageConfigurationMetadataTests
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.InMemory");
 
-        var pendingIndex = GetIndex(entityType, "IX_OutboxMessage_Status_CreatedAt");
-        var retryIndex = GetIndex(entityType, "IX_OutboxMessage_Status_NextRetryAt");
-        var completedIndex = GetIndex(entityType, "IX_OutboxMessage_Status_ProcessedAt");
+        var pendingIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_CreatedAt");
+        var retryIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_NextRetryAt");
+        var completedIndex = GetIndex(entityType, "IX_pulse_OutboxMessage_Status_ProcessedAt");
 
         using (Assert.Multiple())
         {

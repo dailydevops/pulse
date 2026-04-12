@@ -1,7 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 using System.Data.Common;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -54,7 +53,15 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
 
             if (databaseCreator is IRelationalDatabaseCreator relationalTableCreator)
             {
-                await relationalTableCreator.CreateTablesAsync(cancellationToken);
+                await _gate.WaitAsync(cancellationToken);
+                try
+                {
+                    await relationalTableCreator.CreateTablesAsync(cancellationToken);
+                }
+                finally
+                {
+                    _ = _gate.Release();
+                }
             }
         }
     }
@@ -67,6 +74,7 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
             _ = databaseService.DatabaseType switch
             {
                 DatabaseType.InMemory => options.UseInMemoryDatabase(connectionString),
+                DatabaseType.PostgreSQL => options.UseNpgsql(connectionString),
                 // Add a busy-timeout interceptor so that concurrent SaveChangesAsync calls from
                 // parallel PublishAsync tasks wait and retry instead of failing with SQLITE_BUSY.
                 DatabaseType.SQLite => options
