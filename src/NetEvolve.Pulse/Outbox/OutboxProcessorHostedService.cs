@@ -130,14 +130,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (_options.DisableProcessing)
-            {
-                await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
-                continue;
-            }
-
             try
             {
+                if (_options.DisableProcessing)
+                {
+                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 // Check database health before processing
                 var isDatabaseHealthy = await _repository.IsHealthyAsync(stoppingToken).ConfigureAwait(false);
                 if (!isDatabaseHealthy)
