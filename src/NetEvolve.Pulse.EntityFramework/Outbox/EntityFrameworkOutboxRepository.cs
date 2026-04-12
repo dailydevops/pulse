@@ -30,7 +30,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     /// <see langword="true"/> when the current EF Core provider is the in-memory provider,
     /// which does not support <c>ExecuteUpdate</c> / <c>ExecuteDelete</c>.
     /// </summary>
-    private readonly bool _isInMemory;
+    private readonly bool _useTrackingOperations;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkOutboxRepository{TContext}"/> class.
@@ -44,7 +44,8 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         _context = context;
         _timeProvider = timeProvider;
-        _isInMemory = context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+        var providerName = context.Database.ProviderName;
+        _useTrackingOperations = providerName == "Microsoft.EntityFrameworkCore.InMemory";
     }
 
     /// <inheritdoc />
@@ -425,7 +426,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
         CancellationToken cancellationToken
     )
     {
-        if (_isInMemory)
+        if (_useTrackingOperations)
         {
             var entities = await query.ToArrayAsync(cancellationToken).ConfigureAwait(false);
 
@@ -454,7 +455,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     /// <returns>The number of deleted rows.</returns>
     private async Task<int> DeleteEntitiesAsync(IQueryable<OutboxMessage> query, CancellationToken cancellationToken)
     {
-        if (_isInMemory)
+        if (_useTrackingOperations)
         {
             var entities = await query.ToArrayAsync(cancellationToken).ConfigureAwait(false);
 
