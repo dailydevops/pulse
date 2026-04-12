@@ -71,10 +71,14 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
         {
             var connectionString = databaseService.ConnectionString;
 
-            // Disable EF Core's global internal service provider cache so that each test
-            // gets a freshly-built model (with its own table name) instead of reusing a
-            // cached model from a previous test that used the same connection string.
-            _ = options.EnableServiceProviderCaching(false);
+            // Register a custom model-cache key factory that includes the per-test table name.
+            // Multiple tests share the same connection string (same container), so EF Core would
+            // otherwise cache the first test's model (with its table name) and reuse it for all
+            // subsequent tests — causing "Table '...' already exists" errors on CreateTablesAsync.
+            // This factory makes the cache key unique per (DbContext type, TableName), so each
+            // test gets its own model while still sharing the internal EF Core service provider
+            // (critical for correct type-mapping initialisation on providers like Oracle MySQL).
+            options.ReplaceService<IModelCacheKeyFactory, OutboxTableModelCacheKeyFactory>();
 
             _ = databaseService.DatabaseType switch
             {
@@ -117,6 +121,32 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
             await using var command = connection.CreateCommand();
             command.CommandText = Pragmas;
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Custom EF Core model-cache key factory that incorporates <see cref="OutboxOptions.TableName"/>
+    /// into the cache key.  Without this, all tests that share the same database connection string
+    /// receive the same cached EF Core model (keyed only by <see cref="DbContext"/> type), so the
+    /// second test picks up the first test's table name and <c>CreateTablesAsync</c> fails with
+    /// "Table '&lt;first-test-name&gt;' already exists".
+    /// </summary>
+    private sealed class OutboxTableModelCacheKeyFactory : IModelCacheKeyFactory
+    {
+        /// <inheritdoc />
+        public object Create(DbContext context, bool designTime)
+        {
+            string tableName;
+            try
+            {
+                tableName = context.GetService<IOptions<OutboxOptions>>()?.Value?.TableName ?? string.Empty;
+            }
+            catch (InvalidOperationException)
+            {
+                tableName = string.Empty;
+            }
+
+            return (context.GetType(), tableName, designTime);
         }
     }
 
