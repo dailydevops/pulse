@@ -8,7 +8,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 )]
 [TestGroup("SqlServer")]
 [TestGroup("EntityFramework")]
-[ParallelLimiter<ContainerParallelLimiter>]
 [InheritsTests]
 public class SqlServerEntityFrameworkOutboxTests(
     IDatabaseServiceFixture databaseServiceFixture,

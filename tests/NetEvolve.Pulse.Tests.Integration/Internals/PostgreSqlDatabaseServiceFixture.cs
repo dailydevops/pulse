@@ -1,28 +1,33 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
-using Microsoft.Extensions.Logging.Abstractions;
-using Testcontainers.PostgreSql;
-
 public sealed class PostgreSqlDatabaseServiceFixture : IDatabaseServiceFixture
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(
-        /*dockerimage*/"postgres:15.17"
-    )
-        .WithLogger(NullLogger.Instance)
-        .WithDatabase($"{TestHelper.TargetFramework}{Guid.NewGuid():N}")
-        .Build();
+    [ClassDataSource<PostgreSqlContainerFixture>(Shared = SharedType.PerTestSession)]
+    public PostgreSqlContainerFixture Container { get; set; } = default!;
 
-    public string ConnectionString => _container.GetConnectionString() + ";Include Error Detail=true;";
+    public string ConnectionString =>
+        Container.ConnectionString.Replace("Database=postgres;", $"Database={DatabaseName};", StringComparison.Ordinal);
+
+    internal string DatabaseName { get; } = $"{TestHelper.TargetFramework}{Guid.NewGuid():N}";
 
     public DatabaseType DatabaseType => DatabaseType.PostgreSQL;
 
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     public async Task InitializeAsync()
     {
         try
         {
-            await _container.StartAsync().WaitAsync(TimeSpan.FromMinutes(2));
+            // Create temporary database to ensure the container is fully initialized and ready to accept connections
+            await using var con = new Npgsql.NpgsqlConnection(Container.ConnectionString);
+            await con.OpenAsync();
+
+            await using var cmd = con.CreateCommand();
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            cmd.CommandText = $"CREATE DATABASE \"{DatabaseName}\"";
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+
+            _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {

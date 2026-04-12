@@ -8,7 +8,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 )]
 [TestGroup("PostgreSql")]
 [TestGroup("EntityFramework")]
-[ParallelLimiter<ContainerParallelLimiter>]
 [InheritsTests]
 public class PostgreSqlEntityFrameworkOutboxTests(
     IDatabaseServiceFixture databaseServiceFixture,
