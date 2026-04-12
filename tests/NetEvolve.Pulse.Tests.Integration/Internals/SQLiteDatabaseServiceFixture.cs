@@ -6,7 +6,8 @@ internal sealed class SQLiteDatabaseServiceFixture : IDatabaseServiceFixture
 
     public DatabaseType DatabaseType => DatabaseType.SQLite;
 
-    private string DatabaseFile { get; } = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".sqlite");
+    private string DatabaseFile { get; } =
+        Path.Combine(Path.GetTempPath(), $"{TestHelper.TargetFramework}{Guid.NewGuid():N}.sqlite");
 
     public ValueTask DisposeAsync()
     {

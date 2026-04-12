@@ -1,11 +1,12 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 using System.Data.Common;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -15,31 +16,66 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService) =>
         mediatorBuilder.AddEntityFrameworkOutbox<TestDbContext>();
 
-    public async ValueTask<bool> CreateDatabaseAsync(IServiceProvider serviceProvider)
+    private static readonly SemaphoreSlim _gate = new(1, 1);
+
+    public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
         using (var scope = serviceProvider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+            var databaseCreator = context.GetService<IDatabaseCreator>();
 
-            if (await context.Database.CanConnectAsync().ConfigureAwait(false))
+            if (databaseCreator is IRelationalDatabaseCreator relationalDatabaseCreator)
             {
-                _ = await context.Database.EnsureDeletedAsync().ConfigureAwait(false);
+                if (!await relationalDatabaseCreator.CanConnectAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    await relationalDatabaseCreator.CreateAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
-            return await context.Database.EnsureCreatedAsync().ConfigureAwait(false);
+            else
+            {
+                if (await databaseCreator.CanConnectAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                await _gate.WaitAsync(cancellationToken);
+
+                try
+                {
+                    _ = await databaseCreator.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                finally
+                {
+                    _ = _gate.Release();
+                }
+            }
+
+            if (databaseCreator is IRelationalDatabaseCreator relationalTableCreator)
+            {
+                await relationalTableCreator.CreateTablesAsync(cancellationToken);
+            }
         }
     }
 
     public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) =>
         _ = services.AddDbContext<TestDbContext>(options =>
         {
+            var connectionString = databaseService.ConnectionString;
+
             _ = databaseService.DatabaseType switch
             {
-                DatabaseType.InMemory => options.UseInMemoryDatabase(databaseService.ConnectionString),
+                DatabaseType.InMemory => options.UseInMemoryDatabase(connectionString),
                 // Add a busy-timeout interceptor so that concurrent SaveChangesAsync calls from
                 // parallel PublishAsync tasks wait and retry instead of failing with SQLITE_BUSY.
                 DatabaseType.SQLite => options
-                    .UseSqlite(databaseService.ConnectionString)
+                    .UseSqlite(connectionString)
                     .AddInterceptors(new SQLiteBusyTimeoutInterceptor()),
+                DatabaseType.SqlServer => options.UseSqlServer(
+                    connectionString,
+                    sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 5)
+                ),
                 _ => throw new NotSupportedException($"Database type {databaseService.DatabaseType} is not supported."),
             };
         });

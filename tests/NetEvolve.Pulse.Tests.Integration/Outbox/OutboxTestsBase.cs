@@ -5,9 +5,11 @@ using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
 [TestGroup("Outbox")]
+[Timeout(60_000)] // Increased timeout to accommodate potential delays in CI environments, especially when using SQL Server containers.
 public abstract class OutboxTestsBase(
     IDatabaseServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
@@ -467,7 +469,10 @@ public abstract class OutboxTestsBase(
                 _ = await Assert.That(failedForRetry.Count).IsEqualTo(2);
             },
             cancellationToken,
-            configureServices: services => services.AddSingleton<TimeProvider>(timeProvider)
+            configureServices: services =>
+                services
+                    .AddSingleton<TimeProvider>(timeProvider)
+                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
         );
     }
 

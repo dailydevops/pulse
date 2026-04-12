@@ -38,26 +38,24 @@ public abstract class PulseTestsBase
                 configureServices?.Invoke(services);
                 _ = services
                     .AddPulse(mediatorBuilder => DatabaseInitializer.Configure(mediatorBuilder, DatabaseServiceFixture))
-                    .Configure<OutboxOptions>(options => options.TableName = tableName);
+                    .Configure<OutboxOptions>(options =>
+                    {
+                        options.TableName = tableName;
+                        options.Schema = TestHelper.TargetFramework;
+                    });
             })
             .ConfigureWebHost(webBuilder => _ = webBuilder.UseTestServer().Configure(applicationBuilder => { }))
             .Build();
 
-        var databaseCreated = await DatabaseInitializer.CreateDatabaseAsync(host.Services).ConfigureAwait(false);
-
+        await DatabaseInitializer.CreateDatabaseAsync(host.Services, cancellationToken).ConfigureAwait(false);
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
 
         using var server = host.GetTestServer();
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(databaseCreated).IsTrue();
-
-            if (databaseCreated)
-            {
-                await using var scope = server.Services.CreateAsyncScope();
-                await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
-            }
+            await using var scope = server.Services.CreateAsyncScope();
+            await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
         }
 
         await host.StopAsync(cancellationToken).ConfigureAwait(false);

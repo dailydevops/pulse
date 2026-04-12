@@ -7,7 +7,7 @@ public interface IDatabaseInitializer
 {
     void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService);
 
-    ValueTask<bool> CreateDatabaseAsync(IServiceProvider serviceProvider);
+    ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken);
 
     void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService);
 }
