@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.MsSql;
 
@@ -12,9 +13,9 @@ public sealed class SqlServerDatabaseServiceFixture : IDatabaseServiceFixture
         .Build();
 
     public string ConnectionString =>
-        _container
-            .GetConnectionString()
-            .Replace("master", $"{TestHelper.TargetFramework}{Guid.NewGuid():N}", StringComparison.Ordinal);
+        _container.GetConnectionString().Replace("master", DatabaseName, StringComparison.Ordinal);
+
+    internal string DatabaseName { get; } = $"{TestHelper.TargetFramework}{Guid.NewGuid():N}";
 
     public DatabaseType DatabaseType => DatabaseType.SqlServer;
 
@@ -25,6 +26,17 @@ public sealed class SqlServerDatabaseServiceFixture : IDatabaseServiceFixture
         try
         {
             await _container.StartAsync().WaitAsync(TimeSpan.FromMinutes(2));
+
+            // Create temporary database to ensure the container is fully initialized and ready to accept connections
+            await using var con = new SqlConnection(_container.GetConnectionString());
+            await con.OpenAsync();
+
+            await using var cmd = con.CreateCommand();
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            cmd.CommandText = $"CREATE DATABASE [{DatabaseName}]";
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+
+            _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
