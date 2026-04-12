@@ -6,7 +6,7 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [ClassDataSource<SqlServerDatabaseServiceFixture, EntityFrameworkInitializer>(
     Shared = [SharedType.PerClass, SharedType.PerClass]
 )]
-[TestGroup("SQLServer")]
+[TestGroup("SqlServer")]
 [TestGroup("EntityFramework")]
 [InheritsTests]
 public class SqlServerEntityFrameworkOutboxTests(
