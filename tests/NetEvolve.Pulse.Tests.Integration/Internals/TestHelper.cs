@@ -2,12 +2,17 @@
 
 internal static class TestHelper
 {
-    internal static string TargetFramework =>
+    internal static string TargetFramework
+    {
+        get
+        {
 #if NET10_0
-            "net10";
+            return "net10";
 #elif NET9_0
-            "net9";
+            return "net9";
 #elif NET8_0
-            "net8";
+            return "net8";
 #endif
+        }
+    }
 }
