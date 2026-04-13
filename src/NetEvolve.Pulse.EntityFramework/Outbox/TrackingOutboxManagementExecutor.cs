@@ -10,10 +10,6 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <remarks>
 /// Used for providers that do not support <c>ExecuteUpdateAsync</c> (InMemory) or that
 /// have known value-converter limitations when building update parameters (Oracle MySQL).
-/// <para><strong>No compiled queries:</strong></para>
-/// Plain LINQ is used throughout — <see cref="EF.CompileAsyncQuery"/> is intentionally
-/// avoided because Oracle MySQL has known compatibility issues with compiled queries
-/// involving value converters and parameterised <see cref="Guid"/> predicates.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
 internal sealed class TrackingOutboxManagementExecutor<TContext>(TContext context) : IOutboxManagementExecutor
