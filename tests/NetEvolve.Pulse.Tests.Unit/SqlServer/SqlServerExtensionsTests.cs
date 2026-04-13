@@ -67,6 +67,22 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
+    public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersEventOutboxAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;"));
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IEventOutbox));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(SqlServerEventOutbox));
+        }
+    }
+
+    [Test]
     public async Task AddSqlServerOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton()
     {
         var services = new ServiceCollection();
@@ -134,6 +150,22 @@ public sealed class SqlServerExtensionsTests
     }
 
     [Test]
+    public async Task AddSqlServerOutbox_WithFactory_RegistersEventOutboxAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddOutbox().AddSqlServerOutbox(_ => "Server=.;Encrypt=true;"));
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IEventOutbox));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(SqlServerEventOutbox));
+        }
+    }
+
+    [Test]
     public async Task AddSqlServerOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
@@ -177,5 +209,48 @@ public sealed class SqlServerExtensionsTests
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
         }
+    }
+
+    [Test]
+    public async Task AddSqlServerOutboxTransactionScope_WithNullConfigurator_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() => SqlServerExtensions.AddSqlServerOutboxTransactionScope<TestUnitOfWork>(null!))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddSqlServerOutboxTransactionScope_ReturnsConfiguratorForChaining()
+    {
+        var mock = Mock.Of<IMediatorBuilder>();
+        _ = mock.Services.Returns(new ServiceCollection());
+
+        var result = mock.Object.AddSqlServerOutboxTransactionScope<TestUnitOfWork>();
+
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
+    }
+
+    [Test]
+    public async Task AddSqlServerOutboxTransactionScope_RegistersTransactionScopeAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config
+                .AddOutbox()
+                .AddSqlServerOutbox("Server=.;Encrypt=true;")
+                .AddSqlServerOutboxTransactionScope<TestUnitOfWork>()
+        );
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxTransactionScope));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestUnitOfWork));
+        }
+    }
+
+    private sealed class TestUnitOfWork : IOutboxTransactionScope
+    {
+        public object? GetCurrentTransaction() => null;
     }
 }

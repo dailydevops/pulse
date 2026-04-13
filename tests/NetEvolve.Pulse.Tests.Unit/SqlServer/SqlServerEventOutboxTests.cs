@@ -9,6 +9,7 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
+using TUnit.Mocks;
 
 [TestGroup("SqlServer")]
 public sealed class SqlServerEventOutboxTests
@@ -65,6 +66,60 @@ public sealed class SqlServerEventOutboxTests
     }
 
     [Test]
+    public async Task Constructor_DiConstructor_WithNullOptions_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() => new SqlServerEventOutbox((IOptions<OutboxOptions>)null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Constructor_DiConstructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerEventOutbox(
+                    Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Constructor_DiConstructor_WithEmptyConnectionString_ThrowsArgumentException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerEventOutbox(
+                    Options.Create(new OutboxOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentException>();
+
+    [Test]
+    public async Task Constructor_DiConstructor_WithValidConnectionString_CreatesInstance()
+    {
+        var outbox = new SqlServerEventOutbox(
+            Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),
+            TimeProvider.System
+        );
+
+        _ = await Assert.That(outbox).IsNotNull();
+    }
+
+    [Test]
+    public async Task Constructor_DiConstructor_WithTransactionScope_CreatesInstance()
+    {
+        var transactionScope = Mock.Of<IOutboxTransactionScope>();
+        _ = transactionScope.GetCurrentTransaction().Returns(null);
+
+        var outbox = new SqlServerEventOutbox(
+            Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),
+            TimeProvider.System,
+            transactionScope.Object
+        );
+
+        _ = await Assert.That(outbox).IsNotNull();
+    }
+
+    [Test]
     public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         await using var connection = new SqlConnection("Server=.;Encrypt=true;");
@@ -82,6 +137,38 @@ public sealed class SqlServerEventOutboxTests
     {
         await using var connection = new SqlConnection("Server=.;Encrypt=true;");
         var outbox = new SqlServerEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
+        var message = new TestEvent
+        {
+            CorrelationId = new string('x', OutboxMessageSchema.MaxLengths.CorrelationId + 1),
+        };
+
+        _ = await Assert
+            .That(async () => await outbox.StoreAsync(message, cancellationToken).ConfigureAwait(false))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_DiConstructor_WithNullMessage_ThrowsArgumentNullException()
+    {
+        var outbox = new SqlServerEventOutbox(
+            Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),
+            TimeProvider.System
+        );
+
+        _ = await Assert
+            .That(async () => await outbox.StoreAsync<TestEvent>(null!).ConfigureAwait(false))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_DiConstructor_WithLongCorrelationId_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
+    {
+        var outbox = new SqlServerEventOutbox(
+            Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),
+            TimeProvider.System
+        );
         var message = new TestEvent
         {
             CorrelationId = new string('x', OutboxMessageSchema.MaxLengths.CorrelationId + 1),
