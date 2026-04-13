@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
-/// Base class for <see cref="IOutboxOperationsExecutor"/> implementations that persist changes
+/// Base class for <see cref="IOutboxRepositoryExecutor"/> implementations that persist changes
 /// through EF Core change tracking and <c>SaveChangesAsync</c>.
 /// </summary>
 /// <remarks>
@@ -14,8 +14,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// Derived classes only need to implement <see cref="UpdateByIdsAsync"/>, which varies by provider.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal abstract class TrackingOutboxOperationsExecutorBase<TContext>(TContext context, int maxDegreeOfParallelism)
-    : IOutboxOperationsExecutor
+internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext context, int maxDegreeOfParallelism)
+    : IOutboxRepositoryExecutor
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>The DbContext used for all tracking-based query and update operations.</summary>

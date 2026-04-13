@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
-/// <see cref="IOutboxOperationsExecutor"/> implementation that issues a single bulk
+/// <see cref="IOutboxRepositoryExecutor"/> implementation that issues a single bulk
 /// <c>ExecuteUpdateAsync</c> / <c>ExecuteDeleteAsync</c> statement per operation.
 /// </summary>
 /// <remarks>
@@ -13,8 +13,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// (SQL Server, PostgreSQL, SQLite, and others).
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class BulkOutboxOperationsExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
-    : IOutboxOperationsExecutor
+internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
+    : IOutboxRepositoryExecutor
     where TContext : DbContext, IOutboxDbContext
 {
     private readonly SemaphoreSlim _semaphore = new(maxDegreeOfParallelism, maxDegreeOfParallelism);

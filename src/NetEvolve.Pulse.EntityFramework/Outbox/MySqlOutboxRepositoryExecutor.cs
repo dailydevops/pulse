@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
-/// <see cref="IOutboxOperationsExecutor"/> implementation for the Oracle MySQL EF Core provider
+/// <see cref="IOutboxRepositoryExecutor"/> implementation for the Oracle MySQL EF Core provider
 /// (<c>MySql.EntityFrameworkCore</c>).
 /// </summary>
 /// <remarks>
@@ -21,14 +21,14 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 ///   </item>
 /// </list>
 /// All mutations go through change tracking and <c>SaveChangesAsync</c> (inherited from
-/// <see cref="TrackingOutboxOperationsExecutorBase{TContext}"/>). Only
+/// <see cref="TrackingOutboxRepositoryExecutorBase{TContext}"/>). Only
 /// <see cref="UpdateByIdsAsync"/> is overridden: it uses <c>FindAsync</c> per ID to avoid the
 /// broken <c>Guid IN</c> clause, while still benefiting from the <see cref="DbContext"/> Local
 /// cache for entities already loaded by <c>FetchAndMarkAsync</c>.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class MySqlOutboxOperationsExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
-    : TrackingOutboxOperationsExecutorBase<TContext>(context, maxDegreeOfParallelism)
+internal sealed class MySqlOutboxRepositoryExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
+    : TrackingOutboxRepositoryExecutorBase<TContext>(context, maxDegreeOfParallelism)
     where TContext : DbContext, IOutboxDbContext
 {
     /// <inheritdoc />

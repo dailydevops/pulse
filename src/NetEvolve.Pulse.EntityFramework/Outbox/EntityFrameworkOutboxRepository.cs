@@ -30,7 +30,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     /// Provider-specific strategy that handles how entities are persisted
     /// (change-tracking + <c>SaveChangesAsync</c> vs. bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c>).
     /// </summary>
-    private readonly IOutboxOperationsExecutor _executor;
+    private readonly IOutboxRepositoryExecutor _executor;
     private bool _disposedValue;
 
     /// <summary>
@@ -48,12 +48,12 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
         _executor = context.Database.ProviderName switch
         {
             // InMemory does not support ExecuteUpdate/ExecuteDelete at all.
-            ProviderName.InMemory => new InMemoryOutboxOperationsExecutor<TContext>(context, 1),
+            ProviderName.InMemory => new InMemoryOutboxRepositoryExecutor<TContext>(context, 1),
             // Oracle MySQL cannot apply value converters in ExecuteUpdateAsync parameters and
             // cannot translate a parameterised Guid collection into a SQL IN clause.
-            ProviderName.OracleMySql => new MySqlOutboxOperationsExecutor<TContext>(context, 1),
-            ProviderName.Npgsql => new BulkOutboxOperationsExecutor<TContext>(context, 1),
-            _ => new BulkOutboxOperationsExecutor<TContext>(context, Environment.ProcessorCount - 1),
+            ProviderName.OracleMySql => new MySqlOutboxRepositoryExecutor<TContext>(context, 1),
+            ProviderName.Npgsql => new BulkOutboxRepositoryExecutor<TContext>(context, 1),
+            _ => new BulkOutboxRepositoryExecutor<TContext>(context, Environment.ProcessorCount - 1),
         };
     }
 
