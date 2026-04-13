@@ -21,6 +21,10 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
     /// <summary>The DbContext used for all tracking-based query and update operations.</summary>
     protected readonly TContext _context = context;
 
+    /// <summary>
+    /// Limits the number of concurrent write operations to prevent database contention.
+    /// Initialised to <c>maxDegreeOfParallelism</c> permits.
+    /// </summary>
     protected readonly SemaphoreSlim _semaphore = new SemaphoreSlim(maxDegreeOfParallelism, maxDegreeOfParallelism);
     private bool _disposedValue;
 
