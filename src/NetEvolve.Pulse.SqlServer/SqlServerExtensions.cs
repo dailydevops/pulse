@@ -25,7 +25,7 @@ public static class SqlServerExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="SqlServerEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="SqlServerOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -72,7 +72,7 @@ public static class SqlServerExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="SqlServerEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="SqlServerOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -125,7 +125,7 @@ public static class SqlServerExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="SqlServerEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SqlServerOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="SqlServerOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -160,7 +160,7 @@ public static class SqlServerExtensions
 
     /// <summary>
     /// Registers a unit-of-work type as <see cref="IOutboxTransactionScope"/> (Scoped) so that
-    /// <see cref="SqlServerEventOutbox"/> can enlist in the caller's transaction automatically.
+    /// <see cref="OutboxEventStore"/> can enlist in the caller's transaction automatically.
     /// </summary>
     /// <typeparam name="TUnitOfWork">
     /// A type that implements both the application unit-of-work contract and <see cref="IOutboxTransactionScope"/>.
@@ -169,7 +169,7 @@ public static class SqlServerExtensions
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// Call this method after <see cref="AddSqlServerOutbox(IMediatorBuilder, string, Action{OutboxOptions}?)"/>
-    /// to wire up your unit-of-work so that <see cref="SqlServerEventOutbox"/> automatically
+    /// to wire up your unit-of-work so that <see cref="OutboxEventStore"/> automatically
     /// enlists in any active <see cref="Microsoft.Data.SqlClient.SqlTransaction"/> owned by the unit-of-work.
     /// </remarks>
     /// <example>
@@ -194,13 +194,11 @@ public static class SqlServerExtensions
     private static IMediatorBuilder RegisterSqlServerOutboxServices(this IMediatorBuilder configurator)
     {
         // AddOutbox() uses TryAdd* internally, so this call is safe even when AddOutbox() was already invoked.
-        _ = configurator.AddOutbox();
-
-        var services = configurator.Services;
-        _ = services.RemoveAll<IEventOutbox>();
-        _ = services
-            .AddScoped<IEventOutbox, SqlServerEventOutbox>()
+        _ = configurator
+            .AddOutbox()
+            .Services.RemoveAll<IOutboxRepository>()
             .AddScoped<IOutboxRepository, SqlServerOutboxRepository>()
+            .RemoveAll<IOutboxManagement>()
             .AddScoped<IOutboxManagement, SqlServerOutboxManagement>();
 
         return configurator;
