@@ -75,7 +75,7 @@ public sealed partial class SqlServerAdoNetInitializer : IDatabaseInitializer
 
     public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) { }
 
-    [GeneratedRegexAttribute(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline)]
     private static partial Regex SearchSetVar();
 
     [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.IgnoreCase | RegexOptions.Multiline, "de-DE")]
