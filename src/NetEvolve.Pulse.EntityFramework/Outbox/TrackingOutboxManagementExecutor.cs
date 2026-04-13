@@ -20,6 +20,7 @@ internal sealed class TrackingOutboxManagementExecutor<TContext>(TContext contex
         context
             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.DeadLetter)
             .OrderByDescending(m => m.UpdatedAt)
+            .ThenBy(m => m.Id)
             .Skip(skip)
             .Take(take)
             .AsNoTracking();
