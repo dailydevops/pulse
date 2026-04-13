@@ -17,7 +17,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// consider using the SQL Server ADO.NET provider with explicit locking.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository
+internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository, IDisposable
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>The DbContext used to build LINQ queries passed to the executor.</summary>
@@ -31,6 +31,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     /// (change-tracking + <c>SaveChangesAsync</c> vs. bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c>).
     /// </summary>
     private readonly IOutboxOperationsExecutor _executor;
+    private bool _disposedValue;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkOutboxRepository{TContext}"/> class.
@@ -294,5 +295,25 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
                 cancellationToken
             )
             .ConfigureAwait(false);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (!_disposedValue)
+        {
+            if (disposing)
+            {
+                _executor.Dispose();
+            }
+
+            _disposedValue = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
     }
 }
