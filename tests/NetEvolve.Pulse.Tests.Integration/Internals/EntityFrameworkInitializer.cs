@@ -25,6 +25,8 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
             var context = scope.ServiceProvider.GetRequiredService<TestDbContext>();
             var databaseCreator = context.GetService<IDatabaseCreator>();
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (databaseCreator is IRelationalDatabaseCreator relationalDatabaseCreator)
             {
                 if (!await relationalDatabaseCreator.CanConnectAsync(cancellationToken).ConfigureAwait(false))
