@@ -193,12 +193,10 @@ public static class SqlServerExtensions
 
     private static IMediatorBuilder RegisterSqlServerOutboxServices(this IMediatorBuilder configurator)
     {
-        // Register core outbox infrastructure (OutboxEventHandler, processor, etc.)
-        // Uses TryAdd* so it is safe to call even when AddOutbox() was already called.
+        // AddOutbox() uses TryAdd* internally, so this call is safe even when AddOutbox() was already invoked.
         _ = configurator.AddOutbox();
 
         var services = configurator.Services;
-
         _ = services.RemoveAll<IEventOutbox>();
         _ = services
             .AddScoped<IEventOutbox, SqlServerEventOutbox>()
