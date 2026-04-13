@@ -25,7 +25,7 @@ public static class SQLiteExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="SQLiteEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SQLiteOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="SQLiteOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -72,7 +72,7 @@ public static class SQLiteExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="SQLiteEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SQLiteOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="SQLiteOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -125,7 +125,7 @@ public static class SQLiteExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="SQLiteEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="SQLiteOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="SQLiteOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -160,7 +160,7 @@ public static class SQLiteExtensions
 
     /// <summary>
     /// Registers a unit-of-work type as <see cref="IOutboxTransactionScope"/> (Scoped) so that
-    /// <see cref="SQLiteEventOutbox"/> can enlist in the caller's transaction automatically.
+    /// <see cref="OutboxEventStore"/> can enlist in the caller's transaction automatically.
     /// </summary>
     /// <typeparam name="TUnitOfWork">
     /// A type that implements both the application unit-of-work contract and <see cref="IOutboxTransactionScope"/>.
@@ -169,7 +169,7 @@ public static class SQLiteExtensions
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// Call this method after <see cref="AddSQLiteOutbox(IMediatorBuilder, string, Action{OutboxOptions}?)"/>
-    /// to wire up your unit-of-work so that <see cref="SQLiteEventOutbox"/> automatically
+    /// to wire up your unit-of-work so that <see cref="OutboxEventStore"/> automatically
     /// enlists in any active <see cref="Microsoft.Data.Sqlite.SqliteTransaction"/> owned by the unit-of-work.
     /// </remarks>
     /// <example>
@@ -312,9 +312,7 @@ public static class SQLiteExtensions
             .Services.RemoveAll<IOutboxRepository>()
             .AddScoped<IOutboxRepository, SQLiteOutboxRepository>()
             .RemoveAll<IOutboxManagement>()
-            .AddScoped<IOutboxManagement, SQLiteOutboxManagement>()
-            .RemoveAll<IEventOutbox>()
-            .AddScoped<IEventOutbox, SQLiteEventOutbox>();
+            .AddScoped<IOutboxManagement, SQLiteOutboxManagement>();
 
         return configurator;
     }
