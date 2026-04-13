@@ -19,9 +19,7 @@ public sealed class AzureServiceBusExtensionsTests
         "Endpoint=sb://localhost/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Fake=";
 
     [Test]
-    public void UseAzureServiceBusTransport_When_configurator_is_null_throws_ArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void UseAzureServiceBusTransport_When_configurator_is_null_throws_ArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -29,7 +27,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_registers_transport(CancellationToken cancellationToken)
+    public async Task UseAzureServiceBusTransport_registers_transport()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -41,9 +39,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_registers_ServiceBusClient_as_singleton(
-        CancellationToken cancellationToken
-    )
+    public async Task UseAzureServiceBusTransport_registers_ServiceBusClient_as_singleton()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -55,9 +51,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_registers_DefaultAzureCredential_as_TokenCredential(
-        CancellationToken cancellationToken
-    )
+    public async Task UseAzureServiceBusTransport_registers_DefaultAzureCredential_as_TokenCredential()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseAzureServiceBusTransport());
@@ -67,7 +61,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_validates_required_options(CancellationToken cancellationToken)
+    public async Task UseAzureServiceBusTransport_validates_required_options()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseAzureServiceBusTransport());
@@ -78,9 +72,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_with_fully_qualified_namespace_creates_ServiceBusClient(
-        CancellationToken cancellationToken
-    )
+    public async Task UseAzureServiceBusTransport_with_fully_qualified_namespace_creates_ServiceBusClient()
     {
         IServiceCollection services = new ServiceCollection();
 
@@ -101,9 +93,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_with_connection_string_creates_ServiceBusClient(
-        CancellationToken cancellationToken
-    )
+    public async Task UseAzureServiceBusTransport_with_connection_string_creates_ServiceBusClient()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -117,7 +107,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_replaces_existing_transport(CancellationToken cancellationToken)
+    public async Task UseAzureServiceBusTransport_replaces_existing_transport()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
@@ -130,9 +120,7 @@ public sealed class AzureServiceBusExtensionsTests
     }
 
     [Test]
-    public async Task UseAzureServiceBusTransport_does_not_replace_custom_TokenCredential(
-        CancellationToken cancellationToken
-    )
+    public async Task UseAzureServiceBusTransport_does_not_replace_custom_TokenCredential()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<TokenCredential>(new FakeTokenCredential());

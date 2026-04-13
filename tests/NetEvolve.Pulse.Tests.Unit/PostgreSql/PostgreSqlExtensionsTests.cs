@@ -17,41 +17,31 @@ using TUnit.Mocks;
 public sealed class PostgreSqlExtensionsTests
 {
     [Test]
-    public async Task AddPostgreSqlOutbox_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddPostgreSqlOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => PostgreSqlExtensions.AddPostgreSqlOutbox(null!, "Host=localhost;Encrypt=true;"))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithNullConnectionString_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddPostgreSqlOutbox_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPostgreSqlOutbox((string)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithEmptyConnectionString_ThrowsArgumentException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddPostgreSqlOutbox_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPostgreSqlOutbox(string.Empty))
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithWhitespaceConnectionString_ThrowsArgumentException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddPostgreSqlOutbox_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPostgreSqlOutbox("   "))
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithValidConnectionString_ReturnsConfiguratorForChaining()
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -62,9 +52,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersOutboxRepositoryAsScoped()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddPostgreSqlOutbox("Host=localhost;Encrypt=true;"));
@@ -79,9 +67,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddPostgreSqlOutbox("Host=localhost;Encrypt=true;"));
@@ -96,7 +82,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithConfigureOptions_AppliesOptions(CancellationToken cancellationToken)
+    public async Task AddPostgreSqlOutbox_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -112,9 +98,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddPostgreSqlOutbox_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 PostgreSqlExtensions.AddPostgreSqlOutbox(
@@ -125,17 +109,13 @@ public sealed class PostgreSqlExtensionsTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddPostgreSqlOutbox_WithFactory_WithNullFactory_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => Mock.Of<IMediatorBuilder>().Object.AddPostgreSqlOutbox((Func<IServiceProvider, string>)null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithFactory_ReturnsConfiguratorForChaining(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithFactory_ReturnsConfiguratorForChaining()
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -146,9 +126,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithFactory_RegistersOutboxRepositoryAsScoped(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithFactory_RegistersOutboxRepositoryAsScoped()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddPostgreSqlOutbox(_ => "Host=localhost;Encrypt=true;"));
@@ -163,9 +141,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithFactory_WithConfigureOptions_AppliesOptions(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -181,9 +157,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersOutboxManagementAsScoped()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddPostgreSqlOutbox("Host=localhost;Encrypt=true;"));
@@ -198,9 +172,7 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
-    public async Task AddPostgreSqlOutbox_WithFactory_RegistersOutboxManagementAsScoped(
-        CancellationToken cancellationToken
-    )
+    public async Task AddPostgreSqlOutbox_WithFactory_RegistersOutboxManagementAsScoped()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddOutbox().AddPostgreSqlOutbox(_ => "Host=localhost;Encrypt=true;"));

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.PostgreSql;
+﻿namespace NetEvolve.Pulse.Tests.Unit.PostgreSql;
 
 using System;
 using System.Threading.Tasks;
@@ -14,13 +14,13 @@ using TUnit.Core;
 public sealed class PostgreSqlEventOutboxTests
 {
     [Test]
-    public async Task Constructor_WithNullConnection_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task Constructor_WithNullConnection_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new PostgreSqlEventOutbox(null!, Options.Create(new OutboxOptions()), TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         await using var connection = new NpgsqlConnection("Host=localhost;");
 
@@ -30,7 +30,7 @@ public sealed class PostgreSqlEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         await using var connection = new NpgsqlConnection("Host=localhost;");
 
@@ -40,7 +40,7 @@ public sealed class PostgreSqlEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         await using var connection = new NpgsqlConnection("Host=localhost;");
 
@@ -50,7 +50,7 @@ public sealed class PostgreSqlEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithTransaction_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithTransaction_CreatesInstance()
     {
         await using var connection = new NpgsqlConnection("Host=localhost;");
 
@@ -65,7 +65,7 @@ public sealed class PostgreSqlEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         await using var connection = new NpgsqlConnection("Host=localhost;");
         var outbox = new PostgreSqlEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Polly.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Polly.Interceptors;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -45,16 +45,12 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException() =>
         // Act & Assert
         _ = await Assert.That(() => new PollyEventInterceptor<TestEvent>(null!)).Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_NoPipelineRegistered_ThrowsInvalidOperationException(
-        CancellationToken cancellationToken
-    )
+    public async Task Constructor_NoPipelineRegistered_ThrowsInvalidOperationException()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -67,7 +63,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task Constructor_WithKeyedPipeline_ResolvesSuccessfully(CancellationToken cancellationToken)
+    public async Task Constructor_WithKeyedPipeline_ResolvesSuccessfully()
     {
         // Arrange
         var serviceProvider = CreateServiceProvider<TestEvent>(useKeyedService: true);
@@ -80,7 +76,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task Constructor_WithGlobalPipeline_ResolvesSuccessfully(CancellationToken cancellationToken)
+    public async Task Constructor_WithGlobalPipeline_ResolvesSuccessfully()
     {
         // Arrange
         var serviceProvider = CreateServiceProvider<TestEvent>(useKeyedService: false);

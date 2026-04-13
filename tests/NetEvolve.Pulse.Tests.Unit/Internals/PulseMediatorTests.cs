@@ -13,7 +13,7 @@ using TUnit.Core;
 public class PulseMediatorTests
 {
     [Test]
-    public async Task Constructor_WithNullLogger_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         ILogger<PulseMediator>? logger = null;
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
@@ -26,9 +26,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task Constructor_WithNullServiceProvider_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public async Task Constructor_WithNullServiceProvider_ThrowsArgumentNullException()
     {
         var logger = new ServiceCollection()
             .AddLogging()
@@ -44,7 +42,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         var logger = new ServiceCollection()
             .AddLogging()
@@ -60,7 +58,7 @@ public class PulseMediatorTests
     }
 
     [Test]
-    public async Task Constructor_WithValidParameters_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidParameters_CreatesInstance()
     {
         var logger = new ServiceCollection()
             .AddLogging()

@@ -18,11 +18,11 @@ using TUnit.Core;
 public sealed class QueryCachingExtensionsTests
 {
     [Test]
-    public async Task AddQueryCaching_NullBuilder_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task AddQueryCaching_NullBuilder_ThrowsArgumentNullException() =>
         _ = await Assert.That(() => QueryCachingExtensions.AddQueryCaching(null!)).Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddQueryCaching_RegistersRequestInterceptor(CancellationToken cancellationToken)
+    public async Task AddQueryCaching_RegistersRequestInterceptor()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -44,7 +44,7 @@ public sealed class QueryCachingExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryCaching_WithConfigure_AppliesOptions(CancellationToken cancellationToken)
+    public async Task AddQueryCaching_WithConfigure_AppliesOptions()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -58,9 +58,7 @@ public sealed class QueryCachingExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryCaching_CalledMultipleTimes_DoesNotDuplicateInterceptor(
-        CancellationToken cancellationToken
-    )
+    public async Task AddQueryCaching_CalledMultipleTimes_DoesNotDuplicateInterceptor()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -79,7 +77,7 @@ public sealed class QueryCachingExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryCaching_ReturnsSameBuilder(CancellationToken cancellationToken)
+    public async Task AddQueryCaching_ReturnsSameBuilder()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);

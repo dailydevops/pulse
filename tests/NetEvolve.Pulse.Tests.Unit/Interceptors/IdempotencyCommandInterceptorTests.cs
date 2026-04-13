@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -22,15 +22,13 @@ using TUnit.Core;
 public sealed class IdempotencyCommandInterceptorTests
 {
     [Test]
-    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new IdempotencyCommandInterceptor<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_NoStoreRegistered_DoesNotThrow(CancellationToken cancellationToken)
+    public async Task Constructor_NoStoreRegistered_DoesNotThrow()
     {
         var provider = new ServiceCollection().BuildServiceProvider();
 

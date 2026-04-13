@@ -11,13 +11,13 @@ using TUnit.Core;
 public sealed class EntityFrameworkOutboxTransactionScopeTests
 {
     [Test]
-    public async Task Constructor_WithNullContext_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new EntityFrameworkOutboxTransactionScope<TestDbContext>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithValidContext_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidContext_CreatesInstance()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithValidContext_CreatesInstance))
@@ -30,7 +30,7 @@ public sealed class EntityFrameworkOutboxTransactionScopeTests
     }
 
     [Test]
-    public async Task GetCurrentTransaction_WithNoActiveTransaction_ReturnsNull(CancellationToken cancellationToken)
+    public async Task GetCurrentTransaction_WithNoActiveTransaction_ReturnsNull()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetCurrentTransaction_WithNoActiveTransaction_ReturnsNull))

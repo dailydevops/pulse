@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.HttpCorrelation.Interceptors;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -23,15 +23,13 @@ using TUnit.Core;
 public sealed class HttpCorrelationRequestInterceptorTests
 {
     [Test]
-    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new HttpCorrelationRequestInterceptor<TestCommand, string>(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_NoAccessorRegistered_DoesNotThrow(CancellationToken cancellationToken)
+    public async Task Constructor_NoAccessorRegistered_DoesNotThrow()
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -44,7 +42,7 @@ public sealed class HttpCorrelationRequestInterceptorTests
     }
 
     [Test]
-    public async Task Constructor_WithAccessorRegistered_DoesNotThrow(CancellationToken cancellationToken)
+    public async Task Constructor_WithAccessorRegistered_DoesNotThrow()
     {
         // Arrange
         var services = new ServiceCollection();

@@ -11,7 +11,7 @@ using OutboxOptions = Pulse.Outbox.OutboxOptions;
 public sealed class OutboxOptionsExtensionsTests
 {
     [Test]
-    public async Task FullTableName_WithDefaultOptions_Returns_quoted_table_name(CancellationToken cancellationToken)
+    public async Task FullTableName_WithDefaultOptions_Returns_quoted_table_name()
     {
         var options = new OutboxOptions();
 
@@ -19,7 +19,7 @@ public sealed class OutboxOptionsExtensionsTests
     }
 
     [Test]
-    public async Task FullTableName_WithCustomTableName_Returns_quoted_table_name(CancellationToken cancellationToken)
+    public async Task FullTableName_WithCustomTableName_Returns_quoted_table_name()
     {
         var options = new OutboxOptions { TableName = "MyCustomTable" };
 

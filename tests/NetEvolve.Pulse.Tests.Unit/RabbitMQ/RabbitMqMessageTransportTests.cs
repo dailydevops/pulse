@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
+﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using System.Text;
 using global::RabbitMQ.Client;
@@ -15,7 +15,7 @@ using TUnit.Core;
 public sealed class RabbitMqMessageTransportTests
 {
     [Test]
-    public async Task Constructor_When_connectionAdapter_null_throws(CancellationToken cancellationToken)
+    public async Task Constructor_When_connectionAdapter_null_throws()
     {
         IRabbitMqConnectionAdapter connectionAdapter = null!;
         var topicNameResolver = new FakeTopicNameResolver();
@@ -30,7 +30,7 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_topicNameResolver_null_throws(CancellationToken cancellationToken)
+    public async Task Constructor_When_topicNameResolver_null_throws()
     {
         var connectionAdapter = new FakeConnectionAdapter();
         ITopicNameResolver topicNameResolver = null!;
@@ -45,7 +45,7 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_options_null_throws(CancellationToken cancellationToken)
+    public async Task Constructor_When_options_null_throws()
     {
         var connectionAdapter = new FakeConnectionAdapter();
         var topicNameResolver = new FakeTopicNameResolver();
@@ -261,7 +261,7 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task Options_ExchangeName_can_be_configured(CancellationToken cancellationToken)
+    public async Task Options_ExchangeName_can_be_configured()
     {
         var options = new RabbitMqTransportOptions { ExchangeName = "test-exchange" };
 
@@ -269,7 +269,7 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task Options_Default_ExchangeName_is_empty_string(CancellationToken cancellationToken)
+    public async Task Options_Default_ExchangeName_is_empty_string()
     {
         var options = new RabbitMqTransportOptions();
 

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
+﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
 using System.Threading.Tasks;
@@ -14,7 +14,7 @@ using TUnit.Core;
 public sealed class EntityFrameworkEventOutboxTests
 {
     [Test]
-    public async Task Constructor_WithNullContext_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 new EntityFrameworkOutbox<TestDbContext>(
@@ -26,7 +26,7 @@ public sealed class EntityFrameworkEventOutboxTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithNullOptions_ThrowsArgumentNullException))
@@ -39,7 +39,7 @@ public sealed class EntityFrameworkEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException))
@@ -52,7 +52,7 @@ public sealed class EntityFrameworkEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithValidArguments_CreatesInstance))
@@ -69,7 +69,7 @@ public sealed class EntityFrameworkEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(StoreAsync_WithNullMessage_ThrowsArgumentNullException))

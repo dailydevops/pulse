@@ -11,7 +11,7 @@ public class LoggingInterceptorOptionsValidatorTests
     private static readonly LoggingInterceptorOptionsValidator _validator = new();
 
     [Test]
-    public async Task Validate_WithNullThreshold_Succeeds(CancellationToken cancellationToken)
+    public async Task Validate_WithNullThreshold_Succeeds()
     {
         var options = new LoggingInterceptorOptions { SlowRequestThreshold = null };
 
@@ -21,7 +21,7 @@ public class LoggingInterceptorOptionsValidatorTests
     }
 
     [Test]
-    public async Task Validate_WithZeroThreshold_Succeeds(CancellationToken cancellationToken)
+    public async Task Validate_WithZeroThreshold_Succeeds()
     {
         var options = new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.Zero };
 
@@ -31,7 +31,7 @@ public class LoggingInterceptorOptionsValidatorTests
     }
 
     [Test]
-    public async Task Validate_WithPositiveThreshold_Succeeds(CancellationToken cancellationToken)
+    public async Task Validate_WithPositiveThreshold_Succeeds()
     {
         var options = new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.FromMilliseconds(500) };
 
@@ -41,7 +41,7 @@ public class LoggingInterceptorOptionsValidatorTests
     }
 
     [Test]
-    public async Task Validate_WithNegativeThreshold_Fails(CancellationToken cancellationToken)
+    public async Task Validate_WithNegativeThreshold_Fails()
     {
         var options = new LoggingInterceptorOptions { SlowRequestThreshold = TimeSpan.FromMilliseconds(-1) };
 
@@ -51,7 +51,7 @@ public class LoggingInterceptorOptionsValidatorTests
     }
 
     [Test]
-    public async Task Validate_DefaultOptions_Succeeds(CancellationToken cancellationToken)
+    public async Task Validate_DefaultOptions_Succeeds()
     {
         var options = new LoggingInterceptorOptions();
 

@@ -82,7 +82,7 @@ public class SequentialEventDispatcherTests
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
         var executionOrder = new List<int>();
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var handlers = new List<IEventHandler<TestEvent>>
         {
             new CancellingEventHandler(1, executionOrder, cts),

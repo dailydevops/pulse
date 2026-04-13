@@ -12,7 +12,7 @@ using TUnit.Core;
 public class ServiceCollectionExtensionsTests
 {
     [Test]
-    public void AddPulse_WithNullServices_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public void AddPulse_WithNullServices_ThrowsArgumentNullException()
     {
         IServiceCollection? services = null;
 
@@ -20,7 +20,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task AddPulse_WithoutBuilder_RegistersMediator(CancellationToken cancellationToken)
+    public async Task AddPulse_WithoutBuilder_RegistersMediator()
     {
         var services = new ServiceCollection();
 
@@ -38,7 +38,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task AddPulse_WithBuilder_InvokesBuilderAction(CancellationToken cancellationToken)
+    public async Task AddPulse_WithBuilder_InvokesBuilderAction()
     {
         var services = new ServiceCollection();
         var builderInvoked = false;
@@ -53,7 +53,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task AddPulse_WithActivityAndMetrics_RegistersInterceptors(CancellationToken cancellationToken)
+    public async Task AddPulse_WithActivityAndMetrics_RegistersInterceptors()
     {
         var services = new ServiceCollection();
 
@@ -80,7 +80,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task AddPulse_CanBeInvokedMultipleTimes(CancellationToken cancellationToken)
+    public async Task AddPulse_CanBeInvokedMultipleTimes()
     {
         var services = new ServiceCollection();
 

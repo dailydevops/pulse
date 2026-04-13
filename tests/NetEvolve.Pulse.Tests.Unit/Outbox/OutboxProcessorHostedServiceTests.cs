@@ -111,7 +111,7 @@ public sealed class OutboxProcessorHostedServiceTests
         var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
 
@@ -134,7 +134,7 @@ public sealed class OutboxProcessorHostedServiceTests
         var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
         await Task.Delay(100, cancellationToken).ConfigureAwait(false);
@@ -212,7 +212,7 @@ public sealed class OutboxProcessorHostedServiceTests
         var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
         await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
@@ -741,7 +741,7 @@ public sealed class OutboxProcessorHostedServiceTests
         var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await service.StartAsync(cts.Token).ConfigureAwait(false);
         await Task.Delay(200, cancellationToken).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
@@ -1003,7 +1003,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await service.StartAsync(cts.Token).ConfigureAwait(false);
         await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);

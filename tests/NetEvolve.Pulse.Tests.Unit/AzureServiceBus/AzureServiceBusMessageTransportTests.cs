@@ -22,7 +22,7 @@ public sealed class AzureServiceBusMessageTransportTests
     // ── Constructor guards ────────────────────────────────────────────────────
 
     [Test]
-    public async Task Constructor_When_client_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_When_client_is_null_throws_ArgumentNullException()
     {
         var resolver = new FakeTopicNameResolver();
         var options = Options.Create(new AzureServiceBusTransportOptions());
@@ -33,9 +33,7 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_resolver_is_null_throws_ArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public async Task Constructor_When_resolver_is_null_throws_ArgumentNullException()
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var options = Options.Create(new AzureServiceBusTransportOptions());
@@ -46,7 +44,7 @@ public sealed class AzureServiceBusMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_options_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_When_options_is_null_throws_ArgumentNullException()
     {
         await using var client = new ServiceBusClient(FakeConnectionString);
         var resolver = new FakeTopicNameResolver();

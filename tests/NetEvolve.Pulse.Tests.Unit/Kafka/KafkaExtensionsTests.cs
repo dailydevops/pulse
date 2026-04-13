@@ -13,7 +13,7 @@ using TUnit.Core;
 public sealed class KafkaExtensionsTests
 {
     [Test]
-    public async Task UseKafkaTransport_Registers_transport(CancellationToken cancellationToken)
+    public async Task UseKafkaTransport_Registers_transport()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseKafkaTransport());
@@ -23,7 +23,7 @@ public sealed class KafkaExtensionsTests
     }
 
     [Test]
-    public async Task UseKafkaTransport_Replaces_existing_transport(CancellationToken cancellationToken)
+    public async Task UseKafkaTransport_Replaces_existing_transport()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
@@ -34,7 +34,7 @@ public sealed class KafkaExtensionsTests
     }
 
     [Test]
-    public async Task UseKafkaTransport_Returns_same_configurator_for_chaining(CancellationToken cancellationToken)
+    public async Task UseKafkaTransport_Returns_same_configurator_for_chaining()
     {
         IServiceCollection services = new ServiceCollection();
         IMediatorBuilder? captured = null;
@@ -49,7 +49,7 @@ public sealed class KafkaExtensionsTests
     }
 
     [Test]
-    public async Task UseKafkaTransport_Does_not_register_adapters(CancellationToken cancellationToken)
+    public async Task UseKafkaTransport_Does_not_register_adapters()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseKafkaTransport());

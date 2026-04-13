@@ -11,23 +11,19 @@ using TUnit.Core;
 public sealed class SQLiteOutboxManagementTests
 {
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new SQLiteOutboxManagement(null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new SQLiteOutboxManagement(Options.Create(new OutboxOptions()), null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxManagement(
@@ -38,9 +34,7 @@ public sealed class SQLiteOutboxManagementTests
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
                 new SQLiteOutboxManagement(
@@ -51,7 +45,7 @@ public sealed class SQLiteOutboxManagementTests
             .Throws<ArgumentException>();
 
     [Test]
-    public async Task Constructor_WithValidOptions_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidOptions_CreatesInstance()
     {
         var management = new SQLiteOutboxManagement(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
@@ -62,7 +56,7 @@ public sealed class SQLiteOutboxManagementTests
     }
 
     [Test]
-    public async Task Constructor_WithCustomTableName_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithCustomTableName_CreatesInstance()
     {
         var options = new OutboxOptions
         {
@@ -77,9 +71,7 @@ public sealed class SQLiteOutboxManagementTests
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    )
+    public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new SQLiteOutboxManagement(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
@@ -92,9 +84,7 @@ public sealed class SQLiteOutboxManagementTests
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    )
+    public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new SQLiteOutboxManagement(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
@@ -107,9 +97,7 @@ public sealed class SQLiteOutboxManagementTests
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    )
+    public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException()
     {
         var management = new SQLiteOutboxManagement(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),

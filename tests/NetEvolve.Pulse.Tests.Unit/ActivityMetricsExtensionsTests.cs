@@ -16,15 +16,13 @@ using TUnit.Core;
 public sealed class ActivityMetricsExtensionsTests
 {
     [Test]
-    public async Task AddActivityAndMetrics_NullBuilder_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddActivityAndMetrics_NullBuilder_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => ActivityMetricsExtensions.AddActivityAndMetrics(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddActivityAndMetrics_RegistersEventInterceptor(CancellationToken cancellationToken)
+    public async Task AddActivityAndMetrics_RegistersEventInterceptor()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -46,7 +44,7 @@ public sealed class ActivityMetricsExtensionsTests
     }
 
     [Test]
-    public async Task AddActivityAndMetrics_RegistersRequestInterceptor(CancellationToken cancellationToken)
+    public async Task AddActivityAndMetrics_RegistersRequestInterceptor()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -68,9 +66,7 @@ public sealed class ActivityMetricsExtensionsTests
     }
 
     [Test]
-    public async Task AddActivityAndMetrics_CalledMultipleTimes_DoesNotDuplicateRegistrations(
-        CancellationToken cancellationToken
-    )
+    public async Task AddActivityAndMetrics_CalledMultipleTimes_DoesNotDuplicateRegistrations()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -100,7 +96,7 @@ public sealed class ActivityMetricsExtensionsTests
     }
 
     [Test]
-    public async Task AddActivityAndMetrics_ReturnsSameBuilder(CancellationToken cancellationToken)
+    public async Task AddActivityAndMetrics_ReturnsSameBuilder()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);

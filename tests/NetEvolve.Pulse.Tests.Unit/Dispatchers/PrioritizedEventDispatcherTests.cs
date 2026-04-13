@@ -102,7 +102,7 @@ public class PrioritizedEventDispatcherTests
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var executionOrder = new ConcurrentQueue<int>();
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var handlers = new List<IEventHandler<TestEvent>>
         {
             new PrioritizedTestHandler(1, 0, executionOrder),

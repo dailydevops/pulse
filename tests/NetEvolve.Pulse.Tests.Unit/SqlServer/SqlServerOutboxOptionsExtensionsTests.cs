@@ -11,9 +11,7 @@ using OutboxOptions = Pulse.Outbox.OutboxOptions;
 public sealed class SqlServerOutboxOptionsExtensionsTests
 {
     [Test]
-    public async Task FullTableName_WithDefaultOptions_Returns_correct_bracketed_name(
-        CancellationToken cancellationToken
-    )
+    public async Task FullTableName_WithDefaultOptions_Returns_correct_bracketed_name()
     {
         var options = new OutboxOptions();
 
@@ -21,7 +19,7 @@ public sealed class SqlServerOutboxOptionsExtensionsTests
     }
 
     [Test]
-    public async Task FullTableName_WithCustomSchema_Returns_correct_bracketed_name(CancellationToken cancellationToken)
+    public async Task FullTableName_WithCustomSchema_Returns_correct_bracketed_name()
     {
         var options = new OutboxOptions { Schema = "myschema" };
 
@@ -29,7 +27,7 @@ public sealed class SqlServerOutboxOptionsExtensionsTests
     }
 
     [Test]
-    public async Task FullTableName_WithNullSchema_Falls_back_to_default_schema(CancellationToken cancellationToken)
+    public async Task FullTableName_WithNullSchema_Falls_back_to_default_schema()
     {
         var options = new OutboxOptions { Schema = null! };
 
@@ -37,9 +35,7 @@ public sealed class SqlServerOutboxOptionsExtensionsTests
     }
 
     [Test]
-    public async Task FullTableName_WithWhitespaceSchema_Falls_back_to_default_schema(
-        CancellationToken cancellationToken
-    )
+    public async Task FullTableName_WithWhitespaceSchema_Falls_back_to_default_schema()
     {
         var options = new OutboxOptions { Schema = "   " };
 
@@ -47,9 +43,7 @@ public sealed class SqlServerOutboxOptionsExtensionsTests
     }
 
     [Test]
-    public async Task FullTableName_WithCustomTableName_Returns_correct_bracketed_name(
-        CancellationToken cancellationToken
-    )
+    public async Task FullTableName_WithCustomTableName_Returns_correct_bracketed_name()
     {
         var options = new OutboxOptions { TableName = "MyTable" };
 
@@ -57,7 +51,7 @@ public sealed class SqlServerOutboxOptionsExtensionsTests
     }
 
     [Test]
-    public async Task FullTableName_Trims_schema_whitespace(CancellationToken cancellationToken)
+    public async Task FullTableName_Trims_schema_whitespace()
     {
         var options = new OutboxOptions { Schema = "  myschema  " };
 

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.SQLite;
+﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
 using System.Reflection;
@@ -16,13 +16,13 @@ using TUnit.Core;
 public sealed class SQLiteEventOutboxTests
 {
     [Test]
-    public async Task Constructor_WithNullConnection_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task Constructor_WithNullConnection_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new SQLiteEventOutbox(null!, Options.Create(new OutboxOptions()), TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -32,7 +32,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -42,7 +42,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -52,7 +52,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task Constructor_WithTransaction_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithTransaction_CreatesInstance()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
 
@@ -67,7 +67,7 @@ public sealed class SQLiteEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         var outbox = new SQLiteEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);

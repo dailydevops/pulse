@@ -8,7 +8,7 @@ using TUnit.Core;
 public sealed class OutboxStatisticsTests
 {
     [Test]
-    public async Task Total_WithDefaultValues_ReturnsZero(CancellationToken cancellationToken)
+    public async Task Total_WithDefaultValues_ReturnsZero()
     {
         var statistics = new OutboxStatistics();
 
@@ -16,7 +16,7 @@ public sealed class OutboxStatisticsTests
     }
 
     [Test]
-    public async Task Total_WithOnlyPending_ReturnsPendingCount(CancellationToken cancellationToken)
+    public async Task Total_WithOnlyPending_ReturnsPendingCount()
     {
         var statistics = new OutboxStatistics { Pending = 5 };
 
@@ -24,7 +24,7 @@ public sealed class OutboxStatisticsTests
     }
 
     [Test]
-    public async Task Total_WithAllStatusesSet_ReturnsSumOfAllStatuses(CancellationToken cancellationToken)
+    public async Task Total_WithAllStatusesSet_ReturnsSumOfAllStatuses()
     {
         var statistics = new OutboxStatistics
         {
@@ -39,7 +39,7 @@ public sealed class OutboxStatisticsTests
     }
 
     [Test]
-    public async Task Total_WithOnlyDeadLetter_ReturnsDeadLetterCount(CancellationToken cancellationToken)
+    public async Task Total_WithOnlyDeadLetter_ReturnsDeadLetterCount()
     {
         var statistics = new OutboxStatistics { DeadLetter = 7 };
 
@@ -47,7 +47,7 @@ public sealed class OutboxStatisticsTests
     }
 
     [Test]
-    public async Task AllProperties_WhenSet_TotalReflectsCorrectSum(CancellationToken cancellationToken)
+    public async Task AllProperties_WhenSet_TotalReflectsCorrectSum()
     {
         var statistics = new OutboxStatistics
         {

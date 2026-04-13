@@ -13,7 +13,7 @@ using TUnit.Core;
 public class LoggingExtensionsTests
 {
     [Test]
-    public async Task AddLogging_WithNullConfigurator_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task AddLogging_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -21,7 +21,7 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public async Task AddLogging_RegistersEventInterceptor(CancellationToken cancellationToken)
+    public async Task AddLogging_RegistersEventInterceptor()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -42,7 +42,7 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public async Task AddLogging_RegistersRequestInterceptor(CancellationToken cancellationToken)
+    public async Task AddLogging_RegistersRequestInterceptor()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -64,7 +64,7 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public async Task AddLogging_CalledMultipleTimes_DoesNotDuplicateInterceptors(CancellationToken cancellationToken)
+    public async Task AddLogging_CalledMultipleTimes_DoesNotDuplicateInterceptors()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -94,7 +94,7 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public async Task AddLogging_WithConfigure_AppliesOptions(CancellationToken cancellationToken)
+    public async Task AddLogging_WithConfigure_AppliesOptions()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -116,7 +116,7 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public async Task AddLogging_WithoutConfigure_UsesDefaultOptions(CancellationToken cancellationToken)
+    public async Task AddLogging_WithoutConfigure_UsesDefaultOptions()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -134,7 +134,7 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public async Task AddLogging_ReturnsConfiguratorForChaining(CancellationToken cancellationToken)
+    public async Task AddLogging_ReturnsConfiguratorForChaining()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);

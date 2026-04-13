@@ -17,12 +17,11 @@ using TUnit.Core;
 public sealed class IdempotencyExtensionsTests
 {
     [Test]
-    public async Task AddIdempotency_NullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) => _ = await Assert.That(() => IdempotencyExtensions.AddIdempotency(null!)).Throws<ArgumentNullException>();
+    public async Task AddIdempotency_NullConfigurator_ThrowsArgumentNullException() =>
+        _ = await Assert.That(() => IdempotencyExtensions.AddIdempotency(null!)).Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddIdempotency_RegistersRequestInterceptor(CancellationToken cancellationToken)
+    public async Task AddIdempotency_RegistersRequestInterceptor()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -44,9 +43,7 @@ public sealed class IdempotencyExtensionsTests
     }
 
     [Test]
-    public async Task AddIdempotency_CalledMultipleTimes_DoesNotDuplicateInterceptor(
-        CancellationToken cancellationToken
-    )
+    public async Task AddIdempotency_CalledMultipleTimes_DoesNotDuplicateInterceptor()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -65,7 +62,7 @@ public sealed class IdempotencyExtensionsTests
     }
 
     [Test]
-    public async Task AddIdempotency_ReturnsSameConfigurator(CancellationToken cancellationToken)
+    public async Task AddIdempotency_ReturnsSameConfigurator()
     {
         var services = new ServiceCollection();
         var configurator = new MediatorBuilder(services);
@@ -76,9 +73,7 @@ public sealed class IdempotencyExtensionsTests
     }
 
     [Test]
-    public async Task AddIdempotency_WithoutStoreRegistered_InterceptorResolvesSuccessfully(
-        CancellationToken cancellationToken
-    )
+    public async Task AddIdempotency_WithoutStoreRegistered_InterceptorResolvesSuccessfully()
     {
         var services = new ServiceCollection();
         _ = services.AddLogging().AddSingleton(TimeProvider.System);

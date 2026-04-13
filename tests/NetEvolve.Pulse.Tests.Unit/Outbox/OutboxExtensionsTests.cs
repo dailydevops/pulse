@@ -21,11 +21,11 @@ using TUnit.Core;
 public sealed class OutboxExtensionsTests
 {
     [Test]
-    public async Task AddOutbox_WithNullConfigurator_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task AddOutbox_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert.That(() => OutboxExtensions.AddOutbox(null!)).Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddOutbox_ReturnsSameBuilder(CancellationToken cancellationToken)
+    public async Task AddOutbox_ReturnsSameBuilder()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -36,7 +36,7 @@ public sealed class OutboxExtensionsTests
     }
 
     [Test]
-    public async Task AddOutbox_RegistersOutboxEventHandlerAsOpenGenericScoped(CancellationToken cancellationToken)
+    public async Task AddOutbox_RegistersOutboxEventHandlerAsOpenGenericScoped()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -55,9 +55,7 @@ public sealed class OutboxExtensionsTests
     }
 
     [Test]
-    public async Task AddOutbox_CalledMultipleTimes_DoesNotDuplicateOutboxEventHandler(
-        CancellationToken cancellationToken
-    )
+    public async Task AddOutbox_CalledMultipleTimes_DoesNotDuplicateOutboxEventHandler()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -75,7 +73,7 @@ public sealed class OutboxExtensionsTests
     }
 
     [Test]
-    public async Task AddOutbox_RegistersEventOutboxAsScoped(CancellationToken cancellationToken)
+    public async Task AddOutbox_RegistersEventOutboxAsScoped()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);

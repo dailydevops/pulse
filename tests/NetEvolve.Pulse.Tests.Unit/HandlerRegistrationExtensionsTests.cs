@@ -11,7 +11,7 @@ using TUnit.Core;
 public class HandlerRegistrationExtensionsTests
 {
     [Test]
-    public void AddCommandHandler_WithNullConfigurator_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public void AddCommandHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -21,7 +21,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandHandler_RegistersHandlerWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddCommandHandler_RegistersHandlerWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -38,9 +38,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandHandler_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddCommandHandler_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -59,7 +57,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandHandler_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddCommandHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -79,9 +77,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddCommandHandler_VoidCommand_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddCommandHandler_VoidCommand_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -91,9 +87,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandHandler_VoidCommand_RegistersHandlerWithScopedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddCommandHandler_VoidCommand_RegistersHandlerWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -110,9 +104,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandHandler_VoidCommand_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddCommandHandler_VoidCommand_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -131,7 +123,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandHandler_VoidCommand_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddCommandHandler_VoidCommand_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -151,7 +143,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddQueryHandler_WithNullConfigurator_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public void AddQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -161,7 +153,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryHandler_RegistersHandlerWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddQueryHandler_RegistersHandlerWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -178,9 +170,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryHandler_WithTransientLifetime_RegistersHandlerWithTransientLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddQueryHandler_WithTransientLifetime_RegistersHandlerWithTransientLifetime()
     {
         var services = new ServiceCollection();
 
@@ -199,7 +189,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryHandler_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddQueryHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -219,7 +209,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddEventHandler_WithNullConfigurator_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public void AddEventHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -227,7 +217,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventHandler_RegistersHandlerWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddEventHandler_RegistersHandlerWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -244,9 +234,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventHandler_WithSingletonLifetime_RegistersHandlerWithSingletonLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddEventHandler_WithSingletonLifetime_RegistersHandlerWithSingletonLifetime()
     {
         var services = new ServiceCollection();
 
@@ -263,7 +251,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventHandler_AllowsMultipleHandlersForSameEvent(CancellationToken cancellationToken)
+    public async Task AddEventHandler_AllowsMultipleHandlersForSameEvent()
     {
         var services = new ServiceCollection();
 
@@ -282,7 +270,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventHandler_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddEventHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -302,7 +290,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task HandlerRegistrationExtensions_SupportMethodChaining(CancellationToken cancellationToken)
+    public async Task HandlerRegistrationExtensions_SupportMethodChaining()
     {
         var services = new ServiceCollection();
 
@@ -378,9 +366,7 @@ public class HandlerRegistrationExtensionsTests
 
     // Interceptor registration tests
     [Test]
-    public void AddRequestInterceptor_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddRequestInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -390,7 +376,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddRequestInterceptor_RegistersInterceptorWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddRequestInterceptor_RegistersInterceptorWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -409,9 +395,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddRequestInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddRequestInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -432,7 +416,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddRequestInterceptor_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddRequestInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -452,9 +436,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddCommandInterceptor_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddCommandInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -464,7 +446,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandInterceptor_RegistersInterceptorWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddCommandInterceptor_RegistersInterceptorWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -483,9 +465,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddCommandInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -506,7 +486,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddCommandInterceptor_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddCommandInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -526,9 +506,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -538,7 +516,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryInterceptor_RegistersInterceptorWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddQueryInterceptor_RegistersInterceptorWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -555,9 +533,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddQueryInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -576,7 +552,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddQueryInterceptor_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddQueryInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -596,9 +572,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddEventInterceptor_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddEventInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -608,7 +582,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventInterceptor_RegistersInterceptorWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddEventInterceptor_RegistersInterceptorWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -625,9 +599,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddEventInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -646,7 +618,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventInterceptor_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddEventInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -666,7 +638,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddEventInterceptor_AllowsMultipleInterceptorsForSameEvent(CancellationToken cancellationToken)
+    public async Task AddEventInterceptor_AllowsMultipleInterceptorsForSameEvent()
     {
         var services = new ServiceCollection();
 
@@ -736,9 +708,7 @@ public class HandlerRegistrationExtensionsTests
 
     // Stream query handler registration tests
     [Test]
-    public void AddStreamQueryHandler_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddStreamQueryHandler_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -748,7 +718,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddStreamQueryHandler_RegistersHandlerWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddStreamQueryHandler_RegistersHandlerWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -769,9 +739,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddStreamQueryHandler_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddStreamQueryHandler_WithExplicitLifetime_RegistersHandlerWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -792,7 +760,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddStreamQueryHandler_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddStreamQueryHandler_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;
@@ -812,9 +780,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public void AddStreamQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public void AddStreamQueryInterceptor_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -824,9 +790,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddStreamQueryInterceptor_RegistersInterceptorWithScopedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddStreamQueryInterceptor_RegistersInterceptorWithScopedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -847,9 +811,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddStreamQueryInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime(
-        CancellationToken cancellationToken
-    )
+    public async Task AddStreamQueryInterceptor_WithExplicitLifetime_RegistersInterceptorWithSpecifiedLifetime()
     {
         var services = new ServiceCollection();
 
@@ -872,7 +834,7 @@ public class HandlerRegistrationExtensionsTests
     }
 
     [Test]
-    public async Task AddStreamQueryInterceptor_ReturnsConfigurator(CancellationToken cancellationToken)
+    public async Task AddStreamQueryInterceptor_ReturnsConfigurator()
     {
         var services = new ServiceCollection();
         IMediatorBuilder? capturedConfig = null;

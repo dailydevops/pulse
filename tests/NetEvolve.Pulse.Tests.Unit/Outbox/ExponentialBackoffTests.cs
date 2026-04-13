@@ -15,11 +15,7 @@ public sealed class ExponentialBackoffTests
     [Arguments(0, 5)]
     [Arguments(1, 10)]
     [Arguments(2, 20)]
-    public async Task ComputeNextRetryAt_WithNoJitter_ComputesCorrectBackoff(
-        int retryCount,
-        int expectedSeconds,
-        CancellationToken cancellationToken
-    )
+    public async Task ComputeNextRetryAt_WithNoJitter_ComputesCorrectBackoff(int retryCount, int expectedSeconds)
     {
         var options = new OutboxProcessorOptions
         {
@@ -41,7 +37,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task ComputeNextRetryAt_WithMaxRetryDelayExceeded_ClampsToMax(CancellationToken cancellationToken)
+    public async Task ComputeNextRetryAt_WithMaxRetryDelayExceeded_ClampsToMax()
     {
         var options = new OutboxProcessorOptions
         {
@@ -63,7 +59,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task ComputeNextRetryAt_WithJitter_AddsRandomizedDelay(CancellationToken cancellationToken)
+    public async Task ComputeNextRetryAt_WithJitter_AddsRandomizedDelay()
     {
         var options = new OutboxProcessorOptions
         {
@@ -86,7 +82,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task ComputeNextRetryAt_WithMultipleSamples_JitterIsRandomized(CancellationToken cancellationToken)
+    public async Task ComputeNextRetryAt_WithMultipleSamples_JitterIsRandomized()
     {
         var options = new OutboxProcessorOptions
         {
@@ -111,7 +107,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task ComputeNextRetryAt_WithZeroRetryCount_UsesBaseDelay(CancellationToken cancellationToken)
+    public async Task ComputeNextRetryAt_WithZeroRetryCount_UsesBaseDelay()
     {
         var options = new OutboxProcessorOptions
         {
@@ -132,7 +128,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task OutboxProcessorOptions_HasCorrectDefaults(CancellationToken cancellationToken)
+    public async Task OutboxProcessorOptions_HasCorrectDefaults()
     {
         var options = new OutboxProcessorOptions();
 
@@ -144,7 +140,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task OutboxProcessorOptions_CanConfigureCustomValues(CancellationToken cancellationToken)
+    public async Task OutboxProcessorOptions_CanConfigureCustomValues()
     {
         var options = new OutboxProcessorOptions
         {
@@ -163,7 +159,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task ComputeNextRetryAt_WithLargeRetryCount_DoesNotOverflow(CancellationToken cancellationToken)
+    public async Task ComputeNextRetryAt_WithLargeRetryCount_DoesNotOverflow()
     {
         var options = new OutboxProcessorOptions
         {
@@ -186,9 +182,7 @@ public sealed class ExponentialBackoffTests
     }
 
     [Test]
-    public async Task ComputeNextRetryAt_WithBaseDelayGreaterThanMax_ClampsCorrectly(
-        CancellationToken cancellationToken
-    )
+    public async Task ComputeNextRetryAt_WithBaseDelayGreaterThanMax_ClampsCorrectly()
     {
         var options = new OutboxProcessorOptions
         {

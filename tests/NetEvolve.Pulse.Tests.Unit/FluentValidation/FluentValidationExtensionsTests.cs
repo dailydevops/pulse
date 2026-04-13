@@ -15,15 +15,13 @@ using TUnit.Core;
 public sealed class FluentValidationExtensionsTests
 {
     [Test]
-    public async Task AddFluentValidation_NullConfigurator_ThrowsArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task AddFluentValidation_NullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => FluentValidationExtensions.AddFluentValidation(null!))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddFluentValidation_RegistersRequestInterceptor(CancellationToken cancellationToken)
+    public async Task AddFluentValidation_RegistersRequestInterceptor()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -37,9 +35,7 @@ public sealed class FluentValidationExtensionsTests
     }
 
     [Test]
-    public async Task AddFluentValidation_CalledMultipleTimes_DoesNotDuplicateRequestInterceptor(
-        CancellationToken cancellationToken
-    )
+    public async Task AddFluentValidation_CalledMultipleTimes_DoesNotDuplicateRequestInterceptor()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -57,7 +53,7 @@ public sealed class FluentValidationExtensionsTests
     }
 
     [Test]
-    public async Task AddFluentValidation_ReturnsSameConfigurator(CancellationToken cancellationToken)
+    public async Task AddFluentValidation_ReturnsSameConfigurator()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -69,7 +65,7 @@ public sealed class FluentValidationExtensionsTests
     }
 
     [Test]
-    public async Task AddFluentValidation_RegistersInterceptorWithScopedLifetime(CancellationToken cancellationToken)
+    public async Task AddFluentValidation_RegistersInterceptorWithScopedLifetime()
     {
         // Arrange
         var services = new ServiceCollection();

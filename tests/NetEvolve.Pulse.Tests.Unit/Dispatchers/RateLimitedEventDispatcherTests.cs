@@ -14,7 +14,7 @@ using TUnit.Core;
 public class RateLimitedEventDispatcherTests
 {
     [Test]
-    public async Task Constructor_WithDefaultConcurrency_CreatesWith5(CancellationToken cancellationToken)
+    public async Task Constructor_WithDefaultConcurrency_CreatesWith5()
     {
         var dispatcher = new RateLimitedEventDispatcher();
 
@@ -22,7 +22,7 @@ public class RateLimitedEventDispatcherTests
     }
 
     [Test]
-    public async Task Constructor_WithCustomConcurrency_CreatesWithSpecifiedValue(CancellationToken cancellationToken)
+    public async Task Constructor_WithCustomConcurrency_CreatesWithSpecifiedValue()
     {
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 10);
 
@@ -30,14 +30,12 @@ public class RateLimitedEventDispatcherTests
     }
 
     [Test]
-    public async Task Constructor_WithZeroConcurrency_ThrowsArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    ) => _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: 0));
+    public async Task Constructor_WithZeroConcurrency_ThrowsArgumentOutOfRangeException() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: 0));
 
     [Test]
-    public async Task Constructor_WithNegativeConcurrency_ThrowsArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    ) => _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: -1));
+    public async Task Constructor_WithNegativeConcurrency_ThrowsArgumentOutOfRangeException() =>
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: -1));
 
     [Test]
     public async Task DispatchAsync_WithHandlers_InvokesAllHandlers(CancellationToken cancellationToken)

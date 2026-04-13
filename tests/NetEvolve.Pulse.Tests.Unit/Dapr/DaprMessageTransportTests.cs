@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Dapr;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Dapr;
 
 using System;
 using System.Threading.Tasks;
@@ -14,9 +14,7 @@ using TUnit.Core;
 public sealed class DaprMessageTransportTests
 {
     [Test]
-    public async Task Constructor_When_daprClient_is_null_throws_ArgumentNullException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task Constructor_When_daprClient_is_null_throws_ArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 new DaprMessageTransport(
@@ -28,9 +26,7 @@ public sealed class DaprMessageTransportTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_When_topicNameResolver_is_null_throws_ArgumentNullException(
-        CancellationToken cancellationToken
-    )
+    public async Task Constructor_When_topicNameResolver_is_null_throws_ArgumentNullException()
     {
         using var daprClient = new DaprClientBuilder().Build();
 
@@ -40,7 +36,7 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_When_options_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_When_options_is_null_throws_ArgumentNullException()
     {
         using var daprClient = new DaprClientBuilder().Build();
 
@@ -50,7 +46,7 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
-    public async Task Constructor_With_valid_arguments_creates_instance(CancellationToken cancellationToken)
+    public async Task Constructor_With_valid_arguments_creates_instance()
     {
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
