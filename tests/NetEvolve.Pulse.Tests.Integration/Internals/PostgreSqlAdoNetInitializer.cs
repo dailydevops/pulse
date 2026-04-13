@@ -61,7 +61,11 @@ public sealed partial class PostgreSqlAdoNetInitializer : IDatabaseInitializer
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
+    {
+        // No additional service initialization required for ADO.NET outbox tests.
+        // The Configure method handles all necessary service registrations.
+    }
 
     [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline)]
     private static partial Regex SearchSetVar();
