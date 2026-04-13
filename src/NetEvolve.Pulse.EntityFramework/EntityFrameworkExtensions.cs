@@ -29,7 +29,7 @@ public static class EntityFrameworkExtensions
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="EntityFrameworkOutboxRepository{TContext}"/> (Scoped)</description></item>
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="EntityFrameworkOutbox{TContext}"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxTransactionScope"/> as <see cref="EntityFrameworkOutboxTransactionScope{TContext}"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="EntityFrameworkOutboxManagement{TContext}"/> (Scoped)</description></item>
     /// </list>
@@ -58,23 +58,18 @@ public static class EntityFrameworkExtensions
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
-        var services = configurator.AddOutbox(configureOptions).Services;
-
-        // Register the repository
-        _ = services.RemoveAll<IOutboxRepository>();
-        _ = services.AddScoped<IOutboxRepository, EntityFrameworkOutboxRepository<TContext>>();
-
-        // Register the event outbox (overrides the default OutboxEventStore)
-        _ = services.RemoveAll<IEventOutbox>();
-        _ = services.AddScoped<IEventOutbox, EntityFrameworkOutbox<TContext>>();
-
-        // Register the transaction scope
-        _ = services.RemoveAll<IOutboxTransactionScope>();
-        _ = services.AddScoped<IOutboxTransactionScope, EntityFrameworkOutboxTransactionScope<TContext>>();
-
-        // Register the management API
-        _ = services.RemoveAll<IOutboxManagement>();
-        _ = services.AddScoped<IOutboxManagement, EntityFrameworkOutboxManagement<TContext>>();
+        _ = configurator
+            .AddOutbox(configureOptions)
+            .Services
+            // Register the repository
+            .RemoveAll<IOutboxRepository>()
+            .AddScoped<IOutboxRepository, EntityFrameworkOutboxRepository<TContext>>()
+            // Register the transaction scope
+            .RemoveAll<IOutboxTransactionScope>()
+            .AddScoped<IOutboxTransactionScope, EntityFrameworkOutboxTransactionScope<TContext>>()
+            // Register the management API
+            .RemoveAll<IOutboxManagement>()
+            .AddScoped<IOutboxManagement, EntityFrameworkOutboxManagement<TContext>>();
 
         return configurator;
     }
