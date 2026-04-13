@@ -31,13 +31,12 @@ public static class SqlServerExtensions
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
-    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
-    /// before calling this method.
+    /// Core outbox services are registered automatically; calling
+    /// <see cref="OutboxExtensions.AddOutbox"/> before this method is optional but harmless.
     /// </remarks>
     /// <example>
     /// <code>
     /// services.AddPulse(config => config
-    ///     .AddOutbox()
     ///     .AddSqlServerOutbox("Server=.;Database=MyDb;Integrated Security=true;")
     /// );
     /// </code>
@@ -79,13 +78,12 @@ public static class SqlServerExtensions
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
-    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
-    /// before calling this method.
+    /// Core outbox services are registered automatically; calling
+    /// <see cref="OutboxExtensions.AddOutbox"/> before this method is optional but harmless.
     /// </remarks>
     /// <example>
     /// <code>
     /// services.AddPulse(config => config
-    ///     .AddOutbox()
     ///     .AddSqlServerOutbox(
     ///         sp => sp.GetRequiredService&lt;IConfiguration&gt;().GetConnectionString("Outbox")!,
     ///         options => options.Schema = "myschema")
@@ -133,13 +131,12 @@ public static class SqlServerExtensions
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
-    /// Call <see cref="OutboxExtensions.AddOutbox"/> first to register core outbox services
-    /// before calling this method.
+    /// Core outbox services are registered automatically; calling
+    /// <see cref="OutboxExtensions.AddOutbox"/> before this method is optional but harmless.
     /// </remarks>
     /// <example>
     /// <code>
     /// services.AddPulse(config => config
-    ///     .AddOutbox()
     ///     .AddSqlServerOutbox(opts =>
     ///     {
     ///         opts.ConnectionString = "Server=.;Database=MyDb;Integrated Security=true;";
@@ -196,9 +193,11 @@ public static class SqlServerExtensions
 
     private static IMediatorBuilder RegisterSqlServerOutboxServices(this IMediatorBuilder configurator)
     {
-        var services = configurator.Services;
+        // Register core outbox infrastructure (OutboxEventHandler, processor, etc.)
+        // Uses TryAdd* so it is safe to call even when AddOutbox() was already called.
+        _ = configurator.AddOutbox();
 
-        services.TryAddSingleton(TimeProvider.System);
+        var services = configurator.Services;
 
         _ = services.RemoveAll<IEventOutbox>();
         _ = services
