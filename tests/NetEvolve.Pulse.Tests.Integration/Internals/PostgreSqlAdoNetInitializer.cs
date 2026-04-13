@@ -49,7 +49,11 @@ public sealed partial class PostgreSqlAdoNetInitializer : IDatabaseInitializer
         // Remove psql-specific variable declarations (not valid SQL)
         script = SearchSetVar().Replace(script, string.Empty);
 
-        // Substitute psql variables with actual values
+        // Substitute psql variables with actual values.
+        // PostgreSQL script uses :schema_name and :table_name as placeholders.
+        // The placeholders appear both unquoted (e.g., CREATE SCHEMA :schema_name)
+        // and within quotes (e.g., ":schema_name".":table_name").
+        // We replace all occurrences with the actual values directly.
         script = script
             .Replace(":schema_name", schema, StringComparison.Ordinal)
             .Replace(":table_name", tableName, StringComparison.Ordinal);
