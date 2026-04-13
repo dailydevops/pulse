@@ -7,7 +7,7 @@ using TUnit.Core.Interfaces;
 public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly MsSqlContainer _container = new MsSqlBuilder(
-        /*dockerimage*/"mcr.microsoft.com/mssql/server:2022-RTM-ubuntu-20.04"
+        /*dockerimage*/"mcr.microsoft.com/mssql/server:2025-RTM-ubuntu-24.04-preview"
     )
         .WithLogger(NullLogger.Instance)
         .Build();
