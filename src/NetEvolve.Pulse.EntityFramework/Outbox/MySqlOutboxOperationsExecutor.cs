@@ -27,8 +27,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// cache for entities already loaded by <c>FetchAndMarkAsync</c>.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class MySqlOutboxOperationsExecutor<TContext>(TContext context)
-    : TrackingOutboxOperationsExecutorBase<TContext>(context)
+internal sealed class MySqlOutboxOperationsExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
+    : TrackingOutboxOperationsExecutorBase<TContext>(context, maxDegreeOfParallelism)
     where TContext : DbContext, IOutboxDbContext
 {
     /// <inheritdoc />

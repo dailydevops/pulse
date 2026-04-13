@@ -14,8 +14,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <see cref="TrackingOutboxOperationsExecutorBase{TContext}"/>).
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class InMemoryOutboxOperationsExecutor<TContext>(TContext context)
-    : TrackingOutboxOperationsExecutorBase<TContext>(context)
+internal sealed class InMemoryOutboxOperationsExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
+    : TrackingOutboxOperationsExecutorBase<TContext>(context, maxDegreeOfParallelism)
     where TContext : DbContext, IOutboxDbContext
 {
     /// <inheritdoc />

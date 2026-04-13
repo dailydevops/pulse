@@ -13,10 +13,11 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// (SQL Server, PostgreSQL, SQLite, and others).
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
-internal sealed class BulkOutboxOperationsExecutor<TContext>(TContext context) : IOutboxOperationsExecutor
+internal sealed class BulkOutboxOperationsExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
+    : IOutboxOperationsExecutor
     where TContext : DbContext, IOutboxDbContext
 {
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly SemaphoreSlim _semaphore = new(maxDegreeOfParallelism, maxDegreeOfParallelism);
     private bool _disposedValue;
 
     /// <inheritdoc />

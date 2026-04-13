@@ -47,11 +47,12 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
         _executor = context.Database.ProviderName switch
         {
             // InMemory does not support ExecuteUpdate/ExecuteDelete at all.
-            "Microsoft.EntityFrameworkCore.InMemory" => new InMemoryOutboxOperationsExecutor<TContext>(context),
+            ProviderName.InMemory => new InMemoryOutboxOperationsExecutor<TContext>(context, 1),
             // Oracle MySQL cannot apply value converters in ExecuteUpdateAsync parameters and
             // cannot translate a parameterised Guid collection into a SQL IN clause.
-            "MySql.EntityFrameworkCore" => new MySqlOutboxOperationsExecutor<TContext>(context),
-            _ => new BulkOutboxOperationsExecutor<TContext>(context),
+            ProviderName.OracleMySql => new MySqlOutboxOperationsExecutor<TContext>(context, 1),
+            ProviderName.Npgsql => new BulkOutboxOperationsExecutor<TContext>(context, 1),
+            _ => new BulkOutboxOperationsExecutor<TContext>(context, Environment.ProcessorCount - 1),
         };
     }
 

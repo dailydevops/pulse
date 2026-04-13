@@ -13,37 +13,6 @@ using NetEvolve.Pulse.Outbox;
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    /// The provider name for the EF Core InMemory provider (<c>Microsoft.EntityFrameworkCore.InMemory</c>).
-    /// Intended for testing only.
-    /// </summary>
-    private const string InMemoryProviderName = "Microsoft.EntityFrameworkCore.InMemory";
-
-    /// <summary>
-    /// The provider name for Npgsql (PostgreSQL).
-    /// </summary>
-    private const string NpgsqlProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL";
-
-    /// <summary>
-    /// The provider name for Microsoft.EntityFrameworkCore.Sqlite.
-    /// </summary>
-    private const string SqliteProviderName = "Microsoft.EntityFrameworkCore.Sqlite";
-
-    /// <summary>
-    /// The provider name for Microsoft.EntityFrameworkCore.SqlServer.
-    /// </summary>
-    private const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
-
-    /// <summary>
-    /// The provider name for Pomelo MySQL (<c>Pomelo.EntityFrameworkCore.MySql</c>).
-    /// </summary>
-    private const string PomeloMySqlProviderName = "Pomelo.EntityFrameworkCore.MySql";
-
-    /// <summary>
-    /// The provider name for the Oracle MySQL provider (<c>MySql.EntityFrameworkCore</c>).
-    /// </summary>
-    private const string OracleMySqlProviderName = "MySql.EntityFrameworkCore";
-
-    /// <summary>
     /// Applies all Pulse-related entity configurations to the model builder.
     /// </summary>
     /// <typeparam name="TContext">The DbContext type. When it implements <see cref="IOutboxDbContext"/>, the outbox message configuration is applied automatically.</typeparam>
@@ -98,11 +67,13 @@ public static class ModelBuilderExtensions
         resolvedOptions ??= Options.Create(new OutboxOptions());
         return providerName switch
         {
-            NpgsqlProviderName => new PostgreSqlOutboxMessageConfiguration(resolvedOptions),
-            SqliteProviderName => new SqliteOutboxMessageConfiguration(resolvedOptions),
-            SqlServerProviderName => new SqlServerOutboxMessageConfiguration(resolvedOptions),
-            PomeloMySqlProviderName or OracleMySqlProviderName => new MySqlOutboxMessageConfiguration(resolvedOptions),
-            InMemoryProviderName => new InMemoryOutboxMessageConfiguration(resolvedOptions),
+            ProviderName.Npgsql => new PostgreSqlOutboxMessageConfiguration(resolvedOptions),
+            ProviderName.Sqlite => new SqliteOutboxMessageConfiguration(resolvedOptions),
+            ProviderName.SqlServer => new SqlServerOutboxMessageConfiguration(resolvedOptions),
+            ProviderName.PomeloMySql or ProviderName.OracleMySql => new MySqlOutboxMessageConfiguration(
+                resolvedOptions
+            ),
+            ProviderName.InMemory => new InMemoryOutboxMessageConfiguration(resolvedOptions),
             _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
         };
     }
