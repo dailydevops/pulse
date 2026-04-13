@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -67,7 +68,7 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
     }
 
     public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) =>
-        _ = services.AddDbContext<TestDbContext>(options =>
+        _ = services.AddDbContextFactory<TestDbContext>(options =>
         {
             var connectionString = databaseService.ConnectionString;
 
@@ -78,11 +79,12 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
             // This factory makes the cache key unique per (DbContext type, TableName), so each
             // test gets its own model while still sharing the internal EF Core service provider
             // (critical for correct type-mapping initialisation on providers like Oracle MySQL).
-            options.ReplaceService<IModelCacheKeyFactory, OutboxTableModelCacheKeyFactory>();
+            _ = options.ReplaceService<IModelCacheKeyFactory, TestTableModelCacheKeyFactory>();
 
             _ = databaseService.DatabaseType switch
             {
                 DatabaseType.InMemory => options.UseInMemoryDatabase(connectionString),
+                DatabaseType.MySql => options.UseMySQL(connectionString),
                 DatabaseType.PostgreSQL => options.UseNpgsql(connectionString),
                 // Add a busy-timeout interceptor so that concurrent SaveChangesAsync calls from
                 // parallel PublishAsync tasks wait and retry instead of failing with SQLITE_BUSY.
@@ -131,7 +133,7 @@ public sealed class EntityFrameworkInitializer : IDatabaseInitializer
     /// second test picks up the first test's table name and <c>CreateTablesAsync</c> fails with
     /// "Table '&lt;first-test-name&gt;' already exists".
     /// </summary>
-    private sealed class OutboxTableModelCacheKeyFactory : IModelCacheKeyFactory
+    private sealed class TestTableModelCacheKeyFactory : IModelCacheKeyFactory
     {
         /// <inheritdoc />
         public object Create(DbContext context, bool designTime)

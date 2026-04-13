@@ -12,7 +12,7 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
         .WithLogger(NullLogger.Instance)
         .Build();
 
-    public string ConnectionString => _container.GetConnectionString();
+    public string ConnectionString => _container.GetConnectionString() + ";MultipleActiveResultSets=True;";
 
     public ValueTask DisposeAsync() => _container.DisposeAsync();
 

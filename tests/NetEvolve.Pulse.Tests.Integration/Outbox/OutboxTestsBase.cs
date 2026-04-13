@@ -343,10 +343,11 @@ public abstract class OutboxTestsBase(
 
                 _ = await Assert.That(pending.Count).IsEqualTo(2);
 
-                await outbox
-                    .MarkAsFailedAsync(pending[0].Id, "Scheduled error", TestDateTime.AddHours(1), token)
+                await Task.WhenAll(
+                        outbox.MarkAsFailedAsync(pending[0].Id, "Scheduled error", TestDateTime.AddHours(1), token),
+                        outbox.MarkAsFailedAsync(pending[1].Id, "Immediate error", token)
+                    )
                     .ConfigureAwait(false);
-                await outbox.MarkAsFailedAsync(pending[1].Id, "Immediate error", token).ConfigureAwait(false);
 
                 var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
 

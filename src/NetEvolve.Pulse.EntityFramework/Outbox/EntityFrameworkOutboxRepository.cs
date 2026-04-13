@@ -20,17 +20,17 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository
     where TContext : DbContext, IOutboxDbContext
 {
-    /// <summary>The DbContext used for all LINQ-to-SQL query and update operations.</summary>
+    /// <summary>The DbContext used to build LINQ queries passed to the executor.</summary>
     private readonly TContext _context;
 
     /// <summary>The time provider used to generate consistent update and cutoff timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
-    /// <see langword="true"/> when the current EF Core provider is the in-memory provider,
-    /// which does not support <c>ExecuteUpdate</c> / <c>ExecuteDelete</c>.
+    /// Provider-specific strategy that handles how entities are persisted
+    /// (change-tracking + <c>SaveChangesAsync</c> vs. bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c>).
     /// </summary>
-    private readonly bool _useTrackingOperations;
+    private readonly IOutboxOperationsExecutor _executor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkOutboxRepository{TContext}"/> class.
@@ -44,8 +44,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         _context = context;
         _timeProvider = timeProvider;
-        var providerName = context.Database.ProviderName;
-        _useTrackingOperations = providerName == "Microsoft.EntityFrameworkCore.InMemory";
+        _executor = context.Database.ProviderName switch
+        {
+            // InMemory does not support ExecuteUpdate/ExecuteDelete at all.
+            "Microsoft.EntityFrameworkCore.InMemory" => new InMemoryOutboxOperationsExecutor<TContext>(context),
+            // Oracle MySQL cannot apply value converters in ExecuteUpdateAsync parameters and
+            // cannot translate a parameterised Guid collection into a SQL IN clause.
+            "MySql.EntityFrameworkCore" => new MySqlOutboxOperationsExecutor<TContext>(context),
+            _ => new BulkOutboxOperationsExecutor<TContext>(context),
+        };
     }
 
     /// <inheritdoc />
@@ -65,42 +72,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        var ids = await _context
-            .OutboxMessages.AsNoTracking()
-            .Where(m => m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now))
-            .OrderBy(m => m.CreatedAt)
-            .Take(batchSize)
-            .Select(m => m.Id)
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (ids.Length == 0)
-        {
-            return [];
-        }
-
-        await UpdateEntitiesAsync(
-                _context.OutboxMessages.Where(m => ids.Contains(m.Id) && m.Status == OutboxMessageStatus.Pending),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Processing;
-                    msg.UpdatedAt = now;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Processing)
-                                .SetProperty(m => m.UpdatedAt, now),
-                        ct
-                    ),
-                cancellationToken
+        var baseQuery = _context
+            .OutboxMessages.Where(m =>
+                m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now)
             )
-            .ConfigureAwait(false);
+            .OrderBy(m => m.CreatedAt)
+            .Take(batchSize);
 
-        return await _context
-            .OutboxMessages.AsNoTracking()
-            .Where(m => ids.Contains(m.Id))
-            .ToArrayAsync(cancellationToken)
+        return await _executor
+            .FetchAndMarkAsync(baseQuery, now, OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -123,46 +103,17 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        var ids = await _context
-            .OutboxMessages.AsNoTracking()
-            .Where(m =>
+        var baseQuery = _context
+            .OutboxMessages.Where(m =>
                 m.Status == OutboxMessageStatus.Failed
                 && m.RetryCount < maxRetryCount
                 && (m.NextRetryAt == null || m.NextRetryAt <= now)
             )
             .OrderBy(m => m.UpdatedAt)
-            .Take(batchSize)
-            .Select(m => m.Id)
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .Take(batchSize);
 
-        if (ids.Length == 0)
-        {
-            return [];
-        }
-
-        await UpdateEntitiesAsync(
-                _context.OutboxMessages.Where(m => ids.Contains(m.Id) && m.Status == OutboxMessageStatus.Failed),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Processing;
-                    msg.UpdatedAt = now;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Processing)
-                                .SetProperty(m => m.UpdatedAt, now),
-                        ct
-                    ),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        return await _context
-            .OutboxMessages.AsNoTracking()
-            .Where(m => ids.Contains(m.Id))
-            .ToArrayAsync(cancellationToken)
+        return await _executor
+            .FetchAndMarkAsync(baseQuery, now, OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -171,22 +122,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
+        await _executor
+            .UpdateByQueryAsync(
                 _context.OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Completed;
-                    msg.ProcessedAt = now;
-                    msg.UpdatedAt = now;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Completed)
-                                .SetProperty(m => m.ProcessedAt, now)
-                                .SetProperty(m => m.UpdatedAt, now),
-                        ct
-                    ),
+                now,
+                now,
+                null,
+                OutboxMessageStatus.Completed,
+                0,
+                null,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -205,26 +149,8 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
-                _context.OutboxMessages.Where(m =>
-                    messageIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing
-                ),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Completed;
-                    msg.ProcessedAt = now;
-                    msg.UpdatedAt = now;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Completed)
-                                .SetProperty(m => m.ProcessedAt, now)
-                                .SetProperty(m => m.UpdatedAt, now),
-                        ct
-                    ),
-                cancellationToken
-            )
+        await _executor
+            .UpdateByIdsAsync(messageIds, now, now, null, OutboxMessageStatus.Completed, 0, null, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -237,24 +163,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
+        await _executor
+            .UpdateByQueryAsync(
                 _context.OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Failed;
-                    msg.Error = errorMessage;
-                    msg.UpdatedAt = now;
-                    msg.RetryCount++;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Failed)
-                                .SetProperty(m => m.Error, errorMessage)
-                                .SetProperty(m => m.UpdatedAt, now)
-                                .SetProperty(m => m.RetryCount, m => m.RetryCount + 1),
-                        ct
-                    ),
+                now,
+                null,
+                null,
+                OutboxMessageStatus.Failed,
+                1,
+                errorMessage,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -270,26 +187,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
+        await _executor
+            .UpdateByQueryAsync(
                 _context.OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Failed;
-                    msg.Error = errorMessage;
-                    msg.UpdatedAt = now;
-                    msg.RetryCount++;
-                    msg.NextRetryAt = nextRetryAt;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Failed)
-                                .SetProperty(m => m.Error, errorMessage)
-                                .SetProperty(m => m.UpdatedAt, now)
-                                .SetProperty(m => m.RetryCount, m => m.RetryCount + 1)
-                                .SetProperty(m => m.NextRetryAt, nextRetryAt),
-                        ct
-                    ),
+                now,
+                null,
+                nextRetryAt,
+                OutboxMessageStatus.Failed,
+                1,
+                errorMessage,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -309,26 +215,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
-                _context.OutboxMessages.Where(m =>
-                    messageIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing
-                ),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.Failed;
-                    msg.Error = errorMessage;
-                    msg.UpdatedAt = now;
-                    msg.RetryCount++;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.Failed)
-                                .SetProperty(m => m.Error, errorMessage)
-                                .SetProperty(m => m.UpdatedAt, now)
-                                .SetProperty(m => m.RetryCount, m => m.RetryCount + 1),
-                        ct
-                    ),
+        await _executor
+            .UpdateByIdsAsync(
+                messageIds,
+                now,
+                null,
+                null,
+                OutboxMessageStatus.Failed,
+                1,
+                errorMessage,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -343,22 +238,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
+        await _executor
+            .UpdateByQueryAsync(
                 _context.OutboxMessages.Where(m => m.Id == messageId && m.Status == OutboxMessageStatus.Processing),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.DeadLetter;
-                    msg.Error = errorMessage;
-                    msg.UpdatedAt = now;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.DeadLetter)
-                                .SetProperty(m => m.Error, errorMessage)
-                                .SetProperty(m => m.UpdatedAt, now),
-                        ct
-                    ),
+                now,
+                null,
+                null,
+                OutboxMessageStatus.DeadLetter,
+                0,
+                errorMessage,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -378,24 +266,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
 
         var now = _timeProvider.GetUtcNow();
 
-        await UpdateEntitiesAsync(
-                _context.OutboxMessages.Where(m =>
-                    messageIds.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing
-                ),
-                msg =>
-                {
-                    msg.Status = OutboxMessageStatus.DeadLetter;
-                    msg.Error = errorMessage;
-                    msg.UpdatedAt = now;
-                },
-                (q, ct) =>
-                    q.ExecuteUpdateAsync(
-                        m =>
-                            m.SetProperty(m => m.Status, OutboxMessageStatus.DeadLetter)
-                                .SetProperty(m => m.Error, errorMessage)
-                                .SetProperty(m => m.UpdatedAt, now),
-                        ct
-                    ),
+        await _executor
+            .UpdateByIdsAsync(
+                messageIds,
+                now,
+                null,
+                null,
+                OutboxMessageStatus.DeadLetter,
+                1,
+                errorMessage,
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -406,70 +285,13 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
-        return await DeleteEntitiesAsync(
+        return await _executor
+            .DeleteByQueryAsync(
                 _context.OutboxMessages.Where(m =>
                     m.Status == OutboxMessageStatus.Completed && m.ProcessedAt < cutoffTime
                 ),
                 cancellationToken
             )
             .ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Updates a set of <see cref="OutboxMessage"/> entities by either tracking-and-saving (InMemory provider)
-    /// or issuing a single bulk <c>UPDATE</c> statement via <c>ExecuteUpdateAsync</c> (all other providers).
-    /// </summary>
-    private async Task UpdateEntitiesAsync(
-        IQueryable<OutboxMessage> query,
-        Action<OutboxMessage> applyChanges,
-        Func<IQueryable<OutboxMessage>, CancellationToken, Task<int>> executeBulkUpdate,
-        CancellationToken cancellationToken
-    )
-    {
-        if (_useTrackingOperations)
-        {
-            var entities = await query.ToArrayAsync(cancellationToken).ConfigureAwait(false);
-
-            if (entities.Length == 0)
-            {
-                return;
-            }
-
-            foreach (var entity in entities)
-            {
-                applyChanges(entity);
-            }
-
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            _ = await executeBulkUpdate(query, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// Deletes a set of <see cref="OutboxMessage"/> entities by either tracking-and-removing (InMemory provider)
-    /// or issuing a single bulk <c>DELETE</c> statement via <c>ExecuteDeleteAsync</c> (all other providers).
-    /// </summary>
-    /// <returns>The number of deleted rows.</returns>
-    private async Task<int> DeleteEntitiesAsync(IQueryable<OutboxMessage> query, CancellationToken cancellationToken)
-    {
-        if (_useTrackingOperations)
-        {
-            var entities = await query.ToArrayAsync(cancellationToken).ConfigureAwait(false);
-
-            if (entities.Length == 0)
-            {
-                return 0;
-            }
-
-            _context.OutboxMessages.RemoveRange(entities);
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            return entities.Length;
-        }
-
-        return await query.ExecuteDeleteAsync(cancellationToken).ConfigureAwait(false);
     }
 }

@@ -11,13 +11,13 @@ using TUnit.Core;
 public sealed class EntityFrameworkOutboxRepositoryTests
 {
     [Test]
-    public async Task Constructor_WithNullContext_ThrowsArgumentNullException(CancellationToken cancellationToken) =>
+    public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() => new EntityFrameworkOutboxRepository<TestDbContext>(null!, TimeProvider.System))
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException))
@@ -30,7 +30,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
     }
 
     [Test]
-    public async Task Constructor_WithValidArguments_CreatesInstance(CancellationToken cancellationToken)
+    public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithValidArguments_CreatesInstance))

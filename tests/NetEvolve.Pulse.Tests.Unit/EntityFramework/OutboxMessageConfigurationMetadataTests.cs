@@ -15,9 +15,7 @@ using TUnit.Core;
 public sealed class OutboxMessageConfigurationMetadataTests
 {
     [Test]
-    public async Task Create_WithSqlServerProvider_AppliesSqlServerFiltersAndColumnTypes(
-        CancellationToken cancellationToken
-    )
+    public async Task Create_WithSqlServerProvider_AppliesSqlServerFiltersAndColumnTypes()
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.SqlServer");
 
@@ -44,9 +42,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithPostgreSqlProvider_AppliesPostgreSqlFiltersAndColumnTypes(
-        CancellationToken cancellationToken
-    )
+    public async Task Create_WithPostgreSqlProvider_AppliesPostgreSqlFiltersAndColumnTypes()
     {
         var entityType = GetConfiguredEntityType("Npgsql.EntityFrameworkCore.PostgreSQL");
 
@@ -71,7 +67,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithSqliteProvider_AppliesSqliteFiltersAndColumnTypes(CancellationToken cancellationToken)
+    public async Task Create_WithSqliteProvider_AppliesSqliteFiltersAndColumnTypes()
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.Sqlite");
 
@@ -96,9 +92,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithMySqlProvider_AppliesMySqlColumnTypesAndNoFilteredIndexes(
-        CancellationToken cancellationToken
-    )
+    public async Task Create_WithMySqlProvider_AppliesMySqlColumnTypesAndNoFilteredIndexes()
     {
         var entityType = GetConfiguredEntityType("Pomelo.EntityFrameworkCore.MySql");
 
@@ -114,10 +108,10 @@ public sealed class OutboxMessageConfigurationMetadataTests
 
             _ = await Assert
                 .That(entityType.FindProperty(nameof(OutboxMessage.Id))!.GetColumnType())
-                .IsEqualTo("char(36)");
+                .IsEqualTo("binary(16)");
             _ = await Assert
                 .That(entityType.FindProperty(nameof(OutboxMessage.CreatedAt))!.GetColumnType())
-                .IsEqualTo("datetime(6)");
+                .IsEqualTo("bigint");
             _ = await Assert
                 .That(entityType.FindProperty(nameof(OutboxMessage.Payload))!.GetColumnType())
                 .IsEqualTo("longtext");
@@ -125,9 +119,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithInMemoryProvider_UsesBaseDefaultsWithoutColumnTypeOverrides(
-        CancellationToken cancellationToken
-    )
+    public async Task Create_WithInMemoryProvider_UsesBaseDefaultsWithoutColumnTypeOverrides()
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.InMemory");
 
@@ -147,9 +139,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithWhitespaceSchema_UsesDefaultSchemaAndConfiguredTableName(
-        CancellationToken cancellationToken
-    )
+    public async Task Create_WithWhitespaceSchema_UsesDefaultSchemaAndConfiguredTableName()
     {
         var entityType = GetConfiguredEntityType(
             "Microsoft.EntityFrameworkCore.SqlServer",
@@ -164,7 +154,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithSchemaContainingWhitespace_StoresTrimmedSchema(CancellationToken cancellationToken)
+    public async Task Create_WithSchemaContainingWhitespace_StoresTrimmedSchema()
     {
         var entityType = GetConfiguredEntityType(
             "Microsoft.EntityFrameworkCore.SqlServer",
@@ -175,7 +165,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     [Test]
-    public async Task Create_WithSqlServerProvider_AppliesOutboxBaseDefaultValues(CancellationToken cancellationToken)
+    public async Task Create_WithSqlServerProvider_AppliesOutboxBaseDefaultValues()
     {
         var entityType = GetConfiguredEntityType("Microsoft.EntityFrameworkCore.SqlServer");
 
