@@ -21,6 +21,7 @@ internal sealed class BulkOutboxManagementExecutor<TContext>(TContext context) :
         context
             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.DeadLetter)
             .OrderByDescending(m => m.UpdatedAt)
+            .ThenByDescending(m => m.Id)
             .Skip(skip)
             .Take(take)
             .AsNoTracking();
