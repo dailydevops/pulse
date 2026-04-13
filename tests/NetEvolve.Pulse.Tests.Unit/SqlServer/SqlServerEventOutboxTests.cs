@@ -108,7 +108,7 @@ public sealed class SqlServerEventOutboxTests
     public async Task Constructor_DiConstructor_WithTransactionScope_CreatesInstance()
     {
         var transactionScope = Mock.Of<IOutboxTransactionScope>();
-        _ = transactionScope.GetCurrentTransaction().Returns(null);
+        _ = transactionScope.GetCurrentTransaction().Returns(null!);
 
         var outbox = new SqlServerEventOutbox(
             Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),

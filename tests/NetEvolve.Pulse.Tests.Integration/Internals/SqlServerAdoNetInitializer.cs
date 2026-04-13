@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -14,7 +15,7 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is read from a script file with schema and table names substituted from validated OutboxOptions properties."
 )]
-public sealed class SqlServerAdoNetInitializer : IDatabaseInitializer
+public sealed partial class SqlServerAdoNetInitializer : IDatabaseInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
@@ -26,7 +27,7 @@ public sealed class SqlServerAdoNetInitializer : IDatabaseInitializer
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
-        mediatorBuilder.AddSqlServerOutbox(databaseService.ConnectionString);
+        _ = mediatorBuilder.AddSqlServerOutbox(databaseService.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
@@ -46,12 +47,7 @@ public sealed class SqlServerAdoNetInitializer : IDatabaseInitializer
         var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
 
         // Remove SQLCMD-specific variable declarations (not valid T-SQL)
-        script = System.Text.RegularExpressions.Regex.Replace(
-            script,
-            @"^:setvar\s+\w+\s+.*$",
-            string.Empty,
-            System.Text.RegularExpressions.RegexOptions.Multiline
-        );
+        script = SearchSetVar().Replace(script, string.Empty);
 
         // Substitute SQLCMD variables with actual values
         script = script
@@ -59,12 +55,7 @@ public sealed class SqlServerAdoNetInitializer : IDatabaseInitializer
             .Replace("$(TableName)", tableName, StringComparison.Ordinal);
 
         // Split on GO (on its own line) and execute each batch independently
-        var batches = System.Text.RegularExpressions.Regex.Split(
-            script,
-            @"^\s*GO\s*$",
-            System.Text.RegularExpressions.RegexOptions.Multiline
-                | System.Text.RegularExpressions.RegexOptions.IgnoreCase
-        );
+        var batches = SearchGoStatements().Split(script);
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -83,4 +74,10 @@ public sealed class SqlServerAdoNetInitializer : IDatabaseInitializer
     }
 
     public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) { }
+
+    [GeneratedRegexAttribute(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline)]
+    private static partial Regex SearchSetVar();
+
+    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.IgnoreCase | RegexOptions.Multiline, "de-DE")]
+    private static partial Regex SearchGoStatements();
 }
