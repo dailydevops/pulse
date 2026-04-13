@@ -7,7 +7,7 @@ using TUnit.Core.Interfaces;
 public sealed class PostgreSqlContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(
-        /*dockerimage*/"postgres:15.17"
+        /*dockerimage*/"postgres:18.3"
     )
         .WithLogger(NullLogger.Instance)
         .Build();
