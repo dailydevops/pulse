@@ -448,12 +448,18 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
-        // The message should not have been sent successfully
-        _ = await Assert.That(transport.SentMessages).IsEmpty();
+        using (Assert.Multiple())
+        {
+            // The message should not have been sent successfully
+            _ = await Assert.That(transport.SentMessages).IsEmpty();
+            // MaxRetryCount=1 means the first timeout should move directly to dead-letter.
+            _ = await Assert.That(repository.DeadLetterMessageIds).Contains(message.Id);
+        }
     }
 
     [Test]
