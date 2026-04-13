@@ -5,7 +5,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <summary>
 /// Defines the provider-specific strategy for executing outbox entity operations.
 /// </summary>
-internal interface IOutboxOperationsExecutor : IDisposable
+internal interface IOutboxRepositoryExecutor : IDisposable
 {
     Task<OutboxMessage[]> FetchAndMarkAsync(
         IQueryable<OutboxMessage> baseQuery,
