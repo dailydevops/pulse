@@ -147,7 +147,16 @@ public sealed class SqlServerEventOutbox : IEventOutbox
         }
         else
         {
-            var ambientTransaction = _transactionScope?.GetCurrentTransaction() as SqlTransaction;
+            var currentTransaction = _transactionScope?.GetCurrentTransaction();
+
+            if (currentTransaction is not null and not SqlTransaction)
+            {
+                throw new InvalidOperationException(
+                    $"IOutboxTransactionScope returned a transaction of type '{currentTransaction.GetType().Name}', but SqlServerEventOutbox requires a SqlTransaction."
+                );
+            }
+
+            var ambientTransaction = currentTransaction as SqlTransaction;
 
             if (ambientTransaction is not null)
             {

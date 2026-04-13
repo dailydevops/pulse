@@ -179,6 +179,27 @@ public sealed class SqlServerEventOutboxTests
             .Throws<InvalidOperationException>();
     }
 
+    [Test]
+    public async Task StoreAsync_DiConstructor_WithInvalidTransactionType_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
+    {
+        var transactionScope = Mock.Of<IOutboxTransactionScope>();
+        _ = transactionScope.GetCurrentTransaction().Returns(new object()); // not a SqlTransaction
+
+        var outbox = new SqlServerEventOutbox(
+            Options.Create(new OutboxOptions { ConnectionString = "Server=.;Encrypt=true;" }),
+            TimeProvider.System,
+            transactionScope.Object
+        );
+
+        var message = new TestEvent();
+
+        _ = await Assert
+            .That(async () => await outbox.StoreAsync(message, cancellationToken).ConfigureAwait(false))
+            .Throws<InvalidOperationException>();
+    }
+
     private sealed record TestEvent : IEvent
     {
         public string? CorrelationId { get; set; }
