@@ -97,7 +97,7 @@ BEGIN
     UPDATE CTE
     SET
         [Status] = 1, -- Processing
-        [UpdatedAt] = SYSDATETIMEOFFSET()
+        [UpdatedAt] = @nowUtc
     OUTPUT
         INSERTED.[Id],
         INSERTED.[EventType],
@@ -113,7 +113,7 @@ BEGIN
 END
 GO
 
--- usp_GetFailedOutboxMessagesForRetry: Retrieves failed messages eligible for retry
+-- usp_GetFailedOutboxMessagesForRetry
 IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetFailedOutboxMessagesForRetry]') AND [type] = N'P')
 BEGIN
     DROP PROCEDURE [$(SchemaName)].[usp_GetFailedOutboxMessagesForRetry];
@@ -150,7 +150,7 @@ BEGIN
     UPDATE CTE
     SET
         [Status] = 1, -- Processing
-        [UpdatedAt] = SYSDATETIMEOFFSET()
+        [UpdatedAt] = @nowUtc
     OUTPUT
         INSERTED.[Id],
         INSERTED.[EventType],
@@ -166,7 +166,7 @@ BEGIN
 END
 GO
 
--- usp_MarkOutboxMessageCompleted: Marks a message as successfully processed
+-- usp_MarkOutboxMessageCompleted
 IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_MarkOutboxMessageCompleted]') AND [type] = N'P')
 BEGIN
     DROP PROCEDURE [$(SchemaName)].[usp_MarkOutboxMessageCompleted];
@@ -174,7 +174,9 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_MarkOutboxMessageCompleted]
-    @messageId UNIQUEIDENTIFIER
+    @messageId      UNIQUEIDENTIFIER,
+    @processedAtUtc DATETIMEOFFSET,
+    @updatedAtUtc   DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -182,8 +184,8 @@ BEGIN
     UPDATE [$(SchemaName)].[$(TableName)]
     SET
         [Status] = 2, -- Completed
-        [ProcessedAt] = SYSDATETIMEOFFSET(),
-        [UpdatedAt] = SYSDATETIMEOFFSET()
+        [ProcessedAt] = @processedAtUtc,
+        [UpdatedAt] = @updatedAtUtc
     WHERE [Id] = @messageId
       AND [Status] = 1; -- Processing
 END
@@ -197,8 +199,9 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_MarkOutboxMessageFailed]
-    @messageId UNIQUEIDENTIFIER,
-    @error NVARCHAR(MAX),
+    @messageId   UNIQUEIDENTIFIER,
+    @error       NVARCHAR(MAX),
+    @nowUtc      DATETIMEOFFSET,
     @nextRetryAt DATETIMEOFFSET = NULL
 AS
 BEGIN
@@ -210,7 +213,7 @@ BEGIN
         [RetryCount] = [RetryCount] + 1,
         [Error] = @error,
         [NextRetryAt] = @nextRetryAt,
-        [UpdatedAt] = SYSDATETIMEOFFSET()
+        [UpdatedAt] = @nowUtc
     WHERE [Id] = @messageId
       AND [Status] = 1; -- Processing
 END
@@ -225,7 +228,8 @@ GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_MarkOutboxMessageDeadLetter]
     @messageId UNIQUEIDENTIFIER,
-    @error NVARCHAR(MAX)
+    @error     NVARCHAR(MAX),
+    @nowUtc    DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -234,7 +238,7 @@ BEGIN
     SET
         [Status] = 4, -- DeadLetter
         [Error] = @error,
-        [UpdatedAt] = SYSDATETIMEOFFSET()
+        [UpdatedAt] = @nowUtc
     WHERE [Id] = @messageId
       AND [Status] = 1; -- Processing
 END
@@ -354,7 +358,8 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_ReplayOutboxMessage]
-    @messageId UNIQUEIDENTIFIER
+    @messageId UNIQUEIDENTIFIER,
+    @nowUtc    DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -365,7 +370,7 @@ BEGIN
         [RetryCount] = 0,
         [Error]      = NULL,
         [NextRetryAt] = NULL,
-        [UpdatedAt]  = SYSDATETIMEOFFSET()
+        [UpdatedAt]  = @nowUtc
     WHERE [Id] = @messageId
       AND [Status] = 4; -- DeadLetter
 
@@ -381,6 +386,7 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_ReplayAllDeadLetterOutboxMessages]
+    @nowUtc DATETIMEOFFSET
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -391,7 +397,7 @@ BEGIN
         [RetryCount] = 0,
         [Error]      = NULL,
         [NextRetryAt] = NULL,
-        [UpdatedAt]  = SYSDATETIMEOFFSET()
+        [UpdatedAt]  = @nowUtc
     WHERE [Status] = 4; -- DeadLetter
 
     SELECT @@ROWCOUNT AS [UpdatedCount];
