@@ -17,12 +17,14 @@ public sealed class SQLiteAdoNetInitializer : IDatabaseInitializer
 {
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
     {
+        ArgumentNullException.ThrowIfNull(mediatorBuilder);
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddSQLiteOutbox(databaseService.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(serviceProvider);
         var options = serviceProvider.GetRequiredService<IOptions<OutboxOptions>>().Value;
 
         var connectionString =
