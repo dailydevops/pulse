@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
 using NetEvolve.Extensions.TUnit;
@@ -11,7 +11,7 @@ public class ActivityAndMetricsEventInterceptorTests
 {
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_CreatesActivityWithCorrectTags()
+    public async Task HandleAsync_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -35,7 +35,8 @@ public class ActivityAndMetricsEventInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -51,7 +52,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk()
+    public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -67,7 +68,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -81,7 +82,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError()
+    public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -99,7 +100,9 @@ public class ActivityAndMetricsEventInterceptorTests
         listener.ActivityStopped = activity => capturedActivity = activity;
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(testEvent, (_, _) => throw testException).ConfigureAwait(false)
+            await interceptor
+                .HandleAsync(testEvent, (_, _) => throw testException, cancellationToken)
+                .ConfigureAwait(false)
         );
 
         using (Assert.Multiple())
@@ -121,7 +124,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_SetsTimestamps()
+    public async Task HandleAsync_SetsTimestamps(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -137,7 +140,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -148,7 +151,7 @@ public class ActivityAndMetricsEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_InvokesHandlerWithCorrectEvent()
+    public async Task HandleAsync_InvokesHandlerWithCorrectEvent(CancellationToken cancellationToken)
     {
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsEventInterceptor<TestEvent>(timeProvider);
@@ -162,7 +165,8 @@ public class ActivityAndMetricsEventInterceptorTests
                 {
                     receivedEvent = evt;
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -171,7 +175,7 @@ public class ActivityAndMetricsEventInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WithDifferentEventTypes_CreatesCorrectActivities()
+    public async Task HandleAsync_WithDifferentEventTypes_CreatesCorrectActivities(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -187,8 +191,12 @@ public class ActivityAndMetricsEventInterceptorTests
 
         listener.ActivityStarted = activity => activities.Add(activity);
 
-        await interceptor1.HandleAsync(new TestEvent(), (_, _) => Task.CompletedTask).ConfigureAwait(false);
-        await interceptor2.HandleAsync(new AnotherTestEvent(), (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor1
+            .HandleAsync(new TestEvent(), (_, _) => Task.CompletedTask, cancellationToken)
+            .ConfigureAwait(false);
+        await interceptor2
+            .HandleAsync(new AnotherTestEvent(), (_, _) => Task.CompletedTask, cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {

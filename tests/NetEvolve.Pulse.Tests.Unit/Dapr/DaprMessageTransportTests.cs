@@ -59,7 +59,7 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_When_message_is_null_throws_ArgumentNullException()
+    public async Task SendAsync_When_message_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
@@ -68,11 +68,11 @@ public sealed class DaprMessageTransportTests
             Options.Create(new DaprMessageTransportOptions())
         );
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!));
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!, cancellationToken));
     }
 
     [Test]
-    public async Task IsHealthyAsync_Delegates_to_DaprClient()
+    public async Task IsHealthyAsync_Delegates_to_DaprClient(CancellationToken cancellationToken)
     {
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
@@ -82,7 +82,7 @@ public sealed class DaprMessageTransportTests
         );
 
         // Without a running Dapr sidecar, CheckHealthAsync returns false (connection refused → false, not throw)
-        var result = await transport.IsHealthyAsync();
+        var result = await transport.IsHealthyAsync(cancellationToken);
 
         _ = await Assert.That(result).IsTypeOf<bool>();
     }

@@ -60,7 +60,7 @@ public sealed class HttpCorrelationEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException()
+    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -69,12 +69,14 @@ public sealed class HttpCorrelationEventInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(message, null!).ConfigureAwait(false))
+            .That(async () => await interceptor.HandleAsync(message, null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task HandleAsync_NoAccessorRegistered_PassesThroughWithoutModification()
+    public async Task HandleAsync_NoAccessorRegistered_PassesThroughWithoutModification(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -90,7 +92,8 @@ public sealed class HttpCorrelationEventInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -103,7 +106,9 @@ public sealed class HttpCorrelationEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_AccessorHasCorrelationId_MessageAlreadyHasCorrelationId_DoesNotOverwrite()
+    public async Task HandleAsync_AccessorHasCorrelationId_MessageAlreadyHasCorrelationId_DoesNotOverwrite(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         const string existingId = "existing-id";
@@ -118,14 +123,14 @@ public sealed class HttpCorrelationEventInterceptorTests
         var message = new TestEvent { CorrelationId = existingId };
 
         // Act
-        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsEqualTo(existingId);
     }
 
     [Test]
-    public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyMessage()
+    public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyMessage(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -139,7 +144,7 @@ public sealed class HttpCorrelationEventInterceptorTests
         var message = new TestEvent { CorrelationId = null };
 
         // Act
-        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsNull();

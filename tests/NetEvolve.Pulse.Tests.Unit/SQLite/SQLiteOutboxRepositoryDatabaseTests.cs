@@ -80,33 +80,35 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         };
 
     [Test]
-    public async Task AddAsync_WithValidMessage_PersistsToDatabase()
+    public async Task AddAsync_WithValidMessage_PersistsToDatabase(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
         var message = CreateMessage();
 
-        await repository.AddAsync(message).ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var count = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
+        var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
         _ = await Assert.That(count).IsEqualTo(1L);
     }
 
     [Test]
-    public async Task GetPendingAsync_WithPendingMessages_ReturnsAndMarksAsProcessing()
+    public async Task GetPendingAsync_WithPendingMessages_ReturnsAndMarksAsProcessing(
+        CancellationToken cancellationToken
+    )
     {
         var repository = CreateRepository();
         var message1 = CreateMessage(typeof(TestSQLiteRepoEvent));
         var message2 = CreateMessage();
-        await repository.AddAsync(message1).ConfigureAwait(false);
-        await repository.AddAsync(message2).ConfigureAwait(false);
+        await repository.AddAsync(message1, cancellationToken).ConfigureAwait(false);
+        await repository.AddAsync(message2, cancellationToken).ConfigureAwait(false);
 
-        var pending = await repository.GetPendingAsync(10).ConfigureAwait(false);
+        var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -116,49 +118,51 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task GetPendingAsync_WithEmptyTable_ReturnsEmptyList()
+    public async Task GetPendingAsync_WithEmptyTable_ReturnsEmptyList(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
 
-        var pending = await repository.GetPendingAsync(10).ConfigureAwait(false);
+        var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(pending.Count).IsEqualTo(0);
     }
 
     [Test]
-    public async Task MarkAsCompletedAsync_SetsStatusToCompleted()
+    public async Task MarkAsCompletedAsync_SetsStatusToCompleted(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
         var message = CreateMessage();
-        await repository.AddAsync(message).ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
-        await repository.MarkAsCompletedAsync(message.Id).ConfigureAwait(false);
+        await repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var status = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
+        var status = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
         _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.Completed);
     }
 
     [Test]
-    public async Task MarkAsFailedAsync_SetsStatusToFailed()
+    public async Task MarkAsFailedAsync_SetsStatusToFailed(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
         var message = CreateMessage();
-        await repository.AddAsync(message).ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
-        await repository.MarkAsFailedAsync(message.Id, "Test error").ConfigureAwait(false);
+        await repository
+            .MarkAsFailedAsync(message.Id, "Test error", cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT \"Status\", \"Error\", \"RetryCount\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-        _ = await reader.ReadAsync().ConfigureAwait(false);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        _ = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -169,101 +173,110 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task MarkAsDeadLetterAsync_SetsStatusToDeadLetter()
+    public async Task MarkAsDeadLetterAsync_SetsStatusToDeadLetter(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
         var message = CreateMessage();
-        await repository.AddAsync(message).ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
-        await repository.MarkAsDeadLetterAsync(message.Id, "Fatal error").ConfigureAwait(false);
+        await repository.MarkAsDeadLetterAsync(message.Id, "Fatal error", cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var status = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
+        var status = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
         _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.DeadLetter);
     }
 
     [Test]
-    public async Task GetPendingCountAsync_WithPendingMessages_ReturnsCorrectCount()
+    public async Task GetPendingCountAsync_WithPendingMessages_ReturnsCorrectCount(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
-        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
-        await repository.AddAsync(CreateMessage()).ConfigureAwait(false);
+        await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
+        await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
-        var count = await repository.GetPendingCountAsync().ConfigureAwait(false);
+        var count = await repository.GetPendingCountAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(count).IsGreaterThanOrEqualTo(2L);
     }
 
     [Test]
-    public async Task DeleteCompletedAsync_DeletesOldCompletedMessages()
+    public async Task DeleteCompletedAsync_DeletesOldCompletedMessages(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
         var message = CreateMessage();
-        await repository.AddAsync(message).ConfigureAwait(false);
-        await repository.MarkAsCompletedAsync(message.Id).ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        await repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
 
-        var deleted = await repository.DeleteCompletedAsync(TimeSpan.Zero).ConfigureAwait(false);
+        var deleted = await repository.DeleteCompletedAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(deleted).IsGreaterThanOrEqualTo(1);
     }
 
     [Test]
-    public async Task GetFailedForRetryAsync_WithFailedMessages_ReturnsEligibleMessages()
+    public async Task GetFailedForRetryAsync_WithFailedMessages_ReturnsEligibleMessages(
+        CancellationToken cancellationToken
+    )
     {
         var repository = CreateRepository();
         var message = CreateMessage();
-        await repository.AddAsync(message).ConfigureAwait(false);
-        await repository.MarkAsFailedAsync(message.Id, "First failure").ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        await repository
+            .MarkAsFailedAsync(message.Id, "First failure", cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
-        var forRetry = await repository.GetFailedForRetryAsync(maxRetryCount: 3, batchSize: 10).ConfigureAwait(false);
+        var forRetry = await repository
+            .GetFailedForRetryAsync(maxRetryCount: 3, batchSize: 10, cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(forRetry.Count).IsGreaterThanOrEqualTo(1);
     }
 
     [Test]
-    public async Task MarkAsFailedAsync_WithNextRetryAt_SetsNextRetryAt()
+    public async Task MarkAsFailedAsync_WithNextRetryAt_SetsNextRetryAt(CancellationToken cancellationToken)
     {
         var repository = CreateRepository();
         var message = CreateMessage();
-        await repository.AddAsync(message).ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         var nextRetry = DateTimeOffset.UtcNow.AddMinutes(5);
-        await repository.MarkAsFailedAsync(message.Id, "Error with retry", nextRetry).ConfigureAwait(false);
+        await repository
+            .MarkAsFailedAsync(message.Id, "Error with retry", nextRetry, cancellationToken)
+            .ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT \"NextRetryAt\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var nextRetryValue = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        var nextRetryValue = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(nextRetryValue).IsNotNull();
     }
 
     [Test]
-    public async Task AddAsync_UsesAmbientTransactionScope()
+    public async Task AddAsync_UsesAmbientTransactionScope(CancellationToken cancellationToken)
     {
         await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
-        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync().ConfigureAwait(false);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)
+            await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         var scope = new StubTransactionScope(transaction);
         var repository = CreateRepositoryWithScope(scope);
         var message = CreateMessage();
 
-        await repository.AddAsync(message).ConfigureAwait(false);
-        await transaction.RollbackAsync().ConfigureAwait(false);
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var count = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
+        var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
         _ = await Assert.That(count).IsEqualTo(0L);
     }

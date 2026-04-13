@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
 using NetEvolve.Extensions.TUnit;
@@ -11,7 +11,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 {
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WithCommand_CreatesActivityWithCorrectTags()
+    public async Task HandleAsync_WithCommand_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -35,7 +35,8 @@ public class ActivityAndMetricsRequestInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.FromResult("test-result");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -53,7 +54,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WithQuery_CreatesActivityWithCorrectTags()
+    public async Task HandleAsync_WithQuery_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -69,7 +70,9 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        var result = await interceptor.HandleAsync(query, (_, _) => Task.FromResult(42)).ConfigureAwait(false);
+        var result = await interceptor
+            .HandleAsync(query, (_, _) => Task.FromResult(42), cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -84,7 +87,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WithGenericRequest_CreatesActivityWithCorrectTags()
+    public async Task HandleAsync_WithGenericRequest_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -100,7 +103,9 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        var result = await interceptor.HandleAsync(request, (_, _) => Task.FromResult(true)).ConfigureAwait(false);
+        var result = await interceptor
+            .HandleAsync(request, (_, _) => Task.FromResult(true), cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -115,7 +120,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk()
+    public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -131,7 +136,9 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("success")).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("success"), cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -145,7 +152,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError()
+    public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -163,7 +170,9 @@ public class ActivityAndMetricsRequestInterceptorTests
         listener.ActivityStopped = activity => capturedActivity = activity;
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(command, (_, _) => throw testException).ConfigureAwait(false)
+            await interceptor
+                .HandleAsync(command, (_, _) => throw testException, cancellationToken)
+                .ConfigureAwait(false)
         );
 
         using (Assert.Multiple())
@@ -185,7 +194,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_SetsTimestamps()
+    public async Task HandleAsync_SetsTimestamps(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -201,7 +210,9 @@ public class ActivityAndMetricsRequestInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        _ = await interceptor.HandleAsync(command, (_, _) => Task.FromResult("result")).ConfigureAwait(false);
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("result"), cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -212,7 +223,7 @@ public class ActivityAndMetricsRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_InvokesHandlerWithCorrectRequest()
+    public async Task HandleAsync_InvokesHandlerWithCorrectRequest(CancellationToken cancellationToken)
     {
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsRequestInterceptor<TestCommand, string>(timeProvider);
@@ -226,7 +237,8 @@ public class ActivityAndMetricsRequestInterceptorTests
                 {
                     receivedCommand = cmd;
                     return Task.FromResult("result");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 

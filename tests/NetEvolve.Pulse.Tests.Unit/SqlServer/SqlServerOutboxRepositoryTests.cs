@@ -118,7 +118,7 @@ public sealed class SqlServerOutboxRepositoryTests
     }
 
     [Test]
-    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException()
+    public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
@@ -126,7 +126,7 @@ public sealed class SqlServerOutboxRepositoryTests
         );
 
         _ = await Assert
-            .That(async () => await repository.AddAsync(null!).ConfigureAwait(false))
+            .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 }

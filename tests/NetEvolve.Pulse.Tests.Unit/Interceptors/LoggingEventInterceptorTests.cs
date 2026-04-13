@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -24,7 +24,7 @@ public class LoggingEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_LogsBeginAndEndAtDebugLevel()
+    public async Task HandleAsync_LogsBeginAndEndAtDebugLevel(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
@@ -38,7 +38,8 @@ public class LoggingEventInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -52,13 +53,13 @@ public class LoggingEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_LogsBeginAndEndAtInformationLevel()
+    public async Task HandleAsync_LogsBeginAndEndAtInformationLevel(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var testEvent = new TestEvent();
 
-        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -69,19 +70,19 @@ public class LoggingEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_LogsEventNameInMessage()
+    public async Task HandleAsync_LogsEventNameInMessage(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
 
-        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(logger.Entries[0].Message).Contains("TestEvent");
     }
 
     [Test]
-    public async Task HandleAsync_WithSlowEvent_LogsWarning()
+    public async Task HandleAsync_WithSlowEvent_LogsWarning(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(
@@ -91,7 +92,7 @@ public class LoggingEventInterceptorTests
         var testEvent = new TestEvent();
 
         await interceptor
-            .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false))
+            .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
 
         var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
@@ -100,14 +101,14 @@ public class LoggingEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithDisabledSlowThreshold_DoesNotLogWarning()
+    public async Task HandleAsync_WithDisabledSlowThreshold_DoesNotLogWarning(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var testEvent = new TestEvent();
 
         await interceptor
-            .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false))
+            .HandleAsync(testEvent, async (_, ct) => await Task.Delay(50, ct).ConfigureAwait(false), cancellationToken)
             .ConfigureAwait(false);
 
         var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
@@ -115,7 +116,7 @@ public class LoggingEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows()
+    public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
@@ -123,7 +124,9 @@ public class LoggingEventInterceptorTests
         var expectedException = new InvalidOperationException("event error");
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await interceptor.HandleAsync(testEvent, (_, _) => throw expectedException).ConfigureAwait(false)
+            await interceptor
+                .HandleAsync(testEvent, (_, _) => throw expectedException, cancellationToken)
+                .ConfigureAwait(false)
         );
 
         _ = await Assert.That(exception).IsSameReferenceAs(expectedException);
@@ -137,19 +140,19 @@ public class LoggingEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_LogsCorrelationId()
+    public async Task HandleAsync_LogsCorrelationId(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent { CorrelationId = "event-correlation-id" };
 
-        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask).ConfigureAwait(false);
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(logger.Entries[0].Message).Contains("event-correlation-id");
     }
 
     [Test]
-    public async Task HandleAsync_InvokesHandlerWithCorrectEvent()
+    public async Task HandleAsync_InvokesHandlerWithCorrectEvent(CancellationToken cancellationToken)
     {
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
@@ -163,7 +166,8 @@ public class LoggingEventInterceptorTests
                 {
                     received = evt;
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 

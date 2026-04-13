@@ -130,13 +130,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (_options.DisableProcessing)
-            {
-                await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
-            }
-
             try
             {
+                if (_options.DisableProcessing)
+                {
+                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 // Check database health before processing
                 var isDatabaseHealthy = await _repository.IsHealthyAsync(stoppingToken).ConfigureAwait(false);
                 if (!isDatabaseHealthy)
@@ -240,7 +241,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         IReadOnlyList<OutboxMessage> messages = [];
 
-        if (_pendingCount > 0)
+        if (Volatile.Read(ref _pendingCount) > 0)
         {
             messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
             batchSize -= messages.Count;

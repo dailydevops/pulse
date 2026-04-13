@@ -85,7 +85,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
             Status = status,
         };
 
-    private async Task InsertAsync(OutboxMessage message)
+    private async Task InsertAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         await using var cmd = new SqliteCommand(
             """
@@ -115,31 +115,33 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
         _ = cmd.Parameters.AddWithValue("@Error", (object?)message.Error ?? DBNull.Value);
         _ = cmd.Parameters.AddWithValue("@Status", (int)message.Status);
 
-        _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        _ = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     [Test]
-    public async Task GetDeadLetterCountAsync_ReturnsExpectedCount()
+    public async Task GetDeadLetterCountAsync_ReturnsExpectedCount(CancellationToken cancellationToken)
     {
         var management = CreateManagement();
-        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter)).ConfigureAwait(false);
-        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter)).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
 
-        var count = await management.GetDeadLetterCountAsync().ConfigureAwait(false);
+        var count = await management.GetDeadLetterCountAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(count).IsEqualTo(2L);
     }
 
     [Test]
-    public async Task GetDeadLetterMessagesAsync_ReturnsPagedOrdered()
+    public async Task GetDeadLetterMessagesAsync_ReturnsPagedOrdered(CancellationToken cancellationToken)
     {
         var management = CreateManagement();
         var older = CreateMessage(OutboxMessageStatus.DeadLetter, createdAt: DateTimeOffset.UtcNow.AddMinutes(-5));
         var newer = CreateMessage(OutboxMessageStatus.DeadLetter, createdAt: DateTimeOffset.UtcNow);
-        await InsertAsync(older).ConfigureAwait(false);
-        await InsertAsync(newer).ConfigureAwait(false);
+        await InsertAsync(older, cancellationToken).ConfigureAwait(false);
+        await InsertAsync(newer, cancellationToken).ConfigureAwait(false);
 
-        var messages = await management.GetDeadLetterMessagesAsync(pageSize: 1, page: 0).ConfigureAwait(false);
+        var messages = await management
+            .GetDeadLetterMessagesAsync(pageSize: 1, page: 0, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -149,19 +151,19 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task GetDeadLetterMessageAsync_ReturnsSingleMessage()
+    public async Task GetDeadLetterMessageAsync_ReturnsSingleMessage(CancellationToken cancellationToken)
     {
         var management = CreateManagement();
         var target = CreateMessage(OutboxMessageStatus.DeadLetter);
-        await InsertAsync(target).ConfigureAwait(false);
+        await InsertAsync(target, cancellationToken).ConfigureAwait(false);
 
-        var message = await management.GetDeadLetterMessageAsync(target.Id).ConfigureAwait(false);
+        var message = await management.GetDeadLetterMessageAsync(target.Id, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(message!.Id).IsEqualTo(target.Id);
     }
 
     [Test]
-    public async Task ReplayMessageAsync_ResetsDeadLetterFields()
+    public async Task ReplayMessageAsync_ResetsDeadLetterFields(CancellationToken cancellationToken)
     {
         var management = CreateManagement(enableWal: true);
         var deadLetter = CreateMessage(
@@ -171,44 +173,44 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
             error: "fatal",
             retryCount: 3
         );
-        await InsertAsync(deadLetter).ConfigureAwait(false);
+        await InsertAsync(deadLetter, cancellationToken).ConfigureAwait(false);
 
-        var result = await management.ReplayMessageAsync(deadLetter.Id).ConfigureAwait(false);
+        var result = await management.ReplayMessageAsync(deadLetter.Id, cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT \"Status\",\"Error\",\"ProcessedAt\",\"NextRetryAt\",\"RetryCount\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@Id", deadLetter.Id.ToString());
-        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-        _ = await reader.ReadAsync().ConfigureAwait(false);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        _ = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
             _ = await Assert.That(result).IsTrue();
             _ = await Assert.That(reader.GetInt64(0)).IsEqualTo((long)OutboxMessageStatus.Pending);
-            _ = await Assert.That(await reader.IsDBNullAsync(1).ConfigureAwait(false)).IsTrue();
-            _ = await Assert.That(await reader.IsDBNullAsync(2).ConfigureAwait(false)).IsTrue();
-            _ = await Assert.That(await reader.IsDBNullAsync(3).ConfigureAwait(false)).IsTrue();
+            _ = await Assert.That(await reader.IsDBNullAsync(1, cancellationToken).ConfigureAwait(false)).IsTrue();
+            _ = await Assert.That(await reader.IsDBNullAsync(2, cancellationToken).ConfigureAwait(false)).IsTrue();
+            _ = await Assert.That(await reader.IsDBNullAsync(3, cancellationToken).ConfigureAwait(false)).IsTrue();
             _ = await Assert.That(reader.GetInt64(4)).IsEqualTo(0);
         }
     }
 
     [Test]
-    public async Task ReplayAllDeadLetterAsync_ResetsAllMessages()
+    public async Task ReplayAllDeadLetterAsync_ResetsAllMessages(CancellationToken cancellationToken)
     {
         var management = CreateManagement();
-        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter)).ConfigureAwait(false);
-        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter)).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
 
-        var updated = await management.ReplayAllDeadLetterAsync().ConfigureAwait(false);
+        var updated = await management.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
 
         await using var cmd = new SqliteCommand(
             "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Status\" = @status",
             _keepAlive
         );
         _ = cmd.Parameters.AddWithValue("@status", (int)OutboxMessageStatus.Pending);
-        var count = (long)(await cmd.ExecuteScalarAsync().ConfigureAwait(false))!;
+        var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
         using (Assert.Multiple())
         {
@@ -218,16 +220,16 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task GetStatisticsAsync_ReturnsAggregatedCounts()
+    public async Task GetStatisticsAsync_ReturnsAggregatedCounts(CancellationToken cancellationToken)
     {
         var management = CreateManagement();
-        await InsertAsync(CreateMessage(OutboxMessageStatus.Pending)).ConfigureAwait(false);
-        await InsertAsync(CreateMessage(OutboxMessageStatus.Processing)).ConfigureAwait(false);
-        await InsertAsync(CreateMessage(OutboxMessageStatus.Completed)).ConfigureAwait(false);
-        await InsertAsync(CreateMessage(OutboxMessageStatus.Failed)).ConfigureAwait(false);
-        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter)).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.Pending), cancellationToken).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.Processing), cancellationToken).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.Completed), cancellationToken).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.Failed), cancellationToken).ConfigureAwait(false);
+        await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
 
-        var stats = await management.GetStatisticsAsync().ConfigureAwait(false);
+        var stats = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {

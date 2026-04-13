@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;

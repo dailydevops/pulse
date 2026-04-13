@@ -76,7 +76,9 @@ public sealed class SqlServerEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException()
+    public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
     {
         await using var connection = new SqlConnection("Server=.;Encrypt=true;");
         var outbox = new SqlServerEventOutbox(connection, Options.Create(new OutboxOptions()), TimeProvider.System);
@@ -86,7 +88,7 @@ public sealed class SqlServerEventOutboxTests
         };
 
         _ = await Assert
-            .That(async () => await outbox.StoreAsync(message).ConfigureAwait(false))
+            .That(async () => await outbox.StoreAsync(message, cancellationToken).ConfigureAwait(false))
             .Throws<InvalidOperationException>();
     }
 

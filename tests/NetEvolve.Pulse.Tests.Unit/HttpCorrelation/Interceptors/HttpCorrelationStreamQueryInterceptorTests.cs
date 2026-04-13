@@ -65,7 +65,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException()
+    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -76,7 +76,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
         _ = await Assert
             .That(async () =>
             {
-                await foreach (var _ in interceptor.HandleAsync(request, null!).ConfigureAwait(false))
+                await foreach (
+                    var _ in interceptor.HandleAsync(request, null!, cancellationToken).ConfigureAwait(false)
+                )
                 {
                     // consume — we expect the foreach to throw before yielding any items
                 }
@@ -85,7 +87,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NoAccessorRegistered_PassesThroughWithoutModification()
+    public async Task HandleAsync_NoAccessorRegistered_PassesThroughWithoutModification(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -96,7 +100,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
         var items = new List<string>();
         await foreach (
             var item in interceptor
-                .HandleAsync(request, (_, ct) => YieldItemsAsync(["a", "b"], ct))
+                .HandleAsync(request, (_, ct) => YieldItemsAsync(["a", "b"], ct), cancellationToken)
                 .ConfigureAwait(false)
         )
         {
@@ -112,7 +116,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_AccessorHasCorrelationId_RequestAlreadyHasCorrelationId_DoesNotOverwrite()
+    public async Task HandleAsync_AccessorHasCorrelationId_RequestAlreadyHasCorrelationId_DoesNotOverwrite(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         const string existingId = "existing-id";
@@ -128,7 +134,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
 
         // Act
         await foreach (
-            var _ in interceptor.HandleAsync(request, (_, ct) => YieldItemsAsync(["x"], ct)).ConfigureAwait(false)
+            var _ in interceptor
+                .HandleAsync(request, (_, ct) => YieldItemsAsync(["x"], ct), cancellationToken)
+                .ConfigureAwait(false)
         )
         {
             // consume
@@ -139,7 +147,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_AccessorHasCorrelationId_RequestHasNoCorrelationId_SetsCorrelationId()
+    public async Task HandleAsync_AccessorHasCorrelationId_RequestHasNoCorrelationId_SetsCorrelationId(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         const string httpId = "http-correlation-id";
@@ -162,7 +172,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
 
         // Act
         await foreach (
-            var _ in interceptor.HandleAsync(request, (_, ct) => YieldItemsAsync(["x"], ct)).ConfigureAwait(false)
+            var _ in interceptor
+                .HandleAsync(request, (_, ct) => YieldItemsAsync(["x"], ct), cancellationToken)
+                .ConfigureAwait(false)
         )
         {
             // consume
@@ -173,7 +185,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyRequest()
+    public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyRequest(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -188,7 +200,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
 
         // Act
         await foreach (
-            var _ in interceptor.HandleAsync(request, (_, ct) => YieldItemsAsync(["x"], ct)).ConfigureAwait(false)
+            var _ in interceptor
+                .HandleAsync(request, (_, ct) => YieldItemsAsync(["x"], ct), cancellationToken)
+                .ConfigureAwait(false)
         )
         {
             // consume
@@ -199,7 +213,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_YieldsItemsUnchanged()
+    public async Task HandleAsync_YieldsItemsUnchanged(CancellationToken cancellationToken)
     {
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
@@ -210,7 +224,9 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
         // Act
         var items = new List<string>();
         await foreach (
-            var item in interceptor.HandleAsync(request, (_, ct) => YieldItemsAsync(expected, ct)).ConfigureAwait(false)
+            var item in interceptor
+                .HandleAsync(request, (_, ct) => YieldItemsAsync(expected, ct), cancellationToken)
+                .ConfigureAwait(false)
         )
         {
             items.Add(item);

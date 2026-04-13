@@ -73,11 +73,35 @@ internal sealed class SqliteOutboxMessageConfiguration : OutboxMessageConfigurat
         _ = builder.Property(m => m.EventType).HasColumnType("TEXT");
         _ = builder.Property(m => m.Payload).HasColumnType("TEXT");
         _ = builder.Property(m => m.CorrelationId).HasColumnType("TEXT");
-        // DateTimeOffset is stored as ISO-8601 TEXT by EF Core SQLite.
-        _ = builder.Property(m => m.CreatedAt).HasColumnType("TEXT");
-        _ = builder.Property(m => m.UpdatedAt).HasColumnType("TEXT");
-        _ = builder.Property(m => m.ProcessedAt).HasColumnType("TEXT");
-        _ = builder.Property(m => m.NextRetryAt).HasColumnType("TEXT");
+
+        // DateTimeOffset columns are stored as INTEGER (UTC ticks) in SQLite.
+        // EF Core SQLite refuses to translate DateTimeOffset comparisons and ORDER BY
+        // when the column is TEXT because ISO-8601 string ordering is incorrect for
+        // values with non-UTC offsets. Storing as long (UTC ticks) allows EF Core to
+        // generate correct INTEGER comparisons and orderings in SQL.
+        _ = builder
+            .Property(m => m.CreatedAt)
+            .HasColumnType("INTEGER")
+            .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+        _ = builder
+            .Property(m => m.UpdatedAt)
+            .HasColumnType("INTEGER")
+            .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+        _ = builder
+            .Property(m => m.ProcessedAt)
+            .HasColumnType("INTEGER")
+            .HasConversion(
+                v => v.HasValue ? (long?)v.Value.UtcTicks : null,
+                v => v.HasValue ? (DateTimeOffset?)new DateTimeOffset(v.Value, TimeSpan.Zero) : null
+            );
+        _ = builder
+            .Property(m => m.NextRetryAt)
+            .HasColumnType("INTEGER")
+            .HasConversion(
+                v => v.HasValue ? (long?)v.Value.UtcTicks : null,
+                v => v.HasValue ? (DateTimeOffset?)new DateTimeOffset(v.Value, TimeSpan.Zero) : null
+            );
+
         _ = builder.Property(m => m.RetryCount).HasColumnType("INTEGER");
         _ = builder.Property(m => m.Error).HasColumnType("TEXT");
         _ = builder.Property(m => m.Status).HasColumnType("INTEGER");

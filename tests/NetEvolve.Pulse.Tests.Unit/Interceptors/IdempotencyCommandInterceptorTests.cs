@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -38,19 +38,21 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException()
+    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new IdempotencyCommandInterceptor<TestCommand, string>(provider);
         var command = new TestCommand();
 
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(command, null!).ConfigureAwait(false))
+            .That(async () => await interceptor.HandleAsync(command, null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task HandleAsync_NonIdempotentCommand_PassesThroughWithoutStoreInteraction()
+    public async Task HandleAsync_NonIdempotentCommand_PassesThroughWithoutStoreInteraction(
+        CancellationToken cancellationToken
+    )
     {
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
@@ -67,7 +69,8 @@ public sealed class IdempotencyCommandInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.FromResult("response");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -81,7 +84,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NoStoreRegistered_PassesThroughWithoutError()
+    public async Task HandleAsync_NoStoreRegistered_PassesThroughWithoutError(CancellationToken cancellationToken)
     {
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new IdempotencyCommandInterceptor<TestCommand, string>(provider);
@@ -95,7 +98,8 @@ public sealed class IdempotencyCommandInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.FromResult("response");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -107,7 +111,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NewKey_ExecutesHandlerAndStoresKey()
+    public async Task HandleAsync_NewKey_ExecutesHandlerAndStoresKey(CancellationToken cancellationToken)
     {
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
@@ -124,7 +128,8 @@ public sealed class IdempotencyCommandInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.FromResult("response");
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -139,7 +144,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_ExistingKey_ThrowsIdempotencyConflictException()
+    public async Task HandleAsync_ExistingKey_ThrowsIdempotencyConflictException(CancellationToken cancellationToken)
     {
         var store = new TrackingIdempotencyStore(existingKey: "key-dup");
         var services = new ServiceCollection();
@@ -158,7 +163,8 @@ public sealed class IdempotencyCommandInterceptorTests
                         {
                             handlerCalled = true;
                             return Task.FromResult("response");
-                        }
+                        },
+                        cancellationToken
                     )
                     .ConfigureAwait(false)
             )
@@ -173,7 +179,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_ExistingKey_DoesNotCallHandler()
+    public async Task HandleAsync_ExistingKey_DoesNotCallHandler(CancellationToken cancellationToken)
     {
         var store = new TrackingIdempotencyStore(existingKey: "key-exists");
         var services = new ServiceCollection();
@@ -184,7 +190,9 @@ public sealed class IdempotencyCommandInterceptorTests
 
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(command, (_, _) => Task.FromResult("response")).ConfigureAwait(false)
+                await interceptor
+                    .HandleAsync(command, (_, _) => Task.FromResult("response"), cancellationToken)
+                    .ConfigureAwait(false)
             )
             .Throws<IdempotencyConflictException>();
 
@@ -192,7 +200,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_HandlerThrows_DoesNotStoreKey()
+    public async Task HandleAsync_HandlerThrows_DoesNotStoreKey(CancellationToken cancellationToken)
     {
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
@@ -206,7 +214,8 @@ public sealed class IdempotencyCommandInterceptorTests
                 await interceptor
                     .HandleAsync(
                         command,
-                        (_, _) => Task.FromException<string>(new InvalidOperationException("handler error"))
+                        (_, _) => Task.FromException<string>(new InvalidOperationException("handler error")),
+                        cancellationToken
                     )
                     .ConfigureAwait(false)
             )

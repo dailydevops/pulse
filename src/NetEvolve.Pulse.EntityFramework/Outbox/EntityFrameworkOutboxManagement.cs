@@ -12,7 +12,7 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
     where TContext : DbContext, IOutboxDbContext
 {
     /// <summary>Pre-compiled paged dead-letter query; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<TContext, int, int, IAsyncEnumerable<OutboxMessage>> _deadLetterPageQuery =
+    private static readonly Func<TContext, int, int, IAsyncEnumerable<OutboxMessage>> DeadLetterPageQuery =
         EF.CompileAsyncQuery(
             (TContext ctx, int skip, int take) =>
                 ctx
@@ -24,7 +24,7 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
         );
 
     /// <summary>Pre-compiled single dead-letter lookup; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<TContext, Guid, Task<OutboxMessage?>> _deadLetterByIdQuery = EF.CompileAsyncQuery(
+    private static readonly Func<TContext, Guid, Task<OutboxMessage?>> DeadLetterByIdQuery = EF.CompileAsyncQuery(
         (TContext ctx, Guid id) =>
             ctx
                 .OutboxMessages.Where(m => m.Id == id && m.Status == OutboxMessageStatus.DeadLetter)
@@ -33,7 +33,7 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
     );
 
     /// <summary>Pre-compiled dead-letter count query; eliminates expression-tree overhead on every call.</summary>
-    private static readonly Func<TContext, Task<long>> _deadLetterCountQuery = EF.CompileAsyncQuery(
+    private static readonly Func<TContext, Task<long>> DeadLetterCountQuery = EF.CompileAsyncQuery(
         (TContext ctx) => ctx.OutboxMessages.LongCount(m => m.Status == OutboxMessageStatus.DeadLetter)
     );
 
@@ -69,7 +69,7 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
 
         var result = new List<OutboxMessage>(pageSize);
         await foreach (
-            var message in _deadLetterPageQuery(_context, page * pageSize, pageSize)
+            var message in DeadLetterPageQuery(_context, page * pageSize, pageSize)
                 .WithCancellation(cancellationToken)
                 .ConfigureAwait(false)
         )
@@ -84,14 +84,14 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
     public Task<OutboxMessage?> GetDeadLetterMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return _deadLetterByIdQuery(_context, messageId);
+        return DeadLetterByIdQuery(_context, messageId);
     }
 
     /// <inheritdoc />
     public Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return _deadLetterCountQuery(_context);
+        return DeadLetterCountQuery(_context);
     }
 
     /// <inheritdoc />

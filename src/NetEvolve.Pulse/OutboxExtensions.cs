@@ -14,7 +14,7 @@ public static class OutboxExtensions
 {
     /// <summary>
     /// Adds core outbox services including the <see cref="IEventOutbox"/> implementation,
-    /// <see cref="InMemoryMessageTransport"/>, and <see cref="OutboxProcessorHostedService"/>.
+    /// <see cref="NullMessageTransport"/>, and <see cref="OutboxProcessorHostedService"/>.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configureOptions">Optional action to configure <see cref="OutboxOptions"/>.</param>
@@ -27,7 +27,7 @@ public static class OutboxExtensions
     /// <item><description><see cref="OutboxProcessorOptions"/> - Processor options (Singleton)</description></item>
     /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IEventHandler{TEvent}"/> as <see cref="OutboxEventHandler{TEvent}"/> (Scoped, open-generic)</description></item>
-    /// <item><description><see cref="IMessageTransport"/> as <see cref="InMemoryMessageTransport"/> (Singleton)</description></item>
+    /// <item><description><see cref="IMessageTransport"/> as <see cref="NullMessageTransport"/> (Singleton)</description></item>
     /// <item><description><see cref="ITopicNameResolver"/> as <see cref="DefaultTopicNameResolver"/> (Singleton)</description></item>
     /// <item><description><see cref="OutboxProcessorHostedService"/> (Hosted service)</description></item>
     /// <item><description><see cref="TimeProvider"/> - System time provider (Singleton)</description></item>
@@ -66,7 +66,7 @@ public static class OutboxExtensions
         // Register core services
         services.TryAddScoped<IEventOutbox, OutboxEventStore>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(IEventHandler<>), typeof(OutboxEventHandler<>)));
-        services.TryAddSingleton<IMessageTransport, InMemoryMessageTransport>();
+        services.TryAddSingleton<IMessageTransport, NullMessageTransport>();
         services.TryAddSingleton<ITopicNameResolver, DefaultTopicNameResolver>();
 
         // Register background processor (TryAddEnumerable prevents duplicate registrations)

@@ -87,7 +87,9 @@ public sealed class EntityFrameworkEventOutboxTests
     }
 
     [Test]
-    public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException()
+    public async Task StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(StoreAsync_WithLongCorrelationId_ThrowsInvalidOperationException))
@@ -104,7 +106,7 @@ public sealed class EntityFrameworkEventOutboxTests
         };
 
         _ = await Assert
-            .That(async () => await outbox.StoreAsync(message).ConfigureAwait(false))
+            .That(async () => await outbox.StoreAsync(message, cancellationToken).ConfigureAwait(false))
             .Throws<InvalidOperationException>();
     }
 

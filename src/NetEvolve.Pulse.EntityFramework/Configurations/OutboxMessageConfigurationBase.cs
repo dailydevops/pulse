@@ -28,6 +28,7 @@ using NetEvolve.Pulse.Outbox;
 /// </remarks>
 internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguration<OutboxMessage>
 {
+    private const uint FnvPrime = 16777619;
     private readonly OutboxOptions _options;
 
     /// <summary>
@@ -93,10 +94,12 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         var schema = string.IsNullOrWhiteSpace(_options.Schema)
             ? OutboxMessageSchema.DefaultSchema
             : _options.Schema.Trim();
-        _ = builder.ToTable(_options.TableName, schema);
+        var tableName = _options.TableName;
+
+        _ = builder.ToTable(tableName, schema);
 
         // Primary key
-        _ = builder.HasKey(m => m.Id);
+        _ = builder.HasKey(m => m.Id).HasName(TruncateIdentifier($"PK_{schema}_{tableName}"));
 
         // Id column
         _ = builder.Property(m => m.Id).HasColumnName(OutboxMessageSchema.Columns.Id).ValueGeneratedNever();
@@ -155,18 +158,62 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         _ = builder
             .HasIndex(m => new { m.Status, m.CreatedAt })
             .HasFilter(PendingMessagesFilter)
-            .HasDatabaseName("IX_OutboxMessage_Status_CreatedAt");
+            .HasDatabaseName(TruncateIdentifier($"IX_{schema}_{tableName}_Status_CreatedAt"));
 
         // Index for retry-scheduled message polling (with exponential backoff)
         _ = builder
             .HasIndex(m => new { m.Status, m.NextRetryAt })
             .HasFilter(RetryScheduledMessagesFilter)
-            .HasDatabaseName("IX_OutboxMessage_Status_NextRetryAt");
+            .HasDatabaseName(TruncateIdentifier($"IX_{schema}_{tableName}_Status_NextRetryAt"));
 
         // Index for completed message cleanup
         _ = builder
             .HasIndex(m => new { m.Status, m.ProcessedAt })
             .HasFilter(CompletedMessagesFilter)
-            .HasDatabaseName("IX_OutboxMessage_Status_ProcessedAt");
+            .HasDatabaseName(TruncateIdentifier($"IX_{schema}_{tableName}_Status_ProcessedAt"));
+    }
+
+    /// <summary>
+    /// Truncates a database identifier to the specified maximum length while maintaining uniqueness
+    /// by appending a stable hash suffix when the identifier exceeds the limit.
+    /// This is required for databases such as PostgreSQL that enforce a 63-character identifier limit.
+    /// </summary>
+    /// <param name="name">The full identifier name to potentially truncate.</param>
+    /// <param name="maxLength">The maximum allowed identifier length. Defaults to 63 (PostgreSQL limit).</param>
+    /// <returns>
+    /// The original <paramref name="name"/> if it fits within <paramref name="maxLength"/>;
+    /// otherwise, a truncated prefix combined with an 8-character hexadecimal hash suffix
+    /// that uniquely identifies the original name.
+    /// </returns>
+    private static string TruncateIdentifier(string name, int maxLength = 63)
+    {
+        if (name.Length <= maxLength)
+        {
+            return name;
+        }
+
+        // Append a stable hash suffix to distinguish otherwise-identical truncated prefixes.
+        // The hash is computed over the full name, so two names that share a long common prefix
+        // but differ only in their suffix will produce different hashes.
+        var hash = ComputeFnv1aHash(name);
+        var hashSuffix = $"_{hash:x8}"; // "_" + 8 hex chars = 9 chars
+        var prefixLength = maxLength - hashSuffix.Length;
+        return name[..prefixLength] + hashSuffix;
+    }
+
+    /// <summary>
+    /// Computes a stable 32-bit FNV-1a hash of the given string.
+    /// FNV-1a is chosen for its simplicity, speed, and good distribution,
+    /// making it suitable for generating short disambiguation suffixes in identifier names.
+    /// </summary>
+    private static uint ComputeFnv1aHash(string value)
+    {
+        var hash = 2166136261;
+        foreach (var c in value)
+        {
+            hash ^= c;
+            hash *= FnvPrime;
+        }
+        return hash;
     }
 }

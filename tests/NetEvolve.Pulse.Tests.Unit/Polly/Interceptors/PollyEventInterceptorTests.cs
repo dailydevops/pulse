@@ -89,7 +89,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException()
+    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         // Arrange
         var serviceProvider = CreateServiceProvider<TestEvent>();
@@ -98,12 +98,12 @@ public sealed class PollyEventInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(async () => await interceptor.HandleAsync(message, null!).ConfigureAwait(false))
+            .That(async () => await interceptor.HandleAsync(message, null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task HandleAsync_WithSuccessfulHandler_CompletesSuccessfully()
+    public async Task HandleAsync_WithSuccessfulHandler_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         // Arrange
         var serviceProvider = CreateServiceProvider<TestEvent>();
@@ -119,7 +119,8 @@ public sealed class PollyEventInterceptorTests
                 {
                     handlerCalled = true;
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -128,7 +129,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithRetryPolicy_RetriesOnFailure()
+    public async Task HandleAsync_WithRetryPolicy_RetriesOnFailure(CancellationToken cancellationToken)
     {
         // Arrange
         var attemptCount = 0;
@@ -159,7 +160,8 @@ public sealed class PollyEventInterceptorTests
                         throw new InvalidOperationException("Transient failure");
                     }
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -168,7 +170,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithRetryPolicyExhausted_ThrowsException()
+    public async Task HandleAsync_WithRetryPolicyExhausted_ThrowsException(CancellationToken cancellationToken)
     {
         // Arrange
         var attemptCount = 0;
@@ -197,7 +199,8 @@ public sealed class PollyEventInterceptorTests
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Persistent failure");
-                        }
+                        },
+                        cancellationToken
                     )
                     .ConfigureAwait(false)
             )
@@ -209,7 +212,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithCombinedPolicies_ExecutesInOrder()
+    public async Task HandleAsync_WithCombinedPolicies_ExecutesInOrder(CancellationToken cancellationToken)
     {
         // Arrange
         var attemptCount = 0;
@@ -241,7 +244,8 @@ public sealed class PollyEventInterceptorTests
                         throw new InvalidOperationException("Transient failure");
                     }
                     return Task.CompletedTask;
-                }
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -250,7 +254,7 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithCircuitBreaker_BlocksAfterFailureThreshold()
+    public async Task HandleAsync_WithCircuitBreaker_BlocksAfterFailureThreshold(CancellationToken cancellationToken)
     {
         // Arrange
         var attemptCount = 0;
@@ -280,7 +284,8 @@ public sealed class PollyEventInterceptorTests
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
-                        }
+                        },
+                        cancellationToken
                     )
                     .ConfigureAwait(false)
             )
@@ -295,7 +300,8 @@ public sealed class PollyEventInterceptorTests
                         {
                             attemptCount++;
                             throw new InvalidOperationException("Failure");
-                        }
+                        },
+                        cancellationToken
                     )
                     .ConfigureAwait(false)
             )
@@ -304,7 +310,9 @@ public sealed class PollyEventInterceptorTests
         // Circuit should be open now, next request should be rejected immediately
         _ = await Assert
             .That(async () =>
-                await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask).ConfigureAwait(false)
+                await interceptor
+                    .HandleAsync(message, (_, _) => Task.CompletedTask, cancellationToken)
+                    .ConfigureAwait(false)
             )
             .Throws<BrokenCircuitException>();
 

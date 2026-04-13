@@ -17,7 +17,7 @@ using TUnit.Core;
 public sealed class FluentValidationRequestInterceptorTests
 {
     [Test]
-    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException()
+    public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -26,12 +26,12 @@ public sealed class FluentValidationRequestInterceptorTests
 
         // Act & Assert
         _ = await Assert
-            .That(() => interceptor.HandleAsync(new TestCommand("valid"), null!, CancellationToken.None)!)
+            .That(() => interceptor.HandleAsync(new TestCommand("valid"), null!, cancellationToken)!)
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task HandleAsync_NoValidatorsRegistered_PassesThroughToHandler()
+    public async Task HandleAsync_NoValidatorsRegistered_PassesThroughToHandler(CancellationToken cancellationToken)
     {
         // Arrange — no IValidator<TestCommand> registered
         var services = new ServiceCollection();
@@ -47,7 +47,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 handlerCalled = true;
                 return Task.FromResult("ok");
             },
-            CancellationToken.None
+            cancellationToken
         );
 
         // Assert
@@ -59,7 +59,7 @@ public sealed class FluentValidationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_ValidInput_PassesThroughToHandler()
+    public async Task HandleAsync_ValidInput_PassesThroughToHandler(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -77,7 +77,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 handlerCalled = true;
                 return Task.FromResult("success");
             },
-            CancellationToken.None
+            cancellationToken
         );
 
         // Assert
@@ -89,7 +89,7 @@ public sealed class FluentValidationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_InvalidInput_ThrowsValidationException()
+    public async Task HandleAsync_InvalidInput_ThrowsValidationException(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -109,7 +109,7 @@ public sealed class FluentValidationRequestInterceptorTests
                         handlerCalled = true;
                         return Task.FromResult("should not reach");
                     },
-                    CancellationToken.None
+                    cancellationToken
                 )!
             )
             .Throws<ValidationException>();
@@ -118,7 +118,7 @@ public sealed class FluentValidationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_MultipleValidators_AggregatesAllFailures()
+    public async Task HandleAsync_MultipleValidators_AggregatesAllFailures(CancellationToken cancellationToken)
     {
         // Arrange
         var services = new ServiceCollection();
@@ -134,7 +134,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 interceptor.HandleAsync(
                     new TestCommand("invalid"),
                     (_, _) => Task.FromResult("should not reach"),
-                    CancellationToken.None
+                    cancellationToken
                 )!
             )
             .Throws<ValidationException>();
@@ -144,7 +144,9 @@ public sealed class FluentValidationRequestInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_MultipleValidatorsOneInvalid_ThrowsValidationException()
+    public async Task HandleAsync_MultipleValidatorsOneInvalid_ThrowsValidationException(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
         var services = new ServiceCollection();
@@ -160,7 +162,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 interceptor.HandleAsync(
                     new TestCommand("input"),
                     (_, _) => Task.FromResult("should not reach"),
-                    CancellationToken.None
+                    cancellationToken
                 )!
             )
             .Throws<ValidationException>();

@@ -38,7 +38,7 @@ public class RateLimitedEventDispatcherTests
         _ = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new RateLimitedEventDispatcher(maxConcurrency: -1));
 
     [Test]
-    public async Task DispatchAsync_WithHandlers_InvokesAllHandlers()
+    public async Task DispatchAsync_WithHandlers_InvokesAllHandlers(CancellationToken cancellationToken)
     {
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
@@ -51,12 +51,7 @@ public class RateLimitedEventDispatcherTests
         };
 
         await dispatcher
-            .DispatchAsync(
-                message,
-                handlers,
-                (handler, msg, ct) => handler.HandleAsync(msg, ct),
-                CancellationToken.None
-            )
+            .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
             .ConfigureAwait(false);
 
         using (Assert.Multiple())
@@ -69,7 +64,7 @@ public class RateLimitedEventDispatcherTests
     }
 
     [Test]
-    public async Task DispatchAsync_LimitsConcurrency()
+    public async Task DispatchAsync_LimitsConcurrency(CancellationToken cancellationToken)
     {
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
@@ -107,7 +102,7 @@ public class RateLimitedEventDispatcherTests
                 message,
                 handlers,
                 async (handler, msg, ct) => await handler.HandleAsync(msg, ct).ConfigureAwait(false),
-                CancellationToken.None
+                cancellationToken
             )
             .ConfigureAwait(false);
 

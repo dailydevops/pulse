@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -12,7 +12,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 {
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_CreatesActivityWithCorrectTags()
+    public async Task HandleAsync_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -28,7 +28,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1, 2, 3], ct)))
+        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1, 2, 3], ct), cancellationToken))
         {
             // consume items
         }
@@ -45,7 +45,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenStreamCompletes_SetsActivityStatusToOk()
+    public async Task HandleAsync_WhenStreamCompletes_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -61,7 +61,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1, 2, 3], ct)))
+        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1, 2, 3], ct), cancellationToken))
         {
             // consume items
         }
@@ -78,7 +78,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError()
+    public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -97,7 +97,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => ThrowingItems(testException, ct)))
+            await foreach (
+                var _ in interceptor.HandleAsync(query, (_, ct) => ThrowingItems(testException, ct), cancellationToken)
+            )
             {
                 // consume items until exception
             }
@@ -124,7 +126,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WithEmptyStream_SetsActivityStatusToOk()
+    public async Task HandleAsync_WithEmptyStream_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -140,7 +142,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items(Array.Empty<int>(), ct)))
+        await foreach (
+            var _ in interceptor.HandleAsync(query, (_, ct) => Items(Array.Empty<int>(), ct), cancellationToken)
+        )
         {
             // empty stream
         }
@@ -156,7 +160,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_YieldsAllItemsUnchanged()
+    public async Task HandleAsync_YieldsAllItemsUnchanged(CancellationToken cancellationToken)
     {
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsStreamQueryInterceptor<TestStreamQuery, int>(timeProvider);
@@ -164,7 +168,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         var expected = new[] { 10, 20, 30 };
         var received = new List<int>();
 
-        await foreach (var item in interceptor.HandleAsync(query, (_, ct) => Items(expected, ct)))
+        await foreach (var item in interceptor.HandleAsync(query, (_, ct) => Items(expected, ct), cancellationToken))
         {
             received.Add(item);
         }
@@ -174,7 +178,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_SetsTimestamps()
+    public async Task HandleAsync_SetsTimestamps(CancellationToken cancellationToken)
     {
         using var listener = new ActivityListener
         {
@@ -190,7 +194,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1], ct)))
+        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1], ct), cancellationToken))
         {
             // consume
         }
@@ -204,7 +208,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_InvokesHandlerWithCorrectQuery()
+    public async Task HandleAsync_InvokesHandlerWithCorrectQuery(CancellationToken cancellationToken)
     {
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsStreamQueryInterceptor<TestStreamQuery, int>(timeProvider);
@@ -218,7 +222,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
                 {
                     receivedQuery = q;
                     return Items([1], ct);
-                }
+                },
+                cancellationToken
             )
         )
         {
