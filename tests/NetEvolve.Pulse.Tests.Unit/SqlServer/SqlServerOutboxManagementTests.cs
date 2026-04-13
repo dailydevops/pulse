@@ -15,32 +15,48 @@ public sealed class SqlServerOutboxManagementTests
     [Test]
     public async Task Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new SqlServerOutboxManagement(Options.Create(new OutboxOptions { ConnectionString = null })))
+            .That(() =>
+                new SqlServerOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = null }),
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                new SqlServerOutboxManagement(Options.Create(new OutboxOptions { ConnectionString = string.Empty }))
+                new SqlServerOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
+                )
             )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() => new SqlServerOutboxManagement(Options.Create(new OutboxOptions { ConnectionString = "   " })))
+            .That(() =>
+                new SqlServerOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = "   " }),
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task Constructor_WithNullOptions_ThrowsArgumentNullException() =>
-        _ = await Assert.That(() => new SqlServerOutboxManagement(null!)).Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(() => new SqlServerOutboxManagement(null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         var management = new SqlServerOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert.That(management).IsNotNull();
@@ -51,7 +67,7 @@ public sealed class SqlServerOutboxManagementTests
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString, Schema = null });
 
-        var management = new SqlServerOutboxManagement(options);
+        var management = new SqlServerOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -63,7 +79,7 @@ public sealed class SqlServerOutboxManagementTests
             new OutboxOptions { ConnectionString = ValidConnectionString, Schema = string.Empty }
         );
 
-        var management = new SqlServerOutboxManagement(options);
+        var management = new SqlServerOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -73,7 +89,7 @@ public sealed class SqlServerOutboxManagementTests
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "   " });
 
-        var management = new SqlServerOutboxManagement(options);
+        var management = new SqlServerOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -83,7 +99,7 @@ public sealed class SqlServerOutboxManagementTests
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "custom" });
 
-        var management = new SqlServerOutboxManagement(options);
+        var management = new SqlServerOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -92,7 +108,8 @@ public sealed class SqlServerOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new SqlServerOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert
@@ -104,7 +121,8 @@ public sealed class SqlServerOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new SqlServerOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert
@@ -116,7 +134,8 @@ public sealed class SqlServerOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException()
     {
         var management = new SqlServerOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert

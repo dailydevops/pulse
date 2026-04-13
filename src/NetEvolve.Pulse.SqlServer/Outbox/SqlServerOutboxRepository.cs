@@ -66,6 +66,9 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <summary>Cached SQL command text for inserting a new outbox message when no ambient transaction is present.</summary>
     private readonly string _insertSql;
 
+    /// <summary>Cached SQL command text for counting pending outbox messages.</summary>
+    private readonly string _getPendingCountSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerOutboxRepository"/> class.
     /// </summary>
@@ -95,6 +98,9 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         _markFailedSql = $"[{schema}].[usp_MarkOutboxMessageFailed]";
         _markDeadLetterSql = $"[{schema}].[usp_MarkOutboxMessageDeadLetter]";
         _deleteCompletedSql = $"[{schema}].[usp_DeleteCompletedOutboxMessages]";
+
+        _getPendingCountSql =
+            $"SELECT COUNT(*) FROM {options.Value.FullTableName} WHERE [{OutboxMessageSchema.Columns.Status}] = 0";
 
         _insertSql = $"""
             INSERT INTO {options.Value.FullTableName}
@@ -143,6 +149,16 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
+    public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new SqlCommand(_getPendingCountSql, connection);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return result is int count ? count : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
         int batchSize,
         CancellationToken cancellationToken = default
@@ -187,6 +203,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(_markCompletedSql, connection)
         {
@@ -194,6 +212,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         };
 
         _ = command.Parameters.AddWithValue("@messageId", messageId);
+        _ = command.Parameters.AddWithValue("@processedAtUtc", now);
+        _ = command.Parameters.AddWithValue("@updatedAtUtc", now);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -205,6 +225,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(_markFailedSql, connection)
         {
@@ -213,6 +235,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
         _ = command.Parameters.AddWithValue("@messageId", messageId);
         _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("@nowUtc", now);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -239,6 +262,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(_markFailedSql, connection)
         {
@@ -247,6 +272,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
         _ = command.Parameters.AddWithValue("@messageId", messageId);
         _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("@nowUtc", now);
         _ = command.Parameters.AddWithValue("@nextRetryAt", nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -259,6 +285,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new SqlCommand(_markDeadLetterSql, connection)
         {
@@ -267,6 +295,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
         _ = command.Parameters.AddWithValue("@messageId", messageId);
         _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("@nowUtc", now);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }

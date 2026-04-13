@@ -34,11 +34,17 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 )]
 public sealed class SqlServerEventOutbox : IEventOutbox
 {
-    /// <summary>The open SQL connection used to execute insert commands.</summary>
-    private readonly SqlConnection _connection;
+    /// <summary>The open SQL connection provided explicitly; null when using the DI-friendly constructor.</summary>
+    private readonly SqlConnection? _explicitConnection;
 
-    /// <summary>The optional SQL transaction to enlist with, ensuring atomicity with business operations.</summary>
-    private readonly SqlTransaction? _transaction;
+    /// <summary>The optional SQL transaction provided explicitly; null when using the DI-friendly constructor.</summary>
+    private readonly SqlTransaction? _explicitTransaction;
+
+    /// <summary>The connection string used by the DI-friendly constructor; null when using the explicit-connection constructor.</summary>
+    private readonly string? _connectionString;
+
+    /// <summary>The optional transaction scope used by the DI-friendly constructor to obtain an ambient transaction.</summary>
+    private readonly IOutboxTransactionScope? _transactionScope;
 
     /// <summary>The resolved outbox options controlling table name, schema, and JSON serialization.</summary>
     private readonly OutboxOptions _options;
@@ -50,7 +56,7 @@ public sealed class SqlServerEventOutbox : IEventOutbox
     private readonly string _sqlInsertInto;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SqlServerEventOutbox"/> class.
+    /// Initializes a new instance of the <see cref="SqlServerEventOutbox"/> class using an explicit connection.
     /// </summary>
     /// <param name="connection">The SQL connection (should already be open).</param>
     /// <param name="options">The outbox configuration options.</param>
@@ -67,26 +73,38 @@ public sealed class SqlServerEventOutbox : IEventOutbox
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
-        _connection = connection;
+        _explicitConnection = connection;
+        _explicitTransaction = transaction;
         _options = options.Value;
         _timeProvider = timeProvider;
-        _transaction = transaction;
 
-        _sqlInsertInto = $"""
-            INSERT INTO {_options.FullTableName}
-                ([{OutboxMessageSchema.Columns.Id}],
-                 [{OutboxMessageSchema.Columns.EventType}],
-                 [{OutboxMessageSchema.Columns.Payload}],
-                 [{OutboxMessageSchema.Columns.CorrelationId}],
-                 [{OutboxMessageSchema.Columns.CreatedAt}],
-                 [{OutboxMessageSchema.Columns.UpdatedAt}],
-                 [{OutboxMessageSchema.Columns.ProcessedAt}],
-                 [{OutboxMessageSchema.Columns.RetryCount}],
-                 [{OutboxMessageSchema.Columns.Error}],
-                 [{OutboxMessageSchema.Columns.Status}])
-            VALUES
-                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, NULL, 0, NULL, @Status)
-            """;
+        _sqlInsertInto = BuildInsertSql(_options);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerEventOutbox"/> class for use with dependency injection.
+    /// Opens its own <see cref="SqlConnection"/> on each <see cref="StoreAsync{TEvent}"/> call and enlists in
+    /// an active <see cref="SqlTransaction"/> from <paramref name="transactionScope"/> when present.
+    /// </summary>
+    /// <param name="options">The outbox configuration options (must include a connection string).</param>
+    /// <param name="timeProvider">The time provider for timestamps.</param>
+    /// <param name="transactionScope">Optional ambient transaction scope; when active, the event is stored within the same transaction.</param>
+    public SqlServerEventOutbox(
+        IOptions<OutboxOptions> options,
+        TimeProvider timeProvider,
+        IOutboxTransactionScope? transactionScope = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        _connectionString = options.Value.ConnectionString;
+        _transactionScope = transactionScope;
+        _options = options.Value;
+        _timeProvider = timeProvider;
+
+        _sqlInsertInto = BuildInsertSql(_options);
     }
 
     /// <inheritdoc />
@@ -118,11 +136,75 @@ public sealed class SqlServerEventOutbox : IEventOutbox
             );
         }
 
-        await using var command = new SqlCommand(_sqlInsertInto, _connection, _transaction);
-
         var now = _timeProvider.GetUtcNow();
         var payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions);
 
+        if (_explicitConnection is not null)
+        {
+            await using var command = new SqlCommand(_sqlInsertInto, _explicitConnection, _explicitTransaction);
+            AddParameters(command, message, eventType, correlationId, now, payload);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var currentTransaction = _transactionScope?.GetCurrentTransaction();
+
+            if (currentTransaction is not null and not SqlTransaction)
+            {
+                throw new InvalidOperationException(
+                    $"IOutboxTransactionScope returned a transaction of type '{currentTransaction.GetType().Name}', but SqlServerEventOutbox requires a SqlTransaction."
+                );
+            }
+
+            var ambientTransaction = currentTransaction as SqlTransaction;
+
+            if (ambientTransaction is not null)
+            {
+                var connection =
+                    ambientTransaction.Connection
+                    ?? throw new InvalidOperationException("Transaction has no associated connection.");
+
+                await using var command = new SqlCommand(_sqlInsertInto, connection, ambientTransaction);
+                AddParameters(command, message, eventType, correlationId, now, payload);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await using var connection = new SqlConnection(_connectionString);
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                await using var command = new SqlCommand(_sqlInsertInto, connection);
+                AddParameters(command, message, eventType, correlationId, now, payload);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static string BuildInsertSql(OutboxOptions options) =>
+        $"""
+            INSERT INTO {options.FullTableName}
+                ([{OutboxMessageSchema.Columns.Id}],
+                 [{OutboxMessageSchema.Columns.EventType}],
+                 [{OutboxMessageSchema.Columns.Payload}],
+                 [{OutboxMessageSchema.Columns.CorrelationId}],
+                 [{OutboxMessageSchema.Columns.CreatedAt}],
+                 [{OutboxMessageSchema.Columns.UpdatedAt}],
+                 [{OutboxMessageSchema.Columns.ProcessedAt}],
+                 [{OutboxMessageSchema.Columns.RetryCount}],
+                 [{OutboxMessageSchema.Columns.Error}],
+                 [{OutboxMessageSchema.Columns.Status}])
+            VALUES
+                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, NULL, 0, NULL, @Status)
+            """;
+
+    private static void AddParameters(
+        SqlCommand command,
+        IEvent message,
+        string eventType,
+        string? correlationId,
+        DateTimeOffset now,
+        string payload
+    )
+    {
         _ = command.Parameters.AddWithValue("@Id", message.ToOutboxId());
         _ = command.Parameters.AddWithValue("@EventType", eventType);
         _ = command.Parameters.AddWithValue("@Payload", payload);
@@ -130,7 +212,5 @@ public sealed class SqlServerEventOutbox : IEventOutbox
         _ = command.Parameters.AddWithValue("@CreatedAt", now);
         _ = command.Parameters.AddWithValue("@UpdatedAt", now);
         _ = command.Parameters.AddWithValue("@Status", OutboxMessageStatus.Pending);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

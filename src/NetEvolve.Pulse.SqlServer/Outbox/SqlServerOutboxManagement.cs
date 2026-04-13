@@ -30,6 +30,9 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <summary>The SQL Server connection string used to open new connections for each operation.</summary>
     private readonly string _connectionString;
 
+    /// <summary>The time provider used to generate consistent timestamps for replay operations.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>Cached stored procedure name for retrieving dead-letter messages (paginated).</summary>
     private readonly string _getDeadLetterMessagesSql;
 
@@ -52,12 +55,15 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// Initializes a new instance of the <see cref="SqlServerOutboxManagement"/> class.
     /// </summary>
     /// <param name="options">The outbox configuration options.</param>
-    public SqlServerOutboxManagement(IOptions<OutboxOptions> options)
+    /// <param name="timeProvider">The time provider for timestamps.</param>
+    public SqlServerOutboxManagement(IOptions<OutboxOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = options.Value.ConnectionString;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
@@ -135,6 +141,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         };
 
         _ = command.Parameters.AddWithValue("@messageId", messageId);
+        _ = command.Parameters.AddWithValue("@nowUtc", _timeProvider.GetUtcNow());
 
         var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         var updated = result is int count
@@ -151,6 +158,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         {
             CommandType = CommandType.StoredProcedure,
         };
+
+        _ = command.Parameters.AddWithValue("@nowUtc", _timeProvider.GetUtcNow());
 
         var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return result is int count ? count : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
