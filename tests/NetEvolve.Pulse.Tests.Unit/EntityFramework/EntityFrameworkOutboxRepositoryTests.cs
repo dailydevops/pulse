@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
+﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
 using System.Threading.Tasks;
@@ -37,7 +37,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
             .Options;
         await using var context = new TestDbContext(options);
 
-        var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+        using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
 
         _ = await Assert.That(repository).IsNotNull();
     }
@@ -49,7 +49,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
             .UseInMemoryDatabase(nameof(AddAsync_WithNullMessage_ThrowsArgumentNullException))
             .Options;
         await using var context = new TestDbContext(options);
-        var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+        using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
 
         _ = await Assert
             .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
@@ -63,7 +63,7 @@ public sealed class EntityFrameworkOutboxRepositoryTests
             .UseInMemoryDatabase(nameof(IsHealthyAsync_WithInMemoryProvider_ReturnsTrue))
             .Options;
         await using var context = new TestDbContext(options);
-        var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+        using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
 
         var result = await repository.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
