@@ -590,7 +590,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            if (string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -600,7 +600,7 @@ public sealed class OutboxProcessorHostedServiceTests
         meterListener.SetMeasurementEventCallback<long>(
             (instrument, measurement, _, _) =>
             {
-                if (instrument.Name == "pulse.outbox.processed.total")
+                if (string.Equals(instrument.Name, "pulse.outbox.processed.total", StringComparison.Ordinal))
                 {
                     _ = Interlocked.Add(ref processedTotal, measurement);
                 }
@@ -634,7 +634,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            if (string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -644,7 +644,7 @@ public sealed class OutboxProcessorHostedServiceTests
         meterListener.SetMeasurementEventCallback<long>(
             (instrument, measurement, _, _) =>
             {
-                if (instrument.Name == "pulse.outbox.failed.total")
+                if (string.Equals(instrument.Name, "pulse.outbox.failed.total", StringComparison.Ordinal))
                 {
                     _ = Interlocked.Add(ref failedTotal, measurement);
                 }
@@ -678,7 +678,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            if (string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -688,7 +688,7 @@ public sealed class OutboxProcessorHostedServiceTests
         meterListener.SetMeasurementEventCallback<long>(
             (instrument, measurement, _, _) =>
             {
-                if (instrument.Name == "pulse.outbox.deadletter.total")
+                if (string.Equals(instrument.Name, "pulse.outbox.deadletter.total", StringComparison.Ordinal))
                 {
                     _ = Interlocked.Add(ref deadLetterTotal, measurement);
                 }
@@ -723,7 +723,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            if (string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -733,9 +733,9 @@ public sealed class OutboxProcessorHostedServiceTests
         meterListener.SetMeasurementEventCallback<double>(
             (instrument, _, _, _) =>
             {
-                if (instrument.Name == "pulse.outbox.processing.duration")
+                if (string.Equals(instrument.Name, "pulse.outbox.processing.duration", StringComparison.Ordinal))
                 {
-                    Volatile.Write(ref durationRecorded, true);
+                    Volatile.Write(ref durationRecorded, value: true);
                 }
             }
         );
@@ -765,7 +765,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == "NetEvolve.Pulse")
+            if (string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -775,7 +775,7 @@ public sealed class OutboxProcessorHostedServiceTests
         meterListener.SetMeasurementEventCallback<long>(
             (instrument, measurement, _, _) =>
             {
-                if (instrument.Name == "pulse.outbox.pending")
+                if (string.Equals(instrument.Name, "pulse.outbox.pending", StringComparison.Ordinal))
                 {
                     Volatile.Write(ref pendingObserved, measurement);
                 }
@@ -848,7 +848,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
         // Get the failed message from the repository
-        var failedMessage = repository._messages.FirstOrDefault(m => m.Status == OutboxMessageStatus.Failed);
+        var failedMessage = repository._messages.Find(m => m.Status == OutboxMessageStatus.Failed);
 
         _ = await Assert.That(failedMessage).IsNotNull();
         _ = await Assert.That(failedMessage!.NextRetryAt).IsNotNull();
@@ -885,7 +885,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
         // Get the failed message from the repository
-        var failedMessage = repository._messages.FirstOrDefault(m => m.Status == OutboxMessageStatus.Failed);
+        var failedMessage = repository._messages.Find(m => m.Status == OutboxMessageStatus.Failed);
 
         // If a message was processed and failed, it should not have NextRetryAt set
         if (failedMessage is not null)
@@ -1179,7 +1179,7 @@ public sealed class OutboxProcessorHostedServiceTests
             lock (_lock)
             {
                 CompletedMessageIds.Add(messageId);
-                var message = _messages.FirstOrDefault(m => m.Id == messageId);
+                var message = _messages.Find(m => m.Id == messageId);
                 if (message is not null)
                 {
                     message.Status = OutboxMessageStatus.Completed;
@@ -1200,7 +1200,7 @@ public sealed class OutboxProcessorHostedServiceTests
             lock (_lock)
             {
                 DeadLetterMessageIds.Add(messageId);
-                var message = _messages.FirstOrDefault(m => m.Id == messageId);
+                var message = _messages.Find(m => m.Id == messageId);
                 if (message is not null)
                 {
                     message.Status = OutboxMessageStatus.DeadLetter;
@@ -1221,7 +1221,7 @@ public sealed class OutboxProcessorHostedServiceTests
             lock (_lock)
             {
                 FailedMessageIds.Add(messageId);
-                var message = _messages.FirstOrDefault(m => m.Id == messageId);
+                var message = _messages.Find(m => m.Id == messageId);
                 if (message is not null)
                 {
                     message.Status = OutboxMessageStatus.Failed;
@@ -1244,7 +1244,7 @@ public sealed class OutboxProcessorHostedServiceTests
             lock (_lock)
             {
                 FailedMessageIds.Add(messageId);
-                var message = _messages.FirstOrDefault(m => m.Id == messageId);
+                var message = _messages.Find(m => m.Id == messageId);
                 if (message is not null)
                 {
                     message.Status = OutboxMessageStatus.Failed;

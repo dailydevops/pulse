@@ -87,14 +87,14 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
-        await using var cmd = new SqliteCommand(
-            "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
-            _keepAlive
-        );
-        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+        var cmd = new SqliteCommand("SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using (cmd.ConfigureAwait(false))
+        {
+            _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+            var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
-        _ = await Assert.That(count).IsEqualTo(1L);
+            _ = await Assert.That(count).IsEqualTo(1L);
+        }
     }
 
     [Test]
@@ -136,13 +136,13 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
 
-        await using var cmd = new SqliteCommand(
-            "SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
-            _keepAlive
-        );
-        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var status = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-        _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.Completed);
+        var cmd = new SqliteCommand("SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using (cmd.ConfigureAwait(false))
+        {
+            _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+            var status = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+            _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.Completed);
+        }
     }
 
     [Test]
@@ -156,19 +156,25 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
             .MarkAsFailedAsync(message.Id, "Test error", cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        await using var cmd = new SqliteCommand(
+        var cmd = new SqliteCommand(
             "SELECT \"Status\", \"Error\", \"RetryCount\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
             _keepAlive
         );
-        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        _ = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-
-        using (Assert.Multiple())
+        await using (cmd.ConfigureAwait(false))
         {
-            _ = await Assert.That(reader.GetInt64(0)).IsEqualTo((long)OutboxMessageStatus.Failed);
-            _ = await Assert.That(reader.GetString(1)).IsEqualTo("Test error");
-            _ = await Assert.That(reader.GetInt64(2)).IsEqualTo(1L);
+            _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+            var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            await using (reader.ConfigureAwait(false))
+            {
+                _ = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(reader.GetInt64(0)).IsEqualTo((long)OutboxMessageStatus.Failed);
+                    _ = await Assert.That(reader.GetString(1)).IsEqualTo("Test error");
+                    _ = await Assert.That(reader.GetInt64(2)).IsEqualTo(1L);
+                }
+            }
         }
     }
 
@@ -181,13 +187,13 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
         await repository.MarkAsDeadLetterAsync(message.Id, "Fatal error", cancellationToken).ConfigureAwait(false);
 
-        await using var cmd = new SqliteCommand(
-            "SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
-            _keepAlive
-        );
-        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var status = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-        _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.DeadLetter);
+        var cmd = new SqliteCommand("SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using (cmd.ConfigureAwait(false))
+        {
+            _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+            var status = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+            _ = await Assert.That(status).IsEqualTo((long)OutboxMessageStatus.DeadLetter);
+        }
     }
 
     [Test]
@@ -246,39 +252,44 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
             .MarkAsFailedAsync(message.Id, "Error with retry", nextRetry, cancellationToken)
             .ConfigureAwait(false);
 
-        await using var cmd = new SqliteCommand(
-            "SELECT \"NextRetryAt\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
-            _keepAlive
-        );
-        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var nextRetryValue = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        var cmd = new SqliteCommand("SELECT \"NextRetryAt\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+        await using (cmd.ConfigureAwait(false))
+        {
+            _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+            var nextRetryValue = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(nextRetryValue).IsNotNull();
+            _ = await Assert.That(nextRetryValue).IsNotNull();
+        }
     }
 
     [Test]
     public async Task AddAsync_UsesAmbientTransactionScope(CancellationToken cancellationToken)
     {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var transaction = (SqliteTransaction)
-            await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        var connection = new SqliteConnection(_connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            var transaction = (SqliteTransaction)
+                await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
+            {
+                var scope = new StubTransactionScope(transaction);
+                var repository = CreateRepositoryWithScope(scope);
+                var message = CreateMessage();
 
-        var scope = new StubTransactionScope(transaction);
-        var repository = CreateRepositoryWithScope(scope);
-        var message = CreateMessage();
+                await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
-        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
-        await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                await using var cmd = new SqliteCommand(
+                    "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
+                    _keepAlive
+                );
+                _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+                var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
-        await using var cmd = new SqliteCommand(
-            "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
-            _keepAlive
-        );
-        _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-        var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-
-        _ = await Assert.That(count).IsEqualTo(0L);
+                _ = await Assert.That(count).IsEqualTo(0L);
+            }
+        }
     }
 
     private sealed class StubTransactionScope(SqliteTransaction transaction) : IOutboxTransactionScope

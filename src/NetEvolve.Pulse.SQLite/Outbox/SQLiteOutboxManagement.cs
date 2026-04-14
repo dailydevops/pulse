@@ -125,11 +125,21 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
 
         _getStatisticsSql = $"""
             SELECT
-                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 0 THEN 1 ELSE 0 END) AS "{OutboxMessageStatus.Pending}",
-                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 1 THEN 1 ELSE 0 END) AS "{OutboxMessageStatus.Processing}",
-                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 2 THEN 1 ELSE 0 END) AS "{OutboxMessageStatus.Completed}",
-                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 3 THEN 1 ELSE 0 END) AS "{OutboxMessageStatus.Failed}",
-                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 4 THEN 1 ELSE 0 END) AS "{OutboxMessageStatus.DeadLetter}"
+                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 0 THEN 1 ELSE 0 END) AS "{nameof(
+                OutboxMessageStatus.Pending
+            )}",
+                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 1 THEN 1 ELSE 0 END) AS "{nameof(
+                OutboxMessageStatus.Processing
+            )}",
+                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 2 THEN 1 ELSE 0 END) AS "{nameof(
+                OutboxMessageStatus.Completed
+            )}",
+                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 3 THEN 1 ELSE 0 END) AS "{nameof(
+                OutboxMessageStatus.Failed
+            )}",
+                SUM(CASE WHEN "{OutboxMessageSchema.Columns.Status}" = 4 THEN 1 ELSE 0 END) AS "{nameof(
+                OutboxMessageStatus.DeadLetter
+            )}"
             FROM {table};
             """;
     }
@@ -144,13 +154,16 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_getDeadLetterMessagesSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            await using var command = new SqliteCommand(_getDeadLetterMessagesSql, connection);
 
-        _ = command.Parameters.AddWithValue("@pageSize", pageSize);
-        _ = command.Parameters.AddWithValue("@offset", page * pageSize);
+            _ = command.Parameters.AddWithValue("@pageSize", pageSize);
+            _ = command.Parameters.AddWithValue("@offset", page * pageSize);
 
-        return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -159,25 +172,31 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_getDeadLetterMessageSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            await using var command = new SqliteCommand(_getDeadLetterMessageSql, connection);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+            _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
 
-        var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
-        return messages.Count > 0 ? messages[0] : null;
+            var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            return messages.Count > 0 ? messages[0] : null;
+        }
     }
 
     /// <inheritdoc />
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_getDeadLetterCountSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            await using var command = new SqliteCommand(_getDeadLetterCountSql, connection);
 
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is long count
-            ? count
-            : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+            var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            return result is long count
+                ? count
+                : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+        }
     }
 
     /// <inheritdoc />

@@ -201,5 +201,7 @@ public sealed class OutboxMessageConfigurationMetadataTests
     }
 
     private static IMutableIndex GetIndex(IMutableEntityType entityType, string indexName) =>
-        entityType.GetIndexes().Single(index => index.GetDatabaseName() == indexName);
+        entityType
+            .GetIndexes()
+            .Single(index => string.Equals(index.GetDatabaseName(), indexName, StringComparison.Ordinal));
 }

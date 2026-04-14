@@ -66,9 +66,11 @@ public sealed class AzureServiceBusExtensionsTests
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseAzureServiceBusTransport());
 
-        await using var provider = services.BuildServiceProvider();
-
-        _ = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<ServiceBusClient>());
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<ServiceBusClient>());
+        }
     }
 
     [Test]
@@ -85,11 +87,13 @@ public sealed class AzureServiceBusExtensionsTests
             )
         );
 
-        await using var provider = services.BuildServiceProvider();
-
-        var client = provider.GetRequiredService<ServiceBusClient>();
-        _ = await Assert.That(client).IsNotNull();
-        _ = await Assert.That(client.FullyQualifiedNamespace).IsEqualTo("contoso.servicebus.windows.net");
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var client = provider.GetRequiredService<ServiceBusClient>();
+            _ = await Assert.That(client).IsNotNull();
+            _ = await Assert.That(client.FullyQualifiedNamespace).IsEqualTo("contoso.servicebus.windows.net");
+        }
     }
 
     [Test]
@@ -100,10 +104,12 @@ public sealed class AzureServiceBusExtensionsTests
             config.UseAzureServiceBusTransport(options => options.ConnectionString = FakeConnectionString)
         );
 
-        await using var provider = services.BuildServiceProvider();
-
-        var client = provider.GetRequiredService<ServiceBusClient>();
-        _ = await Assert.That(client).IsNotNull();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var client = provider.GetRequiredService<ServiceBusClient>();
+            _ = await Assert.That(client).IsNotNull();
+        }
     }
 
     [Test]

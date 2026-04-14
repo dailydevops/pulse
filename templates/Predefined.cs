@@ -52,13 +52,17 @@ internal static partial class Predefined
     }
 
     /// <summary>Matches <c>LanguageVersion: CSharp&lt;N&gt;</c> tokens for version-agnostic scrubbing.</summary>
-    [GeneratedRegex(@"CSharp\d+")]
+    [GeneratedRegex(@"CSharp\d+", RegexOptions.None, 1000)]
     private static partial Regex ScrubLangVersion();
 
     /// <summary>
     /// Matches the version token inside <c>[GeneratedCode("NetEvolve.Pulse.SourceGeneration", "…")]</c>
     /// for version-agnostic scrubbing.
     /// </summary>
-    [GeneratedRegex(@"(GeneratedCode\(""NetEvolve\.Pulse\.SourceGeneration"", "")[^""]+("")")]
+    [GeneratedRegex(
+        @"(GeneratedCode\(""NetEvolve\.Pulse\.SourceGeneration"", "")[^""]+("")",
+        RegexOptions.NonBacktracking,
+        1000
+    )]
     private static partial Regex ScrubGeneatedCodeVersion();
 }

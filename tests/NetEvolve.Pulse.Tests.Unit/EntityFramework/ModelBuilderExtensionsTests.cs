@@ -17,11 +17,13 @@ public sealed class ModelBuilderExtensionsTests
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ApplyPulseConfiguration_When_modelBuilder_is_null_throws_ArgumentNullException))
             .Options;
-        await using var context = new TestDbContext(options);
-
-        _ = await Assert
-            .That(() => ModelBuilderExtensions.ApplyPulseConfiguration(null!, context))
-            .Throws<ArgumentNullException>();
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await Assert
+                .That(() => ModelBuilderExtensions.ApplyPulseConfiguration(null!, context))
+                .Throws<ArgumentNullException>();
+        }
     }
 
     [Test]
@@ -42,12 +44,15 @@ public sealed class ModelBuilderExtensionsTests
                 nameof(ApplyPulseConfiguration_When_context_is_not_IOutboxDbContext_returns_same_modelBuilder)
             )
             .Options;
-        await using var context = new PlainDbContext(options);
-        var modelBuilder = new ModelBuilder();
+        var context = new PlainDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            var modelBuilder = new ModelBuilder();
 
-        var result = modelBuilder.ApplyPulseConfiguration(context);
+            var result = modelBuilder.ApplyPulseConfiguration(context);
 
-        _ = await Assert.That(result).IsSameReferenceAs(modelBuilder);
+            _ = await Assert.That(result).IsSameReferenceAs(modelBuilder);
+        }
     }
 
     [Test]
@@ -58,12 +63,15 @@ public sealed class ModelBuilderExtensionsTests
                 nameof(ApplyPulseConfiguration_When_context_implements_IOutboxDbContext_returns_same_modelBuilder)
             )
             .Options;
-        await using var context = new TestDbContext(options);
-        var modelBuilder = new ModelBuilder();
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            var modelBuilder = new ModelBuilder();
 
-        var result = modelBuilder.ApplyPulseConfiguration(context);
+            var result = modelBuilder.ApplyPulseConfiguration(context);
 
-        _ = await Assert.That(result).IsSameReferenceAs(modelBuilder);
+            _ = await Assert.That(result).IsSameReferenceAs(modelBuilder);
+        }
     }
 
     private sealed class PlainDbContext : DbContext

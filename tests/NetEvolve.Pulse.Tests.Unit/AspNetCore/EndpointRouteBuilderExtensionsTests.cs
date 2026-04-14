@@ -23,9 +23,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapCommand_WithResponseAndNullPattern_ThrowsArgumentNullException()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapCommand<TestCommand, string>(null!));
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapCommand<TestCommand, string>(null!));
+        }
     }
 
     // MapCommand<TCommand, TResponse> — httpMethod validation
@@ -33,11 +35,13 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapCommand_WithResponse_WithUndefinedMethod_ThrowsArgumentOutOfRangeException()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            endpoints.MapCommand<TestCommand, string>("/test", UndefinedHttpMethod)
-        );
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+                endpoints.MapCommand<TestCommand, string>("/test", UndefinedHttpMethod)
+            );
+        }
     }
 
     // MapCommand<TCommand, TResponse> — valid cases
@@ -45,41 +49,49 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapCommand_WithResponse_DefaultPost_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<TestCommand, string>("/test");
 
-        var builder = endpoints.MapCommand<TestCommand, string>("/test");
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     [Test]
     public async Task MapCommand_WithResponse_WithPutMethod_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Put);
 
-        var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Put);
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     [Test]
     public async Task MapCommand_WithResponse_WithPatchMethod_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Patch);
 
-        var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Patch);
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     [Test]
     public async Task MapCommand_WithResponse_WithDeleteMethod_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Delete);
 
-        var builder = endpoints.MapCommand<TestCommand, string>("/test", CommandHttpMethod.Delete);
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     // MapCommand<TCommand> (void) — null-argument guards
@@ -91,9 +103,11 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapCommand_VoidAndNullPattern_ThrowsArgumentNullException()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapCommand<VoidTestCommand>(null!));
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapCommand<VoidTestCommand>(null!));
+        }
     }
 
     // MapCommand<TCommand> (void) — httpMethod validation
@@ -101,11 +115,13 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapCommand_Void_WithUndefinedMethod_ThrowsArgumentOutOfRangeException()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            endpoints.MapCommand<VoidTestCommand>("/test", UndefinedHttpMethod)
-        );
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+                endpoints.MapCommand<VoidTestCommand>("/test", UndefinedHttpMethod)
+            );
+        }
     }
 
     // MapCommand<TCommand> (void) — valid cases
@@ -113,31 +129,37 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapCommand_Void_DefaultPost_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<VoidTestCommand>("/test");
 
-        var builder = endpoints.MapCommand<VoidTestCommand>("/test");
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     [Test]
     public async Task MapCommand_Void_WithDeleteMethod_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<VoidTestCommand>("/test", CommandHttpMethod.Delete);
 
-        var builder = endpoints.MapCommand<VoidTestCommand>("/test", CommandHttpMethod.Delete);
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     [Test]
     public async Task MapCommand_Void_WithPutMethod_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapCommand<VoidTestCommand>("/test", CommandHttpMethod.Put);
 
-        var builder = endpoints.MapCommand<VoidTestCommand>("/test", CommandHttpMethod.Put);
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     // MapQuery — null-argument guards
@@ -149,19 +171,23 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapQuery_WithNullPattern_ThrowsArgumentNullException()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
-
-        _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapQuery<TestQuery, string>(null!));
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapQuery<TestQuery, string>(null!));
+        }
     }
 
     [Test]
     public async Task MapQuery_ReturnsRouteHandlerBuilder()
     {
-        await using var endpoints = WebApplication.CreateBuilder().Build();
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var builder = endpoints.MapQuery<TestQuery, string>("/test");
 
-        var builder = endpoints.MapQuery<TestQuery, string>("/test");
-
-        _ = await Assert.That(builder).IsNotNull();
+            _ = await Assert.That(builder).IsNotNull();
+        }
     }
 
     private sealed record TestCommand(string Value) : ICommand<string>

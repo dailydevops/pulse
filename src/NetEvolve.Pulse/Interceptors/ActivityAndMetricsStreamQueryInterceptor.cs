@@ -102,7 +102,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
         using var activity = Defaults.ActivitySource.StartActivity(
             $"StreamQuery.{QueryName}",
             ActivityKind.Internal,
-            null,
+            parentId: null,
             tags: tags
         );
 
@@ -161,7 +161,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
                 .SetTag(ExceptionMessage, ex.Message)
                 .SetTag(ExceptionStackTrace, ex.StackTrace)
                 .SetTag(ExceptionTimestamp, errorTime)
-                .SetTag(Success, false);
+                .SetTag(Success, value: false);
 
             // Increment error counters and record failed execution duration
             ErrorsCounter.Add(1, tags);
@@ -181,7 +181,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
                 ?.SetStatus(ActivityStatusCode.Ok)
                 .SetEndTime(endTime.UtcDateTime)
                 .SetTag(ResponseTimestamp, endTime)
-                .SetTag(Success, true);
+                .SetTag(Success, value: true);
 
             // Record successful execution duration
             StreamQueryDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);

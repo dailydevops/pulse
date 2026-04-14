@@ -28,10 +28,14 @@ public sealed class RabbitMqExtensionsTests
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseRabbitMqTransport(options => options.ExchangeName = "test-exchange"));
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options =
+                provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
 
-        _ = await Assert.That(options.Value.ExchangeName).IsEqualTo("test-exchange");
+            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo("test-exchange");
+        }
     }
 
     [Test]
@@ -40,12 +44,16 @@ public sealed class RabbitMqExtensionsTests
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options =
+                provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
 
-        // Verify default options are accessible
-        _ = await Assert.That(options.Value).IsNotNull();
-        _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(string.Empty);
+            // Verify default options are accessible
+            _ = await Assert.That(options.Value).IsNotNull();
+            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(string.Empty);
+        }
     }
 
     [Test]

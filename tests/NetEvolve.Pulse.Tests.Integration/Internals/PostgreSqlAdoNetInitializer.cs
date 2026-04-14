@@ -58,11 +58,14 @@ public sealed partial class PostgreSqlAdoNetInitializer : IDatabaseInitializer
             .Replace(":schema_name", schema, StringComparison.Ordinal)
             .Replace(":table_name", tableName, StringComparison.Ordinal);
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        var connection = new NpgsqlConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        await using var command = new NpgsqlCommand(script, connection);
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = new NpgsqlCommand(script, connection);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
@@ -71,6 +74,6 @@ public sealed partial class PostgreSqlAdoNetInitializer : IDatabaseInitializer
         // The Configure method handles all necessary service registrations.
     }
 
-    [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline, 1000)]
     private static partial Regex SearchSetVar();
 }

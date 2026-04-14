@@ -143,10 +143,13 @@ public sealed class EventDispatcherExtensionsTests
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
         }
 
-        await using var sp = services.BuildServiceProvider();
-        var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredService<IEventDispatcher>();
+        var sp = services.BuildServiceProvider();
+        await using (sp.ConfigureAwait(false))
+        {
+            var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredService<IEventDispatcher>();
 
-        _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(10);
+            _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(10);
+        }
     }
 
     [Test]
@@ -303,10 +306,14 @@ public sealed class EventDispatcherExtensionsTests
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
         }
 
-        await using var sp = services.BuildServiceProvider();
-        var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredKeyedService<IEventDispatcher>(typeof(TestEvent));
+        var sp = services.BuildServiceProvider();
+        await using (sp.ConfigureAwait(false))
+        {
+            var dispatcher = (RateLimitedEventDispatcher)
+                sp.GetRequiredKeyedService<IEventDispatcher>(typeof(TestEvent));
 
-        _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(5);
+            _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(5);
+        }
     }
 
     [Test]

@@ -82,7 +82,7 @@ public sealed class DaprMessageTransportTests
         );
 
         // Without a running Dapr sidecar, CheckHealthAsync returns false (connection refused → false, not throw)
-        var result = await transport.IsHealthyAsync(cancellationToken);
+        var result = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(result).IsTypeOf<bool>();
     }

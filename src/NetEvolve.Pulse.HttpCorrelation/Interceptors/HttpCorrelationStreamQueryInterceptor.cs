@@ -80,7 +80,9 @@ internal sealed class HttpCorrelationStreamQueryInterceptor<TQuery, TResponse>
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
-        await foreach (var item in handler(request, cancellationToken).WithCancellation(cancellationToken))
+        await foreach (
+            var item in handler(request, cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false)
+        )
         {
             yield return item;
         }

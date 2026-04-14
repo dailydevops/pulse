@@ -517,7 +517,11 @@ public class PulseMediatorTests
         )
         {
             InterceptedQueries.Add(request);
-            await foreach (var item in handler(request, cancellationToken).WithCancellation(cancellationToken))
+            await foreach (
+                var item in handler(request, cancellationToken)
+                    .WithCancellation(cancellationToken)
+                    .ConfigureAwait(false)
+            )
             {
                 yield return item;
             }
@@ -556,7 +560,11 @@ public class PulseMediatorTests
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await foreach (var _ in mediator.StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken))
+            await foreach (
+                var _ in mediator
+                    .StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken)
+                    .ConfigureAwait(false)
+            )
             {
                 // consume
             }
@@ -578,7 +586,11 @@ public class PulseMediatorTests
         var query = new TestStreamQuery();
 
         var results = new List<string>();
-        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken))
+        await foreach (
+            var item in mediator
+                .StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken)
+                .ConfigureAwait(false)
+        )
         {
             results.Add(item);
         }
@@ -609,7 +621,11 @@ public class PulseMediatorTests
         var query = new TestStreamQuery();
 
         var results = new List<string>();
-        await foreach (var item in mediator.StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken))
+        await foreach (
+            var item in mediator
+                .StreamQueryAsync<TestStreamQuery, string>(query, cancellationToken)
+                .ConfigureAwait(false)
+        )
         {
             results.Add(item);
         }

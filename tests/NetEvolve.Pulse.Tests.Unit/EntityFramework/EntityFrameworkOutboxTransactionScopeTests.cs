@@ -22,11 +22,13 @@ public sealed class EntityFrameworkOutboxTransactionScopeTests
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(Constructor_WithValidContext_CreatesInstance))
             .Options;
-        await using var context = new TestDbContext(options);
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            var scope = new EntityFrameworkOutboxTransactionScope<TestDbContext>(context);
 
-        var scope = new EntityFrameworkOutboxTransactionScope<TestDbContext>(context);
-
-        _ = await Assert.That(scope).IsNotNull();
+            _ = await Assert.That(scope).IsNotNull();
+        }
     }
 
     [Test]
@@ -35,11 +37,14 @@ public sealed class EntityFrameworkOutboxTransactionScopeTests
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetCurrentTransaction_WithNoActiveTransaction_ReturnsNull))
             .Options;
-        await using var context = new TestDbContext(options);
-        var scope = new EntityFrameworkOutboxTransactionScope<TestDbContext>(context);
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            var scope = new EntityFrameworkOutboxTransactionScope<TestDbContext>(context);
 
-        var result = scope.GetCurrentTransaction();
+            var result = scope.GetCurrentTransaction();
 
-        _ = await Assert.That(result).IsNull();
+            _ = await Assert.That(result).IsNull();
+        }
     }
 }

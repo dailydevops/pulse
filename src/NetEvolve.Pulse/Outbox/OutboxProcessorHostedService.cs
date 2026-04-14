@@ -503,6 +503,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     _repository.MarkAsDeadLetterAsync(deadLetterMessages, ex.Message, cancellationToken),
                     Parallel.ForEachAsync(
                         messages.Where(m => m.RetryCount + 1 >= _options.GetEffectiveMaxRetryCount(m.EventType)),
+                        cancellationToken,
                         (message, _) =>
                         {
                             LogMessageMovedToDeadLetter(
