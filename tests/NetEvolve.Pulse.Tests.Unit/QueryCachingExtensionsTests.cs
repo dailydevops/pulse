@@ -51,10 +51,13 @@ public sealed class QueryCachingExtensionsTests
 
         _ = builder.AddQueryCaching(opts => opts.ExpirationMode = CacheExpirationMode.Sliding);
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<QueryCachingOptions>>().Value;
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<QueryCachingOptions>>().Value;
 
-        _ = await Assert.That(options.ExpirationMode).IsEqualTo(CacheExpirationMode.Sliding);
+            _ = await Assert.That(options.ExpirationMode).IsEqualTo(CacheExpirationMode.Sliding);
+        }
     }
 
     [Test]

@@ -33,7 +33,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -85,7 +85,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -119,7 +119,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -136,7 +136,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -153,7 +153,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -183,7 +183,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -213,7 +213,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -243,7 +243,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -279,7 +279,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -301,7 +301,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -324,7 +324,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -353,7 +353,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -376,7 +376,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -399,7 +399,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -422,7 +422,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -445,7 +445,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -468,7 +468,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -491,7 +491,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -522,7 +522,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -545,7 +545,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -576,7 +576,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -607,7 +607,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -624,7 +624,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -649,7 +649,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -683,7 +683,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -705,7 +705,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -733,7 +733,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -757,7 +757,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -786,7 +786,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -809,7 +809,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source, assemblyName: "");
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -832,7 +832,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -854,7 +854,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -876,7 +876,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     [Test]
@@ -897,7 +897,7 @@ public class PulseHandlerGeneratorTests
             """;
 
         var (diagnostics, generatedSources) = RunGenerator(source);
-        await VerifySources(diagnostics, generatedSources);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
@@ -948,8 +948,8 @@ public class PulseHandlerGeneratorTests
             {
                 var fileName = Path.GetFileName(p);
                 return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || fileName == "mscorlib.dll"
-                    || fileName == "netstandard.dll";
+                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase);
             })
             .Select(p => MetadataReference.CreateFromFile(p))
             .Cast<MetadataReference>()
@@ -965,5 +965,5 @@ public class PulseHandlerGeneratorTests
     }
 
     private static async Task VerifySources(ImmutableArray<Diagnostic> diagnostics, ImmutableArray<string> sources) =>
-        await Verify(new { diagnostics, sources });
+        await Verify(new { diagnostics, sources }).ConfigureAwait(false);
 }

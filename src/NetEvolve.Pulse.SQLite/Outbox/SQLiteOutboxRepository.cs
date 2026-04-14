@@ -229,10 +229,13 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         }
         else
         {
-            await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = new SqliteCommand(_insertSql, connection);
-            AddMessageParameters(command, message);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+            await using (connection.ConfigureAwait(false))
+            {
+                await using var command = new SqliteCommand(_insertSql, connection);
+                AddMessageParameters(command, message);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

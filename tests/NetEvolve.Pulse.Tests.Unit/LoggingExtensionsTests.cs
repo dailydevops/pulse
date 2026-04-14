@@ -105,13 +105,16 @@ public class LoggingExtensionsTests
             opts.LogLevel = Microsoft.Extensions.Logging.LogLevel.Information;
         });
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<LoggingInterceptorOptions>>().Value;
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(options.SlowRequestThreshold).IsEqualTo(TimeSpan.FromMilliseconds(200));
-            _ = await Assert.That(options.LogLevel).IsEqualTo(Microsoft.Extensions.Logging.LogLevel.Information);
+            var options = provider.GetRequiredService<IOptions<LoggingInterceptorOptions>>().Value;
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.SlowRequestThreshold).IsEqualTo(TimeSpan.FromMilliseconds(200));
+                _ = await Assert.That(options.LogLevel).IsEqualTo(Microsoft.Extensions.Logging.LogLevel.Information);
+            }
         }
     }
 
@@ -123,13 +126,16 @@ public class LoggingExtensionsTests
 
         _ = configurator.AddLogging();
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<LoggingInterceptorOptions>>().Value;
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(options.SlowRequestThreshold).IsEqualTo(TimeSpan.FromMilliseconds(500));
-            _ = await Assert.That(options.LogLevel).IsEqualTo(Microsoft.Extensions.Logging.LogLevel.Debug);
+            var options = provider.GetRequiredService<IOptions<LoggingInterceptorOptions>>().Value;
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.SlowRequestThreshold).IsEqualTo(TimeSpan.FromMilliseconds(500));
+                _ = await Assert.That(options.LogLevel).IsEqualTo(Microsoft.Extensions.Logging.LogLevel.Debug);
+            }
         }
     }
 

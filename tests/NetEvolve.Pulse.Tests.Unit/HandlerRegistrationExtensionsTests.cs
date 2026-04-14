@@ -653,9 +653,11 @@ public class HandlerRegistrationExtensionsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(descriptors).Count().IsEqualTo(2);
-            _ = await Assert.That(descriptors.Any(d => d.ImplementationType == typeof(TestEventInterceptor))).IsTrue();
             _ = await Assert
-                .That(descriptors.Any(d => d.ImplementationType == typeof(AnotherTestEventInterceptor)))
+                .That(descriptors.Exists(d => d.ImplementationType == typeof(TestEventInterceptor)))
+                .IsTrue();
+            _ = await Assert
+                .That(descriptors.Exists(d => d.ImplementationType == typeof(AnotherTestEventInterceptor)))
                 .IsTrue();
         }
     }

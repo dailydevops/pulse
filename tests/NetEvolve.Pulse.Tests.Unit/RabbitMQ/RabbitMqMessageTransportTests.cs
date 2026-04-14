@@ -82,7 +82,7 @@ public sealed class RabbitMqMessageTransportTests
         using var transport = CreateTransport(connectionAdapter, topicNameResolver, exchangeName: "test-exchange");
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage, cancellationToken);
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
         var channel = connectionAdapter.CreatedChannels.Single();
@@ -118,8 +118,8 @@ public sealed class RabbitMqMessageTransportTests
         var message1 = CreateOutboxMessage();
         var message2 = CreateOutboxMessage();
 
-        await transport.SendAsync(message1, cancellationToken);
-        await transport.SendAsync(message2, cancellationToken);
+        await transport.SendAsync(message1, cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(message2, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
         var channel = connectionAdapter.CreatedChannels.Single();
@@ -135,11 +135,11 @@ public sealed class RabbitMqMessageTransportTests
         var message1 = CreateOutboxMessage();
         var message2 = CreateOutboxMessage();
 
-        await transport.SendAsync(message1, cancellationToken);
+        await transport.SendAsync(message1, cancellationToken).ConfigureAwait(false);
         var firstChannel = connectionAdapter.CreatedChannels.Single();
         firstChannel.IsOpen = false; // Simulate channel closure
 
-        await transport.SendAsync(message2, cancellationToken);
+        await transport.SendAsync(message2, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(2);
         _ = await Assert.That(connectionAdapter.CreatedChannels.Count).IsEqualTo(2);
@@ -153,7 +153,7 @@ public sealed class RabbitMqMessageTransportTests
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage, cancellationToken);
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
         var channel = connectionAdapter.CreatedChannels.Single();
         var publishCall = channel.PublishCalls.Single();
@@ -168,7 +168,7 @@ public sealed class RabbitMqMessageTransportTests
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -180,7 +180,7 @@ public sealed class RabbitMqMessageTransportTests
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -193,11 +193,11 @@ public sealed class RabbitMqMessageTransportTests
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
         // Create a channel
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
         var channel = connectionAdapter.CreatedChannels.Single();
         channel.IsOpen = false;
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -210,9 +210,9 @@ public sealed class RabbitMqMessageTransportTests
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
         // Create a channel
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsTrue();
     }
@@ -224,7 +224,7 @@ public sealed class RabbitMqMessageTransportTests
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -236,7 +236,7 @@ public sealed class RabbitMqMessageTransportTests
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
         var channel = connectionAdapter.CreatedChannels.Single();
 
         transport.Dispose();
@@ -251,7 +251,7 @@ public sealed class RabbitMqMessageTransportTests
         var topicNameResolver = new FakeTopicNameResolver();
         var transport = CreateTransport(connectionAdapter, topicNameResolver);
 
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
         var channel = connectionAdapter.CreatedChannels.Single();
 
         transport.Dispose();
@@ -404,7 +404,7 @@ public sealed class RabbitMqMessageTransportTests
 
             if (props.Headers is not null)
             {
-                result.Headers = new Dictionary<string, object?>(props.Headers);
+                result.Headers = new Dictionary<string, object?>(props.Headers, StringComparer.Ordinal);
             }
 
             return result;

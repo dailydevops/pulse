@@ -16,7 +16,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     {
         using var listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
             Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
@@ -28,7 +28,11 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStarted = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1, 2, 3], ct), cancellationToken))
+        await foreach (
+            var _ in interceptor
+                .HandleAsync(query, (_, ct) => Items([1, 2, 3], ct), cancellationToken)
+                .ConfigureAwait(false)
+        )
         {
             // consume items
         }
@@ -49,7 +53,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     {
         using var listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
             Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
@@ -61,7 +65,11 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1, 2, 3], ct), cancellationToken))
+        await foreach (
+            var _ in interceptor
+                .HandleAsync(query, (_, ct) => Items([1, 2, 3], ct), cancellationToken)
+                .ConfigureAwait(false)
+        )
         {
             // consume items
         }
@@ -82,7 +90,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     {
         using var listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
             Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
@@ -98,7 +106,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
             await foreach (
-                var _ in interceptor.HandleAsync(query, (_, ct) => ThrowingItems(testException, ct), cancellationToken)
+                var _ in interceptor
+                    .HandleAsync(query, (_, ct) => ThrowingItems(testException, ct), cancellationToken)
+                    .ConfigureAwait(false)
             )
             {
                 // consume items until exception
@@ -130,7 +140,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     {
         using var listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
             Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
@@ -143,7 +153,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         listener.ActivityStopped = activity => capturedActivity = activity;
 
         await foreach (
-            var _ in interceptor.HandleAsync(query, (_, ct) => Items(Array.Empty<int>(), ct), cancellationToken)
+            var _ in interceptor
+                .HandleAsync(query, (_, ct) => Items(Array.Empty<int>(), ct), cancellationToken)
+                .ConfigureAwait(false)
         )
         {
             // empty stream
@@ -168,7 +180,11 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         var expected = new[] { 10, 20, 30 };
         var received = new List<int>();
 
-        await foreach (var item in interceptor.HandleAsync(query, (_, ct) => Items(expected, ct), cancellationToken))
+        await foreach (
+            var item in interceptor
+                .HandleAsync(query, (_, ct) => Items(expected, ct), cancellationToken)
+                .ConfigureAwait(false)
+        )
         {
             received.Add(item);
         }
@@ -182,7 +198,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     {
         using var listener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == "NetEvolve.Pulse",
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
             Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
         };
         ActivitySource.AddActivityListener(listener);
@@ -194,7 +210,9 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
         listener.ActivityStopped = activity => capturedActivity = activity;
 
-        await foreach (var _ in interceptor.HandleAsync(query, (_, ct) => Items([1], ct), cancellationToken))
+        await foreach (
+            var _ in interceptor.HandleAsync(query, (_, ct) => Items([1], ct), cancellationToken).ConfigureAwait(false)
+        )
         {
             // consume
         }
@@ -216,15 +234,17 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         TestStreamQuery? receivedQuery = null;
 
         await foreach (
-            var _ in interceptor.HandleAsync(
-                query,
-                (q, ct) =>
-                {
-                    receivedQuery = q;
-                    return Items([1], ct);
-                },
-                cancellationToken
-            )
+            var _ in interceptor
+                .HandleAsync(
+                    query,
+                    (q, ct) =>
+                    {
+                        receivedQuery = q;
+                        return Items([1], ct);
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
         )
         {
             // consume

@@ -248,7 +248,7 @@ public sealed class IdempotencyCommandInterceptorTests
         public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
         {
             ExistsCallCount++;
-            return Task.FromResult(idempotencyKey == _existingKey);
+            return Task.FromResult(string.Equals(idempotencyKey, _existingKey, StringComparison.Ordinal));
         }
 
         public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)

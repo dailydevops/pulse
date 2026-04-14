@@ -110,10 +110,13 @@ public sealed class SQLiteExtensionsTests
             config.AddOutbox().UseSQLiteOutbox("Data Source=:memory:", options => options.TableName = "CustomTable")
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
-        _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+            _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+        }
     }
 
     [Test]
@@ -131,14 +134,17 @@ public sealed class SQLiteExtensionsTests
                 })
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(options.Value.ConnectionString).IsEqualTo("Data Source=:memory:");
-            _ = await Assert.That(options.Value.EnableWalMode).IsFalse();
-            _ = await Assert.That(options.Value.TableName).IsEqualTo("Events");
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.Value.ConnectionString).IsEqualTo("Data Source=:memory:");
+                _ = await Assert.That(options.Value.EnableWalMode).IsFalse();
+                _ = await Assert.That(options.Value.TableName).IsEqualTo("Events");
+            }
         }
     }
 
@@ -263,10 +269,13 @@ public sealed class SQLiteExtensionsTests
             config.AddSQLiteOutbox("Data Source=:memory:", options => options.TableName = "CustomTable")
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
-        _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+            _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+        }
     }
 
     [Test]
@@ -282,14 +291,17 @@ public sealed class SQLiteExtensionsTests
             })
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(options.Value.ConnectionString).IsEqualTo("Data Source=:memory:");
-            _ = await Assert.That(options.Value.EnableWalMode).IsFalse();
-            _ = await Assert.That(options.Value.TableName).IsEqualTo("Events");
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.Value.ConnectionString).IsEqualTo("Data Source=:memory:");
+                _ = await Assert.That(options.Value.EnableWalMode).IsFalse();
+                _ = await Assert.That(options.Value.TableName).IsEqualTo("Events");
+            }
         }
     }
 
@@ -381,10 +393,13 @@ public sealed class SQLiteExtensionsTests
             config.AddSQLiteOutbox(_ => "Data Source=:memory:", options => options.TableName = "CustomTable")
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
-        _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+            _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+        }
     }
 
     [Test]

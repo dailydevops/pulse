@@ -80,7 +80,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
         using var activity = Defaults.ActivitySource.StartActivity(
             $"{eventType}.{eventName}",
             ActivityKind.Internal,
-            null,
+            parentId: null,
             tags: tags
         );
 
@@ -104,7 +104,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
                 ?.SetStatus(ActivityStatusCode.Ok)
                 .SetEndTime(endTime.UtcDateTime)
                 .SetTag(EventCompletionTimestamp, endTime)
-                .SetTag(Success, true);
+                .SetTag(Success, value: true);
 
             // Record successful execution duration
             EventDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
@@ -121,7 +121,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
                 .SetTag(ExceptionMessage, ex.Message)
                 .SetTag(ExceptionStackTrace, ex.StackTrace)
                 .SetTag(ExceptionTimestamp, errorTime)
-                .SetTag(Success, false);
+                .SetTag(Success, value: false);
 
             // Increment error counters and record failed execution duration
             ErrorsCounter.Add(1, tags);

@@ -105,10 +105,13 @@ public sealed class SqlServerExtensionsTests
             config.AddOutbox().AddSqlServerOutbox("Server=.;Encrypt=true;", options => options.Schema = "myschema")
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
-        _ = await Assert.That(options.Value.Schema).IsEqualTo("myschema");
+            _ = await Assert.That(options.Value.Schema).IsEqualTo("myschema");
+        }
     }
 
     [Test]
@@ -175,10 +178,13 @@ public sealed class SqlServerExtensionsTests
                 .AddSqlServerOutbox(_ => "Server=.;Encrypt=true;", options => options.TableName = "CustomTable")
         );
 
-        await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<OutboxOptions>>();
 
-        _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+            _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
+        }
     }
 
     [Test]

@@ -6,6 +6,9 @@
     <PackageReleaseNotes>$(PackageProjectUrl)/releases</PackageReleaseNotes>
     <PackageTags>$(PackageTags);cqrs;mediator;</PackageTags>
     <CopyrightYearStart>2026</CopyrightYearStart>
+
+    <!-- Disable the recommended analyzer package -->
+    <DisableRecommendedPackage>Meziantou.Analyzer</DisableRecommendedPackage>
   </PropertyGroup>
 
   <PropertyGroup>

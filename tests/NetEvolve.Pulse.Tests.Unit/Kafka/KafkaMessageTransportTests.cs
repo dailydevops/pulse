@@ -26,7 +26,7 @@ public sealed class KafkaMessageTransportTests
         var transport = CreateTransport(producer, admin);
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage, cancellationToken);
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
         var kafkaMessage = producer.ProducedMessages.Single();
         using (Assert.Multiple())
@@ -66,7 +66,7 @@ public sealed class KafkaMessageTransportTests
         var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage, cancellationToken);
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(producer.ProducedTopics.Single()).IsEqualTo("resolved-topic");
     }
@@ -79,7 +79,7 @@ public sealed class KafkaMessageTransportTests
         var transport = CreateTransport(producer, admin, topicName: "test-topic");
         var outboxMessage = CreateOutboxMessage();
 
-        await transport.SendAsync(outboxMessage, cancellationToken);
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(producer.ProducedTopics.Single()).IsEqualTo("test-topic");
     }
@@ -92,7 +92,7 @@ public sealed class KafkaMessageTransportTests
         var transport = CreateTransport(producer, admin);
         var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
 
-        await transport.SendBatchAsync(messages, cancellationToken);
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(messages.Length);
         _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
@@ -122,7 +122,7 @@ public sealed class KafkaMessageTransportTests
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var transport = CreateTransport(producer, admin);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsTrue();
         _ = await Assert.That(admin.GetMetadataCallCount).IsEqualTo(1);
@@ -135,7 +135,7 @@ public sealed class KafkaMessageTransportTests
         using var admin = new FakeAdminClient { BrokerCount = 0 };
         var transport = CreateTransport(producer, admin);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -149,7 +149,7 @@ public sealed class KafkaMessageTransportTests
         using var admin = new FakeAdminClient { ThrowOnGetMetadata = true };
         var transport = CreateTransport(producer, admin);
 
-        var healthy = await transport.IsHealthyAsync(cancellationToken);
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
@@ -174,7 +174,7 @@ public sealed class KafkaMessageTransportTests
 
     private static string GetHeader(Message<string, string> message, string key)
     {
-        var header = message.Headers.FirstOrDefault(h => h.Key == key);
+        var header = message.Headers.FirstOrDefault(h => string.Equals(h.Key, key, StringComparison.Ordinal));
         return header is null ? string.Empty : Encoding.UTF8.GetString(header.GetValueBytes());
     }
 
@@ -230,7 +230,7 @@ public sealed class KafkaMessageTransportTests
             TopicPartition topicPartition,
             Message<string, string> message,
             CancellationToken cancellationToken = default
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public void Produce(
             string topic,
@@ -258,7 +258,7 @@ public sealed class KafkaMessageTransportTests
             TopicPartition topicPartition,
             Message<string, string> message,
             Action<DeliveryReport<string, string>>? deliveryHandler = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public int Flush(TimeSpan timeout)
         {
@@ -286,7 +286,7 @@ public sealed class KafkaMessageTransportTests
             IEnumerable<TopicPartitionOffset> offsets,
             IConsumerGroupMetadata groupMetadata,
             TimeSpan timeout
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public int AddBrokers(string brokers) => 0;
 
@@ -321,92 +321,92 @@ public sealed class KafkaMessageTransportTests
             return new Metadata(brokers, [], -1, "test-cluster");
         }
 
-        public Metadata GetMetadata(string topic, TimeSpan timeout) => throw new NotImplementedException();
+        public Metadata GetMetadata(string topic, TimeSpan timeout) => throw new NotSupportedException();
 
-        public List<GroupInfo> ListGroups(TimeSpan timeout) => throw new NotImplementedException();
+        public List<GroupInfo> ListGroups(TimeSpan timeout) => throw new NotSupportedException();
 
-        public GroupInfo ListGroup(string group, TimeSpan timeout) => throw new NotImplementedException();
+        public GroupInfo ListGroup(string group, TimeSpan timeout) => throw new NotSupportedException();
 
         public Task CreateTopicsAsync(IEnumerable<TopicSpecification> topics, CreateTopicsOptions? options = null) =>
-            throw new NotImplementedException();
+            throw new NotSupportedException();
 
         public Task DeleteTopicsAsync(IEnumerable<string> topics, DeleteTopicsOptions? options = null) =>
-            throw new NotImplementedException();
+            throw new NotSupportedException();
 
         public Task CreatePartitionsAsync(
             IEnumerable<PartitionsSpecification> partitionsSpecifications,
             CreatePartitionsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task DeleteGroupsAsync(IList<string> groups, DeleteGroupsOptions? options = null) =>
-            throw new NotImplementedException();
+            throw new NotSupportedException();
 
         public Task AlterConfigsAsync(
             Dictionary<ConfigResource, List<ConfigEntry>> configs,
             AlterConfigsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<List<IncrementalAlterConfigsResult>> IncrementalAlterConfigsAsync(
             Dictionary<ConfigResource, List<ConfigEntry>> configs,
             IncrementalAlterConfigsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<List<DescribeConfigsResult>> DescribeConfigsAsync(
             IEnumerable<ConfigResource> resources,
             DescribeConfigsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<List<DeleteRecordsResult>> DeleteRecordsAsync(
             IEnumerable<TopicPartitionOffset> topicPartitionOffsets,
             DeleteRecordsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task CreateAclsAsync(IEnumerable<AclBinding> aclBindings, CreateAclsOptions? options = null) =>
-            throw new NotImplementedException();
+            throw new NotSupportedException();
 
         public Task<DescribeAclsResult> DescribeAclsAsync(
             AclBindingFilter aclBindingFilter,
             DescribeAclsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<List<DeleteAclsResult>> DeleteAclsAsync(
             IEnumerable<AclBindingFilter> aclBindingFilters,
             DeleteAclsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<DeleteConsumerGroupOffsetsResult> DeleteConsumerGroupOffsetsAsync(
             string group,
             IEnumerable<TopicPartition> partitions,
             DeleteConsumerGroupOffsetsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<List<AlterConsumerGroupOffsetsResult>> AlterConsumerGroupOffsetsAsync(
             IEnumerable<ConsumerGroupTopicPartitionOffsets> groupPartitions,
             AlterConsumerGroupOffsetsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<List<ListConsumerGroupOffsetsResult>> ListConsumerGroupOffsetsAsync(
             IEnumerable<ConsumerGroupTopicPartitions> groupPartitions,
             ListConsumerGroupOffsetsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<ListConsumerGroupsResult> ListConsumerGroupsAsync(ListConsumerGroupsOptions? options = null) =>
-            throw new NotImplementedException();
+            throw new NotSupportedException();
 
         public Task<DescribeConsumerGroupsResult> DescribeConsumerGroupsAsync(
             IEnumerable<string> groups,
             DescribeConsumerGroupsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task<DescribeUserScramCredentialsResult> DescribeUserScramCredentialsAsync(
             IEnumerable<string> users,
             DescribeUserScramCredentialsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public Task AlterUserScramCredentialsAsync(
             IEnumerable<UserScramCredentialAlteration> alterations,
             AlterUserScramCredentialsOptions? options = null
-        ) => throw new NotImplementedException();
+        ) => throw new NotSupportedException();
 
         public int AddBrokers(string brokers) => 0;
 
