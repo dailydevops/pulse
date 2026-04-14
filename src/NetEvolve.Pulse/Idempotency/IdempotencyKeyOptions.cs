@@ -6,8 +6,17 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 /// <summary>
 /// Configuration options for the idempotency store.
 /// </summary>
-public sealed class IdempotencyKeyOptions
+public class IdempotencyKeyOptions
 {
+    /// <summary>
+    /// Gets or sets the connection string used by the idempotency store provider.
+    /// </summary>
+    /// <remarks>
+    /// Required for database-backed providers. Leave <see langword="null"/> when the provider
+    /// obtains its connection through other means (e.g., a registered <c>DbContext</c>).
+    /// </remarks>
+    public string? ConnectionString { get; set; }
+
     /// <summary>
     /// Gets or sets the database schema name for the idempotency key table.
     /// Default: <c>"pulse"</c>.

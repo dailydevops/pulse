@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Idempotency;
 [SuppressMessage(
     "Security",
     "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "SQL is read from a script file with schema and table names substituted from validated SqlServerIdempotencyKeyOptions properties."
+    Justification = "SQL is read from a script file with schema and table names substituted from validated IdempotencyKeyOptions properties."
 )]
 public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseInitializer
 {
@@ -31,13 +31,11 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
-        var options = serviceProvider.GetRequiredService<IOptions<SqlServerIdempotencyKeyOptions>>().Value;
+        var options = serviceProvider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
 
         var connectionString =
             options.ConnectionString
-            ?? throw new InvalidOperationException(
-                "SqlServerIdempotencyKeyOptions.ConnectionString is not configured."
-            );
+            ?? throw new InvalidOperationException("IdempotencyKeyOptions.ConnectionString is not configured.");
 
         var schema = string.IsNullOrWhiteSpace(options.Schema)
             ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultSchema

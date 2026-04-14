@@ -21,7 +21,7 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         _ = await Assert
             .That(() =>
                 new SqlServerIdempotencyKeyRepository(
-                    Options.Create(new SqlServerIdempotencyKeyOptions { ConnectionString = null })
+                    Options.Create(new IdempotencyKeyOptions { ConnectionString = null })
                 )
             )
             .Throws<ArgumentNullException>();
@@ -31,7 +31,7 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         _ = await Assert
             .That(() =>
                 new SqlServerIdempotencyKeyRepository(
-                    Options.Create(new SqlServerIdempotencyKeyOptions { ConnectionString = string.Empty })
+                    Options.Create(new IdempotencyKeyOptions { ConnectionString = string.Empty })
                 )
             )
             .Throws<ArgumentException>();
@@ -41,7 +41,7 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         _ = await Assert
             .That(() =>
                 new SqlServerIdempotencyKeyRepository(
-                    Options.Create(new SqlServerIdempotencyKeyOptions { ConnectionString = "   " })
+                    Options.Create(new IdempotencyKeyOptions { ConnectionString = "   " })
                 )
             )
             .Throws<ArgumentException>();
@@ -49,7 +49,7 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
     [Test]
     public async Task Constructor_WithValidConnectionString_CreatesInstance()
     {
-        var options = new SqlServerIdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
 
         var repository = new SqlServerIdempotencyKeyRepository(Options.Create(options));
 
@@ -59,11 +59,7 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
     [Test]
     public async Task Constructor_WithCustomSchema_CreatesInstance()
     {
-        var options = new SqlServerIdempotencyKeyOptions
-        {
-            ConnectionString = ValidConnectionString,
-            Schema = "custom",
-        };
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString, Schema = "custom" };
 
         var repository = new SqlServerIdempotencyKeyRepository(Options.Create(options));
 
@@ -73,7 +69,7 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
     [Test]
     public async Task Constructor_WithNullSchema_CreatesInstance()
     {
-        var options = new SqlServerIdempotencyKeyOptions { ConnectionString = ValidConnectionString, Schema = null };
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString, Schema = null };
 
         var repository = new SqlServerIdempotencyKeyRepository(Options.Create(options));
 

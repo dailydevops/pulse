@@ -18,7 +18,7 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="connectionString">The SQL Server connection string.</param>
-    /// <param name="configureOptions">Optional action to configure <see cref="SqlServerIdempotencyKeyOptions"/>.</param>
+    /// <param name="configureOptions">Optional action to configure <see cref="IdempotencyKeyOptions"/>.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="connectionString"/> is <see langword="null"/>, empty, or whitespace.</exception>
@@ -46,7 +46,7 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
     public static IMediatorBuilder AddSqlServerIdempotencyStore(
         this IMediatorBuilder configurator,
         string connectionString,
-        Action<SqlServerIdempotencyKeyOptions>? configureOptions = null
+        Action<IdempotencyKeyOptions>? configureOptions = null
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -64,7 +64,7 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="connectionStringFactory">Factory function to resolve the connection string from the <see cref="IServiceProvider"/>.</param>
-    /// <param name="configureOptions">Optional action to configure additional <see cref="SqlServerIdempotencyKeyOptions"/> settings.</param>
+    /// <param name="configureOptions">Optional action to configure additional <see cref="IdempotencyKeyOptions"/> settings.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="connectionStringFactory"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -95,7 +95,7 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
     public static IMediatorBuilder AddSqlServerIdempotencyStore(
         this IMediatorBuilder configurator,
         Func<IServiceProvider, string> connectionStringFactory,
-        Action<SqlServerIdempotencyKeyOptions>? configureOptions = null
+        Action<IdempotencyKeyOptions>? configureOptions = null
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -108,10 +108,8 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
             _ = services.Configure(configureOptions);
         }
 
-        _ = services.AddSingleton<IConfigureOptions<SqlServerIdempotencyKeyOptions>>(
-            sp => new ConfigureOptions<SqlServerIdempotencyKeyOptions>(o =>
-                o.ConnectionString = connectionStringFactory(sp)
-            )
+        _ = services.AddSingleton<IConfigureOptions<IdempotencyKeyOptions>>(
+            sp => new ConfigureOptions<IdempotencyKeyOptions>(o => o.ConnectionString = connectionStringFactory(sp))
         );
 
         return configurator.RegisterSqlServerIdempotencyStore();
@@ -121,7 +119,7 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
     /// Adds SQL Server idempotency key persistence using ADO.NET with a full options configuration action.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
-    /// <param name="configureOptions">Action to configure <see cref="SqlServerIdempotencyKeyOptions"/>.</param>
+    /// <param name="configureOptions">Action to configure <see cref="IdempotencyKeyOptions"/>.</param>
     /// <returns>The configurator for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configureOptions"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -152,7 +150,7 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
     /// </example>
     public static IMediatorBuilder AddSqlServerIdempotencyStore(
         this IMediatorBuilder configurator,
-        Action<SqlServerIdempotencyKeyOptions> configureOptions
+        Action<IdempotencyKeyOptions> configureOptions
     )
     {
         ArgumentNullException.ThrowIfNull(configurator);
@@ -171,26 +169,6 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
         var services = configurator.Services;
 
         services.TryAddSingleton(TimeProvider.System);
-
-        // Register a configuration sync from SqlServerIdempotencyKeyOptions to IdempotencyKeyOptions
-        // so that IdempotencyStore can use the base options for TTL, Schema, and TableName.
-        _ = services.AddSingleton<IConfigureOptions<IdempotencyKeyOptions>>(sp =>
-        {
-            var sqlServerOptions = sp.GetRequiredService<IOptions<SqlServerIdempotencyKeyOptions>>().Value;
-            return new ConfigureOptions<IdempotencyKeyOptions>(o =>
-            {
-                o.Schema = sqlServerOptions.Schema;
-                o.TableName = sqlServerOptions.TableName;
-
-                // Only propagate TimeToLive when explicitly set on SqlServerIdempotencyKeyOptions.
-                // Avoid overriding an already-configured IdempotencyKeyOptions.TimeToLive with null
-                // when the SQL Server-specific options leave it unset.
-                if (sqlServerOptions.TimeToLive.HasValue)
-                {
-                    o.TimeToLive = sqlServerOptions.TimeToLive;
-                }
-            });
-        });
 
         _ = services
             .RemoveAll<IIdempotencyKeyRepository>()

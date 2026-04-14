@@ -114,7 +114,7 @@ public sealed class SqlServerIdempotencyMediatorBuilderExtensionsTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            var options = provider.GetRequiredService<IOptions<SqlServerIdempotencyKeyOptions>>();
+            var options = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>();
 
             _ = await Assert.That(options.Value.Schema).IsEqualTo("myschema");
         }
@@ -196,7 +196,7 @@ public sealed class SqlServerIdempotencyMediatorBuilderExtensionsTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            var options = provider.GetRequiredService<IOptions<SqlServerIdempotencyKeyOptions>>();
+            var options = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>();
 
             _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomTable");
         }
@@ -220,7 +220,7 @@ public sealed class SqlServerIdempotencyMediatorBuilderExtensionsTests
         _ = mock.Services.Returns(new ServiceCollection());
 
         _ = await Assert
-            .That(() => mock.Object.AddSqlServerIdempotencyStore((Action<SqlServerIdempotencyKeyOptions>)null!))
+            .That(() => mock.Object.AddSqlServerIdempotencyStore((Action<IdempotencyKeyOptions>)null!))
             .Throws<ArgumentNullException>();
     }
 
@@ -287,7 +287,7 @@ public sealed class SqlServerIdempotencyMediatorBuilderExtensionsTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            var options = provider.GetRequiredService<IOptions<SqlServerIdempotencyKeyOptions>>();
+            var options = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>();
 
             using (Assert.Multiple())
             {

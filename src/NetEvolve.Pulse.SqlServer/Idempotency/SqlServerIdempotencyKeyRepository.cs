@@ -31,7 +31,7 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 [SuppressMessage(
     "Security",
     "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "Stored procedure names are constructed from validated SqlServerIdempotencyKeyOptions.Schema property, not user input."
+    Justification = "Stored procedure names are constructed from validated IdempotencyKeyOptions.Schema property, not user input."
 )]
 internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyRepository
 {
@@ -48,7 +48,7 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
     /// Initializes a new instance of the <see cref="SqlServerIdempotencyKeyRepository"/> class.
     /// </summary>
     /// <param name="options">The idempotency key configuration options.</param>
-    public SqlServerIdempotencyKeyRepository(IOptions<SqlServerIdempotencyKeyOptions> options)
+    public SqlServerIdempotencyKeyRepository(IOptions<IdempotencyKeyOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
