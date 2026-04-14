@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Idempotency;
 using NetEvolve.Pulse.Outbox;
 
 /// <summary>
@@ -15,7 +16,7 @@ public static class ModelBuilderExtensions
     /// <summary>
     /// Applies all Pulse-related entity configurations to the model builder.
     /// </summary>
-    /// <typeparam name="TContext">The DbContext type. When it implements <see cref="IOutboxDbContext"/>, the outbox message configuration is applied automatically.</typeparam>
+    /// <typeparam name="TContext">The DbContext type. When it implements <see cref="IOutboxDbContext"/>, the outbox message configuration is applied automatically. When it implements <see cref="IIdempotencyStoreDbContext"/>, the idempotency key configuration is applied automatically.</typeparam>
     /// <param name="modelBuilder">The model builder to apply the configuration to.</param>
     /// <param name="context">The DbContext instance used to resolve provider-specific configuration.</param>
     /// <returns>The <paramref name="modelBuilder"/> for chaining.</returns>
@@ -30,6 +31,13 @@ public static class ModelBuilderExtensions
         if (context is IOutboxDbContext)
         {
             var configuration = GetOutboxConfiguration(context, providerName);
+
+            _ = modelBuilder.ApplyConfiguration(configuration);
+        }
+
+        if (context is IIdempotencyStoreDbContext)
+        {
+            var configuration = GetIdempotencyKeyConfiguration(context, providerName);
 
             _ = modelBuilder.ApplyConfiguration(configuration);
         }
@@ -74,6 +82,47 @@ public static class ModelBuilderExtensions
                 resolvedOptions
             ),
             ProviderName.InMemory => new InMemoryOutboxMessageConfiguration(resolvedOptions),
+            _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
+        };
+    }
+
+    /// <summary>
+    /// Selects and instantiates the provider-appropriate <see cref="IEntityTypeConfiguration{TEntity}"/>
+    /// for <see cref="IdempotencyKey"/> based on the active EF Core provider.
+    /// </summary>
+    /// <typeparam name="TContext">The DbContext type, used to resolve registered <see cref="IdempotencyKeyOptions"/>.</typeparam>
+    /// <param name="context">The DbContext instance used to resolve <see cref="IOptions{TOptions}"/> of <see cref="IdempotencyKeyOptions"/>.</param>
+    /// <param name="providerName">The EF Core provider name read from <see cref="Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.ProviderName"/>.</param>
+    /// <returns>A provider-specific <see cref="IEntityTypeConfiguration{TEntity}"/> for <see cref="IdempotencyKey"/>.</returns>
+    /// <exception cref="NotSupportedException">Thrown when <paramref name="providerName"/> is not a supported EF Core provider.</exception>
+    private static IEntityTypeConfiguration<IdempotencyKey> GetIdempotencyKeyConfiguration<TContext>(
+        TContext context,
+        string? providerName
+    )
+        where TContext : DbContext
+    {
+        IOptions<IdempotencyKeyOptions>? resolvedOptions = null;
+        try
+        {
+            // EF Core's GetService throws InvalidOperationException when the service is not
+            // registered (instead of returning null), so we catch and fall back to defaults.
+            resolvedOptions = context.GetService<IOptions<IdempotencyKeyOptions>>();
+        }
+        catch (InvalidOperationException)
+        {
+            // IOptions<IdempotencyKeyOptions> not registered; use default options.
+        }
+
+        resolvedOptions ??= Options.Create(new IdempotencyKeyOptions());
+        return providerName switch
+        {
+            ProviderName.Npgsql => new PostgreSqlIdempotencyKeyConfiguration(resolvedOptions),
+            ProviderName.Sqlite => new SqliteIdempotencyKeyConfiguration(resolvedOptions),
+            ProviderName.SqlServer => new SqlServerIdempotencyKeyConfiguration(resolvedOptions),
+            ProviderName.PomeloMySql or ProviderName.OracleMySql => new SqlServerIdempotencyKeyConfiguration(
+                resolvedOptions
+            ),
+            ProviderName.InMemory => new InMemoryIdempotencyKeyConfiguration(resolvedOptions),
             _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
         };
     }
