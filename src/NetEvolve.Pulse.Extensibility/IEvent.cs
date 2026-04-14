@@ -30,7 +30,7 @@
 /// </code>
 /// </example>
 /// <seealso cref="IEventHandler{TEvent}"/>
-/// <seealso cref="IMediator.PublishAsync{TEvent}"/>
+/// <seealso cref="IMediatorSendOnly.PublishAsync{TEvent}"/>
 public interface IEvent
 {
     /// <summary>

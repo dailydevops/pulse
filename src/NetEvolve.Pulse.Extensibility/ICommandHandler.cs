@@ -31,7 +31,7 @@
 /// </code>
 /// </example>
 /// <seealso cref="ICommand{TResponse}" />
-/// <seealso cref="IMediator.SendAsync{TCommand, TResponse}" />
+/// <seealso cref="IMediatorSendOnly.SendAsync{TCommand, TResponse}" />
 public interface ICommandHandler<TCommand, TResponse>
     where TCommand : ICommand<TResponse>
 {

@@ -142,7 +142,7 @@
 /// </example>
 /// <seealso cref="IEvent" />
 /// <seealso cref="IEventHandler{TEvent}" />
-/// <seealso cref="IMediator.PublishAsync{TEvent}" />
+/// <seealso cref="IMediatorSendOnly.PublishAsync{TEvent}" />
 public interface IEventInterceptor<TEvent>
     where TEvent : IEvent
 {

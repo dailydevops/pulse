@@ -10,7 +10,7 @@
 /// The message transport abstraction decouples outbox processing from the delivery mechanism,
 /// enabling different deployment scenarios:
 /// <list type="bullet">
-/// <item><description>In-process: Dispatch directly to <see cref="IMediator.PublishAsync{TEvent}"/></description></item>
+/// <item><description>In-process: Dispatch directly to <see cref="IMediatorSendOnly.PublishAsync{TEvent}"/></description></item>
 /// <item><description>Message broker: Send to Kafka, RabbitMQ, Azure Service Bus, etc.</description></item>
 /// <item><description>HTTP: Forward to webhook endpoints</description></item>
 /// </list>

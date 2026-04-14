@@ -38,6 +38,37 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public async Task AddPulse_WithoutBuilder_RegistersMediatorSendOnly()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse();
+
+        using (Assert.Multiple())
+        {
+            var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IMediatorSendOnly));
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.ImplementationFactory).IsNotNull();
+            _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddPulse_WithoutBuilder_MediatorSendOnlyResolvesSameInstanceAsIMediator()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddPulse();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+
+        _ = await Assert.That(mediatorSendOnly).IsSameReferenceAs(mediator);
+    }
+
+    [Test]
     public async Task AddPulse_WithBuilder_InvokesBuilderAction()
     {
         var services = new ServiceCollection();

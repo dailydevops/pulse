@@ -103,6 +103,9 @@ public static class ServiceCollectionExtensions
             builder.Invoke(mediatorBuilder);
         }
 
-        return services.AddScoped<IMediator, PulseMediator>();
+        _ = services.AddScoped<IMediator, PulseMediator>();
+        services.TryAddScoped<IMediatorSendOnly>(sp => sp.GetRequiredService<IMediator>());
+
+        return services;
     }
 }

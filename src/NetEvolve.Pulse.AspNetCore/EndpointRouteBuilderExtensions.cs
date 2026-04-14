@@ -15,7 +15,7 @@ public static class EndpointRouteBuilderExtensions
 {
     /// <summary>
     /// Maps a command to an HTTP endpoint. The command is bound from the request body,
-    /// dispatched via <see cref="IMediator.SendAsync{TCommand, TResponse}"/>, and the result
+    /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand, TResponse}"/>, and the result
     /// is returned as <c>200 OK</c>.
     /// </summary>
     /// <typeparam name="TCommand">The command type. Must implement <see cref="ICommand{TResponse}"/>.</typeparam>
@@ -63,7 +63,7 @@ public static class EndpointRouteBuilderExtensions
 
     /// <summary>
     /// Maps a void command to an HTTP endpoint. The command is bound from the request body,
-    /// dispatched via <see cref="IMediator.SendAsync{TCommand}"/>, and returns <c>204 No Content</c>.
+    /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand}"/>, and returns <c>204 No Content</c>.
     /// </summary>
     /// <typeparam name="TCommand">The command type. Must implement <see cref="ICommand"/>.</typeparam>
     /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the endpoint to.</param>
