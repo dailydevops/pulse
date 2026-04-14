@@ -65,6 +65,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <summary>Cached SQL for inserting into Outbox Table.</summary>
     private readonly string _insertSql;
 
+    /// <summary>Cached SQL for counting pending outbox messages.</summary>
+    private readonly string _getPendingCountSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlOutboxRepository"/> class.
     /// </summary>
@@ -90,11 +93,14 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             : options.Value.Schema;
         _getPendingSql = $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size)";
         _getFailedForRetrySql =
-            $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size)";
-        _markCompletedSql = $"SELECT \"{schema}\".mark_outbox_message_completed(@message_id)";
+            $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size, @now_utc)";
+        _markCompletedSql =
+            $"SELECT \"{schema}\".mark_outbox_message_completed(@message_id, @processed_at, @updated_at)";
         _markFailedSql = $"SELECT \"{schema}\".mark_outbox_message_failed(@message_id, @error, @next_retry_at)";
         _markDeadLetterSql = $"SELECT \"{schema}\".mark_outbox_message_dead_letter(@message_id, @error)";
         _deleteCompletedSql = $"SELECT \"{schema}\".delete_completed_outbox_messages(@older_than_utc)";
+        _getPendingCountSql =
+            $"SELECT COUNT(*) FROM {options.Value.FullTableName} WHERE \"{OutboxMessageSchema.Columns.Status}\" = 0";
 
         _insertSql = $"""
             INSERT INTO {options.Value.FullTableName}
@@ -157,17 +163,32 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
+    public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(_getPendingCountSql, connection);
+
+        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return result is long count
+            ? count
+            : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
         int maxRetryCount,
         int batchSize,
         CancellationToken cancellationToken = default
     )
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(_getFailedForRetrySql, connection);
 
         _ = command.Parameters.AddWithValue("max_retry_count", maxRetryCount);
         _ = command.Parameters.AddWithValue("batch_size", batchSize);
+        _ = command.Parameters.AddWithValue("now_utc", now);
 
         return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -175,12 +196,35 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        var now = _timeProvider.GetUtcNow();
+
         await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(_markCompletedSql, connection);
 
         _ = command.Parameters.AddWithValue("message_id", messageId);
+        _ = command.Parameters.AddWithValue("processed_at", now);
+        _ = command.Parameters.AddWithValue("updated_at", now);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAsCompletedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var now = _timeProvider.GetUtcNow();
+
+        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var messageId in messageIds)
+        {
+            await using var command = new NpgsqlCommand(_markCompletedSql, connection);
+            _ = command.Parameters.AddWithValue("message_id", messageId);
+            _ = command.Parameters.AddWithValue("processed_at", now);
+            _ = command.Parameters.AddWithValue("updated_at", now);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -223,14 +267,18 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         IReadOnlyCollection<Guid> messageIds,
         string errorMessage,
         CancellationToken cancellationToken = default
-    ) =>
-        await Parallel
-            .ForEachAsync(
-                messageIds,
-                cancellationToken,
-                async (id, token) => await MarkAsFailedAsync(id, errorMessage, token).ConfigureAwait(false)
-            )
-            .ConfigureAwait(false);
+    )
+    {
+        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var messageId in messageIds)
+        {
+            await using var command = new NpgsqlCommand(_markFailedSql, connection);
+            _ = command.Parameters.AddWithValue("message_id", messageId);
+            _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+            _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <inheritdoc />
     public async Task MarkAsDeadLetterAsync(

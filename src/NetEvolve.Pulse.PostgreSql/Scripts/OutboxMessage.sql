@@ -106,7 +106,8 @@ $$;
 -- get_failed_outbox_messages_for_retry: Retrieves failed messages eligible for retry
 CREATE OR REPLACE FUNCTION ":schema_name".get_failed_outbox_messages_for_retry(
     max_retry_count INTEGER,
-    batch_size INTEGER
+    batch_size INTEGER,
+    now_utc TIMESTAMPTZ
 )
 RETURNS TABLE (
     "Id"            UUID,
@@ -130,6 +131,7 @@ BEGIN
         FROM ":schema_name".":table_name" om
         WHERE om."Status" = 3 -- Failed
           AND om."RetryCount" < max_retry_count
+          AND (om."NextRetryAt" IS NULL OR om."NextRetryAt" <= now_utc)
         ORDER BY om."UpdatedAt"
         LIMIT batch_size
         FOR UPDATE SKIP LOCKED
@@ -157,7 +159,9 @@ $$;
 
 -- mark_outbox_message_completed: Marks a message as successfully processed
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_completed(
-    message_id UUID
+    message_id UUID,
+    processed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -166,8 +170,8 @@ BEGIN
     UPDATE ":schema_name".":table_name"
     SET
         "Status" = 2, -- Completed
-        "ProcessedAt" = NOW(),
-        "UpdatedAt" = NOW()
+        "ProcessedAt" = processed_at,
+        "UpdatedAt" = updated_at
     WHERE "Id" = message_id
       AND "Status" = 1; -- Processing
 END;

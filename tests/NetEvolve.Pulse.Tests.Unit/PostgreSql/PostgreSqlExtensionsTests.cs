@@ -67,6 +67,22 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
+    public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersEventOutboxAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddOutbox().AddPostgreSqlOutbox("Host=localhost;Encrypt=true;"));
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IEventOutbox));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(OutboxEventStore));
+        }
+    }
+
+    [Test]
     public async Task AddPostgreSqlOutbox_WithValidConnectionString_RegistersTimeProviderAsSingleton()
     {
         var services = new ServiceCollection();
@@ -141,6 +157,22 @@ public sealed class PostgreSqlExtensionsTests
     }
 
     [Test]
+    public async Task AddPostgreSqlOutbox_WithFactory_RegistersEventOutboxAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddOutbox().AddPostgreSqlOutbox(_ => "Host=localhost;Encrypt=true;"));
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IEventOutbox));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(OutboxEventStore));
+        }
+    }
+
+    [Test]
     public async Task AddPostgreSqlOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
@@ -184,5 +216,48 @@ public sealed class PostgreSqlExtensionsTests
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
         }
+    }
+
+    [Test]
+    public async Task AddPostgreSqlOutboxTransactionScope_WithNullConfigurator_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() => PostgreSqlExtensions.AddPostgreSqlOutboxTransactionScope<TestUnitOfWork>(null!))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPostgreSqlOutboxTransactionScope_ReturnsConfiguratorForChaining()
+    {
+        var mock = Mock.Of<IMediatorBuilder>();
+        _ = mock.Services.Returns(new ServiceCollection());
+
+        var result = mock.Object.AddPostgreSqlOutboxTransactionScope<TestUnitOfWork>();
+
+        _ = await Assert.That(result).IsSameReferenceAs(mock.Object);
+    }
+
+    [Test]
+    public async Task AddPostgreSqlOutboxTransactionScope_RegistersTransactionScopeAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config
+                .AddOutbox()
+                .AddPostgreSqlOutbox("Host=localhost;Encrypt=true;")
+                .AddPostgreSqlOutboxTransactionScope<TestUnitOfWork>()
+        );
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOutboxTransactionScope));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestUnitOfWork));
+        }
+    }
+
+    private sealed class TestUnitOfWork : IOutboxTransactionScope
+    {
+        public object? GetCurrentTransaction() => null;
     }
 }
