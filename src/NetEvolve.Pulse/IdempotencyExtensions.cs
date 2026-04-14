@@ -38,25 +38,31 @@ public static class IdempotencyExtensions
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para><strong>Required:</strong></para>
-    /// An <see cref="IIdempotencyStore"/> implementation MUST be registered separately in the DI container.
-    /// Without it, the interceptor is a no-op pass-through.
+    /// An <see cref="IIdempotencyKeyRepository"/> implementation MUST be registered separately
+    /// in the DI container for the store to function.
+    /// Without a repository, <see cref="IIdempotencyStore"/> cannot be resolved and the interceptor
+    /// acts as a no-op pass-through.
     /// </remarks>
     /// <example>
     /// <code>
-    /// // Register the idempotency interceptor
+    /// // Register the idempotency interceptor and central store
     /// services.AddPulse(c =&gt; c.AddIdempotency());
     ///
-    /// // Register an IIdempotencyStore implementation
-    /// services.AddSingleton&lt;IIdempotencyStore, MyIdempotencyStore&gt;();
+    /// // Register an IIdempotencyKeyRepository implementation (e.g. EF Core)
+    /// services.AddScoped&lt;IIdempotencyKeyRepository, MyIdempotencyKeyRepository&gt;();
     /// </code>
     /// </example>
     public static IMediatorBuilder AddIdempotency(this IMediatorBuilder configurator)
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
-        configurator.Services.TryAddEnumerable(
+        var services = configurator.Services;
+
+        services.TryAddEnumerable(
             ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(IdempotencyCommandInterceptor<,>))
         );
+
+        services.TryAddScoped<IIdempotencyStore, IdempotencyStore>();
 
         return configurator;
     }
