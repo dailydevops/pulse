@@ -161,6 +161,38 @@ public abstract class IdempotencyTestsBase(
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_Handle_Cross_Scope_Duplicate_Insert_Without_Throwing(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    // Scope 1 (current scope): store the key
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+                    await store.StoreAsync("cross-scope-key", token).ConfigureAwait(false);
+
+                    // Scope 2: simulate a concurrent request arriving with the same key.
+                    // A fresh scope means a fresh DbContext with an empty change tracker, so
+                    // the local-tracker early-exit in StoreAsync will not fire. The insert
+                    // reaches the database and triggers a PK/unique-constraint violation,
+                    // which must be caught and treated as an idempotent no-op (exercises
+                    // the IsDuplicateKeyException code path).
+                    var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+                    await using var scope2 = scopeFactory.CreateAsyncScope();
+                    var store2 = scope2.ServiceProvider.GetRequiredService<IIdempotencyStore>();
+
+                    _ = await Assert
+                        .That(async () => await store2.StoreAsync("cross-scope-key", token).ConfigureAwait(false))
+                        .ThrowsNothing();
+
+                    var exists = await store2.ExistsAsync("cross-scope-key", token).ConfigureAwait(false);
+                    _ = await Assert.That(exists).IsTrue();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_Respect_TimeToLive_When_Key_Is_Within_Ttl(CancellationToken cancellationToken)
     {
         var fakeTime = new FakeTimeProvider();

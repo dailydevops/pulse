@@ -213,4 +213,117 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
                 .ThrowsNothing();
         }
     }
+
+    [Test]
+    public async Task StoreAsync_CrossScope_WhenKeyAlreadyExistsInDb_DoesNotThrow(CancellationToken cancellationToken)
+    {
+        var databaseName = nameof(StoreAsync_CrossScope_WhenKeyAlreadyExistsInDb_DoesNotThrow);
+        var now = DateTimeOffset.UtcNow;
+        const string key = "cross-scope-key";
+
+        // Context 1: insert the key
+        var context1 = CreateContext(databaseName);
+        await using (context1.ConfigureAwait(false))
+        {
+            var repo1 = CreateRepository(context1);
+            await repo1.StoreAsync(key, now, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Context 2: fresh context with empty change tracker — exercises IsDuplicateKeyException path
+        var context2 = CreateContext(databaseName);
+        await using (context2.ConfigureAwait(false))
+        {
+            var repo2 = CreateRepository(context2);
+
+            _ = await Assert
+                .That(async () => await repo2.StoreAsync(key, now, cancellationToken).ConfigureAwait(false))
+                .ThrowsNothing();
+        }
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithInMemoryArgumentException_ReturnsTrue()
+    {
+        var ex = new ArgumentException("An item with the same key has already been added. Key: mykey");
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithUnrelatedArgumentException_ReturnsFalse()
+    {
+        var ex = new ArgumentException("Value does not fall within the expected range.");
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithDbUpdateExceptionContainingSqlServer2627_ReturnsTrue()
+    {
+        var inner = new InvalidOperationException(
+            "Violation of PRIMARY KEY constraint 'PK_pulse_IdempotencyKey'. Cannot insert duplicate key in object 'pulse.IdempotencyKey'. The duplicate key value is (mykey). The statement has been terminated."
+        );
+        var ex = new DbUpdateException("An error occurred", inner);
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithDbUpdateExceptionContainingPostgres23505_ReturnsTrue()
+    {
+        var inner = new InvalidOperationException("23505: duplicate key value violates unique constraint");
+        var ex = new DbUpdateException("An error occurred", inner);
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithDbUpdateExceptionContainingSqliteUniqueConstraint_ReturnsTrue()
+    {
+        var inner = new InvalidOperationException("UNIQUE constraint failed: pulse.IdempotencyKey.IdempotencyKey");
+        var ex = new DbUpdateException("An error occurred", inner);
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithDbUpdateExceptionWithNullInner_ReturnsFalse()
+    {
+        var ex = new DbUpdateException("An error occurred");
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithUnrelatedDbUpdateException_ReturnsFalse()
+    {
+        var inner = new InvalidOperationException("A general database error occurred");
+        var ex = new DbUpdateException("An error occurred", inner);
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task IsDuplicateKeyException_WithUnrelatedExceptionType_ReturnsFalse()
+    {
+        var ex = new InvalidOperationException("Something went wrong");
+
+        var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
+
+        _ = await Assert.That(result).IsFalse();
+    }
 }

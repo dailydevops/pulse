@@ -78,7 +78,7 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
         {
             _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+        catch (Exception ex) when (IsDuplicateKeyException(ex))
         {
             // A concurrent request already stored the same key — this is idempotent and safe to ignore.
             // Detach the conflicting entry so the context remains in a clean state.
@@ -87,28 +87,70 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
     }
 
     /// <summary>
-    /// Determines whether the given <see cref="DbUpdateException"/> was caused by a
-    /// unique-constraint or primary-key violation (i.e., a duplicate key).
+    /// Determines whether the given exception was caused by a unique-constraint or
+    /// primary-key violation (i.e., a duplicate key insert).
     /// </summary>
-    private static bool IsDuplicateKeyException(DbUpdateException ex)
+    /// <remarks>
+    /// Handles exceptions from all supported EF Core providers:
+    /// <list type="bullet">
+    /// <item><description>
+    /// <strong>Relational providers</strong> (SQL Server, PostgreSQL, SQLite, MySQL) —
+    /// raise <see cref="DbUpdateException"/> wrapping a provider-specific database exception
+    /// whose message contains a duplicate-key indicator. The full exception chain is walked
+    /// because some providers wrap the root cause multiple levels deep.
+    /// </description></item>
+    /// <item><description>
+    /// <strong>EF Core InMemory provider</strong> — raises <see cref="ArgumentException"/>
+    /// with the message "An item with the same key has already been added."
+    /// </description></item>
+    /// </list>
+    /// </remarks>
+    internal static bool IsDuplicateKeyException(Exception ex)
     {
-        var inner = ex.InnerException;
-        if (inner is null)
+        // Walk the full exception chain so that providers that nest the root cause
+        // more than one level deep (e.g. AggregateException wrappers) are handled correctly.
+        var current = ex;
+        while (current is not null)
         {
-            return false;
+            // EF Core InMemory provider raises ArgumentException (not DbUpdateException) for
+            // duplicate primary-key inserts across different DbContext instances.
+            if (
+                current is ArgumentException
+                && current.Message.Contains(
+                    "An item with the same key has already been added",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                return true;
+            }
+
+            var message = current.Message;
+
+            // SQL Server / Azure SQL:
+            //   Error 2627 (PK violation):    "Violation of PRIMARY KEY constraint '...'. Cannot insert duplicate key ..."
+            //   Error 2601 (unique-ix violation): "Cannot insert duplicate key row in object '...' with unique index '...'"
+            // PostgreSQL (Npgsql):
+            //   SQLSTATE 23505: "23505: duplicate key value violates unique constraint ..."
+            // SQLite:
+            //   Error 19: "SQLite Error 19: 'UNIQUE constraint failed: ...'"
+            // MySQL / MariaDB:
+            //   Error 1062: "Duplicate entry '...' for key '...'"
+            if (
+                message.Contains("Cannot insert duplicate key", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("Violation of PRIMARY KEY constraint", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("23505", StringComparison.Ordinal)
+                || message.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return true;
+            }
+
+            current = current.InnerException;
         }
 
-        var message = inner.Message;
-
-        // SQL Server / Azure SQL — error 2627 (PK violation) or 2601 (unique index violation)
-        // PostgreSQL (Npgsql) — "23505" unique_violation
-        // SQLite — "UNIQUE constraint failed"
-        // MySQL / MariaDB — error 1062 "Duplicate entry"
-        return message.Contains("2627", StringComparison.Ordinal)
-            || message.Contains("2601", StringComparison.Ordinal)
-            || message.Contains("23505", StringComparison.Ordinal)
-            || message.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 }
