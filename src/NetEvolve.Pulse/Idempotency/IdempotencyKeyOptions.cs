@@ -43,4 +43,13 @@ public class IdempotencyKeyOptions
     /// This option only controls whether expired keys are logically treated as absent.
     /// </remarks>
     public TimeSpan? TimeToLive { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether WAL (Write-Ahead Logging) mode is enabled.
+    /// </summary>
+    /// <remarks>
+    /// This setting is used by SQLite-based providers.
+    /// Default: <see langword="true"/>.
+    /// </remarks>
+    public bool EnableWalMode { get; set; } = true;
 }
