@@ -25,7 +25,7 @@ public static class PostgreSqlExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="PostgreSqlEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="PostgreSqlOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="PostgreSqlOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -73,7 +73,7 @@ public static class PostgreSqlExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="PostgreSqlEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="PostgreSqlOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="PostgreSqlOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -127,7 +127,7 @@ public static class PostgreSqlExtensions
     /// database objects before using this provider.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IEventOutbox"/> as <see cref="PostgreSqlEventOutbox"/> (Scoped)</description></item>
+    /// <item><description><see cref="IEventOutbox"/> as <see cref="OutboxEventStore"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxRepository"/> as <see cref="PostgreSqlOutboxRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IOutboxManagement"/> as <see cref="PostgreSqlOutboxManagement"/> (Scoped)</description></item>
     /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
@@ -163,7 +163,7 @@ public static class PostgreSqlExtensions
 
     /// <summary>
     /// Registers a unit-of-work type as <see cref="IOutboxTransactionScope"/> (Scoped) so that
-    /// <see cref="PostgreSqlEventOutbox"/> can enlist in the caller's transaction automatically.
+    /// <see cref="OutboxEventStore"/> can enlist in the caller's transaction automatically.
     /// </summary>
     /// <typeparam name="TUnitOfWork">
     /// A type that implements both the application unit-of-work contract and <see cref="IOutboxTransactionScope"/>.
@@ -172,7 +172,7 @@ public static class PostgreSqlExtensions
     /// <returns>The configurator for chaining.</returns>
     /// <remarks>
     /// Call this method after <see cref="AddPostgreSqlOutbox(IMediatorBuilder, string, Action{OutboxOptions}?)"/>
-    /// to wire up your unit-of-work so that <see cref="PostgreSqlEventOutbox"/> automatically
+    /// to wire up your unit-of-work so that <see cref="OutboxEventStore"/> automatically
     /// enlists in any active <see cref="Npgsql.NpgsqlTransaction"/> owned by the unit-of-work.
     /// </remarks>
     /// <example>
@@ -199,9 +199,7 @@ public static class PostgreSqlExtensions
         // AddOutbox() uses TryAdd* internally, so this call is safe even when AddOutbox() was already invoked.
         _ = configurator
             .AddOutbox()
-            .Services.RemoveAll<IEventOutbox>()
-            .AddScoped<IEventOutbox, PostgreSqlEventOutbox>()
-            .RemoveAll<IOutboxRepository>()
+            .Services.RemoveAll<IOutboxRepository>()
             .AddScoped<IOutboxRepository, PostgreSqlOutboxRepository>()
             .RemoveAll<IOutboxManagement>()
             .AddScoped<IOutboxManagement, PostgreSqlOutboxManagement>();
