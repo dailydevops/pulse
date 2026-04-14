@@ -3,7 +3,7 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<InMemoryDatabaseServiceFixture, EntityFrameworkInitializer>(
+[ClassDataSource<InMemoryDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
     Shared = [SharedType.None, SharedType.PerTestSession]
 )]
 [TestGroup("InMemory")]

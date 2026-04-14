@@ -3,7 +3,9 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<MySqlDatabaseServiceFixture, EntityFrameworkInitializer>(Shared = [SharedType.None, SharedType.None])]
+[ClassDataSource<MySqlDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
+    Shared = [SharedType.None, SharedType.None]
+)]
 [TestGroup("MySql")]
 [TestGroup("EntityFramework")]
 [InheritsTests]

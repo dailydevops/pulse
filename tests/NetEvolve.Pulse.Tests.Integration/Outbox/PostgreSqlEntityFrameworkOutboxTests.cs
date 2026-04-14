@@ -3,7 +3,7 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<PostgreSqlDatabaseServiceFixture, EntityFrameworkInitializer>(
+[ClassDataSource<PostgreSqlDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]
 )]
 [TestGroup("PostgreSql")]
