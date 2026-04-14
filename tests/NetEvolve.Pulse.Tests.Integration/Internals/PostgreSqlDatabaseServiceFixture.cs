@@ -30,15 +30,14 @@ public sealed class PostgreSqlDatabaseServiceFixture : IDatabaseServiceFixture
 
     public DatabaseType DatabaseType => DatabaseType.PostgreSQL;
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         // Eagerly clear the Npgsql pool for this test's unique connection string so that
         // physical connections are returned to the server immediately instead of sitting
         // idle for ConnectionIdleLifetime seconds.  Without this, completed-test pools
         // accumulate and exhaust PostgreSQL's max_connections during parallel runs.
-        using var conn = new NpgsqlConnection(ConnectionString);
+        await using var conn = new NpgsqlConnection(ConnectionString);
         NpgsqlConnection.ClearPool(conn);
-        return ValueTask.CompletedTask;
     }
 
     public async Task InitializeAsync()

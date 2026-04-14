@@ -11,7 +11,7 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 
-public sealed class EntityFrameworkInitializer : IDatabaseInitializer
+public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
 {
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService) =>
         mediatorBuilder.AddEntityFrameworkOutbox<TestDbContext>();

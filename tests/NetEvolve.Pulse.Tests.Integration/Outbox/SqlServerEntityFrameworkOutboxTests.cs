@@ -3,7 +3,7 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<SqlServerDatabaseServiceFixture, EntityFrameworkInitializer>(
+[ClassDataSource<SqlServerDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]
 )]
 [TestGroup("SqlServer")]

@@ -3,7 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<PostgreSqlDatabaseServiceFixture, PostgreSqlAdoNetInitializer>(
+[ClassDataSource<PostgreSqlDatabaseServiceFixture, PostgreSqlAdoNetOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]
 )]
 [TestGroup("PostgreSql")]

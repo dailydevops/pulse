@@ -3,7 +3,9 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 
-[ClassDataSource<SQLiteDatabaseServiceFixture, EntityFrameworkInitializer>(Shared = [SharedType.None, SharedType.None])]
+[ClassDataSource<SQLiteDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
+    Shared = [SharedType.None, SharedType.None]
+)]
 [TestGroup("SQLite")]
 [TestGroup("EntityFramework")]
 [InheritsTests]

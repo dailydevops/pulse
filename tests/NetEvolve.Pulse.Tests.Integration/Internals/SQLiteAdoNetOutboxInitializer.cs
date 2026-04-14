@@ -13,7 +13,7 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is constructed from validated OutboxOptions.TableName property, not user input."
 )]
-public sealed class SQLiteAdoNetInitializer : IDatabaseInitializer
+public sealed class SQLiteAdoNetOutboxInitializer : IDatabaseInitializer
 {
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
     {
