@@ -119,7 +119,7 @@ public static class ModelBuilderExtensions
             ProviderName.Npgsql => new PostgreSqlIdempotencyKeyConfiguration(resolvedOptions),
             ProviderName.Sqlite => new SqliteIdempotencyKeyConfiguration(resolvedOptions),
             ProviderName.SqlServer => new SqlServerIdempotencyKeyConfiguration(resolvedOptions),
-            ProviderName.PomeloMySql or ProviderName.OracleMySql => new SqlServerIdempotencyKeyConfiguration(
+            ProviderName.PomeloMySql or ProviderName.OracleMySql => new MySqlIdempotencyKeyConfiguration(
                 resolvedOptions
             ),
             ProviderName.InMemory => new InMemoryIdempotencyKeyConfiguration(resolvedOptions),
