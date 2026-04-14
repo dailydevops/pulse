@@ -10,6 +10,7 @@ public sealed class PostgreSqlContainerFixture : IAsyncDisposable, IAsyncInitial
         /*dockerimage*/"postgres:18.3"
     )
         .WithLogger(NullLogger.Instance)
+        .WithCommand("-c", "max_connections=500") // Raised for parallel integration tests; each test creates its own unique database/pool.
         .Build();
 
     public string ConnectionString => _container.GetConnectionString() + ";Include Error Detail=true;";
