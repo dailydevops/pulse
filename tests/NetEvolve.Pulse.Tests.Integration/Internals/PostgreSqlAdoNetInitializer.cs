@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
@@ -74,6 +74,6 @@ public sealed partial class PostgreSqlAdoNetInitializer : IDatabaseInitializer
         // The Configure method handles all necessary service registrations.
     }
 
-    [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline, 1000)]
+    [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
     private static partial Regex SearchSetVar();
 }

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -181,7 +181,14 @@ public static class SqlServerIdempotencyMediatorBuilderExtensions
             {
                 o.Schema = sqlServerOptions.Schema;
                 o.TableName = sqlServerOptions.TableName;
-                o.TimeToLive = sqlServerOptions.TimeToLive;
+
+                // Only propagate TimeToLive when explicitly set on SqlServerIdempotencyKeyOptions.
+                // Avoid overriding an already-configured IdempotencyKeyOptions.TimeToLive with null
+                // when the SQL Server-specific options leave it unset.
+                if (sqlServerOptions.TimeToLive.HasValue)
+                {
+                    o.TimeToLive = sqlServerOptions.TimeToLive;
+                }
             });
         });
 

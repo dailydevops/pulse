@@ -52,7 +52,7 @@ internal static partial class Predefined
     }
 
     /// <summary>Matches <c>LanguageVersion: CSharp&lt;N&gt;</c> tokens for version-agnostic scrubbing.</summary>
-    [GeneratedRegex(@"CSharp\d+", RegexOptions.None, 1000)]
+    [GeneratedRegex(@"CSharp\d+", RegexOptions.None, 10000)]
     private static partial Regex ScrubLangVersion();
 
     /// <summary>
