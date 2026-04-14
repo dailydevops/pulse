@@ -5,11 +5,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 
 /// <summary>
-/// Entity Framework Core implementation of <see cref="IIdempotencyStore"/>.
+/// Entity Framework Core implementation of <see cref="IIdempotencyKeyRepository"/>.
 /// Provides idempotency key persistence using any EF Core database provider.
 /// </summary>
 /// <remarks>
@@ -18,50 +17,36 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 /// <para><strong>Duplicate Key Handling:</strong></para>
 /// Concurrent inserts of the same key are handled gracefully — a database unique constraint
 /// violation is caught and treated as a successful (idempotent) store operation.
-/// <para><strong>Time-to-Live:</strong></para>
-/// When <see cref="IdempotencyKeyOptions.TimeToLive"/> is set, keys older than the TTL
-/// are treated as absent by <see cref="ExistsAsync"/>. Physical deletion is not performed;
-/// expired keys are logically ignored.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IIdempotencyStoreDbContext"/>.</typeparam>
-internal sealed class EntityFrameworkIdempotencyStore<TContext> : IIdempotencyStore
+internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdempotencyKeyRepository
     where TContext : DbContext, IIdempotencyStoreDbContext
 {
     private readonly TContext _context;
-    private readonly IdempotencyKeyOptions _options;
-    private readonly TimeProvider _timeProvider;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="EntityFrameworkIdempotencyStore{TContext}"/> class.
+    /// Initializes a new instance of the <see cref="EntityFrameworkIdempotencyKeyRepository{TContext}"/> class.
     /// </summary>
     /// <param name="context">The DbContext for database operations.</param>
-    /// <param name="options">The idempotency key options.</param>
-    /// <param name="timeProvider">The time provider for computing TTL cutoff timestamps.</param>
-    public EntityFrameworkIdempotencyStore(
-        TContext context,
-        IOptions<IdempotencyKeyOptions> options,
-        TimeProvider timeProvider
-    )
+    public EntityFrameworkIdempotencyKeyRepository(TContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(timeProvider);
-
         _context = context;
-        _options = options.Value;
-        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
-    public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+    public Task<bool> ExistsAsync(
+        string idempotencyKey,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        if (_options.TimeToLive.HasValue)
+        if (validFrom.HasValue)
         {
-            var cutoff = _timeProvider.GetUtcNow() - _options.TimeToLive.Value;
             return _context.IdempotencyKeys.AnyAsync(
-                k => k.Key == idempotencyKey && k.CreatedAt >= cutoff,
+                k => k.Key == idempotencyKey && k.CreatedAt >= validFrom,
                 cancellationToken
             );
         }
@@ -70,7 +55,11 @@ internal sealed class EntityFrameworkIdempotencyStore<TContext> : IIdempotencySt
     }
 
     /// <inheritdoc />
-    public async Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+    public async Task StoreAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
@@ -81,7 +70,7 @@ internal sealed class EntityFrameworkIdempotencyStore<TContext> : IIdempotencySt
             return;
         }
 
-        var entry = new IdempotencyKey { Key = idempotencyKey, CreatedAt = _timeProvider.GetUtcNow() };
+        var entry = new IdempotencyKey { Key = idempotencyKey, CreatedAt = createdAt };
 
         _ = await _context.IdempotencyKeys.AddAsync(entry, cancellationToken).ConfigureAwait(false);
 

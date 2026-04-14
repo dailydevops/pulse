@@ -42,14 +42,24 @@ public sealed class EntityFrameworkIdempotencyExtensionsTests
     public async Task AddEntityFrameworkIdempotencyStore_RegistersIdempotencyStoreAsScoped()
     {
         var services = new ServiceCollection();
-        _ = services.AddDbContext<TestIdempotencyDbContext>(o =>
-            o.UseInMemoryDatabase(nameof(AddEntityFrameworkIdempotencyStore_RegistersIdempotencyStoreAsScoped))
-        );
-        _ = services.AddPulse(config =>
-            config.AddIdempotency().AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>()
-        );
+        _ = services.AddPulse(config => config.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>());
 
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IIdempotencyStore));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddEntityFrameworkIdempotencyStore_RegistersIdempotencyKeyRepositoryAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>());
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IIdempotencyKeyRepository));
 
         using (Assert.Multiple())
         {
@@ -81,9 +91,7 @@ public sealed class EntityFrameworkIdempotencyExtensionsTests
             o.UseInMemoryDatabase(nameof(AddEntityFrameworkIdempotencyStore_WithConfigureOptions_AppliesOptions))
         );
         _ = services.AddPulse(config =>
-            config
-                .AddIdempotency()
-                .AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>(options => options.Schema = "myschema")
+            config.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>(options => options.Schema = "myschema")
         );
 
         var provider = services.BuildServiceProvider();
@@ -103,11 +111,9 @@ public sealed class EntityFrameworkIdempotencyExtensionsTests
             o.UseInMemoryDatabase(nameof(AddEntityFrameworkIdempotencyStore_WithTableNameOption_AppliesOptions))
         );
         _ = services.AddPulse(config =>
-            config
-                .AddIdempotency()
-                .AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>(options =>
-                    options.TableName = "CustomIdempotency"
-                )
+            config.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>(options =>
+                options.TableName = "CustomIdempotency"
+            )
         );
 
         var provider = services.BuildServiceProvider();
@@ -128,9 +134,7 @@ public sealed class EntityFrameworkIdempotencyExtensionsTests
             o.UseInMemoryDatabase(nameof(AddEntityFrameworkIdempotencyStore_WithTimeToLiveOption_AppliesOptions))
         );
         _ = services.AddPulse(config =>
-            config
-                .AddIdempotency()
-                .AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>(options => options.TimeToLive = ttl)
+            config.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>(options => options.TimeToLive = ttl)
         );
 
         var provider = services.BuildServiceProvider();

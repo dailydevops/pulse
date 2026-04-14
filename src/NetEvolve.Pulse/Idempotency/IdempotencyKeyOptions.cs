@@ -4,7 +4,7 @@ using System;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 
 /// <summary>
-/// Configuration options for the Entity Framework Core idempotency store.
+/// Configuration options for the idempotency store.
 /// </summary>
 public sealed class IdempotencyKeyOptions
 {

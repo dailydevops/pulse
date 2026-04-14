@@ -30,7 +30,8 @@ public static class EntityFrameworkIdempotencyExtensions
     /// </list>
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
-    /// <item><description><see cref="IIdempotencyStore"/> as <see cref="EntityFrameworkIdempotencyStore{TContext}"/> (Scoped)</description></item>
+    /// <item><description><see cref="IIdempotencyKeyRepository"/> as <see cref="EntityFrameworkIdempotencyKeyRepository{TContext}"/> (Scoped)</description></item>
+    /// <item><description><see cref="IIdempotencyStore"/> as <see cref="IdempotencyStore"/> (Scoped, via <see cref="IdempotencyExtensions.AddIdempotency"/>)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
     /// The DbContext must already be registered in the service collection.
@@ -57,6 +58,8 @@ public static class EntityFrameworkIdempotencyExtensions
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
+        _ = configurator.AddIdempotency();
+
         var services = configurator.Services;
 
         _ = services.Configure<IdempotencyKeyOptions>(configureOptions ?? (_ => { }));
@@ -64,8 +67,8 @@ public static class EntityFrameworkIdempotencyExtensions
         services.TryAddSingleton(TimeProvider.System);
 
         _ = services
-            .RemoveAll<IIdempotencyStore>()
-            .AddScoped<IIdempotencyStore, EntityFrameworkIdempotencyStore<TContext>>();
+            .RemoveAll<IIdempotencyKeyRepository>()
+            .AddScoped<IIdempotencyKeyRepository, EntityFrameworkIdempotencyKeyRepository<TContext>>();
 
         return configurator;
     }
