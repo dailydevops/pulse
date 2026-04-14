@@ -54,7 +54,7 @@
     <PackageVersion Include="Verify.TUnit" Version="31.15.0" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 8" Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.25" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.26" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.25" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.25" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.25" />
