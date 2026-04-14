@@ -44,6 +44,8 @@ internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigura
         // The Oracle MySQL provider lacks a proper DateTimeOffset type mapping for
         // parameterised operations. Converting to long eliminates the broken provider-specific
         // type resolution and ensures correct ordering and comparison semantics.
+        // The read-back uses TimeSpan.Zero because the value is always persisted as UTC ticks
+        // (v.UtcTicks), so the reconstructed DateTimeOffset correctly represents UTC.
         _ = builder
             .Property(k => k.CreatedAt)
             .HasColumnType("bigint")
