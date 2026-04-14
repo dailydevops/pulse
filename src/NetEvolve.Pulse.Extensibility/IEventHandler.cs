@@ -31,7 +31,7 @@
 /// </code>
 /// </example>
 /// <seealso cref="IEvent" />
-/// <seealso cref="IMediator.PublishAsync{TEvent}" />
+/// <seealso cref="IMediatorSendOnly.PublishAsync{TEvent}" />
 public interface IEventHandler<in TEvent>
     where TEvent : IEvent
 {
