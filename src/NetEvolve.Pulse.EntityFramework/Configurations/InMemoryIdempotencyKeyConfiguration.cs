@@ -1,6 +1,7 @@
-namespace NetEvolve.Pulse.Idempotency;
+namespace NetEvolve.Pulse.Configurations;
 
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
 /// Entity Framework Core configuration for <see cref="IdempotencyKey"/> targeting the

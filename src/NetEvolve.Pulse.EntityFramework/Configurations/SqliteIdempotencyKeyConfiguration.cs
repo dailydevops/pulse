@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Idempotency;
+namespace NetEvolve.Pulse.Configurations;
 
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
 /// Entity Framework Core configuration for <see cref="IdempotencyKey"/> targeting SQLite.

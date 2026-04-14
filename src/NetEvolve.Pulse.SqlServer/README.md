@@ -4,11 +4,13 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.SqlServer.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/)
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/blob/main/LICENSE)
 
-SQL Server persistence provider for the Pulse outbox pattern using plain ADO.NET. Provides optimized T-SQL operations with proper transaction support and locking strategies for reliable event delivery in high-throughput scenarios.
+SQL Server persistence provider for the Pulse outbox pattern and idempotency store using plain ADO.NET. Provides optimized T-SQL operations with proper transaction support and locking strategies for reliable event delivery and at-most-once command execution in high-throughput scenarios.
 
 ## Features
 
 - **Plain ADO.NET**: No ORM overhead, direct SQL Server access via `Microsoft.Data.SqlClient`
+- **Outbox Pattern**: Reliable event delivery with transaction support
+- **Idempotency Store**: At-most-once command execution without requiring EF Core
 - **Transaction Support**: Enlist outbox operations in existing `SqlTransaction` instances
 - **Optimized Queries**: Uses stored procedures with ROWLOCK/READPAST hints for concurrent access
 - **Dead Letter Management**: Built-in support for inspecting, replaying, and monitoring dead-letter messages via `IOutboxManagement`
@@ -105,6 +107,8 @@ The script creates:
 
 ## Quick Start
 
+### Outbox Pattern
+
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
@@ -116,6 +120,76 @@ services.AddPulse(config => config
         options => options.Schema = "pulse",
         processorOptions => processorOptions.BatchSize = 100)
     .AddSqlServerOutbox("Server=.;Database=MyDb;Integrated Security=true;TrustServerCertificate=true;")
+);
+```
+
+### Idempotency Store
+
+The SQL Server idempotency store provides at-most-once command execution for applications using raw ADO.NET or Dapper, without requiring EF Core.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using NetEvolve.Pulse;
+
+var services = new ServiceCollection();
+
+services.AddPulse(config => config
+    .AddIdempotency()
+    .AddSqlServerIdempotencyStore("Server=.;Database=MyDb;Integrated Security=true;TrustServerCertificate=true;")
+);
+```
+
+#### Database Setup for Idempotency
+
+Execute the `IdempotencyKey.sql` script from the `Scripts` folder (same SQLCMD requirements as `OutboxMessage.sql`):
+
+```powershell
+sqlcmd -S your-server -d your-database -i IdempotencyKey.sql
+```
+
+The script creates:
+- The `[IdempotencyKey]` table with `IdempotencyKey` (PK) and `CreatedAt` columns
+- Stored procedures: `usp_ExistsIdempotencyKey`, `usp_InsertIdempotencyKey`, `usp_DeleteExpiredIdempotencyKeys`
+
+#### Using Idempotent Commands
+
+```csharp
+using NetEvolve.Pulse.Extensibility.Idempotency;
+
+public sealed record CreateOrderCommand(string OrderId, decimal Amount) 
+    : IIdempotentCommand<OrderCreatedResult>
+{
+    // The IdempotencyKey is checked before the handler executes
+    public string IdempotencyKey => OrderId;
+}
+
+public sealed class CreateOrderCommandHandler 
+    : ICommandHandler<CreateOrderCommand, OrderCreatedResult>
+{
+    public async Task<OrderCreatedResult> HandleAsync(
+        CreateOrderCommand command, 
+        CancellationToken cancellationToken)
+    {
+        // This handler will only execute once per unique OrderId
+        // Subsequent requests with the same OrderId will throw IdempotencyConflictException
+        return new OrderCreatedResult(command.OrderId);
+    }
+}
+```
+
+#### Time-To-Live Configuration
+
+```csharp
+services.AddPulse(config => config
+    .AddIdempotency()
+    .AddSqlServerIdempotencyStore(
+        "Server=.;Database=MyDb;Integrated Security=true;",
+        options =>
+        {
+            options.Schema = "pulse";
+            options.TableName = "IdempotencyKey";
+            options.TimeToLive = TimeSpan.FromHours(24); // Keys expire after 24 hours
+        })
 );
 ```
 
@@ -136,12 +210,24 @@ services.AddPulse(config => config
 
 ### Registered Services
 
+#### Outbox
+
 `AddSqlServerOutbox(...)` registers the following services:
 
 | Service | Implementation | Lifetime |
 |---|---|---|
 | `IOutboxRepository` | `SqlServerOutboxRepository` | Scoped |
 | `IOutboxManagement` | `SqlServerOutboxManagement` | Scoped |
+| `TimeProvider` | `TimeProvider.System` | Singleton (if not already registered) |
+
+#### Idempotency Store
+
+`AddSqlServerIdempotencyStore(...)` registers the following services:
+
+| Service | Implementation | Lifetime |
+|---|---|---|
+| `IIdempotencyKeyRepository` | `SqlServerIdempotencyKeyRepository` | Scoped |
+| `IIdempotencyStore` | `IdempotencyStore` | Scoped |
 | `TimeProvider` | `TimeProvider.System` | Singleton (if not already registered) |
 
 ## Dead Letter Management

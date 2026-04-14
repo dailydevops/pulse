@@ -7,41 +7,42 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.Idempotency;
 
 [SuppressMessage(
     "Security",
     "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "SQL is read from a script file with schema and table names substituted from validated OutboxOptions properties."
+    Justification = "SQL is read from a script file with schema and table names substituted from validated IdempotencyKeyOptions properties."
 )]
-public sealed partial class SqlServerAdoNetInitializer : IDatabaseInitializer
+public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
         "Scripts",
         "SqlServer",
-        "OutboxMessage.sql"
+        "IdempotencyKey.sql"
     );
 
     public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddSqlServerOutbox(databaseService.ConnectionString);
+        _ = mediatorBuilder.AddSqlServerIdempotencyStore(databaseService.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
-        var options = serviceProvider.GetRequiredService<IOptions<OutboxOptions>>().Value;
+        var options = serviceProvider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
 
         var connectionString =
             options.ConnectionString
-            ?? throw new InvalidOperationException("OutboxOptions.ConnectionString is not configured.");
+            ?? throw new InvalidOperationException("IdempotencyKeyOptions.ConnectionString is not configured.");
 
-        var schema = string.IsNullOrWhiteSpace(options.Schema) ? OutboxMessageSchema.DefaultSchema : options.Schema;
+        var schema = string.IsNullOrWhiteSpace(options.Schema)
+            ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultSchema
+            : options.Schema;
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)
-            ? OutboxMessageSchema.DefaultTableName
+            ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultTableName
             : options.TableName;
 
         var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);

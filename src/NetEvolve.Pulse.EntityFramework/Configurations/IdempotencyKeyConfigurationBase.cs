@@ -1,9 +1,10 @@
-namespace NetEvolve.Pulse.Idempotency;
+namespace NetEvolve.Pulse.Configurations;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
 /// Abstract base class for Entity Framework Core configuration of <see cref="IdempotencyKey"/>.
