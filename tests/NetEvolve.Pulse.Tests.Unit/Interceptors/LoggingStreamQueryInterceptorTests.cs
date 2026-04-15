@@ -2,6 +2,8 @@ namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -274,7 +276,7 @@ public class LoggingStreamQueryInterceptorTests
         var items = new List<string>();
         await foreach (
             var item in interceptor
-                .HandleAsync(query, (_, _) => GenerateItems([]), cancellationToken)
+                .HandleAsync(query, (_, _) => GenerateItems<string>([]), cancellationToken)
                 .ConfigureAwait(false)
         )
         {
@@ -303,7 +305,7 @@ public class LoggingStreamQueryInterceptorTests
     private static async IAsyncEnumerable<T> GenerateItemsWithDelay<T>(
         IEnumerable<T> items,
         int delayMs,
-        CancellationToken cancellationToken
+        [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
         foreach (var item in items)
@@ -317,7 +319,9 @@ public class LoggingStreamQueryInterceptorTests
     {
         await Task.CompletedTask;
         throw exception;
+#pragma warning disable CS0162
         yield break;
+#pragma warning restore CS0162
     }
 
     private static async IAsyncEnumerable<T> GenerateItemsThenThrow<T>(IEnumerable<T> items, Exception exception)
