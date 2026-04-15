@@ -13,7 +13,7 @@ public static class LoggingExtensions
 {
     /// <summary>
     /// Adds structured <see cref="Microsoft.Extensions.Logging.ILogger"/>-based logging interceptors for all
-    /// commands, queries, and events processed by the mediator.
+    /// commands, queries, stream queries, and events processed by the mediator.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">
@@ -72,6 +72,9 @@ public static class LoggingExtensions
         );
         configurator.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(LoggingRequestInterceptor<,>))
+        );
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton(typeof(IStreamQueryInterceptor<,>), typeof(LoggingStreamQueryInterceptor<,>))
         );
 
         return configurator;
