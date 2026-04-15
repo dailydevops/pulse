@@ -536,8 +536,12 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         foreach (var handler in handlers)
         {
-            allRegistrations.AddRange(handler.Registrations.Where(reg => !duplicatedServiceTypes.Contains(reg.ServiceTypeName)
-            || emittedServiceTypes.Add(reg.ServiceTypeName)));
+            allRegistrations.AddRange(
+                handler.Registrations.Where(reg =>
+                    !duplicatedServiceTypes.Contains(reg.ServiceTypeName)
+                    || emittedServiceTypes.Add(reg.ServiceTypeName)
+                )
+            );
         }
 
         return allRegistrations;
@@ -670,12 +674,12 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     {
         var firstAttribute = attributes.FirstOrDefault();
 
-        if ( firstAttribute is null)
+        if (firstAttribute is null)
         {
             return DefaultLifetime;
         }
 
-            return ReadLifetimeFromSingleAttr(firstAttribute);
+        return ReadLifetimeFromSingleAttr(firstAttribute);
     }
 
     /// <summary>
@@ -767,11 +771,13 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         // Find the matching open handler interface in the class's AllInterfaces.
-        var matchingIface = classSymbol.AllInterfaces.FirstOrDefault(iface => string.Equals(
-            GetFullMetadataName(iface.OriginalDefinition),
-            expectedHandlerIfaceName,
-            StringComparison.Ordinal
-        ));
+        var matchingIface = classSymbol.AllInterfaces.FirstOrDefault(iface =>
+            string.Equals(
+                GetFullMetadataName(iface.OriginalDefinition),
+                expectedHandlerIfaceName,
+                StringComparison.Ordinal
+            )
+        );
 
         if (matchingIface is null)
         {
