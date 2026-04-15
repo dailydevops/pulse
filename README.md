@@ -16,28 +16,41 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - **NetEvolve.Pulse** — Mediator implementation with interceptor pipeline, outbox pattern support, and DI integration ([src/NetEvolve.Pulse/README.md](src/NetEvolve.Pulse/README.md))
 - **NetEvolve.Pulse.Extensibility** — Contracts and abstractions for commands, queries, events, handlers, and configurators ([src/NetEvolve.Pulse.Extensibility/README.md](src/NetEvolve.Pulse.Extensibility/README.md))
 
+### Tooling
+
+- **NetEvolve.Pulse.SourceGeneration** — Roslyn incremental source generator that automatically emits DI registration code for handler classes annotated with `[PulseHandler]`; detects missing or duplicate registrations at compile time via PULSE001 and PULSE002 diagnostics ([src/NetEvolve.Pulse.SourceGeneration/README.md](src/NetEvolve.Pulse.SourceGeneration/README.md))
+
 ### Integration Libraries
 
 - **NetEvolve.Pulse.AspNetCore** — ASP.NET Core Minimal API integration: `IEndpointRouteBuilder` extension methods that map mediator commands and queries directly to HTTP endpoints using the `CommandHttpMethod` enum (`Post`, `Put`, `Patch`, `Delete`) ([src/NetEvolve.Pulse.AspNetCore/README.md](src/NetEvolve.Pulse.AspNetCore/README.md))
+- **NetEvolve.Pulse.FluentValidation** — Automatic pre-handler validation via FluentValidation: resolves all `IValidator<TRequest>` instances and throws `ValidationException` on failure, with no impact when no validators are registered ([src/NetEvolve.Pulse.FluentValidation/README.md](src/NetEvolve.Pulse.FluentValidation/README.md))
+- **NetEvolve.Pulse.HttpCorrelation** — Automatically propagates the HTTP correlation ID from `IHttpCorrelationAccessor` into every `IRequest<TResponse>` and `IEvent` dispatched through the mediator, without overwriting a caller-set value ([src/NetEvolve.Pulse.HttpCorrelation/README.md](src/NetEvolve.Pulse.HttpCorrelation/README.md))
 
 ### Provider Libraries
 
+#### Persistence
+
+- **NetEvolve.Pulse.EntityFramework** — Entity Framework Core persistence for the outbox pattern ([src/NetEvolve.Pulse.EntityFramework/README.md](src/NetEvolve.Pulse.EntityFramework/README.md))
+- **NetEvolve.Pulse.SqlServer** — SQL Server ADO.NET persistence for the outbox pattern ([src/NetEvolve.Pulse.SqlServer/README.md](src/NetEvolve.Pulse.SqlServer/README.md))
+- **NetEvolve.Pulse.PostgreSql** — PostgreSQL ADO.NET persistence for the outbox pattern using `Npgsql` with `FOR UPDATE SKIP LOCKED` for concurrent access ([src/NetEvolve.Pulse.PostgreSql/README.md](src/NetEvolve.Pulse.PostgreSql/README.md))
+- **NetEvolve.Pulse.SQLite** — SQLite embedded persistence for the outbox pattern, designed for edge and CLI scenarios ([src/NetEvolve.Pulse.SQLite/README.md](src/NetEvolve.Pulse.SQLite/README.md))
+
+#### Transport
+
 - **NetEvolve.Pulse.AzureServiceBus** — Azure Service Bus transport for the outbox pattern with dynamic topic routing and managed identity support ([src/NetEvolve.Pulse.AzureServiceBus/README.md](src/NetEvolve.Pulse.AzureServiceBus/README.md))
 - **NetEvolve.Pulse.Dapr** — Dapr pub/sub transport for the outbox pattern, publishing messages to any Dapr-supported broker via `DaprClient` ([src/NetEvolve.Pulse.Dapr/README.md](src/NetEvolve.Pulse.Dapr/README.md))
-- **NetEvolve.Pulse.EntityFramework** — Entity Framework Core persistence for the outbox pattern ([src/NetEvolve.Pulse.EntityFramework/README.md](src/NetEvolve.Pulse.EntityFramework/README.md))
+- **NetEvolve.Pulse.Kafka** — Apache Kafka transport for the outbox pattern via the Confluent.Kafka producer ([src/NetEvolve.Pulse.Kafka/README.md](src/NetEvolve.Pulse.Kafka/README.md))
+- **NetEvolve.Pulse.RabbitMQ** — RabbitMQ transport for the outbox pattern via the official .NET RabbitMQ client ([src/NetEvolve.Pulse.RabbitMQ/README.md](src/NetEvolve.Pulse.RabbitMQ/README.md))
+
+#### Resilience
+
 - **NetEvolve.Pulse.Polly** — Polly v8 resilience policies integration for retry, circuit breaker, and timeout strategies ([src/NetEvolve.Pulse.Polly/README.md](src/NetEvolve.Pulse.Polly/README.md))
-- **NetEvolve.Pulse.SqlServer** — SQL Server ADO.NET persistence for the outbox pattern ([src/NetEvolve.Pulse.SqlServer/README.md](src/NetEvolve.Pulse.SqlServer/README.md))
 
 ### Tests
 
-- **NetEvolve.Pulse.Tests.Unit** — Unit coverage for mediator behaviors ([tests/NetEvolve.Pulse.Tests.Unit](tests/NetEvolve.Pulse.Tests.Unit))
-- **NetEvolve.Pulse.Tests.Integration** — Integration scenarios and pipeline validation ([tests/NetEvolve.Pulse.Tests.Integration](tests/NetEvolve.Pulse.Tests.Integration))
-- **NetEvolve.Pulse.AspNetCore.Tests.Unit** — Unit tests for Minimal API endpoint mapping ([tests/NetEvolve.Pulse.AspNetCore.Tests.Unit](tests/NetEvolve.Pulse.AspNetCore.Tests.Unit))
-- **NetEvolve.Pulse.AspNetCore.Tests.Integration** — End-to-end HTTP dispatch tests via `TestServer` ([tests/NetEvolve.Pulse.AspNetCore.Tests.Integration](tests/NetEvolve.Pulse.AspNetCore.Tests.Integration))
-- **NetEvolve.Pulse.EntityFramework.Tests.Integration** — Entity Framework outbox integration tests ([tests/NetEvolve.Pulse.EntityFramework.Tests.Integration](tests/NetEvolve.Pulse.EntityFramework.Tests.Integration))
-- **NetEvolve.Pulse.SqlServer.Tests.Integration** — SQL Server outbox integration tests ([tests/NetEvolve.Pulse.SqlServer.Tests.Integration](tests/NetEvolve.Pulse.SqlServer.Tests.Integration))
-- **NetEvolve.Pulse.Polly.Tests.Unit** — Polly integration unit tests ([tests/NetEvolve.Pulse.Polly.Tests.Unit](tests/NetEvolve.Pulse.Polly.Tests.Unit))
-- **NetEvolve.Pulse.Polly.Tests.Integration** — Polly integration tests ([tests/NetEvolve.Pulse.Polly.Tests.Integration](tests/NetEvolve.Pulse.Polly.Tests.Integration))
+- **NetEvolve.Pulse.Tests.Unit** — Unit coverage for all mediator behaviors, interceptors, transports, and providers ([tests/NetEvolve.Pulse.Tests.Unit](tests/NetEvolve.Pulse.Tests.Unit))
+- **NetEvolve.Pulse.Tests.Integration** — Integration scenarios, pipeline validation, and database-backed outbox tests ([tests/NetEvolve.Pulse.Tests.Integration](tests/NetEvolve.Pulse.Tests.Integration))
+- **NetEvolve.Pulse.SourceGeneration.Tests.Unit** — Unit tests for the Roslyn source generator, verified with snapshot testing ([tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit](tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit))
 
 ## Features
 
@@ -49,10 +62,13 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - Minimal DI setup with `services.AddPulse(...)`, scoped lifetimes, and opt-in configurators per application
 - Contracts in `NetEvolve.Pulse.Extensibility` for framework-agnostic use or deep integration with ASP.NET Core
 - **ASP.NET Core Minimal API integration** via `NetEvolve.Pulse.AspNetCore`: map commands and queries directly to HTTP endpoints with `MapCommand<TCommand, TResponse>()`, `MapCommand<TCommand>()`, and `MapQuery<TQuery, TResponse>()` — no boilerplate lambdas needed
+- **FluentValidation integration** via `AddFluentValidation()` — automatic pre-handler validation with failure aggregation and pass-through when no validators are registered
+- **HTTP correlation propagation** via `AddHttpCorrelationEnrichment()` — zero-effort correlation ID forwarding from HTTP headers into every mediator request and event
+- **Source generation** via `NetEvolve.Pulse.SourceGeneration` — `[PulseHandler]` attribute generates compile-time DI registrations with configurable lifetimes and PULSE001/PULSE002 diagnostics
 - Parallel event dispatch with cancellation support to keep handlers responsive under load
 - Built-in primitives like `Void` to simplify command semantics without return values
-- **Multiple persistence providers**: Entity Framework Core (provider-agnostic) and SQL Server ADO.NET
-- **Multiple transport providers**: Azure Service Bus with dynamic topic routing and Dapr pub/sub
+- **Multiple persistence providers**: Entity Framework Core, SQL Server ADO.NET, PostgreSQL ADO.NET, and SQLite embedded
+- **Multiple transport providers**: Azure Service Bus, Dapr pub/sub, RabbitMQ, and Apache Kafka
 - **Polly v8 integration** for retry, circuit breaker, timeout, bulkhead, and fallback strategies
 
 ## Getting Started
@@ -153,21 +169,24 @@ dotnet test tests/NetEvolve.Pulse.Tests.Unit
 src/                 # Production libraries
 ├── NetEvolve.Pulse
 ├── NetEvolve.Pulse.AspNetCore
+├── NetEvolve.Pulse.AzureServiceBus
 ├── NetEvolve.Pulse.Dapr
-├── NetEvolve.Pulse.Extensibility
 ├── NetEvolve.Pulse.EntityFramework
-├── NetEvolve.Pulse.SqlServer
-└── NetEvolve.Pulse.Polly
+├── NetEvolve.Pulse.Extensibility
+├── NetEvolve.Pulse.FluentValidation
+├── NetEvolve.Pulse.HttpCorrelation
+├── NetEvolve.Pulse.Kafka
+├── NetEvolve.Pulse.Polly
+├── NetEvolve.Pulse.PostgreSql
+├── NetEvolve.Pulse.RabbitMQ
+├── NetEvolve.Pulse.SourceGeneration
+├── NetEvolve.Pulse.SQLite
+└── NetEvolve.Pulse.SqlServer
 
 tests/               # Test projects
 ├── NetEvolve.Pulse.Tests.Unit
 ├── NetEvolve.Pulse.Tests.Integration
-├── NetEvolve.Pulse.AspNetCore.Tests.Unit
-├── NetEvolve.Pulse.AspNetCore.Tests.Integration
-├── NetEvolve.Pulse.EntityFramework.Tests.Integration
-├── NetEvolve.Pulse.SqlServer.Tests.Integration
-├── NetEvolve.Pulse.Polly.Tests.Unit
-└── NetEvolve.Pulse.Polly.Tests.Integration
+└── NetEvolve.Pulse.SourceGeneration.Tests.Unit
 
 templates/           # Documentation templates
 ```
@@ -190,9 +209,16 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report
 - [NetEvolve.Pulse.AspNetCore docs](src/NetEvolve.Pulse.AspNetCore/README.md) for Minimal API endpoint mapping
 - [NetEvolve.Pulse.AzureServiceBus docs](src/NetEvolve.Pulse.AzureServiceBus/README.md) for Azure Service Bus outbox transport
 - [NetEvolve.Pulse.Dapr docs](src/NetEvolve.Pulse.Dapr/README.md) for Dapr pub/sub transport
-- [NetEvolve.Pulse.Extensibility docs](src/NetEvolve.Pulse.Extensibility/README.md) for contract details
 - [NetEvolve.Pulse.EntityFramework docs](src/NetEvolve.Pulse.EntityFramework/README.md) for Entity Framework outbox persistence
+- [NetEvolve.Pulse.Extensibility docs](src/NetEvolve.Pulse.Extensibility/README.md) for contract details
+- [NetEvolve.Pulse.FluentValidation docs](src/NetEvolve.Pulse.FluentValidation/README.md) for FluentValidation pipeline integration
+- [NetEvolve.Pulse.HttpCorrelation docs](src/NetEvolve.Pulse.HttpCorrelation/README.md) for HTTP correlation ID propagation
+- [NetEvolve.Pulse.Kafka docs](src/NetEvolve.Pulse.Kafka/README.md) for Apache Kafka outbox transport
 - [NetEvolve.Pulse.Polly docs](src/NetEvolve.Pulse.Polly/README.md) for Polly resilience policies
+- [NetEvolve.Pulse.PostgreSql docs](src/NetEvolve.Pulse.PostgreSql/README.md) for PostgreSQL ADO.NET outbox persistence
+- [NetEvolve.Pulse.RabbitMQ docs](src/NetEvolve.Pulse.RabbitMQ/README.md) for RabbitMQ outbox transport
+- [NetEvolve.Pulse.SourceGeneration docs](src/NetEvolve.Pulse.SourceGeneration/README.md) for source generation and `[PulseHandler]` attribute
+- [NetEvolve.Pulse.SQLite docs](src/NetEvolve.Pulse.SQLite/README.md) for SQLite embedded outbox persistence
 - [NetEvolve.Pulse.SqlServer docs](src/NetEvolve.Pulse.SqlServer/README.md) for SQL Server ADO.NET outbox persistence
 - [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md)
 
