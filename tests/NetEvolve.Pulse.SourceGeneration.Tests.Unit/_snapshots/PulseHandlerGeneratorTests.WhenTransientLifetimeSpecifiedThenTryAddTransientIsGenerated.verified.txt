@@ -21,7 +21,7 @@ public static partial class PulseRegistrationExtensions
     /// </summary>
     /// <param name="services">The service collection to add registrations to.</param>
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
-    public static IServiceCollection AddTestAssemblyHandlers(this IServiceCollection services)
+    public static IServiceCollection AddTestAssemblyPulseHandlers(this IServiceCollection services)
     {
         services.TryAddTransient<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::MyEventHandler>();
 

@@ -21,10 +21,11 @@ public static partial class PulseRegistrationExtensions
     /// </summary>
     /// <param name="services">The service collection to add registrations to.</param>
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
-    public static IServiceCollection AddTestAssemblyHandlers(this IServiceCollection services)
+    public static IServiceCollection AddTestAssemblyPulseHandlers(this IServiceCollection services)
     {
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::MyCommand, string>, global::MultiHandler>();
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::MultiHandler>();
+        services.TryAddScoped<global::MultiHandler>();
+        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::MyCommand, string>>(static sp => sp.GetRequiredService<global::MultiHandler>());
+        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>>(static sp => sp.GetRequiredService<global::MultiHandler>());
 
         return services;
     }
