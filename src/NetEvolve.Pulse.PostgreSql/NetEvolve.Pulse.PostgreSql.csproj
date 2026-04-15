@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
-    <Description>PostgreSQL persistence provider for the Pulse outbox pattern using plain ADO.NET. Provides PostgreSqlOutboxRepository implementing IOutboxRepository with optimized PostgreSQL queries, transaction support via NpgsqlTransaction enlistment, and schema scripts for table creation. Uses FOR UPDATE SKIP LOCKED for concurrent polling safety. Supports configurable schema and table names for multi-tenant scenarios. Uses the canonical outbox schema ensuring interchangeability with Entity Framework provider. Designed for high-performance microservices requiring reliable event delivery with PostgreSQL as the backing store.</Description>
-    <PackageTags>$(PackageTags);outbox;postgresql;ado-net;transactional;</PackageTags>
+    <Description>PostgreSQL persistence provider for the Pulse outbox and idempotency patterns using plain ADO.NET. Provides PostgreSqlOutboxRepository implementing IOutboxRepository with optimized PostgreSQL queries, transaction support via NpgsqlTransaction enlistment, and schema scripts for table creation. Also provides PostgreSqlIdempotencyKeyRepository implementing IIdempotencyKeyRepository for at-most-once command processing. Uses FOR UPDATE SKIP LOCKED for concurrent polling safety. Supports configurable schema and table names for multi-tenant scenarios. Uses the canonical schemas ensuring interchangeability with Entity Framework provider. Designed for high-performance microservices requiring reliable event delivery with PostgreSQL as the backing store.</Description>
+    <PackageTags>$(PackageTags);outbox;idempotency;postgresql;ado-net;transactional;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>
   </PropertyGroup>
 
@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Idempotency\" />
     <Folder Include="Outbox\" />
   </ItemGroup>
 </Project>
