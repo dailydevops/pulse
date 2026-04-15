@@ -1,0 +1,40 @@
+﻿{
+  diagnostics: [
+    {
+      DefaultSeverity: Error,
+      Descriptor: {
+        Category: Usage,
+        DefaultSeverity: Error,
+        Description: {},
+        HelpLinkUri: ,
+        Id: PULSE006,
+        IsEnabledByDefault: true,
+        MessageFormat: {},
+        Title: {}
+      },
+      Id: PULSE006,
+      IsSuppressed: false,
+      IsWarningAsError: false,
+      Location: {
+        IsInMetadata: false,
+        IsInSource: true,
+        Kind: SourceFile,
+        SourceSpan: {
+          Start: 355,
+          Length: 290
+        },
+        SourceTree: {
+          FilePath: ,
+          HasCompilationUnitRoot: true,
+          Length: 645,
+          Options: {
+            DocumentationMode: Parse,
+            Language: C#,
+            LanguageVersion: CSharpLatest
+          }
+        }
+      },
+      Severity: Error
+    }
+  ]
+}

@@ -18,7 +18,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 
 ### Tooling
 
-- **NetEvolve.Pulse.SourceGeneration** — Roslyn incremental source generator that automatically emits DI registration code for handler classes annotated with `[PulseHandler]`; detects missing or duplicate registrations at compile time via PULSE001 and PULSE002 diagnostics ([src/NetEvolve.Pulse.SourceGeneration/README.md](src/NetEvolve.Pulse.SourceGeneration/README.md))
+- **NetEvolve.Pulse.SourceGeneration** — Roslyn incremental source generator that automatically emits DI registration code for handler classes annotated with `[PulseHandler]` or `[PulseHandler<TMessage>]`; closes open-generic handlers for specific message types at compile time; detects missing, duplicate, and incompatible registrations via PULSE001–PULSE006 diagnostics ([src/NetEvolve.Pulse.SourceGeneration/README.md](src/NetEvolve.Pulse.SourceGeneration/README.md))
 
 ### Integration Libraries
 
@@ -64,7 +64,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - **ASP.NET Core Minimal API integration** via `NetEvolve.Pulse.AspNetCore`: map commands and queries directly to HTTP endpoints with `MapCommand<TCommand, TResponse>()`, `MapCommand<TCommand>()`, and `MapQuery<TQuery, TResponse>()` — no boilerplate lambdas needed
 - **FluentValidation integration** via `AddFluentValidation()` — automatic pre-handler validation with failure aggregation and pass-through when no validators are registered
 - **HTTP correlation propagation** via `AddHttpCorrelationEnrichment()` — zero-effort correlation ID forwarding from HTTP headers into every mediator request and event
-- **Source generation** via `NetEvolve.Pulse.SourceGeneration` — `[PulseHandler]` attribute generates compile-time DI registrations with configurable lifetimes and PULSE001/PULSE002 diagnostics
+- **Source generation** via `NetEvolve.Pulse.SourceGeneration` — `[PulseHandler]` and `[PulseHandler<TMessage>]` attributes generate compile-time DI registrations with configurable lifetimes; multi-interface handlers share a single instance within the configured lifetime; PULSE001–PULSE006 diagnostics
 - Parallel event dispatch with cancellation support to keep handlers responsive under load
 - Built-in primitives like `Void` to simplify command semantics without return values
 - **Multiple persistence providers**: Entity Framework Core, SQL Server ADO.NET, PostgreSQL ADO.NET, and SQLite embedded

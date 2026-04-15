@@ -4,16 +4,18 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.SourceGeneration.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.SourceGeneration/)
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/blob/main/LICENSE)
 
-NetEvolve.Pulse.SourceGeneration is a Roslyn source generator for the Pulse CQRS mediator library. It automatically generates DI registration code for handler classes annotated with `[PulseHandler]`, eliminating manual service registrations and catching missing or duplicate registrations at compile time.
+NetEvolve.Pulse.SourceGeneration is a Roslyn source generator for the Pulse CQRS mediator library. It automatically generates DI registration code for handler classes annotated with `[PulseHandler]` or `[PulseHandler<TMessage>]`, eliminating manual service registrations and catching missing or duplicate registrations at compile time.
 
 ## Features
 
 - **Compile-Time Code Generation**: Emits `IServiceCollection` extension methods with `TryAdd*` registrations for all annotated handlers
+- **Open-Generic Handler Support**: `[PulseHandler<TMessage>]` closes open-generic handler classes for specific message types at compile time; multiple attributes on the same class register it for multiple message types
 - **Incremental Generator**: Uses `ForAttributeWithMetadataName` for fast, IDE-friendly discovery
 - **Configurable Lifetimes**: Supports `Singleton`, `Scoped` (default), and `Transient` via `PulseServiceLifetime` enum
-- **Assembly-Derived Method Name**: Generated method name is derived from `AssemblyName` with dots removed (e.g., `NetEvolve.Pulse` → `AddNetEvolvePulseHandlers`)
+- **Assembly-Derived Method Name**: Generated method name is derived from `AssemblyName` with dots removed and `PulseHandlers` appended (e.g., `MyProject` → `AddMyProjectPulseHandlers`)
 - **Root Namespace Support**: Generated namespace uses the consuming project's `RootNamespace`
-- **Diagnostics**: PULSE001 (error, no handler interface) and PULSE002 (warning, duplicate command/query handler)
+- **Multi-Interface Instance Sharing**: Handlers implementing multiple interfaces are registered as the concrete type once; each interface resolves via a factory delegate so all share the same instance within the configured lifetime
+- **Diagnostics**: PULSE001–PULSE006 covering missing handler interfaces, duplicate registrations, open-generic type annotations, and invalid or incompatible explicit message type arguments
 - **Fully Qualified Names**: All generated code uses `global::` prefixed type names to avoid namespace conflicts
 
 ## Installation
@@ -55,7 +57,7 @@ public class CreateOrderHandler
 
 // 2. Call the generated extension method in your startup code
 // Method name is derived from your assembly name
-services.AddMyProjectHandlers();
+services.AddMyProjectPulseHandlers();
 ```
 
 ## Usage
@@ -75,6 +77,31 @@ public class GetCachedDataHandler : IQueryHandler<GetCachedDataQuery, CachedData
 public class NotificationHandler : IEventHandler<OrderCreatedEvent> { ... }
 ```
 
+### Open-Generic Handler Registration
+
+Use `[PulseHandler<TMessage>]` to close an open-generic handler class for a specific message type. Apply the attribute multiple times to register the same class for several message types:
+
+```csharp
+// Register the generic handler for two concrete command types
+[PulseHandler<CreateOrderCommand>]
+[PulseHandler<CancelOrderCommand>]
+public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+    where TCmd : ICommand<TResult>
+{
+    public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken) =>
+        Task.FromResult(default(TResult)!);
+}
+
+// Register with a non-default lifetime
+[PulseHandler<OrderShippedEvent>(Lifetime = PulseServiceLifetime.Singleton)]
+public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
+    where TEvent : IEvent
+{
+    public Task HandleAsync(TEvent message, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+}
+```
+
 ### Supported Handler Interfaces
 
 | Interface | Description |
@@ -83,6 +110,7 @@ public class NotificationHandler : IEventHandler<OrderCreatedEvent> { ... }
 | `ICommandHandler<TCommand, TResponse>` | Command handler with response |
 | `IQueryHandler<TQuery, TResponse>` | Query handler |
 | `IEventHandler<TEvent>` | Event handler (multiple handlers per event are valid) |
+| `IStreamQueryHandler<TQuery, TResponse>` | Streaming query handler |
 
 ## Diagnostics
 
@@ -90,6 +118,9 @@ public class NotificationHandler : IEventHandler<OrderCreatedEvent> { ... }
 | --- | --- | --- |
 | PULSE001 | Error | Type is annotated with `[PulseHandler]` but does not implement any known Pulse handler interface. |
 | PULSE002 | Warning | Multiple `[PulseHandler]` types implement the same command or query handler contract. Events are excluded — multiple event handlers are valid. |
+| PULSE004 | Error | Type annotated with `[PulseHandler]` is an open generic type and cannot be automatically registered. Use `[PulseHandler<TMessage>]` instead. |
+| PULSE005 | Error | The type argument `T` passed to `[PulseHandler<T>]` does not implement any known Pulse message interface (`ICommand`, `ICommand<T>`, `IQuery<T>`, `IEvent`, or `IStreamQuery<T>`). |
+| PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type. |
 
 ## Requirements
 

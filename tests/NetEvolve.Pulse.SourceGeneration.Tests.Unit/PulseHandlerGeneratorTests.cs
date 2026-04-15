@@ -900,6 +900,243 @@ public class PulseHandlerGeneratorTests
         await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
+    [Test]
+    public async Task WhenOpenGenericCommandHandlerWithExplicitMessageTypeThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler<MyCommand>]
+            public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenOpenGenericHandlerWithMultipleExplicitMessageTypesThenAllRegistered()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record CommandA(string Name) : ICommand<string>;
+            public record CommandB(int Value) : ICommand<int>;
+
+            [PulseHandler<CommandA>]
+            [PulseHandler<CommandB>]
+            public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenOpenGenericEventHandlerWithExplicitMessageTypeThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            public record MyEvent : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler<MyEvent>]
+            public class GenericEventHandler<TEvent> : IEventHandler<TEvent>
+                where TEvent : IEvent
+            {
+                public Task HandleAsync(TEvent message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenOpenGenericHandlerWithExplicitMessageTypeAndSingletonLifetimeThenSingletonIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyQuery(string Id) : IQuery<string>;
+
+            [PulseHandler<MyQuery>(Lifetime = PulseServiceLifetime.Singleton)]
+            public class GenericQueryHandler<TQuery, TResult> : IQueryHandler<TQuery, TResult>
+                where TQuery : IQuery<TResult>
+            {
+                public Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenExplicitMessageTypeNotPulseMessageThenPulse005Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            [PulseHandler<string>]
+            public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenExplicitMessageTypeIncompatibleWithHandlerInterfaceThenPulse006Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            public record MyEvent : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler<MyEvent>]
+            public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenConcreteHandlerAnnotatedWithGenericAttributeThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler<MyCommand>]
+            public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenSingleHandlerAndMultiInterfaceHandlerAndMultipleOpenGenericHandlersThenAllRegistered()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            // --- single concrete handler ---
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler]
+            public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+
+            // --- multi-interface concrete handler ---
+            public record AnotherCommand(int Value) : ICommand<int>;
+
+            public record MyEvent : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler]
+            public class MultiHandler : ICommandHandler<AnotherCommand, int>, IEventHandler<MyEvent>
+            {
+                public Task<int> HandleAsync(AnotherCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Value);
+
+                public Task HandleAsync(MyEvent message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+
+            // --- open-generic handler with multiple explicit message types ---
+            public record QueryA(string Id) : IQuery<string>;
+            public record QueryB(int Id) : IQuery<int>;
+
+            [PulseHandler<QueryA>]
+            [PulseHandler<QueryB>]
+            public class GenericQueryHandler<TQuery, TResult> : IQueryHandler<TQuery, TResult>
+                where TQuery : IQuery<TResult>
+            {
+                public Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
         string? rootNamespace = "TestAssembly",

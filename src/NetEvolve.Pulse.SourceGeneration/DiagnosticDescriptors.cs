@@ -54,4 +54,31 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
     );
+
+    /// <summary>
+    /// PULSE005 – the type argument <c>T</c> of <c>[PulseHandler&lt;T&gt;]</c> does not implement
+    /// any known Pulse message interface.
+    /// </summary>
+    public static readonly DiagnosticDescriptor InvalidExplicitMessageType = new(
+        id: "PULSE005",
+        title: "Type does not implement a known Pulse message interface",
+        messageFormat: "Type '{0}' passed to [PulseHandler<T>] on '{1}' does not implement a known Pulse message interface (ICommand, ICommand<T>, IQuery<T>, IEvent, or IStreamQuery<T>)",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// PULSE006 – a closed registration for the given message type cannot be constructed because
+    /// the handler does not implement a compatible handler interface or its type parameters cannot
+    /// all be inferred from the message type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor IncompatibleExplicitMessageType = new(
+        id: "PULSE006",
+        title: "No compatible handler registration can be constructed for the message type",
+        messageFormat: "Cannot construct a registration for message type '{0}' on '{1}': the handler does not implement a compatible handler interface or not all type parameters can be inferred",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
 }
