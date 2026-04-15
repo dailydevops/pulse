@@ -64,6 +64,28 @@ public class LoggingExtensionsTests
     }
 
     [Test]
+    public async Task AddLogging_RegistersStreamQueryInterceptor()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        var result = configurator.AddLogging();
+
+        _ = await Assert.That(result).IsSameReferenceAs(configurator);
+
+        var descriptor = services.FirstOrDefault(d =>
+            d.ServiceType == typeof(IStreamQueryInterceptor<,>)
+            && d.ImplementationType == typeof(LoggingStreamQueryInterceptor<,>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
     public async Task AddLogging_CalledMultipleTimes_DoesNotDuplicateInterceptors()
     {
         var services = new ServiceCollection();
@@ -86,10 +108,18 @@ public class LoggingExtensionsTests
             )
             .ToList();
 
+        var streamQueryInterceptors = services
+            .Where(d =>
+                d.ServiceType == typeof(IStreamQueryInterceptor<,>)
+                && d.ImplementationType == typeof(LoggingStreamQueryInterceptor<,>)
+            )
+            .ToList();
+
         using (Assert.Multiple())
         {
             _ = await Assert.That(eventInterceptors).HasSingleItem();
             _ = await Assert.That(requestInterceptors).HasSingleItem();
+            _ = await Assert.That(streamQueryInterceptors).HasSingleItem();
         }
     }
 
