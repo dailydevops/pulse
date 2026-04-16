@@ -1,20 +1,18 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
-using System.Text.Json;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Implementation of <see cref="IEventOutbox"/> that stores events using <see cref="IOutboxRepository"/>.
-/// Serializes events to JSON and persists them for later processing by the background processor.
+/// Serializes events using <see cref="IPayloadSerializer"/> and persists them for later processing by the background processor.
 /// </summary>
 /// <remarks>
 /// <para><strong>Transaction Integration:</strong></para>
 /// This implementation delegates to <see cref="IOutboxRepository.AddAsync"/> which SHOULD
 /// participate in any ambient transaction to ensure atomicity with business operations.
 /// <para><strong>Serialization:</strong></para>
-/// Events are serialized to JSON using System.Text.Json. The assembly-qualified type name
+/// Events are serialized using <see cref="IPayloadSerializer"/>. The assembly-qualified type name
 /// is stored for deserialization by the message transport.
 /// </remarks>
 internal sealed class OutboxEventStore : IEventOutbox
@@ -22,27 +20,31 @@ internal sealed class OutboxEventStore : IEventOutbox
     /// <summary>The repository used to persist outbox messages to the configured storage backend.</summary>
     private readonly IOutboxRepository _repository;
 
-    /// <summary>The resolved outbox options controlling serialization and table configuration.</summary>
-    private readonly OutboxOptions _options;
-
     /// <summary>The time provider used to generate consistent creation and update timestamps.</summary>
     private readonly TimeProvider _timeProvider;
+
+    /// <summary>The payload serializer used to serialize events to JSON.</summary>
+    private readonly IPayloadSerializer _payloadSerializer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OutboxEventStore"/> class.
     /// </summary>
     /// <param name="repository">The repository for storing outbox messages.</param>
-    /// <param name="options">The outbox options.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
-    public OutboxEventStore(IOutboxRepository repository, IOptions<OutboxOptions> options, TimeProvider timeProvider)
+    /// <param name="payloadSerializer">The payload serializer for serializing events.</param>
+    public OutboxEventStore(
+        IOutboxRepository repository,
+        TimeProvider timeProvider,
+        IPayloadSerializer payloadSerializer
+    )
     {
         ArgumentNullException.ThrowIfNull(repository);
-        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(payloadSerializer);
 
         _repository = repository;
-        _options = options.Value;
         _timeProvider = timeProvider;
+        _payloadSerializer = payloadSerializer;
     }
 
     /// <inheritdoc />
@@ -69,7 +71,7 @@ internal sealed class OutboxEventStore : IEventOutbox
         {
             Id = message.ToOutboxId(),
             EventType = messageType,
-            Payload = JsonSerializer.Serialize(message, messageType, _options.JsonSerializerOptions),
+            Payload = _payloadSerializer.Serialize(message, messageType),
             CorrelationId = correlationId,
             CreatedAt = now,
             UpdatedAt = now,

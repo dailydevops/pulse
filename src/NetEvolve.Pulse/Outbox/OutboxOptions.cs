@@ -1,6 +1,5 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
-using System.Text.Json;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
@@ -40,9 +39,4 @@ public sealed class OutboxOptions
     /// Default: <see langword="true"/>.
     /// </remarks>
     public bool EnableWalMode { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets the JSON serializer options for event serialization.
-    /// </summary>
-    public JsonSerializerOptions? JsonSerializerOptions { get; set; }
 }

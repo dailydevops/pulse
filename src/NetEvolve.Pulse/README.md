@@ -229,6 +229,70 @@ processorOptions.EventTypeOverrides["MyNamespace.BulkEvent"] = new OutboxEventTy
 
 See [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) or [NetEvolve.Pulse.SqlServer](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) for persistence provider setup.
 
+### Payload Serialization
+
+Pulse uses `IPayloadSerializer` (from `NetEvolve.Pulse.Extensibility`) for all internal serialization needs, including outbox message payloads, distributed cache entries, and audit trail data. A default implementation based on System.Text.Json is registered automatically when you call `AddPulse()`.
+
+#### Default Behavior
+
+No configuration is required — the built-in `SystemTextJsonPayloadSerializer` uses `JsonSerializerOptions.Default`:
+
+```csharp
+services.AddPulse();
+// SystemTextJsonPayloadSerializer is automatically registered
+```
+
+#### Configure JSON Serialization Options
+
+Use the standard .NET options pattern to customize JSON serialization settings:
+
+```csharp
+services.Configure<JsonSerializerOptions>(options =>
+{
+    options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.WriteIndented = false;
+    options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
+services.AddPulse();
+```
+
+These options will be used for all payload serialization throughout Pulse, including:
+- Outbox message payloads
+- Distributed cache query results
+- Any other internal serialization needs
+
+#### Custom Serializer Implementation
+
+Replace the default serializer with your own implementation by registering it before calling `AddPulse()`:
+
+```csharp
+using NetEvolve.Pulse.Extensibility;
+
+// Register custom serializer (e.g., using Newtonsoft.Json)
+services.AddSingleton<IPayloadSerializer, NewtonsoftJsonPayloadSerializer>();
+services.AddPulse();
+
+public sealed class NewtonsoftJsonPayloadSerializer : IPayloadSerializer
+{
+    public string Serialize<T>(T value) => 
+        JsonConvert.SerializeObject(value);
+
+    public string Serialize(object value, Type type) => 
+        JsonConvert.SerializeObject(value, type, null);
+
+    public byte[] SerializeToBytes<T>(T value) => 
+        Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value));
+
+    public T? Deserialize<T>(string payload) => 
+        JsonConvert.DeserializeObject<T>(payload);
+
+    public T? Deserialize<T>(byte[] payload) => 
+        JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(payload));
+}
+```
+
+The custom serializer will be used for all payload operations within Pulse. Ensure your implementation is thread-safe, as the same instance may be accessed concurrently from multiple pipeline stages.
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0
