@@ -28,6 +28,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     {
         var regularHandlerInfos = BuildRegularHandlerInfosPipeline(context);
         var explicitHandlerInfos = BuildExplicitHandlerInfosPipeline(context);
+        var genericHandlerInfos = BuildGenericHandlerInfosPipeline(context);
 
         var rootNamespace = context.AnalyzerConfigOptionsProvider.Select(
             static (provider, _1) =>
@@ -42,15 +43,27 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var allCollected = regularHandlerInfos
             .Collect()
             .Combine(explicitHandlerInfos.Collect())
+            .Combine(genericHandlerInfos.Collect())
             .Select(
                 static (pair, _) =>
                 {
-                    if (pair.Right.IsDefaultOrEmpty)
+                    var result = ImmutableArray<HandlerInfo>.Empty;
+                    if (!pair.Left.Left.IsDefaultOrEmpty)
                     {
-                        return pair.Left;
+                        result = [.. result, .. pair.Left.Left];
                     }
 
-                    return [.. pair.Left, .. pair.Right];
+                    if (!pair.Left.Right.IsDefaultOrEmpty)
+                    {
+                        result = [.. result, .. pair.Left.Right];
+                    }
+
+                    if (!pair.Right.IsDefaultOrEmpty)
+                    {
+                        result = [.. result, .. pair.Right];
+                    }
+
+                    return result;
                 }
             );
 
@@ -95,6 +108,23 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 PulseHandlerGenericAttributeFullName,
                 predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
                 transform: static (ctx, ct) => ExtractExplicitHandlerInfo(ctx, ct)
+            )
+            .Where(static info => info.HasValue)
+            .Select(static (info, _) => info!.Value);
+
+    /// <summary>
+    /// Builds the incremental pipeline that collects <c>[PulseGenericHandler]</c>-annotated open
+    /// generic types and returns a provider of <see cref="HandlerInfo"/> values for open-generic
+    /// DI registrations.
+    /// </summary>
+    private static IncrementalValuesProvider<HandlerInfo> BuildGenericHandlerInfosPipeline(
+        IncrementalGeneratorInitializationContext context
+    ) =>
+        context
+            .SyntaxProvider.ForAttributeWithMetadataName(
+                PulseGenericHandlerAttributeFullName,
+                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+                transform: static (ctx, ct) => ExtractPureGenericHandlerInfo(ctx, ct)
             )
             .Where(static info => info.HasValue)
             .Select(static (info, _) => info!.Value);
@@ -314,6 +344,35 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// Extracts an open-generic <see cref="HandlerInfo"/> from a class annotated with
+    /// <c>[PulseGenericHandler]</c>. The handler and service type names use the unbound generic
+    /// syntax (e.g. <c>global::Ns.MyHandler&lt;,&gt;</c>) so that the emitter can produce
+    /// <c>typeof()</c>-based DI registrations. Returns <c>null</c> when the symbol is not an
+    /// open generic or cannot be resolved.
+    /// </summary>
+    private static HandlerInfo? ExtractPureGenericHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
+        {
+            return null;
+        }
+
+        // [PulseGenericHandler] is only meaningful for open generic types.
+        if (classSymbol.TypeParameters.Length == 0)
+        {
+            return null;
+        }
+
+        var lifetime = ReadLifetime(ctx.Attributes);
+        var location = ctx.TargetNode.GetLocation();
+        var registrations = BuildOpenGenericHandlerRegistrations(classSymbol, lifetime);
+
+        return new HandlerInfo(GetOpenGenericTypeName(classSymbol), [.. registrations], location);
+    }
+
+    /// <summary>
     /// Detects open generic types annotated with <c>[PulseHandler]</c> for PULSE004 reporting.
     /// Returns <c>null</c> when the type is not an open generic.
     /// </summary>
@@ -362,6 +421,9 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         // Skip classes already annotated with [PulseHandler] or [PulseHandler<T>].
+        // [PulseGenericHandler] is only valid on open generic types; closed classes annotated with it
+        // are not skipped here so that PULSE003 is emitted for misuse (the TypeParameters.Length > 0
+        // guard above already ensures that open-generic classes never reach this point).
         if (
             classSymbol
                 .GetAttributes()
@@ -581,14 +643,14 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             .AppendLine()
             .AppendXmlDocSummary([
                 "Auto-generated extension method to register Pulse handlers annotated",
-                $"with <c>[PulseHandler]</c> inside the Assembly <c>{assemblyLabel}</c>.",
+                $"with <c>[PulseHandler]</c> or <c>[PulseGenericHandler]</c> inside the Assembly <c>{assemblyLabel}</c>.",
             ])
             .AppendLine($"[GeneratedCode(\"NetEvolve.Pulse.SourceGeneration\", \"{generatorVersion}\")]");
 
         using (cb.ScopeLine("public static partial class PulseRegistrationExtensions"))
         {
             _ = cb.AppendXmlDocSummary(
-                    $"Registers all <c>[PulseHandler]</c>-annotated handlers from the assembly <c>{assemblyLabel}</c> into the DI container."
+                    $"Registers all Pulse handlers from the assembly <c>{assemblyLabel}</c> into the DI container."
                 )
                 .AppendXmlDocParam("services", "The service collection to add registrations to.")
                 .AppendXmlDocReturns("The same <see cref=\"IServiceCollection\"/> instance for chaining.");
@@ -614,7 +676,18 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 {
                     var lifetimeMethodName = GetLifetimeMethodName(regs[0].Lifetime);
 
-                    if (regs.Count == 1)
+                    if (regs[0].IsOpenGeneric)
+                    {
+                        // Open-generic registrations use typeof() syntax; no shared-instance
+                        // optimization applies because DI resolves each closed type independently.
+                        foreach (var reg in regs)
+                        {
+                            _ = cb.AppendLine(
+                                $"services.{lifetimeMethodName}(typeof({reg.ServiceTypeName}), typeof({handlerTypeName}));"
+                            );
+                        }
+                    }
+                    else if (regs.Count == 1)
                     {
                         _ = cb.AppendLine(
                             $"services.{lifetimeMethodName}<{regs[0].ServiceTypeName}, {handlerTypeName}>();"
@@ -933,11 +1006,82 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// Builds the list of <see cref="HandlerRegistration"/> entries for all recognized Pulse handler
+    /// interfaces implemented by <paramref name="classSymbol"/>, using the unbound open-generic
+    /// type names suitable for <c>typeof()</c>-based DI registration.
+    /// Only interfaces whose type arguments are a pure positional mapping of the handler's type
+    /// parameters (verified by <see cref="IsPureOpenGenericMapping"/>) are included.
+    /// </summary>
+    private static List<HandlerRegistration> BuildOpenGenericHandlerRegistrations(
+        INamedTypeSymbol classSymbol,
+        int lifetime
+    )
+    {
+        var registrations = new List<HandlerRegistration>();
+        var handlerTypeName = GetOpenGenericTypeName(classSymbol);
+
+        foreach (var iface in classSymbol.AllInterfaces)
+        {
+            var typeDefinition = iface.OriginalDefinition;
+            var metadataName = GetFullMetadataName(typeDefinition);
+
+            if (TryGetHandlerKind(metadataName, out var kind) && IsPureOpenGenericMapping(classSymbol, iface))
+            {
+                registrations.Add(
+                    new HandlerRegistration(
+                        handlerTypeName: handlerTypeName,
+                        serviceTypeName: GetOpenGenericTypeName(typeDefinition),
+                        kind: kind,
+                        lifetime: lifetime,
+                        isOpenGeneric: true
+                    )
+                );
+            }
+        }
+
+        return registrations;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="iface"/> is a pure open-generic mapping
+    /// of <paramref name="handler"/>: the interface's type arguments are exactly the handler's type
+    /// parameters in the same positional order, with no extras, missing entries, or reorderings.
+    /// </summary>
+    private static bool IsPureOpenGenericMapping(INamedTypeSymbol handler, INamedTypeSymbol iface)
+    {
+        if (handler.TypeParameters.Length != iface.TypeArguments.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < handler.TypeParameters.Length; i++)
+        {
+            if (!SymbolEqualityComparer.Default.Equals(handler.TypeParameters[i], iface.TypeArguments[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Returns the fully qualified name of a type symbol using the <c>global::</c> prefix,
     /// suitable for emitting in generated source.
     /// </summary>
     private static string GetFullyQualifiedName(ITypeSymbol symbol) =>
         symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+    /// <summary>
+    /// Returns the unbound open-generic fully qualified name of a named type symbol using the
+    /// <c>global::</c> prefix (e.g. <c>global::Ns.MyHandler&lt;,&gt;</c>), suitable for use
+    /// inside <c>typeof()</c> expressions in generated source. Falls back to
+    /// <see cref="GetFullyQualifiedName"/> for non-generic symbols.
+    /// </summary>
+    private static string GetOpenGenericTypeName(INamedTypeSymbol symbol) =>
+        symbol.IsGenericType
+            ? symbol.ConstructUnboundGenericType().ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            : symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
     /// <summary>
     /// Returns the metadata name including containing namespaces (e.g. <c>Ns.IFoo`2</c>).

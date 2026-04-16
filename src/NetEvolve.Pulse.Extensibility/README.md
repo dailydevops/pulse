@@ -12,6 +12,8 @@ NetEvolve.Pulse.Extensibility delivers the core contracts for building CQRS medi
 - Strongly typed handler interfaces with single-handler guarantees for commands and queries
 - Interceptor interfaces for cross-cutting concerns (logging, validation, metrics, caching)
 - Fluent mediator configuration via `IMediatorBuilder` and extension methods
+- **`[PulseHandler]` / `[PulseHandler<T>]`** — handler registration attributes consumed by `NetEvolve.Pulse.SourceGeneration` to emit compile-time DI registrations
+- **`[PulseGenericHandler]`** — open-generic variant that instructs the source generator to emit a `typeof()`-based open-generic DI registration, enabling the container to resolve any closed variant at runtime
 - **`ICacheableQuery<TResponse>`** — opt-in caching contract that pairs with the `AddQueryCaching()` interceptor in `NetEvolve.Pulse`
 - **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
 - Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
@@ -113,6 +115,51 @@ services.AddPulse(config =>
           .AddCustomValidation();
 });
 ```
+
+### Open-Generic Handlers (`[PulseGenericHandler]`)
+
+Apply `[PulseGenericHandler]` to an open-generic handler class when you want a single implementation to service _any_ closed variant of a message type. The source generator (`NetEvolve.Pulse.SourceGeneration`) detects the attribute and emits a `typeof()`-based open-generic DI registration instead of a closed-type one:
+
+```csharp
+using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Attributes;
+
+// One class handles ICommandHandler<TCommand, TResult> for every TCommand : ICommand<TResult>
+[PulseGenericHandler]
+public class GenericCommandHandler<TCommand, TResult>
+    : ICommandHandler<TCommand, TResult>
+    where TCommand : ICommand<TResult>
+{
+    public Task<TResult> HandleAsync(
+        TCommand command,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(default(TResult)!);
+}
+
+// Generated registration (via NetEvolve.Pulse.SourceGeneration):
+// services.TryAddScoped(
+//     typeof(ICommandHandler<,>), typeof(GenericCommandHandler<,>));
+
+// With an explicit lifetime
+[PulseGenericHandler(Lifetime = PulseServiceLifetime.Singleton)]
+public class GenericEventHandler<TEvent>
+    : IEventHandler<TEvent>
+    where TEvent : IEvent
+{
+    public Task HandleAsync(TEvent message, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+}
+
+// Generated registration:
+// services.TryAddSingleton(
+//     typeof(IEventHandler<>), typeof(GenericEventHandler<>));
+```
+
+| Attribute | Use case | Generator output |
+| --- | --- | --- |
+| `[PulseHandler]` | Concrete handler class | `services.TryAddScoped<ICommandHandler<MyCmd, MyResult>, MyHandler>()` |
+| `[PulseHandler<TMessage>]` | Close an open-generic handler for one specific message type | `services.TryAddScoped<ICommandHandler<MyCmd, MyResult>, MyHandler<MyCmd, MyResult>>()` |
+| `[PulseGenericHandler]` | Register an open-generic handler for all closed variants | `services.TryAddScoped(typeof(ICommandHandler<,>), typeof(MyHandler<,>))` |
 
 ### Cacheable Queries (`ICacheableQuery<TResponse>`)
 

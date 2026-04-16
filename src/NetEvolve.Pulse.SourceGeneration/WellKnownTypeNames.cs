@@ -15,6 +15,10 @@ internal static class WellKnownTypeNames
     internal const string PulseHandlerGenericAttributeFullName =
         "NetEvolve.Pulse.Extensibility.Attributes.PulseHandlerAttribute`1";
 
+    /// <summary>Fully qualified metadata name of the <c>[PulseGenericHandler]</c> attribute.</summary>
+    internal const string PulseGenericHandlerAttributeFullName =
+        "NetEvolve.Pulse.Extensibility.Attributes.PulseGenericHandlerAttribute";
+
     // ── Handler interfaces ───────────────────────────────────────────────────────
 
     /// <summary>Metadata name of the two-type-argument <c>ICommandHandler</c> interface.</summary>
