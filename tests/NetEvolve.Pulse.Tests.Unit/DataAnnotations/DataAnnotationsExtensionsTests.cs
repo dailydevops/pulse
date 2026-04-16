@@ -87,11 +87,70 @@ public sealed class DataAnnotationsExtensionsTests
         _ = await Assert.That(interceptors).IsNotEmpty();
     }
 
+    [Test]
+    public async Task AddDataAnnotations_RegistersEventInterceptor()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        _ = configurator.AddDataAnnotations();
+
+        var descriptor = services.FirstOrDefault(d =>
+            d.ServiceType == typeof(IEventInterceptor<>)
+            && d.ImplementationType == typeof(DataAnnotationsEventInterceptor<>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddDataAnnotations_CalledMultipleTimes_DoesNotDuplicateEventInterceptor()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        _ = configurator.AddDataAnnotations();
+        _ = configurator.AddDataAnnotations();
+
+        var descriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(IEventInterceptor<>)
+                && d.ImplementationType == typeof(DataAnnotationsEventInterceptor<>)
+            )
+            .ToList();
+
+        _ = await Assert.That(descriptors).HasSingleItem();
+    }
+
+    [Test]
+    public async Task AddDataAnnotations_EventInterceptorResolvesSuccessfully()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator => configurator.AddDataAnnotations());
+
+        var provider = services.BuildServiceProvider();
+
+        var interceptors = provider.GetServices<IEventInterceptor<TestEvent>>().ToList();
+
+        _ = await Assert.That(interceptors).IsNotEmpty();
+    }
+
     private sealed record TestCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }
 
         [Required]
         public string Name { get; init; } = string.Empty;
+    }
+
+    private sealed class TestEvent : IEvent
+    {
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CorrelationId { get; set; }
+        public DateTimeOffset? PublishedAt { get; set; }
     }
 }

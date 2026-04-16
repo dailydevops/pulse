@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+namespace NetEvolve.Pulse.Tests.Unit.DataAnnotations.Interceptors;
 
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -11,31 +11,27 @@ using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
-[TestGroup("Interceptors")]
+[TestGroup("DataAnnotations")]
 public sealed class DataAnnotationsEventInterceptorTests
 {
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
-        // Arrange
         var interceptor = new DataAnnotationsEventInterceptor<TestEvent>();
         var testEvent = new TestEvent();
 
-        // Act & Assert
         _ = await Assert
             .That(() => interceptor.HandleAsync(testEvent, null!, cancellationToken))
             .Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task HandleAsync_ValidEvent_PassesThroughToHandler(CancellationToken cancellationToken)
+    public async Task HandleAsync_NoValidationAttributes_PassesThroughToHandler(CancellationToken cancellationToken)
     {
-        // Arrange
-        var interceptor = new DataAnnotationsEventInterceptor<ValidatedEvent>();
-        var testEvent = new ValidatedEvent { Name = "valid-name" };
+        var interceptor = new DataAnnotationsEventInterceptor<TestEvent>();
+        var testEvent = new TestEvent();
         var handlerCalled = false;
 
-        // Act
         await interceptor
             .HandleAsync(
                 testEvent,
@@ -48,23 +44,40 @@ public sealed class DataAnnotationsEventInterceptorTests
             )
             .ConfigureAwait(false);
 
-        // Assert
         _ = await Assert.That(handlerCalled).IsTrue();
     }
 
     [Test]
-    public async Task HandleAsync_InvalidEvent_ThrowsValidationException(CancellationToken cancellationToken)
+    public async Task HandleAsync_ValidInput_PassesThroughToHandler(CancellationToken cancellationToken)
     {
-        // Arrange
         var interceptor = new DataAnnotationsEventInterceptor<ValidatedEvent>();
-        var testEvent = new ValidatedEvent { Name = null };
         var handlerCalled = false;
 
-        // Act & Assert
+        await interceptor
+            .HandleAsync(
+                new ValidatedEvent { Name = "valid-name" },
+                (_, _) =>
+                {
+                    handlerCalled = true;
+                    return Task.CompletedTask;
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(handlerCalled).IsTrue();
+    }
+
+    [Test]
+    public async Task HandleAsync_RequiredPropertyMissing_ThrowsValidationException(CancellationToken cancellationToken)
+    {
+        var interceptor = new DataAnnotationsEventInterceptor<ValidatedEvent>();
+        var handlerCalled = false;
+
         _ = await Assert
             .That(() =>
                 interceptor.HandleAsync(
-                    testEvent,
+                    new ValidatedEvent { Name = null! },
                     (_, _) =>
                     {
                         handlerCalled = true;
@@ -79,35 +92,29 @@ public sealed class DataAnnotationsEventInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_EventWithNoValidationAttributes_PassesThroughToHandler(
+    public async Task HandleAsync_MultipleViolations_ThrowsValidationExceptionWithAllErrors(
         CancellationToken cancellationToken
     )
     {
-        // Arrange
-        var interceptor = new DataAnnotationsEventInterceptor<TestEvent>();
-        var testEvent = new TestEvent();
-        var handlerCalled = false;
+        var interceptor = new DataAnnotationsEventInterceptor<MultiConstraintEvent>();
 
-        // Act
-        await interceptor
-            .HandleAsync(
-                testEvent,
-                (_, _) =>
-                {
-                    handlerCalled = true;
-                    return Task.CompletedTask;
-                },
-                cancellationToken
+        var exception = await Assert
+            .That(() =>
+                interceptor.HandleAsync(
+                    new MultiConstraintEvent { Name = null!, Age = -1 },
+                    (_, _) => Task.CompletedTask,
+                    cancellationToken
+                )
             )
-            .ConfigureAwait(false);
+            .Throws<ValidationException>();
 
-        // Assert
-        _ = await Assert.That(handlerCalled).IsTrue();
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception).IsNotNull();
+            _ = await Assert.That(exception!.ValidationResult.MemberNames.Count()).IsGreaterThanOrEqualTo(2);
+        }
     }
 
-    /// <summary>
-    /// A plain event with no validation attributes.
-    /// </summary>
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
@@ -115,9 +122,6 @@ public sealed class DataAnnotationsEventInterceptorTests
         public DateTimeOffset? PublishedAt { get; set; }
     }
 
-    /// <summary>
-    /// An event with a required validation attribute on <see cref="Name"/>.
-    /// </summary>
     private sealed class ValidatedEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
@@ -125,6 +129,19 @@ public sealed class DataAnnotationsEventInterceptorTests
         public DateTimeOffset? PublishedAt { get; set; }
 
         [Required]
-        public string? Name { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class MultiConstraintEvent : IEvent
+    {
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CorrelationId { get; set; }
+        public DateTimeOffset? PublishedAt { get; set; }
+
+        [Required]
+        public string Name { get; init; } = string.Empty;
+
+        [Range(0, 150)]
+        public int Age { get; init; }
     }
 }
