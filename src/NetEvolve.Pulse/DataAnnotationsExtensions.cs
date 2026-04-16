@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Interceptors;
 /// </summary>
 /// <remarks>
 /// <para><strong>Purpose:</strong></para>
-/// The DataAnnotations interceptor automatically validates all commands, queries, and events before they
+/// The DataAnnotations interceptor automatically validates all commands, queries, and stream queries before they
 /// reach their handler, using <see cref="System.ComponentModel.DataAnnotations.Validator"/> and
 /// standard BCL attributes such as <c>[Required]</c>, <c>[Range]</c>, and <c>[MaxLength]</c>.
 /// This centralizes validation at the pipeline boundary and keeps handlers focused on domain logic,
@@ -21,24 +21,25 @@ using NetEvolve.Pulse.Interceptors;
 /// Unlike FluentValidation, DataAnnotations validation is driven entirely by attributes on the
 /// request or event class itself. No additional validator types need to be registered in the DI container.
 /// <para><strong>Idempotency:</strong></para>
-/// Calling <see cref="AddDataAnnotations"/> multiple times is safe — the interceptor is registered
+/// Calling <see cref="AddDataAnnotations"/> multiple times is safe — the interceptors are registered
 /// via <c>TryAddEnumerable</c> and will not be duplicated.
 /// </remarks>
 public static class DataAnnotationsExtensions
 {
     /// <summary>
-    /// Registers the DataAnnotations request and event interceptors for all commands, queries, and events.
+    /// Registers the DataAnnotations request and stream query interceptors for all commands, queries, stream queries, and events.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <para><strong>Behavior:</strong></para>
-    /// Before each command or query reaches its handler, the interceptor validates the request
+    /// Before each command, query, or stream query reaches its handler, the interceptor validates the request
     /// using <see cref="System.ComponentModel.DataAnnotations.Validator"/> with all properties
     /// validated. Before each event reaches its handlers, the same validation is applied.
     /// If validation fails, a
     /// <see cref="System.ComponentModel.DataAnnotations.ValidationException"/> is thrown.
+    /// For stream queries, the exception is thrown before the first item is yielded.
     /// Requests and events with no validation attributes pass through unchanged.
     /// </remarks>
     /// <example>
@@ -70,6 +71,13 @@ public static class DataAnnotationsExtensions
 
         configurator.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped(typeof(IEventInterceptor<>), typeof(DataAnnotationsEventInterceptor<>))
+        );
+
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped(
+                typeof(IStreamQueryInterceptor<,>),
+                typeof(DataAnnotationsStreamQueryInterceptor<,>)
+            )
         );
 
         return configurator;
