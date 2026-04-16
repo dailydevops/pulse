@@ -57,6 +57,13 @@ public static class FluentValidationExtensions
             ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(FluentValidationRequestInterceptor<,>))
         );
 
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped(
+                typeof(IStreamQueryInterceptor<,>),
+                typeof(FluentValidationStreamQueryInterceptor<,>)
+            )
+        );
+
         return configurator;
     }
 }
