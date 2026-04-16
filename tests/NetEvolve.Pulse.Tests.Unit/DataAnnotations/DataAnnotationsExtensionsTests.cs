@@ -45,6 +45,28 @@ public sealed class DataAnnotationsExtensionsTests
     }
 
     [Test]
+    public async Task AddDataAnnotations_RegistersStreamQueryInterceptor()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        var result = configurator.AddDataAnnotations();
+
+        _ = await Assert.That(result).IsSameReferenceAs(configurator);
+
+        var descriptor = services.FirstOrDefault(d =>
+            d.ServiceType == typeof(IStreamQueryInterceptor<,>)
+            && d.ImplementationType == typeof(DataAnnotationsStreamQueryInterceptor<,>)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
     public async Task AddDataAnnotations_CalledMultipleTimes_DoesNotDuplicateInterceptor()
     {
         var services = new ServiceCollection();
@@ -57,6 +79,25 @@ public sealed class DataAnnotationsExtensionsTests
             .Where(d =>
                 d.ServiceType == typeof(IRequestInterceptor<,>)
                 && d.ImplementationType == typeof(DataAnnotationsRequestInterceptor<,>)
+            )
+            .ToList();
+
+        _ = await Assert.That(descriptors).HasSingleItem();
+    }
+
+    [Test]
+    public async Task AddDataAnnotations_CalledMultipleTimes_DoesNotDuplicateStreamQueryInterceptor()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        _ = configurator.AddDataAnnotations();
+        _ = configurator.AddDataAnnotations();
+
+        var descriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(IStreamQueryInterceptor<,>)
+                && d.ImplementationType == typeof(DataAnnotationsStreamQueryInterceptor<,>)
             )
             .ToList();
 
