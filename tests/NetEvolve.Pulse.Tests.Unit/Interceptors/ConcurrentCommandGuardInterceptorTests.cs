@@ -95,7 +95,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
             .Throws<InvalidOperationException>();
 
         // If semaphore was not released, this second call would deadlock. Using a short-lived token to guard.
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
         var result = await interceptor
             .HandleAsync(command, (_, _) => Task.FromResult("after-throw"), cts.Token)
             .ConfigureAwait(false);

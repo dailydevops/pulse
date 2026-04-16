@@ -22,6 +22,10 @@ using NetEvolve.Pulse.Extensibility;
 /// </list>
 /// <para><strong>Scope:</strong></para>
 /// Exclusivity is in-process only. For distributed exclusivity across multiple instances, a distributed lock is required.
+/// <para><strong>Memory:</strong></para>
+/// One <see cref="SemaphoreSlim"/> instance is retained per distinct exclusive command type for the lifetime of the
+/// application. This is acceptable for a bounded set of command types (the typical use case), but long-running
+/// applications that dynamically generate many unique command types should be aware of this retention.
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddConcurrentCommandGuard()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
 /// </remarks>
