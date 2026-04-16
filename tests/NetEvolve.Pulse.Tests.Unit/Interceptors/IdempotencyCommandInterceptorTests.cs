@@ -224,7 +224,119 @@ public sealed class IdempotencyCommandInterceptorTests
         _ = await Assert.That(store.StoreCallCount).IsEqualTo(0);
     }
 
+    [Test]
+    public async Task HandleAsync_VoidCommand_IsRecognizedByInterceptor(CancellationToken cancellationToken)
+    {
+        var store = new TrackingIdempotencyStore();
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IIdempotencyStore>(store);
+        var provider = services.BuildServiceProvider();
+        var interceptor = new IdempotencyCommandInterceptor<TestVoidCommand, Extensibility.Void>(provider);
+        var command = new TestVoidCommand { IdempotencyKey = "void-key-1" };
+        var handlerCalled = false;
+
+        var result = await interceptor
+            .HandleAsync(
+                command,
+                (_, _) =>
+                {
+                    handlerCalled = true;
+                    return Task.FromResult(Extensibility.Void.Completed);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo(Extensibility.Void.Completed);
+            _ = await Assert.That(handlerCalled).IsTrue();
+            _ = await Assert.That(store.ExistsCallCount).IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_VoidCommand_CallsExistsAsync(CancellationToken cancellationToken)
+    {
+        var store = new TrackingIdempotencyStore();
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IIdempotencyStore>(store);
+        var provider = services.BuildServiceProvider();
+        var interceptor = new IdempotencyCommandInterceptor<TestVoidCommand, Extensibility.Void>(provider);
+        var command = new TestVoidCommand { IdempotencyKey = "void-key-exists" };
+
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult(Extensibility.Void.Completed), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(store.ExistsCallCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task HandleAsync_VoidCommand_CallsStoreAsyncAfterExecution(CancellationToken cancellationToken)
+    {
+        var store = new TrackingIdempotencyStore();
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IIdempotencyStore>(store);
+        var provider = services.BuildServiceProvider();
+        var interceptor = new IdempotencyCommandInterceptor<TestVoidCommand, Extensibility.Void>(provider);
+        var command = new TestVoidCommand { IdempotencyKey = "void-key-store" };
+
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult(Extensibility.Void.Completed), cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(store.StoreCallCount).IsEqualTo(1);
+            _ = await Assert.That(store.StoredKey).IsEqualTo("void-key-store");
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_VoidCommand_ThrowsIdempotencyConflictExceptionOnExistingKey(
+        CancellationToken cancellationToken
+    )
+    {
+        var store = new TrackingIdempotencyStore(existingKey: "void-key-conflict");
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IIdempotencyStore>(store);
+        var provider = services.BuildServiceProvider();
+        var interceptor = new IdempotencyCommandInterceptor<TestVoidCommand, Extensibility.Void>(provider);
+        var command = new TestVoidCommand { IdempotencyKey = "void-key-conflict" };
+        var handlerCalled = false;
+
+        var exception = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(
+                        command,
+                        (_, _) =>
+                        {
+                            handlerCalled = true;
+                            return Task.FromResult(Extensibility.Void.Completed);
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            .Throws<IdempotencyConflictException>();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(handlerCalled).IsFalse();
+            _ = await Assert.That(exception!.IdempotencyKey).IsEqualTo("void-key-conflict");
+            _ = await Assert.That(store.StoreCallCount).IsEqualTo(0);
+        }
+    }
+
     private sealed record TestCommand : IIdempotentCommand<string>
+    {
+        public string? CorrelationId { get; set; }
+        public string IdempotencyKey { get; init; } = "default-key";
+    }
+
+    private sealed record TestVoidCommand : IIdempotentCommand
     {
         public string? CorrelationId { get; set; }
         public string IdempotencyKey { get; init; } = "default-key";
