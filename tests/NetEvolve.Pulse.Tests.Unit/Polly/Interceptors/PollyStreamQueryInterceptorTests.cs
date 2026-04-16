@@ -78,7 +78,7 @@ public sealed class PollyStreamQueryInterceptorTests
         // Act
         var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
 
-        // Assert — pass-through scenario: no exception
+        // Assert - pass-through scenario: no exception
         _ = await Assert.That(interceptor).IsNotNull();
     }
 
@@ -130,7 +130,7 @@ public sealed class PollyStreamQueryInterceptorTests
                     var _ in interceptor.HandleAsync(request, null!, cancellationToken).ConfigureAwait(false)
                 )
                 {
-                    // consume — we expect the foreach to throw before yielding any items
+                    // consume - we expect the foreach to throw before yielding any items
                 }
             })
             .Throws<ArgumentNullException>();

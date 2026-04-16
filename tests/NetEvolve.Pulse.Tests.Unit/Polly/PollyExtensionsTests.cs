@@ -551,7 +551,7 @@ public sealed class PollyExtensionsTests
                 )
         );
 
-        // Assert — exactly one pipeline descriptor registered for this type/key combination
+        // Assert - exactly one pipeline descriptor registered for this type/key combination
         var pipelineDescriptors = services
             .Where(d =>
                 d.ServiceType == typeof(ResiliencePipeline)
@@ -590,7 +590,7 @@ public sealed class PollyExtensionsTests
         // Resolve the pipeline to trigger factory invocation
         _ = provider.GetKeyedService<ResiliencePipeline>(typeof(TestStreamQuery));
 
-        // Assert — only the second factory should have been invoked
+        // Assert - only the second factory should have been invoked
         _ = await Assert.That(firstFactoryInvoked).IsFalse();
         _ = await Assert.That(secondFactoryInvoked).IsTrue();
     }
@@ -612,7 +612,7 @@ public sealed class PollyExtensionsTests
 
         var provider = services.BuildServiceProvider();
 
-        // Assert — Should have only one registration (the second one)
+        // Assert - Should have only one registration (the second one)
         var interceptors = provider.GetServices<IStreamQueryInterceptor<TestStreamQuery, string>>().ToList();
         _ = await Assert.That(interceptors.Count).IsEqualTo(1);
 
@@ -634,7 +634,7 @@ public sealed class PollyExtensionsTests
 
         var provider = services.BuildServiceProvider();
 
-        // Assert — Create two scopes and verify different instances
+        // Assert - Create two scopes and verify different instances
         using var scope1 = provider.CreateScope();
         using var scope2 = provider.CreateScope();
 
