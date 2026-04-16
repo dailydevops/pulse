@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
+using NetEvolve.Pulse.Serialization;
 
 /// <summary>
 /// Provides extension methods for <see cref="IServiceCollection"/> to register the Pulse mediator and its dependencies.
@@ -96,6 +97,9 @@ public static class ServiceCollectionExtensions
 
         // Register default parallel event dispatcher if not configured
         services.TryAddSingleton<IEventDispatcher, ParallelEventDispatcher>();
+
+        // Register default payload serializer if not configured
+        services.TryAddSingleton<IPayloadSerializer, SystemTextJsonPayloadSerializer>();
 
         if (builder is not null)
         {

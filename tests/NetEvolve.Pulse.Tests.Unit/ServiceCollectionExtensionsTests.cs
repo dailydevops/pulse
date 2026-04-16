@@ -121,4 +121,19 @@ public class ServiceCollectionExtensionsTests
         var mediatorDescriptors = services.Where(d => d.ServiceType == typeof(IMediator)).ToList();
         _ = await Assert.That(mediatorDescriptors.Count).IsEqualTo(2);
     }
+
+    [Test]
+    public async Task AddPulse_RegistersPayloadSerializer()
+    {
+        var services = new ServiceCollection();
+
+        _ = services.AddPulse();
+
+        using (Assert.Multiple())
+        {
+            var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IPayloadSerializer));
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
 }
