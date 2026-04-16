@@ -253,6 +253,96 @@ public static class PollyExtensions
         configurator.AddPollyRequestPolicies<TQuery, TResponse>(configure, lifetime);
 
     /// <summary>
+    /// Adds Polly resilience policies for a specific stream query type.
+    /// </summary>
+    /// <typeparam name="TQuery">The stream query type that implements <see cref="IStreamQuery{TResponse}"/>.</typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded by the stream query handler.</typeparam>
+    /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <returns>The configurator for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para><strong>Stream Initialization Protection:</strong></para>
+    /// <para>
+    /// This method registers a non-typed <see cref="ResiliencePipeline"/> keyed by <typeparamref name="TQuery"/> type.
+    /// The interceptor wraps the <em>handler invocation</em> (stream open phase) in the pipeline.
+    /// Items are yielded directly after the pipeline executes — per-item retry is intentionally out of scope.
+    /// </para>
+    /// <para><strong>Transparent Pass-Through:</strong></para>
+    /// <para>
+    /// If no pipeline is resolved for the query type, the interceptor passes through transparently.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// config
+    ///     .AddStreamQueryHandler&lt;GetOrdersStreamQuery, OrderDto, GetOrdersStreamQueryHandler&gt;()
+    ///     .AddPollyStreamQueryPolicies&lt;GetOrdersStreamQuery, OrderDto&gt;(pipeline => pipeline
+    ///         .AddRetry(new RetryStrategyOptions
+    ///         {
+    ///             MaxRetryAttempts = 3,
+    ///             Delay = TimeSpan.FromSeconds(1)
+    ///         }));
+    /// </code>
+    /// </example>
+    public static IMediatorBuilder AddPollyStreamQueryPolicies<TQuery, TResponse>(
+        this IMediatorBuilder configurator,
+        Action<ResiliencePipelineBuilder> configure,
+        ServiceLifetime lifetime = ServiceLifetime.Singleton
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(configurator);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // Remove existing interceptor registration
+        var existingInterceptor = configurator.Services.FirstOrDefault(d =>
+            d.ServiceType == typeof(IStreamQueryInterceptor<TQuery, TResponse>)
+            && d.ImplementationType == typeof(PollyStreamQueryInterceptor<TQuery, TResponse>)
+        );
+        if (existingInterceptor is not null)
+        {
+            _ = configurator.Services.Remove(existingInterceptor);
+        }
+
+        // Remove existing pipeline registration and re-register to ensure the latest configuration is used
+        var existingPipeline = configurator.Services.FirstOrDefault(d =>
+            d.ServiceType == typeof(ResiliencePipeline) && d.ServiceKey is Type key && key == typeof(TQuery)
+        );
+        if (existingPipeline is not null)
+        {
+            _ = configurator.Services.Remove(existingPipeline);
+        }
+
+        // Register the resilience pipeline as keyed service with TQuery as key
+        configurator.Services.Add(
+            new ServiceDescriptor(
+                typeof(ResiliencePipeline),
+                typeof(TQuery),
+                (_, _) =>
+                {
+                    var builder = new ResiliencePipelineBuilder();
+                    configure(builder);
+                    return builder.Build();
+                },
+                lifetime
+            )
+        );
+
+        // Register the stream query interceptor
+        configurator.Services.Add(
+            new ServiceDescriptor(
+                typeof(IStreamQueryInterceptor<TQuery, TResponse>),
+                typeof(PollyStreamQueryInterceptor<TQuery, TResponse>),
+                lifetime
+            )
+        );
+
+        return configurator;
+    }
+
+    /// <summary>
     /// Adds Polly resilience policies for a specific event type.
     /// </summary>
     /// <typeparam name="TEvent">The event type that implements <see cref="IEvent"/>.</typeparam>

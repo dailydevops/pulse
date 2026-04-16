@@ -499,6 +499,153 @@ public sealed class PollyExtensionsTests
         _ = await Assert.That(pipeline).IsNotNull();
     }
 
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_NullConfigurator_ThrowsArgumentNullException() =>
+        // Act & Assert
+        _ = await Assert
+            .That(() => PollyExtensions.AddPollyStreamQueryPolicies<TestStreamQuery, string>(null!, _ => { }))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_NullConfigure_ThrowsArgumentNullException() =>
+        // Act & Assert
+        _ = await Assert
+            .That(() => Mock.Of<IMediatorBuilder>().Object.AddPollyStreamQueryPolicies<TestStreamQuery, string>(null!))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_RegistersPipelineAndInterceptor()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                pipeline.AddRetry(
+                    new RetryStrategyOptions { MaxRetryAttempts = 3, Delay = TimeSpan.FromMilliseconds(10) }
+                )
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert
+        var pipelineInstance = provider.GetKeyedService<ResiliencePipeline>(typeof(TestStreamQuery));
+        _ = await Assert.That(pipelineInstance).IsNotNull();
+
+        var interceptors = provider.GetServices<IStreamQueryInterceptor<TestStreamQuery, string>>();
+        _ = await Assert.That(interceptors).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_CalledTwice_OnlyOnePipelineDescriptorRegistered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 })
+                )
+                .AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 4 })
+                )
+        );
+
+        // Assert — exactly one pipeline descriptor registered for this type/key combination
+        var pipelineDescriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(ResiliencePipeline)
+                && d.ServiceKey is Type key
+                && key == typeof(TestStreamQuery)
+            )
+            .ToList();
+
+        _ = await Assert.That(pipelineDescriptors.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_CalledTwice_SecondConfigurationIsApplied()
+    {
+        // Arrange
+        var firstFactoryInvoked = false;
+        var secondFactoryInvoked = false;
+
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                {
+                    firstFactoryInvoked = true;
+                    _ = pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 });
+                })
+                .AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                {
+                    secondFactoryInvoked = true;
+                    _ = pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 4 });
+                })
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolve the pipeline to trigger factory invocation
+        _ = provider.GetKeyedService<ResiliencePipeline>(typeof(TestStreamQuery));
+
+        // Assert — only the second factory should have been invoked
+        _ = await Assert.That(firstFactoryInvoked).IsFalse();
+        _ = await Assert.That(secondFactoryInvoked).IsTrue();
+    }
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_CalledTwice_ReplacesExistingRegistration()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 2 })
+                )
+                .AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                    pipeline.AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 4 })
+                )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert — Should have only one registration (the second one)
+        var interceptors = provider.GetServices<IStreamQueryInterceptor<TestStreamQuery, string>>().ToList();
+        _ = await Assert.That(interceptors.Count).IsEqualTo(1);
+
+        var pipeline = provider.GetKeyedService<ResiliencePipeline>(typeof(TestStreamQuery));
+        _ = await Assert.That(pipeline).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_WithDifferentLifetimes_RespectsLifetime()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyStreamQueryPolicies<TestStreamQuery, string>(
+                pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)),
+                ServiceLifetime.Scoped
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Assert — Create two scopes and verify different instances
+        using var scope1 = provider.CreateScope();
+        using var scope2 = provider.CreateScope();
+
+        var pipeline1 = scope1.ServiceProvider.GetKeyedService<ResiliencePipeline>(typeof(TestStreamQuery));
+        var pipeline2 = scope2.ServiceProvider.GetKeyedService<ResiliencePipeline>(typeof(TestStreamQuery));
+
+        _ = await Assert.That(pipeline1).IsNotNull();
+        _ = await Assert.That(pipeline2).IsNotNull();
+        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
+    }
+
     private sealed record TestCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }
@@ -510,6 +657,11 @@ public sealed class PollyExtensionsTests
     }
 
     private sealed record TestQuery : IQuery<string>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed record TestStreamQuery : IStreamQuery<string>
     {
         public string? CorrelationId { get; set; }
     }
