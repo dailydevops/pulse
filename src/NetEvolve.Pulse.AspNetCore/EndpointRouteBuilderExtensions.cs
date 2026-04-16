@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -141,6 +142,76 @@ public static class EndpointRouteBuilderExtensions
                 TypedResults.Ok(
                     await mediator.QueryAsync<TQuery, TResponse>(query, cancellationToken).ConfigureAwait(false)
                 )
+        );
+    }
+
+    /// <summary>
+    /// Maps a streaming query to a <c>GET</c> HTTP endpoint that streams results as
+    /// Server-Sent Events (SSE) or newline-delimited JSON (NDJSON), depending on the
+    /// <c>Accept</c> request header. When the <c>Accept</c> header contains
+    /// <c>application/x-ndjson</c>, each item is written as a JSON line followed by
+    /// a newline character. Otherwise, items are written using the SSE
+    /// <c>data: {json}\n\n</c> format with <c>Content-Type: text/event-stream</c>.
+    /// </summary>
+    /// <typeparam name="TQuery">
+    /// The query type. Must implement <see cref="IStreamQuery{TResponse}"/>.
+    /// </typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded by the streaming query.</typeparam>
+    /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the endpoint to.</param>
+    /// <param name="pattern">The route pattern for the endpoint.</param>
+    /// <returns>An <see cref="IEndpointConventionBuilder"/> to further configure the endpoint.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown if <paramref name="endpoints"/> or <paramref name="pattern"/> is <see langword="null"/>.
+    /// </exception>
+    /// <example>
+    /// <code>
+    /// app.MapStreamQuery&lt;GetOrdersStreamQuery, OrderDto&gt;("/orders/stream");
+    /// </code>
+    /// </example>
+    public static IEndpointConventionBuilder MapStreamQuery<TQuery, TResponse>(
+        [NotNull] this IEndpointRouteBuilder endpoints,
+        [NotNull] string pattern
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        ArgumentNullException.ThrowIfNull(pattern);
+
+        return endpoints.MapGet(
+            pattern,
+            async (
+                [AsParameters] TQuery query,
+                IMediator mediator,
+                HttpRequest request,
+                HttpResponse response,
+                CancellationToken cancellationToken
+            ) =>
+            {
+                var useNdjson = request.Headers.Accept.Contains("application/x-ndjson");
+
+                response.ContentType = useNdjson ? "application/x-ndjson" : "text/event-stream";
+                response.Headers.CacheControl = "no-cache";
+
+                try
+                {
+                    await foreach (
+                        var item in mediator
+                            .StreamQueryAsync<TQuery, TResponse>(query, cancellationToken)
+                            .ConfigureAwait(false)
+                    )
+                    {
+                        var json = JsonSerializer.Serialize(item);
+                        var line = useNdjson ? $"{json}\n" : $"data: {json}\n\n";
+
+                        await response.WriteAsync(line, cancellationToken).ConfigureAwait(false);
+                        await response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Client disconnected cleanly; do not re-throw.
+                }
+            }
         );
     }
 
