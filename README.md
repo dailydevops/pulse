@@ -70,6 +70,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 - **Multiple persistence providers**: Entity Framework Core, SQL Server ADO.NET, PostgreSQL ADO.NET, and SQLite embedded
 - **Multiple transport providers**: Azure Service Bus, Dapr pub/sub, RabbitMQ, and Apache Kafka
 - **Polly v8 integration** for retry, circuit breaker, timeout, bulkhead, and fallback strategies
+- **Pluggable serialization** via `IPayloadSerializer` — default System.Text.Json implementation with full override capability for custom serializers (Newtonsoft.Json, MessagePack, etc.)
 
 ## Getting Started
 

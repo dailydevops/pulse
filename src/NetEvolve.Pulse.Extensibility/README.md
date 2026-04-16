@@ -15,6 +15,7 @@ NetEvolve.Pulse.Extensibility delivers the core contracts for building CQRS medi
 - **`[PulseHandler]` / `[PulseHandler<T>]`** — handler registration attributes consumed by `NetEvolve.Pulse.SourceGeneration` to emit compile-time DI registrations
 - **`[PulseGenericHandler]`** — open-generic variant that instructs the source generator to emit a `typeof()`-based open-generic DI registration, enabling the container to resolve any closed variant at runtime
 - **`ICacheableQuery<TResponse>`** — opt-in caching contract that pairs with the `AddQueryCaching()` interceptor in `NetEvolve.Pulse`
+- **`IPayloadSerializer`** — serialization abstraction for outbox payloads, cache entries, and internal storage; default System.Text.Json implementation provided by `NetEvolve.Pulse` with override capability
 - **Outbox pattern contracts** including `IEventOutbox`, `IOutboxRepository`, and `IMessageTransport`
 - Designed for framework-agnostic use while pairing seamlessly with NetEvolve.Pulse
 - Test-friendly primitives including `Void` responses and TimeProvider awareness
@@ -213,6 +214,74 @@ services.AddPulse(config => config.AddQueryCaching(options =>
 | `DefaultExpiry` | `TimeSpan?` | `null` | Fallback expiry used when `ICacheableQuery<TResponse>.Expiry` returns `null` |
 
 Queries that do **not** implement `ICacheableQuery<TResponse>` always reach the handler unchanged. When `IDistributedCache` is not registered the interceptor falls through silently.
+
+### Payload Serialization (`IPayloadSerializer`)
+
+`IPayloadSerializer` defines the serialization contract for all payload operations within Pulse. It decouples the framework from any specific serialization library, allowing you to use System.Text.Json (default), Newtonsoft.Json, MessagePack, or any other serializer.
+
+The interface is consumed by:
+- **Outbox pattern** — serializing event payloads before storage
+- **Distributed cache** — serializing query results for cache entries
+- **Dead letter stores** — persisting failed command payloads for diagnostics
+- **Audit trails** — capturing request/response snapshots
+
+#### Interface Definition
+
+```csharp
+public interface IPayloadSerializer
+{
+    string Serialize<T>(T value);
+    string Serialize(object value, Type type);
+    byte[] SerializeToBytes<T>(T value);
+    T? Deserialize<T>(string payload);
+    T? Deserialize<T>(byte[] payload);
+}
+```
+
+#### Default Implementation
+
+`NetEvolve.Pulse` automatically registers `SystemTextJsonPayloadSerializer` as the default implementation. No explicit registration is required:
+
+```csharp
+services.AddPulse();
+// SystemTextJsonPayloadSerializer automatically registered
+```
+
+Configure JSON options using the standard .NET options pattern:
+
+```csharp
+services.Configure<JsonSerializerOptions>(options =>
+{
+    options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+});
+services.AddPulse();
+```
+
+#### Custom Implementation
+
+Replace the default serializer by registering your own implementation before calling `AddPulse()`:
+
+```csharp
+// Register custom serializer
+services.AddSingleton<IPayloadSerializer, MyCustomSerializer>();
+services.AddPulse();
+
+public sealed class MyCustomSerializer : IPayloadSerializer
+{
+    public string Serialize<T>(T value) => /* your implementation */;
+    public string Serialize(object value, Type type) => /* your implementation */;
+    public byte[] SerializeToBytes<T>(T value) => /* your implementation */;
+    public T? Deserialize<T>(string payload) => /* your implementation */;
+    public T? Deserialize<T>(byte[] payload) => /* your implementation */;
+}
+```
+
+#### Implementation Guidelines
+
+- **Thread-safety**: Implementations MUST be thread-safe — the same instance may be called concurrently
+- **Non-null returns**: `Serialize` methods MUST NOT return `null`; use empty string or empty array instead
+- **Exception handling**: Propagate serialization exceptions rather than swallowing them
+- **Consistency**: Use the same serialization format across all methods for consistent payload handling
 
 ## Configuration
 
