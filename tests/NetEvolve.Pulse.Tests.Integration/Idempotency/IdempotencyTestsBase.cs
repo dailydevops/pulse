@@ -273,7 +273,10 @@ public abstract class IdempotencyTestsBase(
                 },
                 cancellationToken,
                 configureServices: services =>
-                    services.AddSingleton<ICommandHandler<TestIdempotentVoidCommand, Extensibility.Void>, TestIdempotentVoidCommandHandler>()
+                    services.AddSingleton<
+                        ICommandHandler<TestIdempotentVoidCommand, Extensibility.Void>,
+                        TestIdempotentVoidCommandHandler
+                    >()
             )
             .ConfigureAwait(false);
 
@@ -282,9 +285,12 @@ public abstract class IdempotencyTestsBase(
         public string? CorrelationId { get; set; }
     }
 
-    private sealed class TestIdempotentVoidCommandHandler : ICommandHandler<TestIdempotentVoidCommand, Extensibility.Void>
+    private sealed class TestIdempotentVoidCommandHandler
+        : ICommandHandler<TestIdempotentVoidCommand, Extensibility.Void>
     {
-        public Task<Extensibility.Void> HandleAsync(TestIdempotentVoidCommand command, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Extensibility.Void.Completed);
+        public Task<Extensibility.Void> HandleAsync(
+            TestIdempotentVoidCommand command,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Extensibility.Void.Completed);
     }
 }
