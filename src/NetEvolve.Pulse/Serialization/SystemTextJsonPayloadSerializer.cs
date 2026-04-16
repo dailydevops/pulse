@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Serialization;
 
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -11,7 +12,8 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>Thread Safety:</strong></para>
 /// This implementation is thread-safe and can be used concurrently from multiple threads.
 /// <para><strong>Serialization Options:</strong></para>
-/// Uses the provided <see cref="JsonSerializerOptions"/> or defaults to <see cref="JsonSerializerOptions.Default"/> when none are specified.
+/// Uses the provided <see cref="JsonSerializerOptions"/> from the options pattern,
+/// or defaults to <see cref="JsonSerializerOptions.Default"/> when none are configured.
 /// </remarks>
 internal sealed class SystemTextJsonPayloadSerializer : IPayloadSerializer
 {
@@ -20,9 +22,12 @@ internal sealed class SystemTextJsonPayloadSerializer : IPayloadSerializer
     /// <summary>
     /// Initializes a new instance of the <see cref="SystemTextJsonPayloadSerializer"/> class.
     /// </summary>
-    /// <param name="options">Optional JSON serializer options. When null, defaults to <see cref="JsonSerializerOptions.Default"/>.</param>
-    public SystemTextJsonPayloadSerializer(JsonSerializerOptions? options = null) =>
-        _options = options ?? JsonSerializerOptions.Default;
+    /// <param name="options">The JSON serializer options.</param>
+    public SystemTextJsonPayloadSerializer(IOptions<JsonSerializerOptions> options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        _options = options.Value ?? JsonSerializerOptions.Default;
+    }
 
     /// <inheritdoc />
     public string Serialize<T>(T value) => JsonSerializer.Serialize(value, _options);

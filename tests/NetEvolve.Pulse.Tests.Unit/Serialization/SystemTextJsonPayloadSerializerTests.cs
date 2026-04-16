@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Serialization;
 using TUnit.Core;
@@ -15,7 +16,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task Serialize_Generic_SerializesValue()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var testObject = new TestData { Id = 42, Name = "Test" };
 
         var result = serializer.Serialize(testObject);
@@ -29,7 +31,8 @@ public class SystemTextJsonPayloadSerializerTests
 #pragma warning disable CA2263 // Prefer generic overload - This test specifically validates the non-generic method
     public async Task Serialize_NonGeneric_SerializesValue()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var testObject = new TestData { Id = 42, Name = "Test" };
 
         var result = serializer.Serialize(testObject, typeof(TestData));
@@ -43,7 +46,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task SerializeToBytes_SerializesValueToBytes()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var testObject = new TestData { Id = 42, Name = "Test" };
 
         var result = serializer.SerializeToBytes(testObject);
@@ -59,7 +63,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task Deserialize_Generic_String_DeserializesValue()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var json = "{\"Id\":42,\"Name\":\"Test\"}";
 
         var result = serializer.Deserialize<TestData>(json);
@@ -72,7 +77,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task Deserialize_Generic_Bytes_DeserializesValue()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var json = "{\"Id\":42,\"Name\":\"Test\"}";
         var bytes = Encoding.UTF8.GetBytes(json);
 
@@ -86,7 +92,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task SerializeDeserialize_RoundTrip_Generic()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var original = new TestData { Id = 123, Name = "RoundTrip" };
 
         var json = serializer.Serialize(original);
@@ -101,7 +108,8 @@ public class SystemTextJsonPayloadSerializerTests
 #pragma warning disable CA2263 // Prefer generic overload - This test specifically validates the non-generic method
     public async Task SerializeDeserialize_RoundTrip_NonGeneric()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var original = new TestData { Id = 123, Name = "RoundTrip" };
 
         var json = serializer.Serialize(original, typeof(TestData));
@@ -116,7 +124,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task SerializeToBytes_Deserialize_RoundTrip()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var original = new TestData { Id = 456, Name = "BytesRoundTrip" };
 
         var bytes = serializer.SerializeToBytes(original);
@@ -130,7 +139,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task Serialize_NullValue_ReturnsNullJson()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         TestData? nullValue = null;
 
         var result = serializer.Serialize(nullValue);
@@ -141,7 +151,8 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task Deserialize_NullJson_ReturnsNull()
     {
-        var serializer = new SystemTextJsonPayloadSerializer();
+        var options = Options.Create(JsonSerializerOptions.Default);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var json = "null";
 
         var result = serializer.Deserialize<TestData>(json);
@@ -152,11 +163,12 @@ public class SystemTextJsonPayloadSerializerTests
     [Test]
     public async Task Constructor_WithCustomOptions_UsesCustomOptions()
     {
-        var options = new JsonSerializerOptions
+        var customOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = true,
         };
+        var options = Options.Create(customOptions);
         var serializer = new SystemTextJsonPayloadSerializer(options);
         var testObject = new TestData { Id = 42, Name = "Test" };
 
@@ -168,9 +180,10 @@ public class SystemTextJsonPayloadSerializerTests
     }
 
     [Test]
-    public async Task Constructor_WithNullOptions_UsesDefaultOptions()
+    public async Task Constructor_WithNullOptionsValue_UsesDefaultOptions()
     {
-        var serializer = new SystemTextJsonPayloadSerializer(null);
+        var options = Options.Create<JsonSerializerOptions>(null!);
+        var serializer = new SystemTextJsonPayloadSerializer(options);
         var testObject = new TestData { Id = 42, Name = "Test" };
 
         var result = serializer.Serialize(testObject);
