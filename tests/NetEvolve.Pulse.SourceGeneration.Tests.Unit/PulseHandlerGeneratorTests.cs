@@ -1227,6 +1227,100 @@ public class PulseHandlerGeneratorTests
         await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
+    [Test]
+    public async Task WhenPureGenericQueryHandlerAnnotatedThenOpenGenericRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            [PulseGenericHandler]
+            public class GenericQueryHandler<TQuery, TResult> : IQueryHandler<TQuery, TResult>
+                where TQuery : IQuery<TResult>
+            {
+                public Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenPureGenericQueryHandlerWithSingletonLifetimeThenSingletonOpenGenericRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            [PulseGenericHandler(Lifetime = PulseServiceLifetime.Singleton)]
+            public class GenericQueryHandler<TQuery, TResult> : IQueryHandler<TQuery, TResult>
+                where TQuery : IQuery<TResult>
+            {
+                public Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenPureGenericStreamQueryHandlerAnnotatedThenOpenGenericRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Collections.Generic;
+            using System.Threading;
+
+            [PulseGenericHandler]
+            public class GenericStreamQueryHandler<TQuery, TResult> : IStreamQueryHandler<TQuery, TResult>
+                where TQuery : IStreamQuery<TResult>
+            {
+                public async IAsyncEnumerable<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                {
+                    await System.Threading.Tasks.Task.CompletedTask;
+                    yield break;
+                }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenPureGenericStreamQueryHandlerWithSingletonLifetimeThenSingletonOpenGenericRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Collections.Generic;
+            using System.Threading;
+
+            [PulseGenericHandler(Lifetime = PulseServiceLifetime.Singleton)]
+            public class GenericStreamQueryHandler<TQuery, TResult> : IStreamQueryHandler<TQuery, TResult>
+                where TQuery : IStreamQuery<TResult>
+            {
+                public async IAsyncEnumerable<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                {
+                    await System.Threading.Tasks.Task.CompletedTask;
+                    yield break;
+                }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
         string? rootNamespace = "TestAssembly",

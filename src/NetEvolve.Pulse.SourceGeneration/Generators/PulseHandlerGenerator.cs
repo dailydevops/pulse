@@ -420,7 +420,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Skip classes already annotated with [PulseHandler], [PulseHandler<T>], or [PulseGenericHandler].
+        // Skip classes already annotated with [PulseHandler] or [PulseHandler<T>].
+        // [PulseGenericHandler] is only valid on open generic types; closed classes annotated with it
+        // are not skipped here so that PULSE003 is emitted for misuse (the TypeParameters.Length > 0
+        // guard above already ensures that open-generic classes never reach this point).
         if (
             classSymbol
                 .GetAttributes()
@@ -435,11 +438,6 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                         || string.Equals(
                             GetFullMetadataName(attr.AttributeClass.OriginalDefinition),
                             PulseHandlerGenericAttributeFullName,
-                            StringComparison.Ordinal
-                        )
-                        || string.Equals(
-                            GetFullMetadataName(attr.AttributeClass),
-                            PulseGenericHandlerAttributeFullName,
                             StringComparison.Ordinal
                         )
                     )
@@ -645,14 +643,14 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             .AppendLine()
             .AppendXmlDocSummary([
                 "Auto-generated extension method to register Pulse handlers annotated",
-                $"with <c>[PulseHandler]</c> inside the Assembly <c>{assemblyLabel}</c>.",
+                $"with <c>[PulseHandler]</c> or <c>[PulseGenericHandler]</c> inside the Assembly <c>{assemblyLabel}</c>.",
             ])
             .AppendLine($"[GeneratedCode(\"NetEvolve.Pulse.SourceGeneration\", \"{generatorVersion}\")]");
 
         using (cb.ScopeLine("public static partial class PulseRegistrationExtensions"))
         {
             _ = cb.AppendXmlDocSummary(
-                    $"Registers all <c>[PulseHandler]</c>-annotated handlers from the assembly <c>{assemblyLabel}</c> into the DI container."
+                    $"Registers all Pulse handlers from the assembly <c>{assemblyLabel}</c> into the DI container."
                 )
                 .AppendXmlDocParam("services", "The service collection to add registrations to.")
                 .AppendXmlDocReturns("The same <see cref=\"IServiceCollection\"/> instance for chaining.");
@@ -1011,6 +1009,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// Builds the list of <see cref="HandlerRegistration"/> entries for all recognized Pulse handler
     /// interfaces implemented by <paramref name="classSymbol"/>, using the unbound open-generic
     /// type names suitable for <c>typeof()</c>-based DI registration.
+    /// Only interfaces whose type arguments are a pure positional mapping of the handler's type
+    /// parameters (verified by <see cref="IsPureOpenGenericMapping"/>) are included.
     /// </summary>
     private static List<HandlerRegistration> BuildOpenGenericHandlerRegistrations(
         INamedTypeSymbol classSymbol,
@@ -1020,11 +1020,12 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var registrations = new List<HandlerRegistration>();
         var handlerTypeName = GetOpenGenericTypeName(classSymbol);
 
-        foreach (var typeDefinition in classSymbol.AllInterfaces.Select(x => x.OriginalDefinition))
+        foreach (var iface in classSymbol.AllInterfaces)
         {
+            var typeDefinition = iface.OriginalDefinition;
             var metadataName = GetFullMetadataName(typeDefinition);
 
-            if (TryGetHandlerKind(metadataName, out var kind))
+            if (TryGetHandlerKind(metadataName, out var kind) && IsPureOpenGenericMapping(classSymbol, iface))
             {
                 registrations.Add(
                     new HandlerRegistration(
@@ -1039,6 +1040,29 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         return registrations;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="iface"/> is a pure open-generic mapping
+    /// of <paramref name="handler"/>: the interface's type arguments are exactly the handler's type
+    /// parameters in the same positional order, with no extras, missing entries, or reorderings.
+    /// </summary>
+    private static bool IsPureOpenGenericMapping(INamedTypeSymbol handler, INamedTypeSymbol iface)
+    {
+        if (handler.TypeParameters.Length != iface.TypeArguments.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < handler.TypeParameters.Length; i++)
+        {
+            if (!SymbolEqualityComparer.Default.Equals(handler.TypeParameters[i], iface.TypeArguments[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

@@ -23,12 +23,7 @@ public static partial class PulseRegistrationExtensions
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
     public static IServiceCollection AddTestAssemblyPulseHandlers(this IServiceCollection services)
     {
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::MyCommand, string>, global::MyCommandHandler>();
-        services.TryAddScoped<global::MultiHandler>();
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::AnotherCommand, int>>(static sp => sp.GetRequiredService<global::MultiHandler>());
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>>(static sp => sp.GetRequiredService<global::MultiHandler>());
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IQueryHandler<global::QueryA, string>, global::GenericQueryHandler<global::QueryA, string>>();
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IQueryHandler<global::QueryB, int>, global::GenericQueryHandler<global::QueryB, int>>();
+        services.TryAddScoped(typeof(global::NetEvolve.Pulse.Extensibility.IQueryHandler<,>), typeof(global::GenericQueryHandler<,>));
 
         return services;
     }
