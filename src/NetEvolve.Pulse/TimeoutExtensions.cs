@@ -65,6 +65,10 @@ public static class TimeoutExtensions
             ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(TimeoutRequestInterceptor<,>))
         );
 
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton(typeof(IStreamQueryInterceptor<,>), typeof(TimeoutStreamQueryInterceptor<,>))
+        );
+
         return configurator;
     }
 }
