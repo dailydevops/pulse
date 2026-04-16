@@ -11,7 +11,7 @@
 --
 -- Column types:
 --   IdempotencyKey VARCHAR(500) — the idempotency key (primary key)
---   CreatedAt      BIGINT       — UTC ticks; use dto.UtcTicks / new DateTimeOffset(ticks, TimeSpan.Zero)
+--   CreatedAt      BIGINT       — UTC ticks (use dto.UtcTicks / new DateTimeOffset(ticks, TimeSpan.Zero))
 --
 -- Usage:
 --   Run this script in the target MySQL database once before deploying the application:

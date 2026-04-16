@@ -16,10 +16,12 @@ public sealed class MySqlContainerFixture : IAsyncDisposable, IAsyncInitializer
         .WithLogger(NullLogger.Instance)
         .WithUsername(UserName)
         .WithPrivileged(true)
+        .WithCommand("--max-connections=500")
         .Build();
 
     public string ConnectionString =>
-        _container.GetConnectionString() + ";SslMode=Disabled;AllowPublicKeyRetrieval=True;ConnectionTimeout=30;";
+        _container.GetConnectionString()
+        + ";SslMode=Disabled;AllowPublicKeyRetrieval=True;ConnectionTimeout=30;Maximum Pool Size=10;";
 
     public static string UserName => "root";
 

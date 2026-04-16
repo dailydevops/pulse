@@ -10,8 +10,8 @@
 --   MySQL 8.0 or later (requires FOR UPDATE SKIP LOCKED support)
 --
 -- Column types:
---   Id             BINARY(16)   — raw 16-byte UUID; use Guid.ToByteArray() / new Guid(bytes)
---   DateTimeOffset BIGINT       — UTC ticks; use dto.UtcTicks / new DateTimeOffset(ticks, TimeSpan.Zero)
+--   Id             BINARY(16)   — raw 16-byte UUID (use Guid.ToByteArray() / new Guid(bytes))
+--   DateTimeOffset BIGINT       — UTC ticks (use dto.UtcTicks / new DateTimeOffset(ticks, TimeSpan.Zero))
 --   EventType      VARCHAR(500) — assembly-qualified type name
 --   Payload        LONGTEXT     — serialised event payload (typically JSON)
 --   CorrelationId  VARCHAR(100) — optional correlation identifier

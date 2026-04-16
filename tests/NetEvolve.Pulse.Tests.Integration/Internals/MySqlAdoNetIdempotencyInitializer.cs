@@ -47,12 +47,19 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IDatabaseInitializer
 
         var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
 
-        // Replace the default table name with the actual one used for this test
-        script = script.Replace(
-            $"`{IdempotencyKeySchema.DefaultTableName}`",
-            $"`{tableName}`",
-            StringComparison.Ordinal
-        );
+        // Replace only the table name occurrences (CREATE TABLE and ON clauses),
+        // not the identically-named column definition.
+        script = script
+            .Replace(
+                $"TABLE IF NOT EXISTS `{IdempotencyKeySchema.DefaultTableName}`",
+                $"TABLE IF NOT EXISTS `{tableName}`",
+                StringComparison.Ordinal
+            )
+            .Replace(
+                $"\n    ON `{IdempotencyKeySchema.DefaultTableName}`",
+                $"\n    ON `{tableName}`",
+                StringComparison.Ordinal
+            );
 
         await using var connection = new MySqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
