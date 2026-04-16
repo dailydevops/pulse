@@ -250,8 +250,13 @@ public sealed class EndpointRouteBuilderExtensionsTests
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
+#if NET10_0_OR_GREATER
+        _ = await Assert.That(body).Contains("data: first\n\n");
+        _ = await Assert.That(body).Contains("data: second\n\n");
+#else
         _ = await Assert.That(body).Contains("data: \"first\"\n\n");
         _ = await Assert.That(body).Contains("data: \"second\"\n\n");
+#endif
     }
 
     // MapStreamQuery — NDJSON format

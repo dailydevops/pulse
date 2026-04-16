@@ -15,6 +15,8 @@ using NetEvolve.Pulse.Extensibility;
 /// </summary>
 public static class EndpointRouteBuilderExtensions
 {
+    private const string NdjsonContentType = "application/x-ndjson";
+
     /// <summary>
     /// Maps a command to an HTTP endpoint. The command is bound from the request body,
     /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand, TResponse}"/>, and the result
@@ -152,8 +154,7 @@ public static class EndpointRouteBuilderExtensions
     /// <c>Accept</c> request header. When the <c>Accept</c> header contains
     /// <c>application/x-ndjson</c>, each item is serialized to JSON and written as a
     /// line followed by a newline character using <see cref="TypedResults.Stream(System.Func{System.IO.Stream,System.Threading.Tasks.Task},string?,string?,System.Nullable{System.DateTimeOffset},Microsoft.Net.Http.Headers.EntityTagHeaderValue?)"/>.
-    /// Otherwise, items are streamed as SSE via <see cref="TypedResults.ServerSentEvents{T}(System.Collections.Generic.IAsyncEnumerable{T},string?)"/>
-    /// with <c>Content-Type: text/event-stream</c>.
+    /// Otherwise, items are streamed as SSE with <c>Content-Type: text/event-stream</c>.
     /// </summary>
     /// <typeparam name="TQuery">
     /// The query type. Must implement <see cref="IStreamQuery{TResponse}"/>.
@@ -190,7 +191,7 @@ public static class EndpointRouteBuilderExtensions
             {
                 var items = mediator.StreamQueryAsync<TQuery, TResponse>(query, cancellationToken);
 
-                if (request.Headers.Accept.Contains("application/x-ndjson"))
+                if (request.Headers.Accept.Contains(NdjsonContentType))
                 {
                     return (IResult)
                         TypedResults.Stream(
@@ -203,7 +204,7 @@ public static class EndpointRouteBuilderExtensions
                                         var json = JsonSerializer.SerializeToUtf8Bytes(item);
                                         await outputStream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
                                         await outputStream
-                                            .WriteAsync([(byte)'\n'], cancellationToken)
+                                            .WriteAsync(new byte[] { (byte)'\n' }, cancellationToken)
                                             .ConfigureAwait(false);
                                         await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                                     }
@@ -213,11 +214,33 @@ public static class EndpointRouteBuilderExtensions
                                     // Client disconnected cleanly; do not re-throw.
                                 }
                             },
-                            contentType: "application/x-ndjson"
+                            contentType: NdjsonContentType
                         );
                 }
 
-                return TypedResults.ServerSentEvents(items);
+#if NET10_0_OR_GREATER
+                return TypedResults.ServerSentEvents<TResponse>(items);
+#else
+                return TypedResults.Stream(
+                    async outputStream =>
+                    {
+                        try
+                        {
+                            await foreach (var item in items.ConfigureAwait(false))
+                            {
+                                var line = Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(item)}\n\n");
+                                await outputStream.WriteAsync(line, cancellationToken).ConfigureAwait(false);
+                                await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Client disconnected cleanly; do not re-throw.
+                        }
+                    },
+                    contentType: "text/event-stream"
+                );
+#endif
             }
         );
     }
