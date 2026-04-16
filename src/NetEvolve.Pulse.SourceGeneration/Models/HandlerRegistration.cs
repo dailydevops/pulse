@@ -20,18 +20,35 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
     public int Lifetime { get; }
 
     /// <summary>
+    /// When <see langword="true"/>, both <see cref="HandlerTypeName"/> and <see cref="ServiceTypeName"/>
+    /// are unbound open-generic names (e.g. <c>global::Ns.MyHandler&lt;,&gt;</c>) and the registration
+    /// must be emitted using the <c>typeof()</c>-based DI overload.
+    /// </summary>
+    public bool IsOpenGeneric { get; }
+
+    /// <summary>
     /// Initializes a new <see cref="HandlerRegistration"/> with the specified type names, kind, and lifetime.
     /// </summary>
     /// <param name="handlerTypeName">The fully qualified name of the concrete handler class.</param>
     /// <param name="serviceTypeName">The fully qualified name of the service interface.</param>
     /// <param name="kind">The kind of handler contract.</param>
     /// <param name="lifetime">The service lifetime for the registration.</param>
-    public HandlerRegistration(string handlerTypeName, string serviceTypeName, HandlerKind kind, int lifetime)
+    /// <param name="isOpenGeneric">
+    /// <see langword="true"/> when the registration represents an open-generic type pair.
+    /// </param>
+    public HandlerRegistration(
+        string handlerTypeName,
+        string serviceTypeName,
+        HandlerKind kind,
+        int lifetime,
+        bool isOpenGeneric = false
+    )
     {
         HandlerTypeName = handlerTypeName;
         ServiceTypeName = serviceTypeName;
         Kind = kind;
         Lifetime = lifetime;
+        IsOpenGeneric = isOpenGeneric;
     }
 
     /// <inheritdoc />
@@ -39,7 +56,8 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
         string.Equals(HandlerTypeName, other.HandlerTypeName, StringComparison.Ordinal)
         && string.Equals(ServiceTypeName, other.ServiceTypeName, StringComparison.Ordinal)
         && Kind == other.Kind
-        && Lifetime == other.Lifetime;
+        && Lifetime == other.Lifetime
+        && IsOpenGeneric == other.IsOpenGeneric;
 
     /// <inheritdoc />
     public override bool Equals(object obj) => obj is HandlerRegistration other && Equals(other);
@@ -54,6 +72,7 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
             hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(ServiceTypeName);
             hash = (hash * 31) + (int)Kind;
             hash = (hash * 31) + Lifetime;
+            hash = (hash * 31) + (IsOpenGeneric ? 1 : 0);
             return hash;
         }
     }
