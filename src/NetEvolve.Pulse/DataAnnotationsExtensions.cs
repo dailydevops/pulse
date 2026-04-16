@@ -12,14 +12,14 @@ using NetEvolve.Pulse.Interceptors;
 /// </summary>
 /// <remarks>
 /// <para><strong>Purpose:</strong></para>
-/// The DataAnnotations interceptor automatically validates all commands and queries before they
+/// The DataAnnotations interceptor automatically validates all commands, queries, and events before they
 /// reach their handler, using <see cref="System.ComponentModel.DataAnnotations.Validator"/> and
 /// standard BCL attributes such as <c>[Required]</c>, <c>[Range]</c>, and <c>[MaxLength]</c>.
 /// This centralizes validation at the pipeline boundary and keeps handlers focused on domain logic,
 /// with zero additional dependencies beyond the BCL.
 /// <para><strong>No Separate Validator Registration Required:</strong></para>
 /// Unlike FluentValidation, DataAnnotations validation is driven entirely by attributes on the
-/// request class itself. No additional validator types need to be registered in the DI container.
+/// request or event class itself. No additional validator types need to be registered in the DI container.
 /// <para><strong>Idempotency:</strong></para>
 /// Calling <see cref="AddDataAnnotations"/> multiple times is safe — the interceptor is registered
 /// via <c>TryAddEnumerable</c> and will not be duplicated.
@@ -27,7 +27,7 @@ using NetEvolve.Pulse.Interceptors;
 public static class DataAnnotationsExtensions
 {
     /// <summary>
-    /// Registers the DataAnnotations request interceptor for all commands and queries.
+    /// Registers the DataAnnotations request and event interceptors for all commands, queries, and events.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <returns>The configurator for method chaining.</returns>
@@ -36,9 +36,10 @@ public static class DataAnnotationsExtensions
     /// <para><strong>Behavior:</strong></para>
     /// Before each command or query reaches its handler, the interceptor validates the request
     /// using <see cref="System.ComponentModel.DataAnnotations.Validator"/> with all properties
-    /// validated. If validation fails, a
+    /// validated. Before each event reaches its handlers, the same validation is applied.
+    /// If validation fails, a
     /// <see cref="System.ComponentModel.DataAnnotations.ValidationException"/> is thrown.
-    /// Requests with no validation attributes pass through unchanged.
+    /// Requests and events with no validation attributes pass through unchanged.
     /// </remarks>
     /// <example>
     /// <code>
@@ -65,6 +66,10 @@ public static class DataAnnotationsExtensions
 
         configurator.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(DataAnnotationsRequestInterceptor<,>))
+        );
+
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped(typeof(IEventInterceptor<>), typeof(DataAnnotationsEventInterceptor<>))
         );
 
         return configurator;
