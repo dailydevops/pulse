@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -149,9 +150,10 @@ public static class EndpointRouteBuilderExtensions
     /// Maps a streaming query to a <c>GET</c> HTTP endpoint that streams results as
     /// Server-Sent Events (SSE) or newline-delimited JSON (NDJSON), depending on the
     /// <c>Accept</c> request header. When the <c>Accept</c> header contains
-    /// <c>application/x-ndjson</c>, each item is written as a JSON line followed by
-    /// a newline character. Otherwise, items are written using the SSE
-    /// <c>data: {json}\n\n</c> format with <c>Content-Type: text/event-stream</c>.
+    /// <c>application/x-ndjson</c>, each item is serialized to JSON and written as a
+    /// line followed by a newline character using <see cref="TypedResults.Stream(System.Func{System.IO.Stream,System.Threading.Tasks.Task},string?,string?,System.Nullable{System.DateTimeOffset},Microsoft.Net.Http.Headers.EntityTagHeaderValue?)"/>.
+    /// Otherwise, items are streamed as SSE via <see cref="TypedResults.ServerSentEvents{T}(System.Collections.Generic.IAsyncEnumerable{T},string?)"/>
+    /// with <c>Content-Type: text/event-stream</c>.
     /// </summary>
     /// <typeparam name="TQuery">
     /// The query type. Must implement <see cref="IStreamQuery{TResponse}"/>.
@@ -179,38 +181,43 @@ public static class EndpointRouteBuilderExtensions
 
         return endpoints.MapGet(
             pattern,
-            async (
+            (
                 [AsParameters] TQuery query,
                 IMediator mediator,
                 HttpRequest request,
-                HttpResponse response,
                 CancellationToken cancellationToken
             ) =>
             {
-                var useNdjson = request.Headers.Accept.Contains("application/x-ndjson");
+                var items = mediator.StreamQueryAsync<TQuery, TResponse>(query, cancellationToken);
 
-                response.ContentType = useNdjson ? "application/x-ndjson" : "text/event-stream";
-                response.Headers.CacheControl = "no-cache";
-
-                try
+                if (request.Headers.Accept.Contains("application/x-ndjson"))
                 {
-                    await foreach (
-                        var item in mediator
-                            .StreamQueryAsync<TQuery, TResponse>(query, cancellationToken)
-                            .ConfigureAwait(false)
-                    )
-                    {
-                        var json = JsonSerializer.Serialize(item);
-                        var line = useNdjson ? $"{json}\n" : $"data: {json}\n\n";
+                    return (IResult)
+                        TypedResults.Stream(
+                            async outputStream =>
+                            {
+                                try
+                                {
+                                    await foreach (var item in items.ConfigureAwait(false))
+                                    {
+                                        var json = JsonSerializer.SerializeToUtf8Bytes(item);
+                                        await outputStream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
+                                        await outputStream
+                                            .WriteAsync([(byte)'\n'], cancellationToken)
+                                            .ConfigureAwait(false);
+                                        await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                                    }
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    // Client disconnected cleanly; do not re-throw.
+                                }
+                            },
+                            contentType: "application/x-ndjson"
+                        );
+                }
 
-                        await response.WriteAsync(line, cancellationToken).ConfigureAwait(false);
-                        await response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // Client disconnected cleanly; do not re-throw.
-                }
+                return TypedResults.ServerSentEvents(items);
             }
         );
     }
