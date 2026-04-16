@@ -46,8 +46,8 @@
     <PackageVersion Include="Testcontainers.MySql" Version="4.11.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.11.0" />
-    <PackageVersion Include="TUnit" Version="1.35.0" />
-    <PackageVersion Include="TUnit.AspNetCore" Version="1.35.0" />
+    <PackageVersion Include="TUnit" Version="1.35.2" />
+    <PackageVersion Include="TUnit.AspNetCore" Version="1.35.2" />
     <PackageVersion Include="TUnit.Mocks" Version="1.33.0-beta" />
     <PackageVersion Include="TUnit.Mocks.Http" Version="1.33.0-beta" />
     <PackageVersion Include="TUnit.Mocks.Logging" Version="1.33.0-beta" />
