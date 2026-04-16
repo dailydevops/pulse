@@ -453,8 +453,6 @@ public sealed class EndpointRouteBuilderExtensionsTests
             {
                 yield return item;
             }
-
-            await Task.CompletedTask.ConfigureAwait(false);
         }
     }
 
@@ -465,12 +463,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
-            await Task.CompletedTask.ConfigureAwait(false);
-            throw new InvalidOperationException("Handler failure.");
-
-#pragma warning disable CS0162 // Unreachable code detected
+            await Task.FromException(new InvalidOperationException("Handler failure.")).ConfigureAwait(false);
             yield break;
-#pragma warning restore CS0162
         }
     }
 
@@ -481,10 +475,10 @@ public sealed class EndpointRouteBuilderExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
-            var i = 0;
+            var counter = 0;
             while (!cancellationToken.IsCancellationRequested)
             {
-                yield return $"item-{i++}";
+                yield return $"item-{counter++}";
                 await Task.Delay(10, cancellationToken).ConfigureAwait(false);
             }
         }
