@@ -28,19 +28,9 @@ public sealed class FluentValidationStreamQueryInterceptorTests
         {
             var interceptor = new FluentValidationStreamQueryInterceptor<TestStreamQuery, string>(provider);
 
-            // Act & Assert
+            // Act & Assert — ArgumentNullException is thrown immediately (before enumeration begins)
             _ = await Assert
-                .That(async () =>
-                {
-                    await foreach (
-                        var _ in interceptor
-                            .HandleAsync(new TestStreamQuery("valid"), null!, cancellationToken)
-                            .ConfigureAwait(false)
-                    )
-                    {
-                        // consume — expect throw before first item
-                    }
-                })
+                .That(() => interceptor.HandleAsync(new TestStreamQuery("valid"), null!, cancellationToken))
                 .Throws<ArgumentNullException>();
         }
     }

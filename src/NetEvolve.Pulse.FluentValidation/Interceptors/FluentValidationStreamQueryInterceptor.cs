@@ -49,14 +49,23 @@ internal sealed class FluentValidationStreamQueryInterceptor<TQuery, TResponse>
     }
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<TResponse> HandleAsync(
+    public IAsyncEnumerable<TResponse> HandleAsync(
         TQuery request,
         Func<TQuery, CancellationToken, IAsyncEnumerable<TResponse>> handler,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(handler);
 
+        return HandleCoreAsync(request, handler, cancellationToken);
+    }
+
+    private async IAsyncEnumerable<TResponse> HandleCoreAsync(
+        TQuery request,
+        Func<TQuery, CancellationToken, IAsyncEnumerable<TResponse>> handler,
+        [EnumeratorCancellation] CancellationToken cancellationToken
+    )
+    {
         var validators = _serviceProvider.GetServices<IValidator<TQuery>>().ToList();
 
         if (validators.Count > 0)
