@@ -26,6 +26,7 @@ public class SystemTextJsonPayloadSerializerTests
     }
 
     [Test]
+#pragma warning disable CA2263 // Prefer generic overload - This test specifically validates the non-generic method
     public async Task Serialize_NonGeneric_SerializesValue()
     {
         var serializer = new SystemTextJsonPayloadSerializer();
@@ -37,6 +38,7 @@ public class SystemTextJsonPayloadSerializerTests
         _ = await Assert.That(result).Contains("\"Id\":42");
         _ = await Assert.That(result).Contains("\"Name\":\"Test\"");
     }
+#pragma warning restore CA2263
 
     [Test]
     public async Task SerializeToBytes_SerializesValueToBytes()
@@ -96,6 +98,7 @@ public class SystemTextJsonPayloadSerializerTests
     }
 
     [Test]
+#pragma warning disable CA2263 // Prefer generic overload - This test specifically validates the non-generic method
     public async Task SerializeDeserialize_RoundTrip_NonGeneric()
     {
         var serializer = new SystemTextJsonPayloadSerializer();
@@ -108,6 +111,7 @@ public class SystemTextJsonPayloadSerializerTests
         _ = await Assert.That(result!.Id).IsEqualTo(original.Id);
         _ = await Assert.That(result.Name).IsEqualTo(original.Name);
     }
+#pragma warning restore CA2263
 
     [Test]
     public async Task SerializeToBytes_Deserialize_RoundTrip()
