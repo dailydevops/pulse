@@ -249,4 +249,42 @@ public abstract class IdempotencyTestsBase(
             )
             .ConfigureAwait(false);
     }
+
+    [Test]
+    public async Task Should_Enforce_Idempotency_For_Void_Command_Through_Mediator(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+
+                    // First execution should succeed
+                    var command = new TestIdempotentVoidCommand("idempotent-void-key");
+                    await mediator.SendAsync(command, token).ConfigureAwait(false);
+
+                    // Second execution with same key should throw IdempotencyConflictException
+                    var duplicateCommand = new TestIdempotentVoidCommand("idempotent-void-key");
+                    var exception = await Assert
+                        .That(async () => await mediator.SendAsync(duplicateCommand, token).ConfigureAwait(false))
+                        .Throws<IdempotencyConflictException>();
+
+                    _ = await Assert.That(exception!.IdempotencyKey).IsEqualTo("idempotent-void-key");
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestIdempotentVoidCommand, Extensibility.Void>, TestIdempotentVoidCommandHandler>()
+            )
+            .ConfigureAwait(false);
+
+    private sealed record TestIdempotentVoidCommand(string IdempotencyKey) : IIdempotentCommand
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class TestIdempotentVoidCommandHandler : ICommandHandler<TestIdempotentVoidCommand, Extensibility.Void>
+    {
+        public Task<Extensibility.Void> HandleAsync(TestIdempotentVoidCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Extensibility.Void.Completed);
+    }
 }
