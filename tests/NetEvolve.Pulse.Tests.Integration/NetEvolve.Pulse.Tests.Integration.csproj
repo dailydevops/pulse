@@ -49,6 +49,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.HttpCorrelation\NetEvolve.Pulse.HttpCorrelation.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Kafka\NetEvolve.Pulse.Kafka.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Polly\NetEvolve.Pulse.Polly.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.MySql\NetEvolve.Pulse.MySql.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.PostgreSql\NetEvolve.Pulse.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
@@ -56,6 +57,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\src\NetEvolve.Pulse.MySql\Scripts\**\*.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Scripts\MySql\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
     <None Include="..\..\src\NetEvolve.Pulse.PostgreSql\Scripts\**\*.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Scripts\PostgreSql\%(RecursiveDir)%(Filename)%(Extension)</Link>

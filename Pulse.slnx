@@ -28,6 +28,7 @@
     <Project Path="src/NetEvolve.Pulse.AspNetCore/NetEvolve.Pulse.AspNetCore.csproj" />
     <Project Path="src/NetEvolve.Pulse.EntityFramework/NetEvolve.Pulse.EntityFramework.csproj" />
     <Project Path="src/NetEvolve.Pulse.Dapr/NetEvolve.Pulse.Dapr.csproj" />
+    <Project Path="src/NetEvolve.Pulse.MySql/NetEvolve.Pulse.MySql.csproj" />
     <Project Path="src/NetEvolve.Pulse.PostgreSql/NetEvolve.Pulse.PostgreSql.csproj" />
     <Project Path="src/NetEvolve.Pulse.SqlServer/NetEvolve.Pulse.SqlServer.csproj" />
     <Project Path="src/NetEvolve.Pulse.Polly/NetEvolve.Pulse.Polly.csproj" />

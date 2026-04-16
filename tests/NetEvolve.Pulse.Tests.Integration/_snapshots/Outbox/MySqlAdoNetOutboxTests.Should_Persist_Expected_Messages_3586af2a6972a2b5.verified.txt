@@ -1,0 +1,26 @@
+﻿[
+  {
+    CreatedAt: DateTimeOffset_1,
+    EventType: OutboxTestsBase.TestEvent,
+    Id: Guid_1,
+    Payload: {"CorrelationId":null,"Id":"Test000","PublishedAt":"2025-01-01T12:00:00+00:00"},
+    Status: Processing,
+    UpdatedAt: DateTimeOffset_1
+  },
+  {
+    CreatedAt: DateTimeOffset_1,
+    EventType: OutboxTestsBase.TestEvent,
+    Id: Guid_2,
+    Payload: {"CorrelationId":null,"Id":"Test001","PublishedAt":"2025-01-01T12:00:00+00:00"},
+    Status: Processing,
+    UpdatedAt: DateTimeOffset_1
+  },
+  {
+    CreatedAt: DateTimeOffset_1,
+    EventType: OutboxTestsBase.TestEvent,
+    Id: Guid_3,
+    Payload: {"CorrelationId":null,"Id":"Test002","PublishedAt":"2025-01-01T12:00:00+00:00"},
+    Status: Processing,
+    UpdatedAt: DateTimeOffset_1
+  }
+]

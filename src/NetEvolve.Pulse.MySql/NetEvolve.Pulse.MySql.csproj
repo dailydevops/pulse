@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>MySQL persistence provider for the Pulse outbox and idempotency patterns using plain ADO.NET. Provides MySqlOutboxRepository implementing IOutboxRepository with optimized MySQL queries, transaction support via MySqlTransaction enlistment, and schema scripts for table creation. Also provides MySqlIdempotencyKeyRepository implementing IIdempotencyKeyRepository for at-most-once command processing. Uses SELECT ... FOR UPDATE SKIP LOCKED (MySQL 8.0+) for concurrent polling safety. Stores GUIDs as BINARY(16) and DateTimeOffset values as BIGINT (UTC ticks) for interoperability with the Entity Framework MySQL provider. Requires MySQL 8.0 or later. The Schema option is not applicable to MySQL; tables are created in the active database specified in the connection string.</Description>
+    <PackageTags>$(PackageTags);outbox;idempotency;mysql;ado-net;transactional;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySql.Data" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Scripts\*.sql" Pack="true" PackagePath="content\Scripts" />
+    <EmbeddedResource Include="Scripts\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Idempotency\" />
+    <Folder Include="Outbox\" />
+  </ItemGroup>
+</Project>
