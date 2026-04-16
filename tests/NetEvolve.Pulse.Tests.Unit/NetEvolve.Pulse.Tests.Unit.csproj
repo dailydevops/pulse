@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="MySql.Data" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
@@ -31,6 +32,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.HttpCorrelation\NetEvolve.Pulse.HttpCorrelation.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Kafka\NetEvolve.Pulse.Kafka.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Polly\NetEvolve.Pulse.Polly.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.MySql\NetEvolve.Pulse.MySql.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.PostgreSql\NetEvolve.Pulse.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
