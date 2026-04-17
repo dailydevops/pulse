@@ -98,9 +98,8 @@ internal sealed class CosmosDbOutboxDocument
     /// Converts this Cosmos DB document to an <see cref="OutboxMessage"/>.
     /// </summary>
     /// <returns>The corresponding <see cref="OutboxMessage"/>.</returns>
-    public OutboxMessage ToOutboxMessage()
-    {
-        return new OutboxMessage
+    public OutboxMessage ToOutboxMessage() =>
+        new OutboxMessage
         {
             Id = Guid.Parse(Id),
             EventType = Type.GetType(EventType, throwOnError: false) ?? typeof(object),
@@ -115,7 +114,6 @@ internal sealed class CosmosDbOutboxDocument
             Error = Error,
             Status = (OutboxMessageStatus)Status,
         };
-    }
 
     /// <summary>
     /// Creates a <see cref="CosmosDbOutboxDocument"/> from an <see cref="OutboxMessage"/>.
