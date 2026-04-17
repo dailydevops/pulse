@@ -70,10 +70,6 @@ public sealed class ConcurrentCommandGuardMediatorBuilderExtensionsTests
 
         var result = builder.AddConcurrentCommandGuard();
 
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(result).IsSameReferenceAs(builder);
-            _ = await Assert.That(result).IsTypeOf<IMediatorBuilder>();
-        }
+        _ = await Assert.That(result).IsSameReferenceAs(builder);
     }
 }

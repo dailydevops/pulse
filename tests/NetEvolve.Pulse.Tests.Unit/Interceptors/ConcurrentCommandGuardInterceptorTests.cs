@@ -130,7 +130,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_ExclusiveCommand_CancellationTokenAbortsWait(CancellationToken cancellationToken)
+    public async Task HandleAsync_ExclusiveCommand_CancellationTokenAbortsWait()
     {
         var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand4, string>();
         var command = new ExclusiveCommand4();
@@ -148,7 +148,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
                 await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
                 return "first";
             },
-            cancellationToken
+            cts.Token
         );
 
         // Wait until the first handler is running inside the semaphore
