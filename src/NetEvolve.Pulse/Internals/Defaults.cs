@@ -122,6 +122,9 @@ internal static class Defaults
         internal const string ResponseType = "pulse.response.type";
 
         // Stream query-related tags
+        /// <summary>Tag name for stream query causation ID.</summary>
+        internal const string StreamQueryCausationId = "pulse.causation_id";
+
         /// <summary>Tag name for stream query type (type name of the query).</summary>
         internal const string StreamQueryType = "query.type";
 
