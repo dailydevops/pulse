@@ -505,6 +505,12 @@ public class DistributedCacheQueryInterceptorTests
             {
                 _ = await Assert.That(result).IsEqualTo("fallback-value");
                 _ = await Assert.That(handlerCallCount).IsEqualTo(1);
+
+                // Stale null bytes must have been evicted and replaced with the fresh handler value
+                var afterBytes = await cache.GetAsync("null-cached-key", cancellationToken).ConfigureAwait(false);
+                _ = await Assert.That(afterBytes).IsNotNull();
+                var afterValue = DefaultSerializer.Deserialize<string>(afterBytes!);
+                _ = await Assert.That(afterValue).IsEqualTo("fallback-value");
             }
         }
     }

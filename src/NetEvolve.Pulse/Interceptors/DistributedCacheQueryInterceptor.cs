@@ -94,6 +94,8 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
             {
                 return cached;
             }
+
+            await cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
         }
 
         var response = await handler(request, cancellationToken).ConfigureAwait(false);
