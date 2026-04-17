@@ -89,6 +89,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
         _ = activity
             ?.SetStartTime(startTime.UtcDateTime)
             .SetTag(EventCorrelationId, message.CorrelationId)
+            .SetTag(EventCausationId, message.CausationId)
             .SetTag(EventTimestamp, startTime);
         EventCounter.Add(1, tags);
 

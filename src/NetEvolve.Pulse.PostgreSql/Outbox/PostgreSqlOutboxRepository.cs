@@ -108,6 +108,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                  "{OutboxMessageSchema.Columns.EventType}",
                  "{OutboxMessageSchema.Columns.Payload}",
                  "{OutboxMessageSchema.Columns.CorrelationId}",
+                 "{OutboxMessageSchema.Columns.CausationId}",
                  "{OutboxMessageSchema.Columns.CreatedAt}",
                  "{OutboxMessageSchema.Columns.UpdatedAt}",
                  "{OutboxMessageSchema.Columns.ProcessedAt}",
@@ -116,7 +117,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                  "{OutboxMessageSchema.Columns.Error}",
                  "{OutboxMessageSchema.Columns.Status}")
             VALUES
-                (@Id, @EventType, @Payload, @CorrelationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @NextRetryAt, @RetryCount, @Error, @Status)
+                (@Id, @EventType, @Payload, @CorrelationId, @CausationId, @CreatedAt, @UpdatedAt, @ProcessedAt, @NextRetryAt, @RetryCount, @Error, @Status)
             """;
     }
 
@@ -334,8 +335,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
 
     /// <summary>
     /// Adds all <see cref="OutboxMessage"/> property values as typed parameters to a <see cref="NpgsqlCommand"/>.
-    /// Null-valued optional columns (<see cref="OutboxMessage.CorrelationId"/>, <see cref="OutboxMessage.Error"/>,
-    /// <see cref="OutboxMessage.ProcessedAt"/>, <see cref="OutboxMessage.NextRetryAt"/>) are mapped to <see cref="DBNull.Value"/>.
+    /// Null-valued optional columns (<see cref="OutboxMessage.CorrelationId"/>, <see cref="OutboxMessage.CausationId"/>,
+    /// <see cref="OutboxMessage.Error"/>, <see cref="OutboxMessage.ProcessedAt"/>,
+    /// <see cref="OutboxMessage.NextRetryAt"/>) are mapped to <see cref="DBNull.Value"/>.
     /// </summary>
     /// <param name="command">The command to which parameters are added.</param>
     /// <param name="message">The outbox message providing parameter values.</param>
@@ -345,6 +347,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         _ = command.Parameters.AddWithValue("EventType", message.EventType.ToOutboxEventTypeName());
         _ = command.Parameters.AddWithValue("Payload", message.Payload);
         _ = command.Parameters.AddWithValue("CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
+        _ = command.Parameters.AddWithValue("CausationId", (object?)message.CausationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("CreatedAt", message.CreatedAt);
         _ = command.Parameters.AddWithValue("UpdatedAt", message.UpdatedAt);
         _ = command.Parameters.AddWithValue(
@@ -385,6 +388,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
         var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
         var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
         var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
         var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
         var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
@@ -403,6 +407,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                     ordEventType,
                     ordPayload,
                     ordCorrelationId,
+                    ordCausationId,
                     ordCreatedAt,
                     ordUpdatedAt,
                     ordProcessedAt,
@@ -426,6 +431,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <param name="ordEventType">Pre-resolved ordinal for the EventType column.</param>
     /// <param name="ordPayload">Pre-resolved ordinal for the Payload column.</param>
     /// <param name="ordCorrelationId">Pre-resolved ordinal for the CorrelationId column.</param>
+    /// <param name="ordCausationId">Pre-resolved ordinal for the CausationId column.</param>
     /// <param name="ordCreatedAt">Pre-resolved ordinal for the CreatedAt column.</param>
     /// <param name="ordUpdatedAt">Pre-resolved ordinal for the UpdatedAt column.</param>
     /// <param name="ordProcessedAt">Pre-resolved ordinal for the ProcessedAt column.</param>
@@ -440,6 +446,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         int ordEventType,
         int ordPayload,
         int ordCorrelationId,
+        int ordCausationId,
         int ordCreatedAt,
         int ordUpdatedAt,
         int ordProcessedAt,
@@ -458,6 +465,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 ),
             Payload = reader.GetString(ordPayload),
             CorrelationId = reader.IsDBNull(ordCorrelationId) ? null : reader.GetString(ordCorrelationId),
+            CausationId = reader.IsDBNull(ordCausationId) ? null : reader.GetString(ordCausationId),
             CreatedAt = reader.GetFieldValue<DateTimeOffset>(ordCreatedAt),
             UpdatedAt = reader.GetFieldValue<DateTimeOffset>(ordUpdatedAt),
             ProcessedAt = reader.IsDBNull(ordProcessedAt) ? null : reader.GetFieldValue<DateTimeOffset>(ordProcessedAt),

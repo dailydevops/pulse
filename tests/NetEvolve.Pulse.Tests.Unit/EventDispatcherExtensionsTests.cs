@@ -331,6 +331,7 @@ public sealed class EventDispatcherExtensionsTests
 
     private sealed class TestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -338,6 +339,7 @@ public sealed class EventDispatcherExtensionsTests
 
     private sealed class AnotherTestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

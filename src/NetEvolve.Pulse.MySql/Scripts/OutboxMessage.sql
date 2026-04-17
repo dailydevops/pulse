@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `OutboxMessage` (
     `EventType`     VARCHAR(500) NOT NULL,
     `Payload`       LONGTEXT     NOT NULL,
     `CorrelationId` VARCHAR(100) NULL,
+    `CausationId`   VARCHAR(100) NULL,
     `CreatedAt`     BIGINT       NOT NULL,
     `UpdatedAt`     BIGINT       NOT NULL,
     `ProcessedAt`   BIGINT       NULL,

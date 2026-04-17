@@ -796,6 +796,7 @@ public abstract class OutboxTestsBase(
 
     private sealed class TestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         public required string Id { get; init; }

@@ -317,6 +317,7 @@ public sealed class RabbitMqMessageTransportTests
 
     private sealed record TestRabbitMqEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

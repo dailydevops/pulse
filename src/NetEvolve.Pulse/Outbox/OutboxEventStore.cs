@@ -65,6 +65,16 @@ internal sealed class OutboxEventStore : IEventOutbox
             );
         }
 
+        var causationId = message.CausationId;
+
+        if (causationId is { Length: > OutboxMessageSchema.MaxLengths.CausationId })
+        {
+            throw new InvalidOperationException(
+                $"CausationId exceeds the maximum length of {OutboxMessageSchema.MaxLengths.CausationId} characters defined by the OutboxMessage schema. "
+                    + "Provide a shorter causation identifier to comply with the database constraint."
+            );
+        }
+
         var now = _timeProvider.GetUtcNow();
 
         var outboxMessage = new OutboxMessage
@@ -73,6 +83,7 @@ internal sealed class OutboxEventStore : IEventOutbox
             EventType = messageType,
             Payload = _payloadSerializer.Serialize(message, messageType),
             CorrelationId = correlationId,
+            CausationId = causationId,
             CreatedAt = now,
             UpdatedAt = now,
             Status = OutboxMessageStatus.Pending,

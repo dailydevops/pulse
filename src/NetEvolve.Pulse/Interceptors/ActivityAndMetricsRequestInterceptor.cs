@@ -98,6 +98,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
         _ = activity
             ?.SetStartTime(startTime.UtcDateTime)
             .SetTag(RequestCorrelationId, request.CorrelationId)
+            .SetTag(RequestCausationId, request.CausationId)
             .SetTag(RequestTimestamp, startTime);
         RequestCounter.Add(1, tags);
 

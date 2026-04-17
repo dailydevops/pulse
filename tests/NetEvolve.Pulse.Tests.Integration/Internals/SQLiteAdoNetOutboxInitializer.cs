@@ -47,6 +47,7 @@ public sealed class SQLiteAdoNetOutboxInitializer : IDatabaseInitializer
                 "EventType"     TEXT        NOT NULL,
                 "Payload"       TEXT        NOT NULL,
                 "CorrelationId" TEXT        NULL,
+                "CausationId"   TEXT        NULL,
                 "CreatedAt"     TEXT        NOT NULL,
                 "UpdatedAt"     TEXT        NOT NULL,
                 "ProcessedAt"   TEXT        NULL,

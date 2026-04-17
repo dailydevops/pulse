@@ -182,6 +182,7 @@ public sealed class DataAnnotationsExtensionsTests
 
     private sealed record TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Required]
@@ -191,6 +192,7 @@ public sealed class DataAnnotationsExtensionsTests
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
     }

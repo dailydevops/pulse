@@ -192,6 +192,7 @@ public sealed class FluentValidationRequestInterceptorTests
 
     private sealed record TestCommand(string Value) : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 

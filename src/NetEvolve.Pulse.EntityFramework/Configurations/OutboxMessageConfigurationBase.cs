@@ -121,6 +121,12 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
             .HasColumnName(OutboxMessageSchema.Columns.CorrelationId)
             .HasMaxLength(OutboxMessageSchema.MaxLengths.CorrelationId);
 
+        // CausationId column
+        _ = builder
+            .Property(m => m.CausationId)
+            .HasColumnName(OutboxMessageSchema.Columns.CausationId)
+            .HasMaxLength(OutboxMessageSchema.MaxLengths.CausationId);
+
         // CreatedAt column
         _ = builder.Property(m => m.CreatedAt).HasColumnName(OutboxMessageSchema.Columns.CreatedAt).IsRequired();
 

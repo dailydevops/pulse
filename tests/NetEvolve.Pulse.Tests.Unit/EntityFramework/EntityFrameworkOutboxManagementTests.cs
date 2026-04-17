@@ -800,6 +800,7 @@ public sealed class EntityFrameworkOutboxManagementTests
 
     private sealed record TestDbEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

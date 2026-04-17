@@ -177,6 +177,7 @@ public class LoggingEventInterceptorTests
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
     }

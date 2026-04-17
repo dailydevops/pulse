@@ -237,6 +237,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
 
     private sealed record TestStreamQuery(string Value) : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 

@@ -296,6 +296,7 @@ public class AssemblyScanningExtensionsTests
     // Must be public for assembly scanning tests
     private sealed partial record ScanTestCommand(string Value) : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -307,6 +308,7 @@ public class AssemblyScanningExtensionsTests
 
     private sealed partial record ScanTestQuery(string Value) : IQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -318,6 +320,7 @@ public class AssemblyScanningExtensionsTests
 
     private sealed partial record ScanTestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

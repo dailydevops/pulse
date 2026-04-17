@@ -49,6 +49,11 @@ public static class OutboxMessageSchema
         public const string CorrelationId = "CorrelationId";
 
         /// <summary>
+        /// The CausationId column name.
+        /// </summary>
+        public const string CausationId = "CausationId";
+
+        /// <summary>
         /// The CreatedAt column name.
         /// </summary>
         public const string CreatedAt = "CreatedAt";
@@ -103,5 +108,10 @@ public static class OutboxMessageSchema
         /// Maximum length for CorrelationId column (100 characters).
         /// </summary>
         public const int CorrelationId = 100;
+
+        /// <summary>
+        /// Maximum length for CausationId column (100 characters).
+        /// </summary>
+        public const int CausationId = 100;
     }
 }

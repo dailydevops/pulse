@@ -157,6 +157,7 @@ public sealed class HttpCorrelationRequestInterceptorTests
 
     private sealed record TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

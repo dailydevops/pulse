@@ -280,6 +280,7 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
 
     private sealed class TestStreamQuery : IStreamQuery<int>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

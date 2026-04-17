@@ -251,6 +251,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
 
     private sealed record TestStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

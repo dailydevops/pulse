@@ -63,6 +63,7 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
                 `{OutboxMessageSchema.Columns.EventType}`,
                 `{OutboxMessageSchema.Columns.Payload}`,
                 `{OutboxMessageSchema.Columns.CorrelationId}`,
+                `{OutboxMessageSchema.Columns.CausationId}`,
                 `{OutboxMessageSchema.Columns.CreatedAt}`,
                 `{OutboxMessageSchema.Columns.UpdatedAt}`,
                 `{OutboxMessageSchema.Columns.ProcessedAt}`,
@@ -82,6 +83,7 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
                 `{OutboxMessageSchema.Columns.EventType}`,
                 `{OutboxMessageSchema.Columns.Payload}`,
                 `{OutboxMessageSchema.Columns.CorrelationId}`,
+                `{OutboxMessageSchema.Columns.CausationId}`,
                 `{OutboxMessageSchema.Columns.CreatedAt}`,
                 `{OutboxMessageSchema.Columns.UpdatedAt}`,
                 `{OutboxMessageSchema.Columns.ProcessedAt}`,
@@ -294,6 +296,7 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
         var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
         var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
         var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
         var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
         var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
         var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
@@ -309,6 +312,7 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
             var correlationIdNull = await reader
                 .IsDBNullAsync(ordCorrelationId, cancellationToken)
                 .ConfigureAwait(false);
+            var causationIdNull = await reader.IsDBNullAsync(ordCausationId, cancellationToken).ConfigureAwait(false);
             var processedAtNull = await reader.IsDBNullAsync(ordProcessedAt, cancellationToken).ConfigureAwait(false);
             var nextRetryAtNull = await reader.IsDBNullAsync(ordNextRetryAt, cancellationToken).ConfigureAwait(false);
             var errorNull = await reader.IsDBNullAsync(ordError, cancellationToken).ConfigureAwait(false);
@@ -324,6 +328,7 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
                         ),
                     Payload = reader.GetString(ordPayload),
                     CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
+                    CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
                     CreatedAt = new DateTimeOffset(reader.GetInt64(ordCreatedAt), TimeSpan.Zero),
                     UpdatedAt = new DateTimeOffset(reader.GetInt64(ordUpdatedAt), TimeSpan.Zero),
                     ProcessedAt = processedAtNull

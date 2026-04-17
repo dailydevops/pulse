@@ -206,9 +206,64 @@ public class ActivityAndMetricsEventInterceptorTests
         }
     }
 
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithNullCausationId_DoesNotTagCausationId(CancellationToken cancellationToken)
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var timeProvider = TimeProvider.System;
+        var interceptor = new ActivityAndMetricsEventInterceptor<TestEvent>(timeProvider);
+        var testEvent = new TestEvent { CausationId = null };
+        Activity? capturedActivity = null;
+
+        listener.ActivityStarted = activity => capturedActivity = activity;
+
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedActivity).IsNotNull();
+            _ = await Assert.That(capturedActivity!.GetTagItem("pulse.causation_id")).IsNull();
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithNonNullCausationId_TagsCausationId(CancellationToken cancellationToken)
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var timeProvider = TimeProvider.System;
+        var interceptor = new ActivityAndMetricsEventInterceptor<TestEvent>(timeProvider);
+        var testEvent = new TestEvent { CausationId = "cmd-1" };
+        Activity? capturedActivity = null;
+
+        listener.ActivityStarted = activity => capturedActivity = activity;
+
+        await interceptor.HandleAsync(testEvent, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedActivity).IsNotNull();
+            _ = await Assert.That(capturedActivity!.GetTagItem("pulse.causation_id")).IsEqualTo("cmd-1");
+        }
+    }
+
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         DateTimeOffset? IEvent.PublishedAt { get; set; }
@@ -218,6 +273,7 @@ public class ActivityAndMetricsEventInterceptorTests
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
 
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         DateTimeOffset? IEvent.PublishedAt { get; set; }
