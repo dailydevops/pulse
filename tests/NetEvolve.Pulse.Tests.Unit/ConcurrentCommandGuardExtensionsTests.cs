@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit;
+﻿namespace NetEvolve.Pulse.Tests.Unit;
 
 using System;
 using System.Linq;
@@ -16,7 +16,7 @@ using TUnit.Core;
 public sealed class ConcurrentCommandGuardExtensionsTests
 {
     [Test]
-    public async Task AddConcurrentCommandGuard_WithNullConfigurator_ThrowsArgumentNullException()
+    public void AddConcurrentCommandGuard_WithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -65,7 +65,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
     }
 
     [Test]
-    public async Task AddConcurrentCommandGuard_TypedWithNullConfigurator_ThrowsArgumentNullException()
+    public void AddConcurrentCommandGuard_TypedWithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
@@ -116,7 +116,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
     }
 
     [Test]
-    public async Task AddConcurrentCommandGuard_VoidWithNullConfigurator_ThrowsArgumentNullException()
+    public void AddConcurrentCommandGuard_VoidWithNullConfigurator_ThrowsArgumentNullException()
     {
         IMediatorBuilder? configurator = null;
 
