@@ -261,6 +261,92 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
+    public async Task SendBatchAsync_When_messages_null_throws(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            transport.SendBatchAsync(null!, cancellationToken)
+        );
+
+        _ = await Assert.That(exception).IsNotNull();
+        _ = await Assert.That(exception!.ParamName).IsEqualTo("messages");
+    }
+
+    [Test]
+    public async Task SendBatchAsync_Publishes_all_messages_with_correct_properties(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver, exchangeName: "test-exchange");
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
+
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
+        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
+
+        foreach (var publishCall in channel.PublishCalls)
+        {
+            _ = await Assert.That(publishCall.Exchange).IsEqualTo("test-exchange");
+            _ = await Assert.That(publishCall.Mandatory).IsFalse();
+            _ = await Assert.That(publishCall.Properties.ContentType).IsEqualTo("application/json");
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_Uses_single_channel_for_all_messages(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
+
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
+        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task SendBatchAsync_With_empty_collection_does_not_publish(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        await transport.SendBatchAsync([], cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
+        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task SendBatchAsync_Reuses_existing_channel(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        // First call creates a channel
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        // Second call reuses the same channel
+        await transport
+            .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
+        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task Options_ExchangeName_can_be_configured()
     {
         var options = new RabbitMqTransportOptions { ExchangeName = "test-exchange" };
