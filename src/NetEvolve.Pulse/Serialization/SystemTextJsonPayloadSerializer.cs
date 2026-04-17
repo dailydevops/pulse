@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Serialization;
 
-using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
