@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Interceptors;
+﻿namespace NetEvolve.Pulse.Interceptors;
 
 using System;
 using System.Collections.Concurrent;
@@ -43,7 +43,7 @@ internal sealed class ConcurrentCommandGuardInterceptor<TRequest, TResponse>
     where TRequest : IExclusiveCommand<TResponse>
 {
     private readonly ConcurrentDictionary<Type, SemaphoreSlim> _semaphores = new();
-    private bool _disposedValue;
+    private bool _disposed;
 
     /// <inheritdoc />
     public async Task<TResponse> HandleAsync(
@@ -67,28 +67,19 @@ internal sealed class ConcurrentCommandGuardInterceptor<TRequest, TResponse>
         }
     }
 
-    private void Dispose(bool disposing)
-    {
-        if (!_disposedValue)
-        {
-            if (disposing)
-            {
-                // Dispose managed state (managed objects)
-                foreach (var semaphore in _semaphores.Values)
-                {
-                    semaphore.Dispose();
-                }
-                _semaphores.Clear();
-            }
-
-            _disposedValue = true;
-        }
-    }
-
     /// <inheritdoc />
     public void Dispose()
     {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
+        if (_disposed)
+        {
+            return;
+        }
+
+        foreach (var semaphore in _semaphores.Values)
+        {
+            semaphore.Dispose();
+        }
+        _semaphores.Clear();
+        _disposed = true;
     }
 }
