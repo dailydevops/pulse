@@ -51,7 +51,7 @@ public static class ModelBuilderExtensions
     /// </summary>
     /// <typeparam name="TContext">The DbContext type, used to resolve registered <see cref="OutboxOptions"/>.</typeparam>
     /// <param name="context">The DbContext instance used to resolve <see cref="IOptions{TOptions}"/> of <see cref="OutboxOptions"/>.</param>
-    /// <param name="providerName">The EF Core provider name read from <see cref="Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.ProviderName"/>.</param>
+    /// <param name="providerName">The EF Core provider name read from <see cref="DatabaseFacade.ProviderName"/>.</param>
     /// <returns>A provider-specific <see cref="IEntityTypeConfiguration{TEntity}"/> for <see cref="OutboxMessage"/>.</returns>
     /// <exception cref="NotSupportedException">Thrown when <paramref name="providerName"/> is not a supported EF Core provider.</exception>
     private static IEntityTypeConfiguration<OutboxMessage> GetOutboxConfiguration<TContext>(
@@ -92,7 +92,7 @@ public static class ModelBuilderExtensions
     /// </summary>
     /// <typeparam name="TContext">The DbContext type, used to resolve registered <see cref="IdempotencyKeyOptions"/>.</typeparam>
     /// <param name="context">The DbContext instance used to resolve <see cref="IOptions{TOptions}"/> of <see cref="IdempotencyKeyOptions"/>.</param>
-    /// <param name="providerName">The EF Core provider name read from <see cref="Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.ProviderName"/>.</param>
+    /// <param name="providerName">The EF Core provider name read from <see cref="DatabaseFacade.ProviderName"/>.</param>
     /// <returns>A provider-specific <see cref="IEntityTypeConfiguration{TEntity}"/> for <see cref="IdempotencyKey"/>.</returns>
     /// <exception cref="NotSupportedException">Thrown when <paramref name="providerName"/> is not a supported EF Core provider.</exception>
     private static IEntityTypeConfiguration<IdempotencyKey> GetIdempotencyKeyConfiguration<TContext>(

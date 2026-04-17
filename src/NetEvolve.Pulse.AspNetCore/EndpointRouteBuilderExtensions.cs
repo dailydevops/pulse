@@ -153,7 +153,7 @@ public static class EndpointRouteBuilderExtensions
     /// Server-Sent Events (SSE) or newline-delimited JSON (NDJSON), depending on the
     /// <c>Accept</c> request header. When the <c>Accept</c> header contains
     /// <c>application/x-ndjson</c>, each item is serialized to JSON and written as a
-    /// line followed by a newline character using <see cref="TypedResults.Stream(System.Func{System.IO.Stream,System.Threading.Tasks.Task},string?,string?,System.Nullable{System.DateTimeOffset},Microsoft.Net.Http.Headers.EntityTagHeaderValue?)"/>.
+    /// line followed by a newline character using <see cref="TypedResults.Stream(Func{Stream,Task},string?,string?,DateTimeOffset?,Microsoft.Net.Http.Headers.EntityTagHeaderValue?)"/>.
     /// Otherwise, items are streamed as SSE with <c>Content-Type: text/event-stream</c>.
     /// </summary>
     /// <typeparam name="TQuery">
@@ -219,7 +219,7 @@ public static class EndpointRouteBuilderExtensions
                 }
 
 #if NET10_0_OR_GREATER
-                return TypedResults.ServerSentEvents<TResponse>(items);
+                return TypedResults.ServerSentEvents(items);
 #else
                 return TypedResults.Stream(
                     async outputStream =>

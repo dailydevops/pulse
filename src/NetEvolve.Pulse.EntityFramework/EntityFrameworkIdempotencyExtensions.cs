@@ -62,7 +62,7 @@ public static class EntityFrameworkIdempotencyExtensions
 
         var services = configurator.Services;
 
-        _ = services.Configure<IdempotencyKeyOptions>(configureOptions ?? (_ => { }));
+        _ = services.Configure(configureOptions ?? (_ => { }));
 
         services.TryAddSingleton(TimeProvider.System);
 

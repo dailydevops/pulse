@@ -21,7 +21,7 @@ using NetEvolve.Pulse.Outbox;
 /// <para><strong>Why binary(16) and bigint:</strong></para>
 /// The Oracle MySQL provider does not produce a valid type mapping for
 /// <see cref="Guid"/>→<c>char(36)</c> SQL parameter binding (returns <see langword="null"/>,
-/// causing a <see cref="System.NullReferenceException"/> in
+/// causing a <see cref="NullReferenceException"/> in
 /// <c>TypeMappedRelationalParameter.AddDbParameter</c>).
 /// Using <c>binary(16)</c> with an explicit <c>byte[]</c> converter provides a working
 /// binding. Similarly, the provider lacks a proper <see cref="DateTimeOffset"/> SQL type

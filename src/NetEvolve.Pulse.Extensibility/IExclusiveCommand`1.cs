@@ -3,7 +3,7 @@ namespace NetEvolve.Pulse.Extensibility;
 /// <summary>
 /// Marks a command as requiring exclusive (non-concurrent) execution within the same process.
 /// When registered with <c>ConcurrentCommandGuardInterceptor</c>, only one instance of the
-/// same command type runs at a time, enforced via a <see cref="System.Threading.SemaphoreSlim"/>(1,1).
+/// same command type runs at a time, enforced via a <see cref="SemaphoreSlim"/>(1,1).
 /// </summary>
 /// <typeparam name="TResponse">The type of response returned after executing the command.</typeparam>
 /// <remarks>
