@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>Azure Cosmos DB persistence provider for the Pulse outbox pattern using the official Microsoft.Azure.Cosmos SDK. Provides CosmosDbOutboxRepository implementing IOutboxRepository with optimistic concurrency via ETag-based conditional patch operations. Supports configurable database name, container name, and TTL-based automatic cleanup for completed and dead-letter documents. Designed for document-oriented architectures on Azure Cosmos DB that require the outbox pattern without introducing a relational database dependency.</Description>
+    <PackageTags>$(PackageTags);outbox;cosmosdb;azure;cosmos;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+    <!-- Suppress the Newtonsoft.Json explicit-reference check; this package uses System.Text.Json via CosmosSystemTextJsonSerializer. -->
+    <AzureCosmosDisableNewtonsoftJsonCheck>true</AzureCosmosDisableNewtonsoftJsonCheck>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Cosmos" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+  </ItemGroup>
+</Project>
