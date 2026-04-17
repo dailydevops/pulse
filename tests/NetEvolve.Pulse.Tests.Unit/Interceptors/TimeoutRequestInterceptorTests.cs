@@ -224,11 +224,13 @@ public sealed class TimeoutRequestInterceptorTests
 
     private sealed record TestTimeoutCommand(TimeSpan? Timeout) : ICommand<string>, ITimeoutRequest
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

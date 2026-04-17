@@ -41,6 +41,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
                 "EventType"     TEXT    NOT NULL,
                 "Payload"       TEXT    NOT NULL,
                 "CorrelationId" TEXT    NULL,
+                "CausationId"   TEXT    NULL,
                 "CreatedAt"     TEXT    NOT NULL,
                 "UpdatedAt"     TEXT    NOT NULL,
                 "ProcessedAt"   TEXT    NULL,
@@ -257,6 +258,7 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
 
     private sealed record TestSQLiteEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

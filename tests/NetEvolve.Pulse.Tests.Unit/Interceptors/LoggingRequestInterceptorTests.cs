@@ -209,16 +209,19 @@ public class LoggingRequestInterceptorTests
 
     private sealed class TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed class TestQuery : IQuery<int>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed class TestRequest : IRequest<bool>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

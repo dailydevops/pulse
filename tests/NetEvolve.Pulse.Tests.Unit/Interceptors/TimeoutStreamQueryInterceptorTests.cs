@@ -270,11 +270,13 @@ public sealed class TimeoutStreamQueryInterceptorTests
 
     private sealed record TestTimeoutStreamQuery(TimeSpan? Timeout) : IStreamQuery<string>, ITimeoutRequest
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed class TestStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

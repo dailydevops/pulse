@@ -76,6 +76,7 @@ public class IMediatorSendOnlyTests
 
     private sealed class TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -98,6 +99,7 @@ public class IMediatorSendOnlyTests
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
 
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         public DateTimeOffset? PublishedAt { get; set; }

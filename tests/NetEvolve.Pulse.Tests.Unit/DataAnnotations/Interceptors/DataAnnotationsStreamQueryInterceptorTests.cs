@@ -239,6 +239,7 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
 
     private sealed record TestStreamQuery(string Name) : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Required]
@@ -247,12 +248,14 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
 
     private sealed record NoAttributesStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Value { get; init; } = string.Empty;
     }
 
     private sealed record RangeStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Range(0, 150)]
@@ -261,6 +264,7 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
 
     private sealed record MaxLengthStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [MaxLength(100)]
@@ -269,6 +273,7 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
 
     private sealed record MultiConstraintStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Required]

@@ -171,6 +171,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
 
     private sealed record TestCommand(string Name) : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Required]
@@ -179,12 +180,14 @@ public sealed class DataAnnotationsRequestInterceptorTests
 
     private sealed record NoAttributesCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Value { get; init; } = string.Empty;
     }
 
     private sealed record RangeCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Range(0, 150)]
@@ -193,6 +196,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
 
     private sealed record MaxLengthCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [MaxLength(100)]
@@ -201,6 +205,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
 
     private sealed record MultiConstraintCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         [Required]

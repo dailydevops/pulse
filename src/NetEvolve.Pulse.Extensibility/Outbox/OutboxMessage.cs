@@ -14,6 +14,7 @@
 /// <item><description><see cref="EventType"/>: NVARCHAR(500), NOT NULL - Runtime type; persisted as assembly-qualified name</description></item>
 /// <item><description><see cref="Payload"/>: NVARCHAR(MAX) / TEXT, NOT NULL - JSON serialized event</description></item>
 /// <item><description><see cref="CorrelationId"/>: NVARCHAR(100), NULL - Distributed tracing correlation</description></item>
+/// <item><description><see cref="CausationId"/>: NVARCHAR(100), NULL - Causal chain tracking</description></item>
 /// <item><description><see cref="CreatedAt"/>: DATETIMEOFFSET, NOT NULL - Message creation timestamp</description></item>
 /// <item><description><see cref="UpdatedAt"/>: DATETIMEOFFSET, NOT NULL - Last modification timestamp</description></item>
 /// <item><description><see cref="ProcessedAt"/>: DATETIMEOFFSET, NULL - Successful processing timestamp</description></item>
@@ -52,6 +53,14 @@ public sealed class OutboxMessage
     /// Maximum length: 100 characters.
     /// </remarks>
     public string? CorrelationId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the causation identifier that records which command or event directly caused this message.
+    /// </summary>
+    /// <remarks>
+    /// Maximum length: 100 characters.
+    /// </remarks>
+    public string? CausationId { get; set; }
 
     /// <summary>
     /// Gets or sets the timestamp when this message was created.

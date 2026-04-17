@@ -375,6 +375,7 @@ public class PulseMediatorTests
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
 
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
 
         public DateTimeOffset? PublishedAt { get; set; }
@@ -399,6 +400,7 @@ public class PulseMediatorTests
 
     private sealed class TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -418,6 +420,7 @@ public class PulseMediatorTests
 
     private sealed class TestQuery : IQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -483,6 +486,7 @@ public class PulseMediatorTests
     // Streaming query test helpers
     private sealed class TestStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 

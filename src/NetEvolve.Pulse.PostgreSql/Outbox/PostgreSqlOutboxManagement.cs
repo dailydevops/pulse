@@ -207,6 +207,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
         var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
         var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
         var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
         var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
         var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
@@ -225,6 +226,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
                     ordEventType,
                     ordPayload,
                     ordCorrelationId,
+                    ordCausationId,
                     ordCreatedAt,
                     ordUpdatedAt,
                     ordProcessedAt,
@@ -248,6 +250,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     /// <param name="ordEventType">Pre-resolved ordinal for the EventType column.</param>
     /// <param name="ordPayload">Pre-resolved ordinal for the Payload column.</param>
     /// <param name="ordCorrelationId">Pre-resolved ordinal for the CorrelationId column.</param>
+    /// <param name="ordCausationId">Pre-resolved ordinal for the CausationId column.</param>
     /// <param name="ordCreatedAt">Pre-resolved ordinal for the CreatedAt column.</param>
     /// <param name="ordUpdatedAt">Pre-resolved ordinal for the UpdatedAt column.</param>
     /// <param name="ordProcessedAt">Pre-resolved ordinal for the ProcessedAt column.</param>
@@ -262,6 +265,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         int ordEventType,
         int ordPayload,
         int ordCorrelationId,
+        int ordCausationId,
         int ordCreatedAt,
         int ordUpdatedAt,
         int ordProcessedAt,
@@ -280,6 +284,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
                 ),
             Payload = reader.GetString(ordPayload),
             CorrelationId = reader.IsDBNull(ordCorrelationId) ? null : reader.GetString(ordCorrelationId),
+            CausationId = reader.IsDBNull(ordCausationId) ? null : reader.GetString(ordCausationId),
             CreatedAt = reader.GetFieldValue<DateTimeOffset>(ordCreatedAt),
             UpdatedAt = reader.GetFieldValue<DateTimeOffset>(ordUpdatedAt),
             ProcessedAt = reader.IsDBNull(ordProcessedAt) ? null : reader.GetFieldValue<DateTimeOffset>(ordProcessedAt),

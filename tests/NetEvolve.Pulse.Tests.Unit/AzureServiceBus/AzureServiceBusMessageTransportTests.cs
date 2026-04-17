@@ -426,6 +426,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed record TestOutboxEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -433,6 +434,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed record TopicAEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -440,6 +442,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed record TopicBEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -447,6 +450,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed record AlphaEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -454,6 +458,7 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed record BetaEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

@@ -397,6 +397,7 @@ public sealed class PollyStreamQueryInterceptorTests
 
     private sealed record TestStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

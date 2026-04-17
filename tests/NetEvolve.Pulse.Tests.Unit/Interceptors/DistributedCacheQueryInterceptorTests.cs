@@ -519,11 +519,13 @@ public class DistributedCacheQueryInterceptorTests
 
     private sealed class NonCacheableQuery : IQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record CacheableQuery(string Key) : ICacheableQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string CacheKey => Key;
         public TimeSpan? Expiry => null;
@@ -531,6 +533,7 @@ public class DistributedCacheQueryInterceptorTests
 
     private sealed record CacheableQueryWithExpiry(string Key, TimeSpan ExpiryValue) : ICacheableQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string CacheKey => Key;
         public TimeSpan? Expiry => ExpiryValue;

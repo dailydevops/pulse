@@ -111,6 +111,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
         _ = activity
             ?.SetStartTime(startTime.UtcDateTime)
             .SetTag(RequestCorrelationId, request.CorrelationId)
+            .SetTag(StreamQueryCausationId, request.CausationId)
             .SetTag(RequestTimestamp, startTime);
         StreamQueryCounter.Add(1, tags);
 

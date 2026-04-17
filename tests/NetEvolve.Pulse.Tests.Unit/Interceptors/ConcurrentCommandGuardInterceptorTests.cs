@@ -141,21 +141,25 @@ public sealed class ConcurrentCommandGuardInterceptorTests
 
     private sealed record ExclusiveCommand : IExclusiveCommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record ExclusiveCommand2 : IExclusiveCommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record ExclusiveCommand3 : IExclusiveCommand<int>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record ExclusiveVoidCommand : IExclusiveCommand
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

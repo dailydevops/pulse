@@ -64,7 +64,32 @@ using System.Diagnostics.CodeAnalysis;
 public interface IRequest<TResponse>
 {
     /// <summary>
+    /// An optional causation identifier that records which command or event directly caused this request.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set <c>CausationId</c> to the <c>Id</c> of the command or event that directly triggered the current request.
+    /// Combined with <see cref="CorrelationId"/>, this enables full causal chain reconstruction.
+    /// The mediator does <strong>not</strong> populate this value automatically — the caller is responsible.
+    /// </para>
+    /// <para><strong>Example causal chain:</strong></para>
+    /// <code>
+    /// PlaceOrder      (Command, Id: "cmd-1",  CorrelationId: "txn-42")
+    ///   └─► OrderPlaced (Event,  Id: "evt-1",  CorrelationId: "txn-42", CausationId: "cmd-1")
+    ///         └─► ReserveInventory (Command, Id: "cmd-2", CorrelationId: "txn-42", CausationId: "evt-1")
+    ///               └─► InventoryReserved (Event, Id: "evt-2", CorrelationId: "txn-42", CausationId: "cmd-2")
+    /// </code>
+    /// </remarks>
+    string? CausationId { get; set; }
+
+    /// <summary>
     /// An optional correlation identifier to link related requests and operations across system boundaries.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>CorrelationId</c> groups all requests and events that belong to the same logical transaction or workflow.
+    /// Use <see cref="CausationId"/> when you also need to reconstruct the exact cause-effect chain within that group.
+    /// </para>
+    /// </remarks>
     string? CorrelationId { get; set; }
 }

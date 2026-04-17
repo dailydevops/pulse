@@ -648,26 +648,31 @@ public sealed class PollyExtensionsTests
 
     private sealed record TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record VoidCommand : ICommand<Extensibility.Void>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record TestQuery : IQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record TestStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record TestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

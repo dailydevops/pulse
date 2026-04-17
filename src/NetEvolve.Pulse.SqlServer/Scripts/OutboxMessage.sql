@@ -35,6 +35,7 @@ BEGIN
         [EventType] NVARCHAR(500) NOT NULL,
         [Payload] NVARCHAR(MAX) NOT NULL,
         [CorrelationId] NVARCHAR(100) NULL,
+        [CausationId] NVARCHAR(100) NULL,
         [CreatedAt] DATETIMEOFFSET NOT NULL,
         [UpdatedAt] DATETIMEOFFSET NOT NULL,
         [ProcessedAt] DATETIMEOFFSET NULL,
@@ -48,7 +49,7 @@ BEGIN
     -- Index for efficient polling of pending messages
     CREATE NONCLUSTERED INDEX [IX_$(TableName)_Status_CreatedAt]
         ON [$(SchemaName)].[$(TableName)] ([Status], [CreatedAt])
-        INCLUDE ([EventType], [Payload], [CorrelationId], [RetryCount])
+        INCLUDE ([EventType], [Payload], [CorrelationId], [CausationId], [RetryCount])
         WHERE [Status] IN (0, 3); -- Pending and Failed
 
     -- Index for cleanup of completed messages
@@ -82,6 +83,7 @@ BEGIN
             [EventType],
             [Payload],
             [CorrelationId],
+            [CausationId],
             [CreatedAt],
             [UpdatedAt],
             [ProcessedAt],
@@ -103,6 +105,7 @@ BEGIN
         INSERTED.[EventType],
         INSERTED.[Payload],
         INSERTED.[CorrelationId],
+        INSERTED.[CausationId],
         INSERTED.[CreatedAt],
         INSERTED.[UpdatedAt],
         INSERTED.[ProcessedAt],
@@ -134,6 +137,7 @@ BEGIN
             [EventType],
             [Payload],
             [CorrelationId],
+            [CausationId],
             [CreatedAt],
             [UpdatedAt],
             [ProcessedAt],
@@ -156,6 +160,7 @@ BEGIN
         INSERTED.[EventType],
         INSERTED.[Payload],
         INSERTED.[CorrelationId],
+        INSERTED.[CausationId],
         INSERTED.[CreatedAt],
         INSERTED.[UpdatedAt],
         INSERTED.[ProcessedAt],
@@ -288,6 +293,7 @@ BEGIN
         [EventType],
         [Payload],
         [CorrelationId],
+        [CausationId],
         [CreatedAt],
         [UpdatedAt],
         [ProcessedAt],
@@ -320,6 +326,7 @@ BEGIN
         [EventType],
         [Payload],
         [CorrelationId],
+        [CausationId],
         [CreatedAt],
         [UpdatedAt],
         [ProcessedAt],

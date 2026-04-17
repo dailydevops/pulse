@@ -1343,6 +1343,7 @@ public sealed class OutboxProcessorHostedServiceTests
     // Test event types used as EventTypeOverrides dictionary keys
     private sealed record TestOutboxEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -1350,6 +1351,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed record CriticalEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -1357,6 +1359,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed record SlowEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -1364,6 +1367,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed record BatchEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -1371,6 +1375,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed record PriorityEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -1378,6 +1383,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed record NullOverrideEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -1385,6 +1391,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private sealed record OtherEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

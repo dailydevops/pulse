@@ -72,6 +72,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -103,6 +104,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -259,6 +261,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -340,6 +343,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -507,6 +511,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -721,6 +726,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -963,6 +969,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -1039,6 +1046,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }
@@ -1105,6 +1113,7 @@ public class PulseHandlerGeneratorTests
             public record MyEvent : IEvent
             {
                 public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
                 public DateTimeOffset? PublishedAt { get; set; }
             }

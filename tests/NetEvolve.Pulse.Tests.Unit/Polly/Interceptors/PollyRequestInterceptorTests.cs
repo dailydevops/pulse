@@ -318,6 +318,7 @@ public sealed class PollyRequestInterceptorTests
 
     private sealed record TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

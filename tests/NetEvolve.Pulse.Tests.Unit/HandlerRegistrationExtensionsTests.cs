@@ -316,6 +316,7 @@ public class HandlerRegistrationExtensionsTests
     // Test helper types
     private sealed partial record TestCommand(string Value) : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -327,6 +328,7 @@ public class HandlerRegistrationExtensionsTests
 
     private sealed partial record TestVoidCommand(string Value) : ICommand<Void>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -338,6 +340,7 @@ public class HandlerRegistrationExtensionsTests
 
     private sealed partial record TestQuery(string Value) : IQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
@@ -349,6 +352,7 @@ public class HandlerRegistrationExtensionsTests
 
     private sealed partial record TestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
@@ -857,6 +861,7 @@ public class HandlerRegistrationExtensionsTests
 
     private sealed partial record TestStreamQuery(string Value) : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 

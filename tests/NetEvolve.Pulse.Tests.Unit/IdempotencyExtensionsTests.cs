@@ -88,6 +88,7 @@ public sealed class IdempotencyExtensionsTests
 
     private sealed record TestCommand : IIdempotentCommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string IdempotencyKey { get; init; } = "test-key";
     }

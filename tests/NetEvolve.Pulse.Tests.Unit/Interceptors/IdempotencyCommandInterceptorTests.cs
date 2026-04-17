@@ -332,18 +332,21 @@ public sealed class IdempotencyCommandInterceptorTests
 
     private sealed record TestCommand : IIdempotentCommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string IdempotencyKey { get; init; } = "default-key";
     }
 
     private sealed record TestVoidCommand : IIdempotentCommand
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string IdempotencyKey { get; init; } = "default-key";
     }
 
     private sealed record NonIdempotentCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 

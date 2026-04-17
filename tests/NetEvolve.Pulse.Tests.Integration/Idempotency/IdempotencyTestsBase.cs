@@ -282,6 +282,7 @@ public abstract class IdempotencyTestsBase(
 
     private sealed record TestIdempotentVoidCommand(string IdempotencyKey) : IIdempotentCommand
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 

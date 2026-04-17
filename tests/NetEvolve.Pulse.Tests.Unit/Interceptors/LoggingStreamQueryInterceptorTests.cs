@@ -337,6 +337,7 @@ public class LoggingStreamQueryInterceptorTests
 
     private sealed class TestStreamQuery : IStreamQuery<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

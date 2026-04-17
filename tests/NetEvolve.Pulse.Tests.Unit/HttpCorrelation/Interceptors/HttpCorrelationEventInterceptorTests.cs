@@ -152,6 +152,7 @@ public sealed class HttpCorrelationEventInterceptorTests
 
     private sealed record TestEvent : IEvent
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }

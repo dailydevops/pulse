@@ -118,6 +118,7 @@ public sealed class DataAnnotationsEventInterceptorTests
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
     }
@@ -125,6 +126,7 @@ public sealed class DataAnnotationsEventInterceptorTests
     private sealed class ValidatedEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
 
@@ -135,6 +137,7 @@ public sealed class DataAnnotationsEventInterceptorTests
     private sealed class MultiConstraintEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
 

@@ -201,11 +201,13 @@ public sealed class ConcurrentCommandGuardExtensionsTests
 
     private sealed record ExclusiveCommand : IExclusiveCommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed record ExclusiveVoidCommand : IExclusiveCommand
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

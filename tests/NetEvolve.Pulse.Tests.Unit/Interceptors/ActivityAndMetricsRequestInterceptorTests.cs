@@ -245,18 +245,79 @@ public class ActivityAndMetricsRequestInterceptorTests
         _ = await Assert.That(receivedCommand).IsSameReferenceAs(command);
     }
 
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithNullCausationId_DoesNotTagCausationId(CancellationToken cancellationToken)
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var timeProvider = TimeProvider.System;
+        var interceptor = new ActivityAndMetricsRequestInterceptor<TestCommand, string>(timeProvider);
+        var command = new TestCommand { CausationId = null };
+        Activity? capturedActivity = null;
+
+        listener.ActivityStarted = activity => capturedActivity = activity;
+
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("result"), cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedActivity).IsNotNull();
+            _ = await Assert.That(capturedActivity!.GetTagItem("pulse.causation_id")).IsNull();
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithNonNullCausationId_TagsCausationId(CancellationToken cancellationToken)
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var timeProvider = TimeProvider.System;
+        var interceptor = new ActivityAndMetricsRequestInterceptor<TestCommand, string>(timeProvider);
+        var command = new TestCommand { CausationId = "evt-1" };
+        Activity? capturedActivity = null;
+
+        listener.ActivityStarted = activity => capturedActivity = activity;
+
+        _ = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("result"), cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedActivity).IsNotNull();
+            _ = await Assert.That(capturedActivity!.GetTagItem("pulse.causation_id")).IsEqualTo("evt-1");
+        }
+    }
+
     private sealed class TestCommand : ICommand<string>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed class TestQuery : IQuery<int>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
     private sealed class TestRequest : IRequest<bool>
     {
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 }

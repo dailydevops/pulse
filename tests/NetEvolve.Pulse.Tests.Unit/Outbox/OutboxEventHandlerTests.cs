@@ -103,6 +103,7 @@ public sealed class OutboxEventHandlerTests
     private sealed class TestRegularEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
     }
@@ -110,6 +111,7 @@ public sealed class OutboxEventHandlerTests
     private sealed class TestInProcessEvent : IEventInProcess
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
     }
@@ -117,6 +119,7 @@ public sealed class OutboxEventHandlerTests
     private sealed class TestOptOutInProcessEvent : IEventInProcess
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
         public DateTimeOffset? PublishedAt { get; set; }
         public bool HandleInProcess => false;

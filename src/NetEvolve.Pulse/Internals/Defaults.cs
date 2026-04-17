@@ -80,6 +80,9 @@ internal static class Defaults
         internal const string ExceptionType = "pulse.exception.type";
 
         // Event-related tags
+        /// <summary>Tag name for event causation ID.</summary>
+        internal const string EventCausationId = "pulse.causation_id";
+
         /// <summary>Tag name for event correlation ID.</summary>
         internal const string EventCorrelationId = "pulse.event.correlation_id";
 
@@ -96,6 +99,9 @@ internal static class Defaults
         internal const string EventCompletionTimestamp = "pulse.event.completion.timestamp";
 
         // Request-related tags
+        /// <summary>Tag name for request causation ID.</summary>
+        internal const string RequestCausationId = "pulse.causation_id";
+
         /// <summary>Tag name for request correlation ID.</summary>
         internal const string RequestCorrelationId = "pulse.request.correlation_id";
 
@@ -116,6 +122,9 @@ internal static class Defaults
         internal const string ResponseType = "pulse.response.type";
 
         // Stream query-related tags
+        /// <summary>Tag name for stream query causation ID.</summary>
+        internal const string StreamQueryCausationId = "pulse.causation_id";
+
         /// <summary>Tag name for stream query type (type name of the query).</summary>
         internal const string StreamQueryType = "query.type";
 
