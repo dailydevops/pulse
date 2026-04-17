@@ -130,6 +130,43 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_ExclusiveCommand_CancellationTokenAbortsWait(CancellationToken cancellationToken)
+    {
+        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand4, string>();
+        var command = new ExclusiveCommand4();
+
+        // Acquire the semaphore so the next call blocks
+        using var cts = new CancellationTokenSource();
+
+        // Start a first call that holds the semaphore indefinitely until we cancel
+        var tcsReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = interceptor.HandleAsync(
+            command,
+            async (_, ct) =>
+            {
+                tcsReady.SetResult();
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                return "first";
+            },
+            cancellationToken
+        );
+
+        // Wait until the first handler is running inside the semaphore
+        await tcsReady.Task.ConfigureAwait(false);
+
+        // Cancel before the second call can acquire the semaphore
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        _ = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(command, (_, _) => Task.FromResult("second"), cts.Token)
+                    .ConfigureAwait(false)
+            )
+            .Throws<OperationCanceledException>();
+    }
+
+    [Test]
     public async Task HandleAsync_ExclusiveCommand_SerializesExecution(CancellationToken cancellationToken)
     {
         var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand3, int>();
@@ -176,6 +213,11 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     }
 
     private sealed record ExclusiveCommand3 : IExclusiveCommand<int>
+    {
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed record ExclusiveCommand4 : IExclusiveCommand<string>
     {
         public string? CorrelationId { get; set; }
     }
