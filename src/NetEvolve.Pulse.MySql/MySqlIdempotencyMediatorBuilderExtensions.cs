@@ -29,13 +29,13 @@ public static class MySqlIdempotencyMediatorBuilderExtensions
     /// MySQL does not use schema namespaces. The <see cref="IdempotencyKeyOptions.Schema"/> property is
     /// ignored; tables are always created in the active database from the connection string.
     /// <para><strong>Interoperability:</strong></para>
-    /// Stores <see cref="System.DateTimeOffset"/> values as <c>BIGINT</c> (UTC ticks), matching
+    /// Stores <see cref="DateTimeOffset"/> values as <c>BIGINT</c> (UTC ticks), matching
     /// the Entity Framework MySQL provider schema.
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
     /// <item><description><see cref="IIdempotencyKeyRepository"/> as <see cref="MySqlIdempotencyKeyRepository"/> (Scoped)</description></item>
     /// <item><description><see cref="IIdempotencyStore"/> as <see cref="IdempotencyStore"/> (Scoped, via <see cref="IdempotencyExtensions.AddIdempotency"/>)</description></item>
-    /// <item><description><see cref="System.TimeProvider"/> (Singleton, if not already registered)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
     /// Core idempotency services are registered automatically; calling

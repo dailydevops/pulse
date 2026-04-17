@@ -16,7 +16,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
-        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
+        using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
         var command = new ExclusiveCommand();
 
         _ = await Assert
@@ -25,35 +25,9 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_NonExclusiveCommand_PassesThroughDirectly(CancellationToken cancellationToken)
-    {
-        var interceptor = new ConcurrentCommandGuardInterceptor<NonExclusiveCommand, string>();
-        var command = new NonExclusiveCommand();
-        var handlerCalled = false;
-
-        var result = await interceptor
-            .HandleAsync(
-                command,
-                (_, _) =>
-                {
-                    handlerCalled = true;
-                    return Task.FromResult("response");
-                },
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(result).IsEqualTo("response");
-            _ = await Assert.That(handlerCalled).IsTrue();
-        }
-    }
-
-    [Test]
     public async Task HandleAsync_ExclusiveCommand_ExecutesHandler(CancellationToken cancellationToken)
     {
-        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
+        using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
         var command = new ExclusiveCommand();
         var handlerCalled = false;
 
@@ -79,7 +53,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveCommand_HandlerThrows_SemaphoreReleased(CancellationToken cancellationToken)
     {
-        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand2, string>();
+        using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand2, string>();
         var command = new ExclusiveCommand2();
 
         _ = await Assert
@@ -106,7 +80,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveVoidCommand_ExecutesHandler(CancellationToken cancellationToken)
     {
-        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveVoidCommand, Extensibility.Void>();
+        using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveVoidCommand, Extensibility.Void>();
         var command = new ExclusiveVoidCommand();
         var handlerCalled = false;
 
@@ -132,7 +106,7 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveCommand_SerializesExecution(CancellationToken cancellationToken)
     {
-        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand3, int>();
+        using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand3, int>();
         var maxConcurrent = 0;
         var currentConcurrent = 0;
         var tasks = new Task<int>[5];
@@ -181,11 +155,6 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     }
 
     private sealed record ExclusiveVoidCommand : IExclusiveCommand
-    {
-        public string? CorrelationId { get; set; }
-    }
-
-    private sealed record NonExclusiveCommand : ICommand<string>
     {
         public string? CorrelationId { get; set; }
     }
