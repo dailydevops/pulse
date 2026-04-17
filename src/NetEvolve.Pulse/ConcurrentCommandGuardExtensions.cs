@@ -25,7 +25,7 @@ public static class ConcurrentCommandGuardExtensions
 {
     /// <summary>
     /// Registers an open-generic <see cref="ConcurrentCommandGuardInterceptor{TRequest,TResponse}"/>
-    /// as a scoped <see cref="IRequestInterceptor{TRequest,TResponse}"/> for <em>all</em>
+    /// as a singleton <see cref="IRequestInterceptor{TRequest,TResponse}"/> for <em>all</em>
     /// <see cref="IExclusiveCommand{TResponse}"/> implementations discovered at runtime.
     /// </summary>
     /// <param name="configurator">The <see cref="IMediatorBuilder"/> to configure. Must not be <see langword="null"/>.</param>
