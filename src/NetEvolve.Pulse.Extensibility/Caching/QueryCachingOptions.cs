@@ -1,7 +1,5 @@
 ﻿namespace NetEvolve.Pulse.Extensibility.Caching;
 
-using System.Text.Json;
-
 /// <summary>
 /// Configuration options for the distributed query caching interceptor.
 /// </summary>
@@ -11,17 +9,6 @@ using System.Text.Json;
 /// <seealso cref="ICacheableQuery{TResponse}"/>
 public sealed class QueryCachingOptions
 {
-    /// <summary>
-    /// Gets or sets the <see cref="System.Text.Json.JsonSerializerOptions"/> used when
-    /// serializing responses to the cache and deserializing them back.
-    /// </summary>
-    /// <remarks>
-    /// Defaults to <see cref="JsonSerializerOptions.Default"/>.
-    /// Provide custom options when your response types require non-default converters,
-    /// naming policies, or other serialization settings.
-    /// </remarks>
-    public JsonSerializerOptions JsonSerializerOptions { get; set; } = JsonSerializerOptions.Default;
-
     /// <summary>
     /// Gets or sets how the <see cref="ICacheableQuery{TResponse}.Expiry"/> value is interpreted
     /// when storing entries in the distributed cache.

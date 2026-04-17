@@ -1,7 +1,5 @@
 ﻿namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 

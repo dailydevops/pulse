@@ -1,7 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 using Microsoft.Extensions.Logging.Abstractions;
-using MySql.Data.MySqlClient;
 using Testcontainers.MySql;
 using TUnit.Core.Interfaces;
 

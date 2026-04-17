@@ -3,7 +3,6 @@ namespace NetEvolve.Pulse.Tests.Unit.Serialization;
 using System;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;

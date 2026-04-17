@@ -3,6 +3,7 @@
 using System.Text.Json;
 using Dapr.Client;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
@@ -29,25 +30,32 @@ internal sealed class DaprMessageTransport : IMessageTransport
     /// <summary>The topic name resolver used to determine the Dapr topic name from an outbox message.</summary>
     private readonly ITopicNameResolver _topicNameResolver;
 
+    /// <summary>The payload serializer used to serialize and deserialize outbox message payloads.</summary>
+    private readonly IPayloadSerializer _payloadSerializer;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="DaprMessageTransport"/> class.
     /// </summary>
     /// <param name="daprClient">The Dapr client for publishing events.</param>
     /// <param name="topicNameResolver">The topic name resolver for determining topic names from outbox messages.</param>
     /// <param name="options">The transport options.</param>
+    /// <param name="payloadSerializer">The payload serializer for deserializing outbox message payloads.</param>
     public DaprMessageTransport(
         DaprClient daprClient,
         ITopicNameResolver topicNameResolver,
-        IOptions<DaprMessageTransportOptions> options
+        IOptions<DaprMessageTransportOptions> options,
+        IPayloadSerializer payloadSerializer
     )
     {
         ArgumentNullException.ThrowIfNull(daprClient);
         ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(payloadSerializer);
 
         _daprClient = daprClient;
         _topicNameResolver = topicNameResolver;
         _options = options.Value;
+        _payloadSerializer = payloadSerializer;
     }
 
     /// <inheritdoc />
@@ -56,7 +64,7 @@ internal sealed class DaprMessageTransport : IMessageTransport
         ArgumentNullException.ThrowIfNull(message);
 
         var topicName = _topicNameResolver.Resolve(message);
-        var payload = JsonSerializer.Deserialize<JsonElement>(message.Payload);
+        var payload = _payloadSerializer.Deserialize<JsonElement>(message.Payload);
 
         await _daprClient
             .PublishEventAsync(_options.PubSubName, topicName, payload, cancellationToken)
