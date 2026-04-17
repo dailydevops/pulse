@@ -1,6 +1,5 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
-using System.Text.Json;
 using Dapr.Client;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
@@ -64,7 +63,7 @@ internal sealed class DaprMessageTransport : IMessageTransport
         ArgumentNullException.ThrowIfNull(message);
 
         var topicName = _topicNameResolver.Resolve(message);
-        var payload = _payloadSerializer.Deserialize<JsonElement>(message.Payload);
+        var payload = _payloadSerializer.Deserialize<object>(message.Payload);
 
         await _daprClient
             .PublishEventAsync(_options.PubSubName, topicName, payload, cancellationToken)

@@ -18,7 +18,8 @@ using NetEvolve.Pulse.Extensibility.Caching;
 /// When a cached entry is found for the query's <see cref="ICacheableQuery{TResponse}.CacheKey"/>,
 /// the handler is skipped and the deserialized response is returned directly.
 /// <para><strong>Cache Miss:</strong></para>
-/// When no cached entry exists, the handler is invoked and the response is serialized to JSON
+/// When no cached entry exists, the handler is invoked and the response is serialized using the
+/// configured <see cref="IPayloadSerializer"/> of <see cref="DistributedCacheQueryInterceptor{TQuery, TResponse}"/>
 /// and stored in the cache before being returned to the caller.
 /// <para><strong>No Cache Registered:</strong></para>
 /// When <see cref="IDistributedCache"/> is not registered in the DI container, the interceptor
@@ -88,16 +89,21 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
         var cachedBytes = await cache.GetAsync(cacheKey, cancellationToken).ConfigureAwait(false);
         if (cachedBytes is not null)
         {
-            return _payloadSerializer.Deserialize<TResponse>(cachedBytes)!;
+            var cached = _payloadSerializer.Deserialize<TResponse>(cachedBytes);
+            if (cached is not null)
+            {
+                return cached;
+            }
         }
 
         var response = await handler(request, cancellationToken).ConfigureAwait(false);
 
-        var serialized = _payloadSerializer.SerializeToBytes(response);
-
-        var entryOptions = GetCacheEntryOptions(cacheableQuery);
-
-        await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
+        if (response is not null)
+        {
+            var serialized = _payloadSerializer.SerializeToBytes(response);
+            var entryOptions = GetCacheEntryOptions(cacheableQuery);
+            await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
+        }
 
         return response;
     }

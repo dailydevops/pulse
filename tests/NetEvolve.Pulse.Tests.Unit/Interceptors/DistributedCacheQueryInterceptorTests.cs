@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
+﻿namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
@@ -437,6 +437,75 @@ public class DistributedCacheQueryInterceptorTests
             var cache = provider.GetRequiredService<IDistributedCache>();
             var bytes = await cache.GetAsync("query-expiry-key", cancellationToken).ConfigureAwait(false);
             _ = await Assert.That(bytes).IsNotNull();
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_NullResponse_SkipsCaching(CancellationToken cancellationToken)
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(
+                provider,
+                DefaultOptions,
+                DefaultSerializer
+            );
+            var query = new CacheableQuery("null-response-key");
+
+            var result = await interceptor
+                .HandleAsync(query, (_, _) => Task.FromResult<string>(null!), cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await Assert.That(result).IsNull();
+
+            // Nothing should have been written to the cache
+            var cache = provider.GetRequiredService<IDistributedCache>();
+            var bytes = await cache.GetAsync("null-response-key", cancellationToken).ConfigureAwait(false);
+            _ = await Assert.That(bytes).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_NullDeserializedFromCache_FallsThroughToHandler(CancellationToken cancellationToken)
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            // Pre-populate the cache with bytes that the serializer will deserialize as null
+            var cache = provider.GetRequiredService<IDistributedCache>();
+            var nullBytes = DefaultSerializer.SerializeToBytes<string>(null!);
+            await cache.SetAsync("null-cached-key", nullBytes, cancellationToken).ConfigureAwait(false);
+
+            var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(
+                provider,
+                DefaultOptions,
+                DefaultSerializer
+            );
+            var query = new CacheableQuery("null-cached-key");
+            var handlerCallCount = 0;
+
+            var result = await interceptor
+                .HandleAsync(
+                    query,
+                    (_, _) =>
+                    {
+                        handlerCallCount++;
+                        return Task.FromResult("fallback-value");
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(result).IsEqualTo("fallback-value");
+                _ = await Assert.That(handlerCallCount).IsEqualTo(1);
+            }
         }
     }
 
