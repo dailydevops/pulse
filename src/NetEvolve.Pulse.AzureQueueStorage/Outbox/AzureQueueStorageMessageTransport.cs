@@ -20,14 +20,12 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// </remarks>
 public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisposable
 {
-    internal const int MaxMessageSizeInBytes = 48 * 1024; // 48 KB
+    internal const int MaxMessageSizeInBytes = 48 * 1024; // Raw 48 KB limit (64 KB after Base64 encoding)
 
     private readonly AzureQueueStorageTransportOptions _options;
     private readonly QueueClient? _queueClientOverride;
     private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
-
-    // Volatile ensures the double-checked locking pattern is correct across threads.
-    private volatile QueueClient? _queueClient;
+    private QueueClient? _queueClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureQueueStorageMessageTransport"/> class.
@@ -143,7 +141,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
             }
             else
             {
-                var queueUri = new Uri($"{_options.QueueServiceUri!.AbsoluteUri.TrimEnd('/')}/{_options.QueueName}");
+                var queueUri = new Uri(_options.QueueServiceUri!, _options.QueueName);
                 client = new QueueClient(queueUri, new DefaultAzureCredential());
             }
 
