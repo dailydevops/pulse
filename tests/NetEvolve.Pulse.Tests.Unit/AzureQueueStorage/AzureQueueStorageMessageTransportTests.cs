@@ -244,7 +244,7 @@ public sealed class AzureQueueStorageMessageTransportTests
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "FakeAzureResponse.Dispose is a no-op; suppressed for test code."
+            Justification = "FakeAzureResponse is passed to Response.FromValue and immediately returned; its Dispose is a no-op."
         )]
         public override Task<Response<SendReceipt>> SendMessageAsync(
             string messageText,
@@ -268,7 +268,7 @@ public sealed class AzureQueueStorageMessageTransportTests
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "FakeAzureResponse.Dispose is a no-op; suppressed for test code."
+            Justification = "FakeAzureResponse is immediately returned as the raw response; its Dispose is a no-op."
         )]
         public override Task<Response> CreateIfNotExistsAsync(
             IDictionary<string, string>? metadata = null,
