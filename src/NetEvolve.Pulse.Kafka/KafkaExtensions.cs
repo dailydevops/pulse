@@ -16,6 +16,7 @@ public static class KafkaExtensions
     /// Registers the Kafka outbox transport so that outbox messages are produced to Kafka topics.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
+    /// <param name="configureOptions">Optional action to configure <see cref="KafkaTransportOptions"/>.</param>
     /// <returns>The same <paramref name="configurator" /> instance for chaining.</returns>
     /// <remarks>
     /// <para><strong>Prerequisites:</strong></para>
@@ -41,11 +42,20 @@ public static class KafkaExtensions
     /// Replaces any previously registered <see cref="IMessageTransport" />.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator" /> is null.</exception>
-    public static IMediatorBuilder UseKafkaTransport(this IMediatorBuilder configurator)
+    public static IMediatorBuilder UseKafkaTransport(
+        this IMediatorBuilder configurator,
+        Action<KafkaTransportOptions>? configureOptions = null
+    )
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
         var services = configurator.Services;
+
+        _ = services.AddOptions<KafkaTransportOptions>();
+        if (configureOptions is not null)
+        {
+            _ = services.Configure(configureOptions);
+        }
 
         var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));
         if (existing is not null)
