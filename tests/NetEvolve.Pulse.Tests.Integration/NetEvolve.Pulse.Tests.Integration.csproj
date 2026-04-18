@@ -19,6 +19,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="MongoDB.Driver" />
     <PackageReference Include="MySql.EntityFrameworkCore" />
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
@@ -29,6 +30,7 @@
     <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Testcontainers" />
     <PackageReference Include="Testcontainers.Kafka" />
+    <PackageReference Include="Testcontainers.MongoDb" />
     <PackageReference Include="Testcontainers.MsSql" />
     <PackageReference Include="Testcontainers.MySql" />
     <PackageReference Include="Testcontainers.PostgreSql" />
@@ -51,6 +53,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Kafka\NetEvolve.Pulse.Kafka.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Polly\NetEvolve.Pulse.Polly.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.MySql\NetEvolve.Pulse.MySql.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.MongoDB\NetEvolve.Pulse.MongoDB.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.PostgreSql\NetEvolve.Pulse.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
