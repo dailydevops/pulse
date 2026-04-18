@@ -255,7 +255,7 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_AutoCreateTopics_true_creates_topic_before_producing(
+    public async Task SendAsync_AutoCreateTopics_true_Creates_topic_before_producing(
         CancellationToken cancellationToken
     )
     {
@@ -275,7 +275,7 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_AutoCreateTopics_false_skips_topic_creation(CancellationToken cancellationToken)
+    public async Task SendAsync_AutoCreateTopics_false_Skips_topic_creation(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -292,7 +292,7 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_AutoCreateTopics_only_creates_topic_once_per_topic(CancellationToken cancellationToken)
+    public async Task SendAsync_AutoCreateTopics_only_Creates_topic_once_per_topic(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -383,7 +383,7 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_AutoCreateTopics_false_skips_topic_creation(CancellationToken cancellationToken)
+    public async Task SendBatchAsync_AutoCreateTopics_false_Skips_topic_creation(CancellationToken cancellationToken)
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
