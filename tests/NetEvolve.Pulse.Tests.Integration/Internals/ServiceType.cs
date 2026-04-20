@@ -9,4 +9,5 @@ public enum ServiceType
     MySql,
     Redis,
     MongoDB,
+    CosmosDb,
 }

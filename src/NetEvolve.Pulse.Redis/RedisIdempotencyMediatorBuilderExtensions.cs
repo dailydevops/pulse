@@ -1,10 +1,8 @@
 namespace NetEvolve.Pulse;
 
 using System;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
