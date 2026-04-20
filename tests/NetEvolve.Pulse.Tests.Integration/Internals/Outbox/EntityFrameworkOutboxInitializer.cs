@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
@@ -8,12 +8,13 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
-using NetEvolve.Pulse.Idempotency;
+using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 
-public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
+public sealed class EntityFrameworkOutboxInitializer : IServiceInitializer
 {
     public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture) =>
-        mediatorBuilder.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>();
+        mediatorBuilder.AddEntityFrameworkOutbox<TestDbContext>();
 
     private static readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -21,7 +22,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
     {
         using (var scope = serviceProvider.CreateScope())
         {
-            var context = scope.ServiceProvider.GetRequiredService<TestIdempotencyDbContext>();
+            var context = scope.ServiceProvider.GetRequiredService<TestDbContext>();
             var databaseCreator = context.GetService<IDatabaseCreator>();
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -69,11 +70,17 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
     }
 
     public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) =>
-        _ = services.AddDbContextFactory<TestIdempotencyDbContext>(options =>
+        _ = services.AddDbContextFactory<TestDbContext>(options =>
         {
             var connectionString = serviceFixture.ConnectionString;
 
             // Register a custom model-cache key factory that includes the per-test table name.
+            // Multiple tests share the same connection string (same container), so EF Core would
+            // otherwise cache the first test's model (with its table name) and reuse it for all
+            // subsequent tests — causing "Table '...' already exists" errors on CreateTablesAsync.
+            // This factory makes the cache key unique per (DbContext type, TableName), so each
+            // test gets its own model while still sharing the internal EF Core service provider
+            // (critical for correct type-mapping initialisation on providers like Oracle MySQL).
             _ = options.ReplaceService<IModelCacheKeyFactory, TestTableModelCacheKeyFactory>();
 
             _ = serviceFixture.ServiceType switch
@@ -82,7 +89,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
                 ServiceType.MySql => options.UseMySQL(connectionString),
                 ServiceType.PostgreSQL => options.UseNpgsql(connectionString),
                 // Add a busy-timeout interceptor so that concurrent SaveChangesAsync calls from
-                // parallel tests wait and retry instead of failing with SQLITE_BUSY.
+                // parallel PublishAsync tasks wait and retry instead of failing with SQLITE_BUSY.
                 ServiceType.SQLite => options
                     .UseSqlite(connectionString)
                     .AddInterceptors(new SQLiteBusyTimeoutInterceptor()),
@@ -122,8 +129,11 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
     }
 
     /// <summary>
-    /// Custom EF Core model-cache key factory that incorporates <see cref="IdempotencyKeyOptions.TableName"/>
-    /// into the cache key to prevent model sharing between tests that use different table names.
+    /// Custom EF Core model-cache key factory that incorporates <see cref="OutboxOptions.TableName"/>
+    /// into the cache key.  Without this, all tests that share the same database connection string
+    /// receive the same cached EF Core model (keyed only by <see cref="DbContext"/> type), so the
+    /// second test picks up the first test's table name and <c>CreateTablesAsync</c> fails with
+    /// "Table '&lt;first-test-name&gt;' already exists".
     /// </summary>
     private sealed class TestTableModelCacheKeyFactory : IModelCacheKeyFactory
     {
@@ -133,7 +143,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
             string tableName;
             try
             {
-                tableName = context.GetService<IOptions<IdempotencyKeyOptions>>()?.Value?.TableName ?? string.Empty;
+                tableName = context.GetService<IOptions<OutboxOptions>>()?.Value?.TableName ?? string.Empty;
             }
             catch (InvalidOperationException)
             {
@@ -144,11 +154,11 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
         }
     }
 
-    internal sealed class TestIdempotencyDbContext : DbContext, IIdempotencyStoreDbContext
+    private sealed class TestDbContext : DbContext, IOutboxDbContext
     {
-        public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
+        public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
-        public TestIdempotencyDbContext(DbContextOptions<TestIdempotencyDbContext> configuration)
+        public TestDbContext(DbContextOptions<TestDbContext> configuration)
             : base(configuration) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

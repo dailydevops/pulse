@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +7,7 @@ using MongoDB.Driver;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 public sealed class MongoDbOutboxInitializer : IServiceInitializer
 {

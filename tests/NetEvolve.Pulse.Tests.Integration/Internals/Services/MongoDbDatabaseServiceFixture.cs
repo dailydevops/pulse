@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 public sealed class MongoDbDatabaseServiceFixture : IServiceFixture
 {

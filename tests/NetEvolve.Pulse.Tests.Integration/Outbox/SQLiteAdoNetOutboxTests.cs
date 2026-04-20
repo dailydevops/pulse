@@ -1,7 +1,8 @@
-namespace NetEvolve.Pulse.Tests.Integration.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 [ClassDataSource<SQLiteDatabaseServiceFixture, SQLiteAdoNetOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]

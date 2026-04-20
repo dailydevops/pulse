@@ -2,6 +2,7 @@
 
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 [ClassDataSource<SqlServerDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]
