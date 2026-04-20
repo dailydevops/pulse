@@ -82,7 +82,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         var filter = Builders<OutboxDocument>.Filter.And(
             Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.Pending),
             Builders<OutboxDocument>.Filter.Or(
-                Builders<OutboxDocument>.Filter.Eq<DateTime?>(d => d.NextRetryAt, null),
+                Builders<OutboxDocument>.Filter.Eq(d => d.NextRetryAt, null),
                 Builders<OutboxDocument>.Filter.Lte(d => d.NextRetryAt, (DateTime?)now)
             )
         );
@@ -131,7 +131,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
             Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.Failed),
             Builders<OutboxDocument>.Filter.Lt(d => d.RetryCount, maxRetryCount),
             Builders<OutboxDocument>.Filter.Or(
-                Builders<OutboxDocument>.Filter.Eq<DateTime?>(d => d.NextRetryAt, null),
+                Builders<OutboxDocument>.Filter.Eq(d => d.NextRetryAt, null),
                 Builders<OutboxDocument>.Filter.Lte(d => d.NextRetryAt, (DateTime?)now)
             )
         );

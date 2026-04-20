@@ -13,10 +13,10 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// The <see cref="Id"/> property is mapped to the MongoDB <c>_id</c> field and stored as a BSON string
 /// to avoid GUID representation ambiguity.
 /// <para><strong>Date/Time Representation:</strong></para>
-/// All <see cref="System.DateTimeOffset"/> fields from <see cref="OutboxMessage"/> are stored as UTC
-/// <see cref="System.DateTime"/> values, since MongoDB's BSON date type natively represents UTC milliseconds.
-/// Callers are responsible for converting to and from <see cref="System.DateTimeOffset"/> using
-/// <see cref="System.TimeSpan.Zero"/> as the offset.
+/// All <see cref="DateTimeOffset"/> fields from <see cref="OutboxMessage"/> are stored as UTC
+/// <see cref="DateTime"/> values, since MongoDB's BSON date type natively represents UTC milliseconds.
+/// Callers are responsible for converting to and from <see cref="DateTimeOffset"/> using
+/// <see cref="TimeSpan.Zero"/> as the offset.
 /// </remarks>
 internal sealed class OutboxDocument
 {
