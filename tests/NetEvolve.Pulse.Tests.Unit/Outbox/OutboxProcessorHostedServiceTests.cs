@@ -424,7 +424,7 @@ public sealed class OutboxProcessorHostedServiceTests
     public async Task ExecuteAsync_WithPerEventTypeProcessingTimeout_UsesOverride(CancellationToken cancellationToken)
     {
         using var repository = new InMemoryOutboxRepository();
-        var transport = new SlowMessageTransport(delay: TimeSpan.FromMilliseconds(200));
+        var transport = new SlowMessageTransport(delay: TimeSpan.FromSeconds(5)); // Much larger than the override timeout to avoid timer-jitter flakiness
         var options = Options.Create(
             new OutboxProcessorOptions
             {
