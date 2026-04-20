@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Idempotency;
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Data.Sqlite;

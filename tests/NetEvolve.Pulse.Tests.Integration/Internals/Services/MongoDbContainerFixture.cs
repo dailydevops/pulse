@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.MongoDb;
