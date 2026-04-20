@@ -68,6 +68,34 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         ArgumentNullException.ThrowIfNull(message);
 
         var channel = await EnsureChannelAsync(cancellationToken).ConfigureAwait(false);
+        await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(messages);
+
+        var channel = await EnsureChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var message in messages)
+        {
+            await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Publishes a single outbox message to the RabbitMQ exchange using the provided channel.
+    /// </summary>
+    /// <param name="channel">The channel to use for publishing.</param>
+    /// <param name="message">The outbox message to publish.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    private async Task PublishAsync(
+        IRabbitMqChannelAdapter channel,
+        OutboxMessage message,
+        CancellationToken cancellationToken
+    )
+    {
         var routingKey = ResolveRoutingKey(message);
         var body = Encoding.UTF8.GetBytes(message.Payload);
 
