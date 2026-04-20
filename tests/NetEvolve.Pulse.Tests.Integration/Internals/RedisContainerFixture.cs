@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 public sealed class RedisContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly RedisContainer _container = new RedisBuilder( /*dockerimage*/
-        "redis:7.4.8"
+        "redis:32bit-stretch"
     )
         .WithLogger(NullLogger.Instance)
         .Build();
