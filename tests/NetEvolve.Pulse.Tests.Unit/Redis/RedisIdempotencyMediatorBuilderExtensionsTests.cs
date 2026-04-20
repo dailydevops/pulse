@@ -9,7 +9,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
-using NetEvolve.Pulse.Redis.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 using TUnit.Core;
 using TUnit.Mocks;
 

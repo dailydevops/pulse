@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Redis.Idempotency;
+namespace NetEvolve.Pulse.Idempotency;
 
 using Microsoft.Extensions.Options;
 

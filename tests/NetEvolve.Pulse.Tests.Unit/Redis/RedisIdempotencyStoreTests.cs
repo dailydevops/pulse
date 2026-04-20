@@ -4,7 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.Redis.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 using StackExchange.Redis;
 using TUnit.Core;
 using TUnit.Mocks;
@@ -36,9 +36,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task ExistsAsync_WithNullKey_ThrowsArgumentNullException(
-        System.Threading.CancellationToken cancellationToken
-    )
+    public async Task ExistsAsync_WithNullKey_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var store = new RedisIdempotencyStore(
             Mock.Of<IConnectionMultiplexer>().Object,
@@ -51,9 +49,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task ExistsAsync_WithEmptyKey_ThrowsArgumentException(
-        System.Threading.CancellationToken cancellationToken
-    )
+    public async Task ExistsAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
         var store = new RedisIdempotencyStore(
             Mock.Of<IConnectionMultiplexer>().Object,
@@ -66,9 +62,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task StoreAsync_WithNullKey_ThrowsArgumentNullException(
-        System.Threading.CancellationToken cancellationToken
-    )
+    public async Task StoreAsync_WithNullKey_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var store = new RedisIdempotencyStore(
             Mock.Of<IConnectionMultiplexer>().Object,
@@ -81,9 +75,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task StoreAsync_WithEmptyKey_ThrowsArgumentException(
-        System.Threading.CancellationToken cancellationToken
-    )
+    public async Task StoreAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
         var store = new RedisIdempotencyStore(
             Mock.Of<IConnectionMultiplexer>().Object,
@@ -96,7 +88,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task ExistsAsync_WithNonExistentKey_ReturnsFalse(System.Threading.CancellationToken cancellationToken)
+    public async Task ExistsAsync_WithNonExistentKey_ReturnsFalse(CancellationToken cancellationToken)
     {
         var databaseMock = Mock.Of<IDatabase>();
         _ = databaseMock.KeyExistsAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(false);
@@ -112,7 +104,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task ExistsAsync_WithExistingKey_ReturnsTrue(System.Threading.CancellationToken cancellationToken)
+    public async Task ExistsAsync_WithExistingKey_ReturnsTrue(CancellationToken cancellationToken)
     {
         var databaseMock = Mock.Of<IDatabase>();
         _ = databaseMock.KeyExistsAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(true);
@@ -128,7 +120,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task StoreAsync_WhenKeyNotExists_Succeeds(System.Threading.CancellationToken cancellationToken)
+    public async Task StoreAsync_WhenKeyNotExists_Succeeds(CancellationToken cancellationToken)
     {
         var databaseMock = Mock.Of<IDatabase>();
         _ = databaseMock
@@ -144,7 +136,7 @@ public sealed class RedisIdempotencyStoreTests
     }
 
     [Test]
-    public async Task StoreAsync_WhenKeyAlreadyExists_DoesNotThrow(System.Threading.CancellationToken cancellationToken)
+    public async Task StoreAsync_WhenKeyAlreadyExists_DoesNotThrow(CancellationToken cancellationToken)
     {
         var databaseMock = Mock.Of<IDatabase>();
 

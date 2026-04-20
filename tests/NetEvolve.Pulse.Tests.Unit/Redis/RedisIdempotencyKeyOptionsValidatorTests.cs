@@ -2,9 +2,8 @@ namespace NetEvolve.Pulse.Tests.Unit.Redis;
 
 using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.Redis.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 using TUnit.Core;
 
 [TestGroup("Redis")]

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
-using NetEvolve.Pulse.Redis.Idempotency;
+using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
 /// Extension methods for configuring the Redis idempotency store on <see cref="IMediatorBuilder"/>.

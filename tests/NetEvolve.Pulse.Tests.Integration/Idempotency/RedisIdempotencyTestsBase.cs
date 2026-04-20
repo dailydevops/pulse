@@ -9,7 +9,6 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
-using NetEvolve.Pulse.Redis.Idempotency;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
@@ -190,7 +189,7 @@ public abstract class RedisIdempotencyTestsBase(
             .ConfigureAwait(false);
 
     /// <summary>
-    /// Verifies that Redis natively expires keys using the TTL set in <see cref="NetEvolve.Pulse.Redis.Idempotency.RedisIdempotencyKeyOptions.TimeToLive"/>.
+    /// Verifies that Redis natively expires keys using the TTL set in <see cref="RedisIdempotencyKeyOptions.TimeToLive"/>.
     /// </summary>
     [Test]
     public async Task Should_Expire_Key_When_Redis_Ttl_Elapses(CancellationToken cancellationToken) =>

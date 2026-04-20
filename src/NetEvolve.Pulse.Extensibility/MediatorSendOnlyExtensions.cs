@@ -16,7 +16,7 @@ public static class MediatorSendOnlyExtensions
     /// <param name="batch">The batch of commands to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous batch execution.</returns>
-    /// <exception cref="System.ArgumentNullException">
+    /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="mediator"/> or <paramref name="batch"/> is <see langword="null"/>.
     /// </exception>
     /// <remarks>
