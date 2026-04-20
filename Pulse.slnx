@@ -28,6 +28,7 @@
     <Project Path="src/NetEvolve.Pulse.AspNetCore/NetEvolve.Pulse.AspNetCore.csproj" />
     <Project Path="src/NetEvolve.Pulse.EntityFramework/NetEvolve.Pulse.EntityFramework.csproj" />
     <Project Path="src/NetEvolve.Pulse.Dapr/NetEvolve.Pulse.Dapr.csproj" />
+    <Project Path="src/NetEvolve.Pulse.MongoDB/NetEvolve.Pulse.MongoDB.csproj" />
     <Project Path="src/NetEvolve.Pulse.MySql/NetEvolve.Pulse.MySql.csproj" />
     <Project Path="src/NetEvolve.Pulse.PostgreSql/NetEvolve.Pulse.PostgreSql.csproj" />
     <Project Path="src/NetEvolve.Pulse.SqlServer/NetEvolve.Pulse.SqlServer.csproj" />
@@ -38,7 +39,6 @@
     <Project Path="src/NetEvolve.Pulse.SourceGeneration/NetEvolve.Pulse.SourceGeneration.csproj" />
     <Project Path="src/NetEvolve.Pulse.AzureServiceBus/NetEvolve.Pulse.AzureServiceBus.csproj" />
     <Project Path="src/NetEvolve.Pulse.SQLite/NetEvolve.Pulse.SQLite.csproj" />
-    <Project Path="src/NetEvolve.Pulse.MongoDB/NetEvolve.Pulse.MongoDB.csproj" />
     <Project Path="src/NetEvolve.Pulse.Kafka/NetEvolve.Pulse.Kafka.csproj" />
     <Project Path="src/NetEvolve.Pulse.Redis/NetEvolve.Pulse.Redis.csproj" />
   </Folder>

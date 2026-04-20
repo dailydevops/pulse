@@ -3,8 +3,11 @@ namespace NetEvolve.Pulse.Outbox;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Confluent.Kafka;
+using Confluent.Kafka.Admin;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
@@ -21,6 +24,8 @@ public sealed class KafkaMessageTransport : IMessageTransport
     private readonly IProducer<string, string> _producer;
     private readonly IAdminClient _adminClient;
     private readonly ITopicNameResolver _topicNameResolver;
+    private readonly KafkaTransportOptions _options;
+    private readonly ConcurrentDictionary<string, bool> _ensuredTopics = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new instance of <see cref="KafkaMessageTransport" />.
@@ -28,19 +33,23 @@ public sealed class KafkaMessageTransport : IMessageTransport
     /// <param name="producer">The Kafka producer, registered in DI by the caller.</param>
     /// <param name="adminClient">The Kafka admin client, registered in DI by the caller.</param>
     /// <param name="topicNameResolver">The resolver that maps each outbox message to a Kafka topic name.</param>
+    /// <param name="options">The transport options.</param>
     public KafkaMessageTransport(
         IProducer<string, string> producer,
         IAdminClient adminClient,
-        ITopicNameResolver topicNameResolver
+        ITopicNameResolver topicNameResolver,
+        IOptions<KafkaTransportOptions> options
     )
     {
         ArgumentNullException.ThrowIfNull(producer);
         ArgumentNullException.ThrowIfNull(adminClient);
         ArgumentNullException.ThrowIfNull(topicNameResolver);
+        ArgumentNullException.ThrowIfNull(options);
 
         _producer = producer;
         _adminClient = adminClient;
         _topicNameResolver = topicNameResolver;
+        _options = options.Value;
     }
 
     /// <inheritdoc />
@@ -49,6 +58,9 @@ public sealed class KafkaMessageTransport : IMessageTransport
         ArgumentNullException.ThrowIfNull(message);
 
         var topic = _topicNameResolver.Resolve(message);
+
+        await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+
         var kafkaMessage = CreateKafkaMessage(message);
 
         _ = await _producer.ProduceAsync(topic, kafkaMessage, cancellationToken).ConfigureAwait(false);
@@ -58,9 +70,9 @@ public sealed class KafkaMessageTransport : IMessageTransport
     [SuppressMessage(
         "Performance",
         "CA1849:Call async methods when in an async method",
-        Justification = "Intentional fire-and-forget batch pattern. Produce() enqueues messages with a delivery-report callback; awaiting ProduceAsync() per message would serialize delivery and defeat the purpose of batching."
+        Justification = "Intentional fire-and-forget batch pattern. Produce() enqueues messages with a delivery-report callback; awaiting ProduceAsync() per message would serialize delivery and defeat the purpose of batching. The method is async only to await EnsureTopicAsync() for topic auto-creation before the fire-and-forget send loop."
     )]
-    public Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
+    public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
 
@@ -69,6 +81,9 @@ public sealed class KafkaMessageTransport : IMessageTransport
         foreach (var message in messages)
         {
             var topic = _topicNameResolver.Resolve(message);
+
+            await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+
             var kafkaMessage = CreateKafkaMessage(message);
 
             try
@@ -95,10 +110,8 @@ public sealed class KafkaMessageTransport : IMessageTransport
 
         if (!errors.IsEmpty)
         {
-            return Task.FromException(new AggregateException(errors));
+            throw new AggregateException(errors);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -112,6 +125,43 @@ public sealed class KafkaMessageTransport : IMessageTransport
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             return Task.FromResult(false);
+        }
+    }
+
+    private async Task EnsureTopicAsync(string topic, CancellationToken cancellationToken)
+    {
+        if (!_options.AutoCreateTopics || _ensuredTopics.ContainsKey(topic))
+        {
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var configs = new Dictionary<string, string>();
+
+        if (_options.MessageRetention.HasValue)
+        {
+            configs["retention.ms"] = ((long)_options.MessageRetention.Value.TotalMilliseconds).ToString(
+                CultureInfo.InvariantCulture
+            );
+        }
+
+        var spec = new TopicSpecification
+        {
+            Name = topic,
+            NumPartitions = _options.DefaultPartitionCount,
+            ReplicationFactor = _options.DefaultReplicationFactor,
+            Configs = configs.Count > 0 ? configs : null,
+        };
+
+        try
+        {
+            await _adminClient.CreateTopicsAsync([spec]).ConfigureAwait(false);
+            _ = _ensuredTopics.TryAdd(topic, true);
+        }
+        catch (CreateTopicsException ex) when (ex.Results.All(static r => r.Error.Code == ErrorCode.TopicAlreadyExists))
+        {
+            _ = _ensuredTopics.TryAdd(topic, true);
         }
     }
 
