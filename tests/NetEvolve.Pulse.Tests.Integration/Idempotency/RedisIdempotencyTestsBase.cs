@@ -9,6 +9,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
+using NetEvolve.Pulse.Redis.Idempotency;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
@@ -213,9 +214,7 @@ public abstract class RedisIdempotencyTestsBase(
                 },
                 cancellationToken,
                 configureServices: services =>
-                    services.Configure<NetEvolve.Pulse.Redis.Idempotency.RedisIdempotencyKeyOptions>(opts =>
-                        opts.TimeToLive = TimeSpan.FromSeconds(2)
-                    )
+                    services.Configure<RedisIdempotencyKeyOptions>(opts => opts.TimeToLive = TimeSpan.FromSeconds(2))
             )
             .ConfigureAwait(false);
 
