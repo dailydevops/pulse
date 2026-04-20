@@ -7,7 +7,7 @@ using TUnit.Core.Interfaces;
 public sealed class CosmosDbContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly CosmosDbContainer _container = new CosmosDbBuilder(
-        "mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview"
+        /*dockerimage*/"mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview"
     )
         .WithLogger(NullLogger.Instance)
         .Build();
