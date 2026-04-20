@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.CosmosDb;
+namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.CosmosDb;
+namespace NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Configuration options for the Azure Cosmos DB outbox repository.
@@ -52,8 +52,8 @@ public sealed class CosmosDbOutboxOptions
     /// </summary>
     /// <remarks>
     /// When <see langword="true"/>, the <c>ttl</c> property is set to <see cref="TtlSeconds"/>
-    /// on documents that transition to <see cref="NetEvolve.Pulse.Extensibility.Outbox.OutboxMessageStatus.Completed"/>
-    /// or <see cref="NetEvolve.Pulse.Extensibility.Outbox.OutboxMessageStatus.DeadLetter"/> status,
+    /// on documents that transition to <see cref="Extensibility.Outbox.OutboxMessageStatus.Completed"/>
+    /// or <see cref="Extensibility.Outbox.OutboxMessageStatus.DeadLetter"/> status,
     /// enabling automatic cleanup by the Cosmos DB TTL engine.
     /// The container must have TTL enabled (DefaultTimeToLive set) for this to take effect.
     /// </remarks>

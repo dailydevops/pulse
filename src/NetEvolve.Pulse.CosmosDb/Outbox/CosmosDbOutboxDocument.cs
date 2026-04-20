@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.CosmosDb;
+namespace NetEvolve.Pulse.Outbox;
 
 using System.Text.Json.Serialization;
 using NetEvolve.Pulse.Extensibility.Outbox;

@@ -1,9 +1,8 @@
-namespace NetEvolve.Pulse.CosmosDb;
+namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System.Runtime.CompilerServices;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -260,14 +259,14 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         {
             var page = await iterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
 
-            foreach (var item in page)
+            foreach (var itemId in page.Select(x => x.Id))
             {
                 try
                 {
                     _ = await _container
                         .DeleteItemAsync<CosmosDbOutboxDocument>(
-                            item.Id,
-                            new PartitionKey(item.Id),
+                            itemId,
+                            new PartitionKey(itemId),
                             cancellationToken: cancellationToken
                         )
                         .ConfigureAwait(false);
