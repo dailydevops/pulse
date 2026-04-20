@@ -11,5 +11,5 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [InheritsTests]
 public class PostgreSqlEntityFrameworkOutboxTests(
     IServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
+    IServiceInitializer databaseInitializer
 ) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);

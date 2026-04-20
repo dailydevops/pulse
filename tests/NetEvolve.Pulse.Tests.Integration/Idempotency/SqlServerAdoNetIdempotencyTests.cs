@@ -11,5 +11,5 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [InheritsTests]
 public class SqlServerAdoNetIdempotencyTests(
     IServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
+    IServiceInitializer databaseInitializer
 ) : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);

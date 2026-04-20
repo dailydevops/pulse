@@ -19,11 +19,11 @@ using TUnit.Core;
 [Timeout(300_000)] // Increased timeout to accommodate potential delays in CI environments.
 public abstract class IdempotencyTestsBase(
     IServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
+    IServiceInitializer databaseInitializer
 )
 {
     protected IServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
-    protected IDatabaseInitializer DatabaseInitializer { get; } = databaseInitializer;
+    protected IServiceInitializer DatabaseInitializer { get; } = databaseInitializer;
 
     protected static DateTimeOffset TestDateTime { get; } = new DateTimeOffset(2025, 1, 1, 12, 0, 0, 0, TimeSpan.Zero);
 

@@ -15,7 +15,7 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is read from a script file with schema and table names substituted from validated OutboxOptions properties."
 )]
-public sealed partial class SqlServerAdoNetOutboxInitializer : IDatabaseInitializer
+public sealed partial class SqlServerAdoNetOutboxInitializer : IServiceInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
@@ -24,10 +24,10 @@ public sealed partial class SqlServerAdoNetOutboxInitializer : IDatabaseInitiali
         "OutboxMessage.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddSqlServerOutbox(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddSqlServerOutbox(serviceFixture.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
@@ -73,7 +73,7 @@ public sealed partial class SqlServerAdoNetOutboxInitializer : IDatabaseInitiali
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) { }
 
     [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
     private static partial Regex SearchSetVar();

@@ -15,7 +15,7 @@ using Npgsql;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is read from a script file with schema and table names substituted from validated OutboxOptions properties."
 )]
-public sealed partial class PostgreSqlAdoNetOutboxInitializer : IDatabaseInitializer
+public sealed partial class PostgreSqlAdoNetOutboxInitializer : IServiceInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
@@ -24,10 +24,10 @@ public sealed partial class PostgreSqlAdoNetOutboxInitializer : IDatabaseInitial
         "OutboxMessage.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddPostgreSqlOutbox(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddPostgreSqlOutbox(serviceFixture.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
@@ -68,7 +68,7 @@ public sealed partial class PostgreSqlAdoNetOutboxInitializer : IDatabaseInitial
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture)
     {
         // No additional service initialization required for ADO.NET outbox tests.
         // The Configure method handles all necessary service registrations.

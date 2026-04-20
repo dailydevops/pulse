@@ -13,13 +13,13 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is constructed from validated OutboxOptions.TableName property, not user input."
 )]
-public sealed class SQLiteAdoNetOutboxInitializer : IDatabaseInitializer
+public sealed class SQLiteAdoNetOutboxInitializer : IServiceInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
         ArgumentNullException.ThrowIfNull(mediatorBuilder);
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddSQLiteOutbox(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddSQLiteOutbox(serviceFixture.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
@@ -70,5 +70,5 @@ public sealed class SQLiteAdoNetOutboxInitializer : IDatabaseInitializer
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) { }
 }

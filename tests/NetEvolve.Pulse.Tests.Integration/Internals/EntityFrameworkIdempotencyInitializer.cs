@@ -10,9 +10,9 @@ using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Idempotency;
 
-public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
+public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService) =>
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture) =>
         mediatorBuilder.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>();
 
     private static readonly SemaphoreSlim _gate = new(1, 1);
@@ -68,15 +68,15 @@ public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService) =>
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) =>
         _ = services.AddDbContextFactory<TestIdempotencyDbContext>(options =>
         {
-            var connectionString = databaseService.ConnectionString;
+            var connectionString = serviceFixture.ConnectionString;
 
             // Register a custom model-cache key factory that includes the per-test table name.
             _ = options.ReplaceService<IModelCacheKeyFactory, TestTableModelCacheKeyFactory>();
 
-            _ = databaseService.ServiceType switch
+            _ = serviceFixture.ServiceType switch
             {
                 ServiceType.InMemory => options.UseInMemoryDatabase(connectionString),
                 ServiceType.MySql => options.UseMySQL(connectionString),
@@ -90,7 +90,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
                     connectionString,
                     sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 5)
                 ),
-                _ => throw new NotSupportedException($"Database type {databaseService.ServiceType} is not supported."),
+                _ => throw new NotSupportedException($"Database type {serviceFixture.ServiceType} is not supported."),
             };
         });
 

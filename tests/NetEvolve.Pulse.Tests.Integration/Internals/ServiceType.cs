@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
+namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 public enum ServiceType
 {
@@ -8,4 +8,5 @@ public enum ServiceType
     PostgreSQL,
     MySql,
     Redis,
+    MongoDB,
 }

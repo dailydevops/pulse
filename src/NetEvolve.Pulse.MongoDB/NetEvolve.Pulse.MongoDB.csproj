@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>MongoDB persistence provider for the Pulse outbox pattern using the official MongoDB C# driver. Provides MongoDbOutboxRepository implementing IOutboxRepository with FindOneAndUpdateAsync for atomic message claiming and safe concurrent polling. Supports configurable database name and collection name. Requires IMongoClient to be registered in the dependency injection container by the caller. Designed for document-oriented architectures where the outbox participates in the same MongoDB database as domain aggregates.</Description>
+    <PackageTags>$(PackageTags);outbox;mongodb;nosql;document-db;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+  </ItemGroup>
+</Project>

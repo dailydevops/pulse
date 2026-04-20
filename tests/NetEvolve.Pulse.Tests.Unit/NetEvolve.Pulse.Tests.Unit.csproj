@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Kafka\NetEvolve.Pulse.Kafka.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Polly\NetEvolve.Pulse.Polly.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.MySql\NetEvolve.Pulse.MySql.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.MongoDB\NetEvolve.Pulse.MongoDB.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.PostgreSql\NetEvolve.Pulse.PostgreSql.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />

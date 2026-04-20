@@ -10,7 +10,7 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 
 [TestGroup("Outbox")]
 [Timeout(300_000)] // Increased timeout to accommodate potential delays in CI environments, especially when using SQL Server or MySQL containers that can take a long time to cold-start.
-public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IDatabaseInitializer databaseInitializer)
+public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IServiceInitializer databaseInitializer)
     : PulseTestsBase(databaseServiceFixture, databaseInitializer)
 {
     [Test]
