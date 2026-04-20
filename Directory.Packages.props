@@ -40,6 +40,7 @@
     <PackageVersion Include="NetEvolve.Http.Correlation.Abstractions" Version="3.1.64" />
     <PackageVersion Include="NetEvolve.Http.Correlation.AspNetCore" Version="3.1.64" />
     <PackageVersion Include="NetEvolve.Http.Correlation.TestGenerator" Version="3.1.64" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Polly.Core" Version="8.6.6" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.1" />
     <PackageVersion Include="StackExchange.Redis" Version="2.12.14" />

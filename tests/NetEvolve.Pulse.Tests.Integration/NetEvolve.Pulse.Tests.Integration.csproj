@@ -28,6 +28,7 @@
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
     <PackageReference Include="NetEvolve.Http.Correlation.TestGenerator" />
+    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Polly.Core" />

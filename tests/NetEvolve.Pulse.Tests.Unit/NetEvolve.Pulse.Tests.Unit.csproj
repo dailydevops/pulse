@@ -21,6 +21,7 @@
     <PackageReference Include="NetEvolve.Extensions.TUnit" />
     <PackageReference Include="NetEvolve.Http.Correlation.AspNetCore" />
     <PackageReference Include="NetEvolve.Http.Correlation.TestGenerator" />
+    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="TUnit.Mocks" />
     <PackageReference Include="TUnit.Mocks.Http" />
