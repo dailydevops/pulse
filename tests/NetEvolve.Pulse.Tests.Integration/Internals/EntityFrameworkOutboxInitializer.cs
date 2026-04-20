@@ -11,9 +11,9 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 
-public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
+public sealed class EntityFrameworkOutboxInitializer : IServiceInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService) =>
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture) =>
         mediatorBuilder.AddEntityFrameworkOutbox<TestDbContext>();
 
     private static readonly SemaphoreSlim _gate = new(1, 1);
@@ -69,10 +69,10 @@ public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService) =>
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) =>
         _ = services.AddDbContextFactory<TestDbContext>(options =>
         {
-            var connectionString = databaseService.ConnectionString;
+            var connectionString = serviceFixture.ConnectionString;
 
             // Register a custom model-cache key factory that includes the per-test table name.
             // Multiple tests share the same connection string (same container), so EF Core would
@@ -83,7 +83,7 @@ public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
             // (critical for correct type-mapping initialisation on providers like Oracle MySQL).
             _ = options.ReplaceService<IModelCacheKeyFactory, TestTableModelCacheKeyFactory>();
 
-            _ = databaseService.ServiceType switch
+            _ = serviceFixture.ServiceType switch
             {
                 ServiceType.InMemory => options.UseInMemoryDatabase(connectionString),
                 ServiceType.MySql => options.UseMySQL(connectionString),
@@ -97,7 +97,7 @@ public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
                     connectionString,
                     sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 5)
                 ),
-                _ => throw new NotSupportedException($"Database type {databaseService.ServiceType} is not supported."),
+                _ => throw new NotSupportedException($"Database type {serviceFixture.ServiceType} is not supported."),
             };
         });
 

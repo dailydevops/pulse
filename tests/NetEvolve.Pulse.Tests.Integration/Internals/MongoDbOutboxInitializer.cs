@@ -8,19 +8,16 @@ using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
 
-public sealed class MongoDbOutboxInitializer : IDatabaseInitializer
+public sealed class MongoDbOutboxInitializer : IServiceInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
         ArgumentNullException.ThrowIfNull(mediatorBuilder);
-        ArgumentNullException.ThrowIfNull(databaseService);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
 
-        var fixture = (MongoDbDatabaseServiceFixture)databaseService;
+        var fixture = (MongoDbDatabaseServiceFixture)serviceFixture;
 
-        _ = mediatorBuilder.AddMongoDbOutbox(opts =>
-        {
-            opts.DatabaseName = fixture.DatabaseName;
-        });
+        _ = mediatorBuilder.AddMongoDbOutbox(opts => opts.DatabaseName = fixture.DatabaseName);
 
         // Propagate OutboxOptions.TableName -> MongoDbOutboxOptions.CollectionName so that each
         // test method uses an isolated collection (matching the per-test table-name isolation
@@ -43,12 +40,12 @@ public sealed class MongoDbOutboxInitializer : IDatabaseInitializer
         "CA2000:Dispose objects before losing scope",
         Justification = "MongoClient is registered as a Singleton and disposed by the DI container when it is torn down at the end of the test."
     )]
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture)
     {
         ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(databaseService);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
 
         // Register IMongoClient using the connection string from the container fixture.
-        _ = services.AddSingleton<IMongoClient>(new MongoClient(databaseService.ConnectionString));
+        _ = services.AddSingleton<IMongoClient>(new MongoClient(serviceFixture.ConnectionString));
     }
 }

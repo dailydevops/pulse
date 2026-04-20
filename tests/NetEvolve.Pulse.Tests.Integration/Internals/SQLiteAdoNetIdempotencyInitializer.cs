@@ -13,13 +13,13 @@ using NetEvolve.Pulse.Idempotency;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is constructed from validated IdempotencyKeyOptions.TableName property, not user input."
 )]
-public sealed class SQLiteAdoNetIdempotencyInitializer : IDatabaseInitializer
+public sealed class SQLiteAdoNetIdempotencyInitializer : IServiceInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
         ArgumentNullException.ThrowIfNull(mediatorBuilder);
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddSQLiteIdempotencyStore(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddSQLiteIdempotencyStore(serviceFixture.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
@@ -57,5 +57,5 @@ public sealed class SQLiteAdoNetIdempotencyInitializer : IDatabaseInitializer
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) { }
 }

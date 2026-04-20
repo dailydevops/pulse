@@ -14,7 +14,7 @@ using NetEvolve.Pulse.Idempotency;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is read from a script file with schema and table names substituted from validated IdempotencyKeyOptions properties."
 )]
-public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseInitializer
+public sealed partial class SqlServerAdoNetIdempotencyInitializer : IServiceInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
@@ -23,10 +23,10 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
         "IdempotencyKey.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddSqlServerIdempotencyStore(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddSqlServerIdempotencyStore(serviceFixture.ConnectionString);
     }
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
@@ -74,7 +74,7 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) { }
 
     [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
     private static partial Regex SearchSetVar();

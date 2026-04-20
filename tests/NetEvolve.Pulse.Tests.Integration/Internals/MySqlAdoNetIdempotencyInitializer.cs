@@ -16,7 +16,7 @@ using NetEvolve.Pulse.Idempotency;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is read from a script file with table name substituted from validated IdempotencyKeyOptions properties."
 )]
-public sealed class MySqlAdoNetIdempotencyInitializer : IDatabaseInitializer
+public sealed class MySqlAdoNetIdempotencyInitializer : IServiceInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
@@ -26,10 +26,10 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IDatabaseInitializer
     );
 
     /// <inheritdoc />
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddMySqlIdempotencyStore(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddMySqlIdempotencyStore(serviceFixture.ConnectionString);
     }
 
     /// <inheritdoc />
@@ -80,7 +80,7 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IDatabaseInitializer
     }
 
     /// <inheritdoc />
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture)
     {
         // No additional service initialization required for ADO.NET idempotency tests.
     }

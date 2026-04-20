@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -106,14 +105,10 @@ public static class MongoDbExtensions
         services.TryAddSingleton(TimeProvider.System);
 
         // Register the repository using IMongoClient from DI
-        _ = services.AddScoped<IOutboxRepository>(sp =>
-        {
-            var mongoClient = sp.GetRequiredService<IMongoClient>();
-            var options = sp.GetRequiredService<IOptions<MongoDbOutboxOptions>>();
-            var timeProvider = sp.GetRequiredService<TimeProvider>();
+        _ = services.AddScoped<IOutboxRepository, MongoDbOutboxRepository>();
 
-            return new MongoDbOutboxRepository(mongoClient, options, timeProvider);
-        });
+        // Register the management API
+        _ = services.AddScoped<IOutboxManagement, MongoDbOutboxManagement>();
 
         return configurator;
     }
@@ -124,14 +119,9 @@ public static class MongoDbExtensions
         _ = configurator
             .AddOutbox()
             .Services.RemoveAll<IOutboxRepository>()
-            .AddScoped<IOutboxRepository>(sp =>
-            {
-                var mongoClient = sp.GetRequiredService<IMongoClient>();
-                var options = sp.GetRequiredService<IOptions<MongoDbOutboxOptions>>();
-                var timeProvider = sp.GetRequiredService<TimeProvider>();
-
-                return new MongoDbOutboxRepository(mongoClient, options, timeProvider);
-            });
+            .AddScoped<IOutboxRepository, MongoDbOutboxRepository>()
+            .RemoveAll<IOutboxManagement>()
+            .AddScoped<IOutboxManagement, MongoDbOutboxManagement>();
 
         return configurator;
     }

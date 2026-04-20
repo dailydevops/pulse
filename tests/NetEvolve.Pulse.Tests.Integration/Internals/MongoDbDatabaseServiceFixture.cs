@@ -1,6 +1,6 @@
 namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
-public sealed class MongoDbDatabaseServiceFixture : IDatabaseServiceFixture
+public sealed class MongoDbDatabaseServiceFixture : IServiceFixture
 {
     [ClassDataSource<MongoDbContainerFixture>(Shared = SharedType.PerTestSession)]
     public MongoDbContainerFixture Container { get; set; } = default!;
@@ -9,7 +9,7 @@ public sealed class MongoDbDatabaseServiceFixture : IDatabaseServiceFixture
 
     public string DatabaseName { get; } = $"pulse{Guid.NewGuid():N}";
 
-    public DatabaseType DatabaseType => DatabaseType.MongoDB;
+    public ServiceType ServiceType => ServiceType.MongoDB;
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

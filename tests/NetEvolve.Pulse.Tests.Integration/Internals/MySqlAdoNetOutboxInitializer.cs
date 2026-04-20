@@ -16,7 +16,7 @@ using NetEvolve.Pulse.Outbox;
     "CA2100:Review SQL queries for security vulnerabilities",
     Justification = "SQL is read from a script file with table name substituted from validated OutboxOptions properties."
 )]
-public sealed class MySqlAdoNetOutboxInitializer : IDatabaseInitializer
+public sealed class MySqlAdoNetOutboxInitializer : IServiceInitializer
 {
     private static readonly string _scriptPath = Path.Combine(
         AppContext.BaseDirectory,
@@ -26,10 +26,10 @@ public sealed class MySqlAdoNetOutboxInitializer : IDatabaseInitializer
     );
 
     /// <inheritdoc />
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
-        ArgumentNullException.ThrowIfNull(databaseService);
-        _ = mediatorBuilder.AddMySqlOutbox(databaseService.ConnectionString);
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddMySqlOutbox(serviceFixture.ConnectionString);
     }
 
     /// <inheritdoc />
@@ -75,7 +75,7 @@ public sealed class MySqlAdoNetOutboxInitializer : IDatabaseInitializer
     }
 
     /// <inheritdoc />
-    public void Initialize(IServiceCollection services, IServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture)
     {
         // No additional service initialization required for ADO.NET outbox tests.
     }

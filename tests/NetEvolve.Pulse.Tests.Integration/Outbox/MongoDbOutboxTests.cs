@@ -6,7 +6,5 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [ClassDataSource<MongoDbDatabaseServiceFixture, MongoDbOutboxInitializer>(Shared = [SharedType.None, SharedType.None])]
 [TestGroup("MongoDB")]
 [InheritsTests]
-public class MongoDbOutboxTests(
-    IDatabaseServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
-) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
+public class MongoDbOutboxTests(IServiceFixture databaseServiceFixture, IServiceInitializer databaseInitializer)
+    : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
