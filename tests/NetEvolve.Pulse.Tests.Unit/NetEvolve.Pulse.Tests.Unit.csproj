@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Dapr\NetEvolve.Pulse.Dapr.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AspNetCore\NetEvolve.Pulse.AspNetCore.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureServiceBus\NetEvolve.Pulse.AzureServiceBus.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureQueueStorage\NetEvolve.Pulse.AzureQueueStorage.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.EntityFramework\NetEvolve.Pulse.EntityFramework.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.FluentValidation\NetEvolve.Pulse.FluentValidation.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.HttpCorrelation\NetEvolve.Pulse.HttpCorrelation.csproj" />

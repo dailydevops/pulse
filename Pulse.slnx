@@ -37,6 +37,7 @@
     <Project Path="src/NetEvolve.Pulse.RabbitMQ/NetEvolve.Pulse.RabbitMQ.csproj" />
     <Project Path="src/NetEvolve.Pulse.SourceGeneration/NetEvolve.Pulse.SourceGeneration.csproj" />
     <Project Path="src/NetEvolve.Pulse.AzureServiceBus/NetEvolve.Pulse.AzureServiceBus.csproj" />
+    <Project Path="src/NetEvolve.Pulse.AzureQueueStorage/NetEvolve.Pulse.AzureQueueStorage.csproj" />
     <Project Path="src/NetEvolve.Pulse.SQLite/NetEvolve.Pulse.SQLite.csproj" />
     <Project Path="src/NetEvolve.Pulse.Kafka/NetEvolve.Pulse.Kafka.csproj" />
     <Project Path="src/NetEvolve.Pulse.Redis/NetEvolve.Pulse.Redis.csproj" />
