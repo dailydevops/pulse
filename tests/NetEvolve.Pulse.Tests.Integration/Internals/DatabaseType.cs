@@ -7,4 +7,5 @@ public enum DatabaseType
     SQLite,
     PostgreSQL,
     MySql,
+    Redis,
 }

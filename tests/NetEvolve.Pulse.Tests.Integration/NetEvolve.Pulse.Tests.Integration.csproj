@@ -33,6 +33,7 @@
     <PackageReference Include="Testcontainers.MySql" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="Testcontainers.Redis" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="TUnit.AspNetCore" />
     <PackageReference Include="Verify.ParametersHashing" />
@@ -54,6 +55,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.RabbitMQ\NetEvolve.Pulse.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SQLite\NetEvolve.Pulse.SQLite.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.SqlServer\NetEvolve.Pulse.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Redis\NetEvolve.Pulse.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>
