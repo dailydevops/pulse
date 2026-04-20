@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Outbox;
 
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -10,11 +9,6 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// MongoDB implementation of <see cref="IOutboxManagement"/>.
 /// Provides dead-letter management and outbox statistics via the MongoDB C# driver.
 /// </summary>
-[SuppressMessage(
-    "Roslynator",
-    "RCS1084:Use coalesce expression instead of conditional expression",
-    Justification = "ProcessedAt and NextRetryAt properties require explicit conditional checks."
-)]
 internal sealed class MongoDbOutboxManagement : IOutboxManagement
 {
     /// <summary>The MongoDB client used to obtain database and collection references.</summary>
@@ -76,7 +70,7 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return docs.ConvertAll(ToOutboxMessage);
+        return docs.ConvertAll(OutboxDocumentMapper.ToOutboxMessage);
     }
 
     /// <inheritdoc />
@@ -92,7 +86,7 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
 
         var doc = await GetCollection().Find(filter).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
-        return doc is null ? null : ToOutboxMessage(doc);
+        return doc is null ? null : OutboxDocumentMapper.ToOutboxMessage(doc);
     }
 
     /// <inheritdoc />
@@ -213,30 +207,4 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// </summary>
     private IMongoCollection<OutboxDocument> GetCollection() =>
         _mongoClient.GetDatabase(_databaseName).GetCollection<OutboxDocument>(_collectionName);
-
-    /// <summary>
-    /// Converts an <see cref="OutboxDocument"/> retrieved from MongoDB to an <see cref="OutboxMessage"/>.
-    /// </summary>
-    private static OutboxMessage ToOutboxMessage(OutboxDocument doc) =>
-        new OutboxMessage
-        {
-            Id = doc.Id,
-            EventType =
-                Type.GetType(doc.EventType)
-                ?? throw new InvalidOperationException($"Cannot resolve event type '{doc.EventType}'."),
-            Payload = doc.Payload,
-            CorrelationId = doc.CorrelationId,
-            CausationId = doc.CausationId,
-            CreatedAt = new DateTimeOffset(DateTime.SpecifyKind(doc.CreatedAt, DateTimeKind.Utc), TimeSpan.Zero),
-            UpdatedAt = new DateTimeOffset(DateTime.SpecifyKind(doc.UpdatedAt, DateTimeKind.Utc), TimeSpan.Zero),
-            ProcessedAt = doc.ProcessedAt.HasValue
-                ? new DateTimeOffset(DateTime.SpecifyKind(doc.ProcessedAt.Value, DateTimeKind.Utc), TimeSpan.Zero)
-                : (DateTimeOffset?)null,
-            NextRetryAt = doc.NextRetryAt.HasValue
-                ? new DateTimeOffset(DateTime.SpecifyKind(doc.NextRetryAt.Value, DateTimeKind.Utc), TimeSpan.Zero)
-                : (DateTimeOffset?)null,
-            RetryCount = doc.RetryCount,
-            Error = doc.Error,
-            Status = (OutboxMessageStatus)doc.Status,
-        };
 }

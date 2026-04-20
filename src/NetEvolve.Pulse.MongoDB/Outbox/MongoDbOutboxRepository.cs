@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Outbox;
 
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -23,11 +22,6 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// All <see cref="DateTimeOffset"/> values are stored as UTC <see cref="DateTime"/> in BSON. The UTC offset
 /// is always zero when reading back from the database.
 /// </remarks>
-[SuppressMessage(
-    "Roslynator",
-    "RCS1084:Use coalesce expression instead of conditional expression",
-    Justification = "NextRetryAt and ProcessedAt properties require explicit conditional checks."
-)]
 internal sealed class MongoDbOutboxRepository : IOutboxRepository
 {
     /// <summary>The MongoDB client used to obtain database and collection references.</summary>
@@ -73,7 +67,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var doc = ToDocument(message);
+        var doc = OutboxDocumentMapper.ToDocument(message);
         await GetCollection().InsertOneAsync(doc, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -118,7 +112,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
                 break;
             }
 
-            messages.Add(ToOutboxMessage(doc));
+            messages.Add(OutboxDocumentMapper.ToOutboxMessage(doc));
         }
 
         return messages;
@@ -167,7 +161,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
                 break;
             }
 
-            messages.Add(ToOutboxMessage(doc));
+            messages.Add(OutboxDocumentMapper.ToOutboxMessage(doc));
         }
 
         return messages;
@@ -307,54 +301,4 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <returns>The outbox MongoDB collection.</returns>
     private IMongoCollection<OutboxDocument> GetCollection() =>
         _mongoClient.GetDatabase(_databaseName).GetCollection<OutboxDocument>(_collectionName);
-
-    /// <summary>
-    /// Converts an <see cref="OutboxMessage"/> to an <see cref="OutboxDocument"/> for storage.
-    /// </summary>
-    /// <param name="message">The message to convert.</param>
-    /// <returns>A new <see cref="OutboxDocument"/> populated from <paramref name="message"/>.</returns>
-    private static OutboxDocument ToDocument(OutboxMessage message) =>
-        new OutboxDocument
-        {
-            Id = message.Id,
-            EventType = message.EventType.ToOutboxEventTypeName(),
-            Payload = message.Payload,
-            CorrelationId = message.CorrelationId,
-            CausationId = message.CausationId,
-            CreatedAt = message.CreatedAt.UtcDateTime,
-            UpdatedAt = message.UpdatedAt.UtcDateTime,
-            ProcessedAt = message.ProcessedAt.HasValue ? message.ProcessedAt.Value.UtcDateTime : (DateTime?)null,
-            NextRetryAt = message.NextRetryAt.HasValue ? message.NextRetryAt.Value.UtcDateTime : (DateTime?)null,
-            RetryCount = message.RetryCount,
-            Error = message.Error,
-            Status = (int)message.Status,
-        };
-
-    /// <summary>
-    /// Converts an <see cref="OutboxDocument"/> retrieved from MongoDB to an <see cref="OutboxMessage"/>.
-    /// </summary>
-    /// <param name="doc">The document to convert.</param>
-    /// <returns>A new <see cref="OutboxMessage"/> populated from <paramref name="doc"/>.</returns>
-    private static OutboxMessage ToOutboxMessage(OutboxDocument doc) =>
-        new OutboxMessage
-        {
-            Id = doc.Id,
-            EventType =
-                Type.GetType(doc.EventType)
-                ?? throw new InvalidOperationException($"Cannot resolve event type '{doc.EventType}'."),
-            Payload = doc.Payload,
-            CorrelationId = doc.CorrelationId,
-            CausationId = doc.CausationId,
-            CreatedAt = new DateTimeOffset(DateTime.SpecifyKind(doc.CreatedAt, DateTimeKind.Utc), TimeSpan.Zero),
-            UpdatedAt = new DateTimeOffset(DateTime.SpecifyKind(doc.UpdatedAt, DateTimeKind.Utc), TimeSpan.Zero),
-            ProcessedAt = doc.ProcessedAt.HasValue
-                ? new DateTimeOffset(DateTime.SpecifyKind(doc.ProcessedAt.Value, DateTimeKind.Utc), TimeSpan.Zero)
-                : (DateTimeOffset?)null,
-            NextRetryAt = doc.NextRetryAt.HasValue
-                ? new DateTimeOffset(DateTime.SpecifyKind(doc.NextRetryAt.Value, DateTimeKind.Utc), TimeSpan.Zero)
-                : (DateTimeOffset?)null,
-            RetryCount = doc.RetryCount,
-            Error = doc.Error,
-            Status = (OutboxMessageStatus)doc.Status,
-        };
 }
