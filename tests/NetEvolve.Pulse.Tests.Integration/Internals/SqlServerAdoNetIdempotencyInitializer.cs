@@ -23,7 +23,7 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
         "IdempotencyKey.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddSqlServerIdempotencyStore(databaseService.ConnectionString);
@@ -74,7 +74,7 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
         }
     }
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceType databaseService) { }
 
     [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
     private static partial Regex SearchSetVar();

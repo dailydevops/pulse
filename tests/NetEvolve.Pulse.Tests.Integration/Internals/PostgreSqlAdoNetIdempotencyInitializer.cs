@@ -24,7 +24,7 @@ public sealed partial class PostgreSqlAdoNetIdempotencyInitializer : IDatabaseIn
         "IdempotencyKey.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddPostgreSqlIdempotencyStore(databaseService.ConnectionString);
@@ -68,7 +68,7 @@ public sealed partial class PostgreSqlAdoNetIdempotencyInitializer : IDatabaseIn
         }
     }
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceType databaseService)
     {
         // No additional service initialization required for ADO.NET idempotency tests.
         // The Configure method handles all necessary service registrations.

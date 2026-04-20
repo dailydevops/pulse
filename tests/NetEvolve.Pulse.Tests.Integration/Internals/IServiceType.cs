@@ -2,9 +2,9 @@
 
 using TUnit.Core.Interfaces;
 
-public interface IDatabaseServiceFixture : IAsyncDisposable, IAsyncInitializer
+public interface IServiceType : IAsyncDisposable, IAsyncInitializer
 {
     string ConnectionString { get; }
 
-    DatabaseType DatabaseType { get; }
+    ServiceType ServiceType { get; }
 }

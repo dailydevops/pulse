@@ -10,6 +10,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [TestGroup("AdoNet")]
 [InheritsTests]
 public class MySqlAdoNetIdempotencyTests(
-    IDatabaseServiceFixture databaseServiceFixture,
+    IServiceType databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 ) : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);

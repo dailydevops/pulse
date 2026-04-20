@@ -2,7 +2,7 @@
 
 using Microsoft.Data.SqlClient;
 
-public sealed class SqlServerDatabaseServiceFixture : IDatabaseServiceFixture
+public sealed class SqlServerDatabaseServiceFixture : IServiceType
 {
     [ClassDataSource<SqlServerContainerFixture>(Shared = SharedType.PerTestSession)]
     public SqlServerContainerFixture Container { get; set; } = default!;
@@ -12,7 +12,7 @@ public sealed class SqlServerDatabaseServiceFixture : IDatabaseServiceFixture
 
     internal string DatabaseName { get; } = $"{TestHelper.TargetFramework}{Guid.NewGuid():N}";
 
-    public DatabaseType DatabaseType => DatabaseType.SqlServer;
+    public ServiceType ServiceType => ServiceType.SqlServer;
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

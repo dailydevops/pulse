@@ -26,7 +26,7 @@ public sealed class MySqlAdoNetOutboxInitializer : IDatabaseInitializer
     );
 
     /// <inheritdoc />
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddMySqlOutbox(databaseService.ConnectionString);
@@ -75,7 +75,7 @@ public sealed class MySqlAdoNetOutboxInitializer : IDatabaseInitializer
     }
 
     /// <inheritdoc />
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceType databaseService)
     {
         // No additional service initialization required for ADO.NET outbox tests.
     }

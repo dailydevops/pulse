@@ -9,7 +9,7 @@ using StackExchange.Redis;
 /// </summary>
 public sealed class RedisIdempotencyInitializer : IDatabaseInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService)
     {
         ArgumentNullException.ThrowIfNull(mediatorBuilder);
         _ = mediatorBuilder.AddRedisIdempotencyStore();
@@ -18,7 +18,7 @@ public sealed class RedisIdempotencyInitializer : IDatabaseInitializer
     public ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken) =>
         ValueTask.CompletedTask;
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceType databaseService)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(databaseService);

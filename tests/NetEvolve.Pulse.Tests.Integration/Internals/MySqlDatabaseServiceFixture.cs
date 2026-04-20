@@ -3,10 +3,10 @@
 using MySql.Data.MySqlClient;
 
 /// <summary>
-/// Provides a per-test <see cref="IDatabaseServiceFixture"/> backed by a MySQL Testcontainer,
+/// Provides a per-test <see cref="IServiceType"/> backed by a MySQL Testcontainer,
 /// creating a unique database for each test to ensure isolation.
 /// </summary>
-public sealed class MySqlDatabaseServiceFixture : IDatabaseServiceFixture
+public sealed class MySqlDatabaseServiceFixture : IServiceType
 {
     [ClassDataSource<MySqlContainerFixture>(Shared = SharedType.PerTestSession)]
     public MySqlContainerFixture Container { get; set; } = default!;
@@ -16,7 +16,7 @@ public sealed class MySqlDatabaseServiceFixture : IDatabaseServiceFixture
 
     internal string DatabaseName { get; } = $"{TestHelper.TargetFramework}{Guid.NewGuid():N}";
 
-    public DatabaseType DatabaseType => DatabaseType.MySql;
+    public ServiceType ServiceType => ServiceType.MySql;
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

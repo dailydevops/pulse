@@ -10,6 +10,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [TestGroup("AdoNet")]
 [InheritsTests]
 public class PostgreSqlAdoNetOutboxTests(
-    IDatabaseServiceFixture databaseServiceFixture,
+    IServiceType databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 ) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
