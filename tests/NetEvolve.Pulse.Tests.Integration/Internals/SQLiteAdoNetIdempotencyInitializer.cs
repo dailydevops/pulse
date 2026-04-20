@@ -15,7 +15,7 @@ using NetEvolve.Pulse.Idempotency;
 )]
 public sealed class SQLiteAdoNetIdempotencyInitializer : IDatabaseInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(mediatorBuilder);
         ArgumentNullException.ThrowIfNull(databaseService);
@@ -57,5 +57,5 @@ public sealed class SQLiteAdoNetIdempotencyInitializer : IDatabaseInitializer
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void Initialize(IServiceCollection services, IServiceType databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
 }

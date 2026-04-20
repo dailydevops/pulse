@@ -25,11 +25,11 @@ using TUnit.Core;
 [TestGroup("Idempotency")]
 [Timeout(300_000)]
 public abstract class RedisIdempotencyTestsBase(
-    IServiceType databaseServiceFixture,
+    IServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 )
 {
-    protected IServiceType DatabaseServiceFixture { get; } = databaseServiceFixture;
+    protected IServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
     protected IDatabaseInitializer DatabaseInitializer { get; } = databaseInitializer;
 
     protected async ValueTask RunAndVerify(

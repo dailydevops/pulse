@@ -13,7 +13,7 @@ using NetEvolve.Pulse.Outbox;
 
 public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService) =>
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService) =>
         mediatorBuilder.AddEntityFrameworkOutbox<TestDbContext>();
 
     private static readonly SemaphoreSlim _gate = new(1, 1);
@@ -69,7 +69,7 @@ public sealed class EntityFrameworkOutboxInitializer : IDatabaseInitializer
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceType databaseService) =>
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) =>
         _ = services.AddDbContextFactory<TestDbContext>(options =>
         {
             var connectionString = databaseService.ConnectionString;

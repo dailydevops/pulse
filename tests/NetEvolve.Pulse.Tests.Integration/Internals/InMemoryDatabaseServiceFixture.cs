@@ -1,6 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
-internal sealed class InMemoryDatabaseServiceFixture : IServiceType
+internal sealed class InMemoryDatabaseServiceFixture : IServiceFixture
 {
     public string ConnectionString { get; } = Guid.NewGuid().ToString("N");
 

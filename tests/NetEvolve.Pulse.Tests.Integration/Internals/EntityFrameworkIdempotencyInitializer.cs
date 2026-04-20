@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Idempotency;
 
 public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService) =>
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService) =>
         mediatorBuilder.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>();
 
     private static readonly SemaphoreSlim _gate = new(1, 1);
@@ -68,7 +68,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceType databaseService) =>
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) =>
         _ = services.AddDbContextFactory<TestIdempotencyDbContext>(options =>
         {
             var connectionString = databaseService.ConnectionString;

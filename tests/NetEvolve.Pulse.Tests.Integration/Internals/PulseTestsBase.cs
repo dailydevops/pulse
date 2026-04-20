@@ -10,12 +10,12 @@ using NetEvolve.Pulse.Outbox;
 
 public abstract class PulseTestsBase
 {
-    protected IServiceType DatabaseServiceFixture { get; }
+    protected IServiceFixture DatabaseServiceFixture { get; }
     protected IDatabaseInitializer DatabaseInitializer { get; }
 
     protected static DateTimeOffset TestDateTime { get; } = new DateTimeOffset(2025, 1, 1, 12, 0, 0, 0, TimeSpan.Zero);
 
-    protected PulseTestsBase(IServiceType databaseServiceFixture, IDatabaseInitializer databaseInitializer)
+    protected PulseTestsBase(IServiceFixture databaseServiceFixture, IDatabaseInitializer databaseInitializer)
     {
         DatabaseServiceFixture = databaseServiceFixture;
         DatabaseInitializer = databaseInitializer;

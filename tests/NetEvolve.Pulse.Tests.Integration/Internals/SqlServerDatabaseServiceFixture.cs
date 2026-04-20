@@ -2,7 +2,7 @@
 
 using Microsoft.Data.SqlClient;
 
-public sealed class SqlServerDatabaseServiceFixture : IServiceType
+public sealed class SqlServerDatabaseServiceFixture : IServiceFixture
 {
     [ClassDataSource<SqlServerContainerFixture>(Shared = SharedType.PerTestSession)]
     public SqlServerContainerFixture Container { get; set; } = default!;

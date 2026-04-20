@@ -24,7 +24,7 @@ public sealed partial class SqlServerAdoNetOutboxInitializer : IDatabaseInitiali
         "OutboxMessage.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddSqlServerOutbox(databaseService.ConnectionString);
@@ -73,7 +73,7 @@ public sealed partial class SqlServerAdoNetOutboxInitializer : IDatabaseInitiali
         }
     }
 
-    public void Initialize(IServiceCollection services, IServiceType databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
 
     [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
     private static partial Regex SearchSetVar();

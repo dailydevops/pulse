@@ -3,9 +3,9 @@ namespace NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Core;
 
 /// <summary>
-/// Provides a per-test <see cref="IServiceType"/> backed by a Redis Testcontainer.
+/// Provides a per-test <see cref="IServiceFixture"/> backed by a Redis Testcontainer.
 /// </summary>
-public sealed class RedisDatabaseServiceFixture : IServiceType
+public sealed class RedisServiceFixture : IServiceFixture
 {
     [ClassDataSource<RedisContainerFixture>(Shared = SharedType.PerTestSession)]
     public RedisContainerFixture Container { get; set; } = default!;

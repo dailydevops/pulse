@@ -2,7 +2,7 @@
 
 using TUnit.Core.Interfaces;
 
-public interface IServiceType : IAsyncDisposable, IAsyncInitializer
+public interface IServiceFixture : IAsyncDisposable, IAsyncInitializer
 {
     string ConnectionString { get; }
 

@@ -5,9 +5,9 @@ using NetEvolve.Pulse.Extensibility;
 
 public interface IDatabaseInitializer
 {
-    void Configure(IMediatorBuilder mediatorBuilder, IServiceType databaseService);
+    void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService);
 
     ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken);
 
-    void Initialize(IServiceCollection services, IServiceType databaseService);
+    void Initialize(IServiceCollection services, IServiceFixture databaseService);
 }

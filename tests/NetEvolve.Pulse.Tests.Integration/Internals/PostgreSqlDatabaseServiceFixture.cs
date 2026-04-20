@@ -2,7 +2,7 @@
 
 using Npgsql;
 
-public sealed class PostgreSqlDatabaseServiceFixture : IServiceType
+public sealed class PostgreSqlDatabaseServiceFixture : IServiceFixture
 {
     [ClassDataSource<PostgreSqlContainerFixture>(Shared = SharedType.PerTestSession)]
     public PostgreSqlContainerFixture Container { get; set; } = default!;
