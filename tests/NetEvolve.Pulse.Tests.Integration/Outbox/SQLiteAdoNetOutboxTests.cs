@@ -9,7 +9,5 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [TestGroup("SQLite")]
 [TestGroup("AdoNet")]
 [InheritsTests]
-public class SQLiteAdoNetOutboxTests(
-    IServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
-) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
+public class SQLiteAdoNetOutboxTests(IServiceFixture databaseServiceFixture, IDatabaseInitializer databaseInitializer)
+    : OutboxTestsBase(databaseServiceFixture, databaseInitializer);

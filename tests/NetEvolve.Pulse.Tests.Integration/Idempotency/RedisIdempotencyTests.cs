@@ -6,7 +6,5 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [ClassDataSource<RedisServiceFixture, RedisIdempotencyInitializer>(Shared = [SharedType.None, SharedType.None])]
 [TestGroup("Redis")]
 [InheritsTests]
-public class RedisIdempotencyTests(
-    IServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
-) : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);
+public class RedisIdempotencyTests(IServiceFixture databaseServiceFixture, IDatabaseInitializer databaseInitializer)
+    : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);

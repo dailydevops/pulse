@@ -23,7 +23,7 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddRedisIdempotencyStore_ReturnsConfiguratorForChaining()
+    public async Task AddRedisIdempotencyStore_WithoutConfigure_ReturnsConfiguratorForChaining()
     {
         var mock = Mock.Of<IMediatorBuilder>();
         _ = mock.Services.Returns(new ServiceCollection());
@@ -34,7 +34,23 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
     }
 
     [Test]
-    public async Task AddRedisIdempotencyStore_RegistersIdempotencyStoreAsScoped()
+    public async Task AddRedisIdempotencyStore_WithoutConfigure_RegistersIdempotencyKeyRepositoryAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IIdempotencyKeyRepository));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptor).IsNotNull();
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(RedisIdempotencyKeyRepository));
+        }
+    }
+
+    [Test]
+    public async Task AddRedisIdempotencyStore_WithoutConfigure_RegistersIdempotencyStoreAsScoped()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
@@ -45,36 +61,17 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(RedisIdempotencyStore));
+            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
         }
     }
 
     [Test]
-    public async Task AddRedisIdempotencyStore_RegistersValidatorAsSingleton()
+    public async Task AddRedisIdempotencyStore_WithoutConfigure_RegistersTimeProviderAsSingleton()
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
 
-        var descriptor = services.FirstOrDefault(d =>
-            d.ServiceType == typeof(IValidateOptions<RedisIdempotencyKeyOptions>)
-        );
-
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(descriptor).IsNotNull();
-            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
-        }
-    }
-
-    [Test]
-    public async Task AddRedisIdempotencyStore_RegistersConfigurationAsSingleton()
-    {
-        var services = new ServiceCollection();
-        _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
-
-        var descriptor = services.FirstOrDefault(d =>
-            d.ServiceType == typeof(IConfigureOptions<RedisIdempotencyKeyOptions>)
-        );
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(TimeProvider));
 
         using (Assert.Multiple())
         {
@@ -88,56 +85,30 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.AddRedisIdempotencyStore(opts =>
-            {
-                opts.KeyPrefix = "custom:";
-                opts.TimeToLive = TimeSpan.FromHours(48);
-                opts.Database = 3;
-            })
+            config.AddRedisIdempotencyStore(options => options.TableName = "CustomIdempotencyKeys")
         );
 
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            var options = provider.GetRequiredService<IOptions<RedisIdempotencyKeyOptions>>();
+            var options = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>();
 
-            using (Assert.Multiple())
-            {
-                _ = await Assert.That(options.Value.KeyPrefix).IsEqualTo("custom:");
-                _ = await Assert.That(options.Value.TimeToLive).IsEqualTo(TimeSpan.FromHours(48));
-                _ = await Assert.That(options.Value.Database).IsEqualTo(3);
-            }
+            _ = await Assert.That(options.Value.TableName).IsEqualTo("CustomIdempotencyKeys");
         }
     }
 
     [Test]
-    public async Task AddRedisIdempotencyStore_DefaultOptions_HaveExpectedValues()
+    public async Task AddRedisIdempotencyStore_CalledTwice_ReplacesIdempotencyKeyRepository()
     {
         var services = new ServiceCollection();
-        _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
-
-        var provider = services.BuildServiceProvider();
-        await using (provider.ConfigureAwait(false))
+        _ = services.AddPulse(config =>
         {
-            var options = provider.GetRequiredService<IOptions<RedisIdempotencyKeyOptions>>();
+            _ = config.AddRedisIdempotencyStore();
+            _ = config.AddRedisIdempotencyStore();
+        });
 
-            using (Assert.Multiple())
-            {
-                _ = await Assert.That(options.Value.KeyPrefix).IsEqualTo("pulse:idempotency:");
-                _ = await Assert.That(options.Value.TimeToLive).IsEqualTo(TimeSpan.FromHours(24));
-                _ = await Assert.That(options.Value.Database).IsEqualTo(-1);
-            }
-        }
-    }
+        var descriptors = services.Where(d => d.ServiceType == typeof(IIdempotencyKeyRepository)).ToList();
 
-    [Test]
-    public async Task AddRedisIdempotencyStore_CalledTwice_RegistersOnlyOneIdempotencyStore()
-    {
-        var services = new ServiceCollection();
-        _ = services.AddPulse(config => config.AddRedisIdempotencyStore().AddRedisIdempotencyStore());
-
-        var count = services.Count(d => d.ServiceType == typeof(IIdempotencyStore));
-
-        _ = await Assert.That(count).IsEqualTo(1);
+        _ = await Assert.That(descriptors.Count).IsEqualTo(1);
     }
 }
