@@ -162,116 +162,11 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
                 new BsonDocument
                 {
                     { "_id", BsonNull.Value },
-                    {
-                        nameof(OutboxMessageStatus.Pending),
-                        new BsonDocument(
-                            "$sum",
-                            new BsonDocument(
-                                "$cond",
-                                new BsonArray
-                                {
-                                    new BsonDocument(
-                                        "$eq",
-                                        new BsonArray
-                                        {
-                                            "$" + OutboxMessageSchema.Columns.Status,
-                                            (int)OutboxMessageStatus.Pending,
-                                        }
-                                    ),
-                                    1,
-                                    0,
-                                }
-                            )
-                        )
-                    },
-                    {
-                        nameof(OutboxMessageStatus.Processing),
-                        new BsonDocument(
-                            "$sum",
-                            new BsonDocument(
-                                "$cond",
-                                new BsonArray
-                                {
-                                    new BsonDocument(
-                                        "$eq",
-                                        new BsonArray
-                                        {
-                                            "$" + OutboxMessageSchema.Columns.Status,
-                                            (int)OutboxMessageStatus.Processing,
-                                        }
-                                    ),
-                                    1,
-                                    0,
-                                }
-                            )
-                        )
-                    },
-                    {
-                        nameof(OutboxMessageStatus.Completed),
-                        new BsonDocument(
-                            "$sum",
-                            new BsonDocument(
-                                "$cond",
-                                new BsonArray
-                                {
-                                    new BsonDocument(
-                                        "$eq",
-                                        new BsonArray
-                                        {
-                                            "$" + OutboxMessageSchema.Columns.Status,
-                                            (int)OutboxMessageStatus.Completed,
-                                        }
-                                    ),
-                                    1,
-                                    0,
-                                }
-                            )
-                        )
-                    },
-                    {
-                        nameof(OutboxMessageStatus.Failed),
-                        new BsonDocument(
-                            "$sum",
-                            new BsonDocument(
-                                "$cond",
-                                new BsonArray
-                                {
-                                    new BsonDocument(
-                                        "$eq",
-                                        new BsonArray
-                                        {
-                                            "$" + OutboxMessageSchema.Columns.Status,
-                                            (int)OutboxMessageStatus.Failed,
-                                        }
-                                    ),
-                                    1,
-                                    0,
-                                }
-                            )
-                        )
-                    },
-                    {
-                        nameof(OutboxMessageStatus.DeadLetter),
-                        new BsonDocument(
-                            "$sum",
-                            new BsonDocument(
-                                "$cond",
-                                new BsonArray
-                                {
-                                    new BsonDocument(
-                                        "$eq",
-                                        new BsonArray
-                                        {
-                                            "$" + OutboxMessageSchema.Columns.Status,
-                                            (int)OutboxMessageStatus.DeadLetter,
-                                        }
-                                    ),
-                                    1,
-                                    0,
-                                }
-                            )
-                        )
-                    },
+                    { nameof(OutboxMessageStatus.Pending), StatusCountField(OutboxMessageStatus.Pending) },
+                    { nameof(OutboxMessageStatus.Processing), StatusCountField(OutboxMessageStatus.Processing) },
+                    { nameof(OutboxMessageStatus.Completed), StatusCountField(OutboxMessageStatus.Completed) },
+                    { nameof(OutboxMessageStatus.Failed), StatusCountField(OutboxMessageStatus.Failed) },
+                    { nameof(OutboxMessageStatus.DeadLetter), StatusCountField(OutboxMessageStatus.DeadLetter) },
                 }
             ),
         };
@@ -295,6 +190,23 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
             DeadLetter = firstElement[nameof(OutboxMessageStatus.DeadLetter)].ToInt64(),
         };
     }
+
+    /// <summary>
+    /// Builds a <c>$sum</c>/<c>$cond</c> expression that counts documents whose status equals <paramref name="status"/>.
+    /// </summary>
+    private static BsonDocument StatusCountField(OutboxMessageStatus status) =>
+        new BsonDocument(
+            "$sum",
+            new BsonDocument(
+                "$cond",
+                new BsonArray
+                {
+                    new BsonDocument("$eq", new BsonArray { "$" + OutboxMessageSchema.Columns.Status, (int)status }),
+                    1,
+                    0,
+                }
+            )
+        );
 
     /// <summary>
     /// Returns the <see cref="IMongoCollection{TDocument}"/> for outbox documents.
