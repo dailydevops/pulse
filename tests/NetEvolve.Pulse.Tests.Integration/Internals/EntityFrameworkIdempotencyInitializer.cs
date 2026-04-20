@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Idempotency;
 
 public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService) =>
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService) =>
         mediatorBuilder.AddEntityFrameworkIdempotencyStore<TestIdempotencyDbContext>();
 
     private static readonly SemaphoreSlim _gate = new(1, 1);
@@ -68,7 +68,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
         }
     }
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) =>
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) =>
         _ = services.AddDbContextFactory<TestIdempotencyDbContext>(options =>
         {
             var connectionString = databaseService.ConnectionString;
@@ -76,21 +76,21 @@ public sealed class EntityFrameworkIdempotencyInitializer : IDatabaseInitializer
             // Register a custom model-cache key factory that includes the per-test table name.
             _ = options.ReplaceService<IModelCacheKeyFactory, TestTableModelCacheKeyFactory>();
 
-            _ = databaseService.DatabaseType switch
+            _ = databaseService.ServiceType switch
             {
-                DatabaseType.InMemory => options.UseInMemoryDatabase(connectionString),
-                DatabaseType.MySql => options.UseMySQL(connectionString),
-                DatabaseType.PostgreSQL => options.UseNpgsql(connectionString),
+                ServiceType.InMemory => options.UseInMemoryDatabase(connectionString),
+                ServiceType.MySql => options.UseMySQL(connectionString),
+                ServiceType.PostgreSQL => options.UseNpgsql(connectionString),
                 // Add a busy-timeout interceptor so that concurrent SaveChangesAsync calls from
                 // parallel tests wait and retry instead of failing with SQLITE_BUSY.
-                DatabaseType.SQLite => options
+                ServiceType.SQLite => options
                     .UseSqlite(connectionString)
                     .AddInterceptors(new SQLiteBusyTimeoutInterceptor()),
-                DatabaseType.SqlServer => options.UseSqlServer(
+                ServiceType.SqlServer => options.UseSqlServer(
                     connectionString,
                     sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 5)
                 ),
-                _ => throw new NotSupportedException($"Database type {databaseService.DatabaseType} is not supported."),
+                _ => throw new NotSupportedException($"Database type {databaseService.ServiceType} is not supported."),
             };
         });
 

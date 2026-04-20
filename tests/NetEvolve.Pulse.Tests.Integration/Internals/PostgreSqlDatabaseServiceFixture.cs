@@ -2,7 +2,7 @@
 
 using Npgsql;
 
-public sealed class PostgreSqlDatabaseServiceFixture : IDatabaseServiceFixture
+public sealed class PostgreSqlDatabaseServiceFixture : IServiceFixture
 {
     [ClassDataSource<PostgreSqlContainerFixture>(Shared = SharedType.PerTestSession)]
     public PostgreSqlContainerFixture Container { get; set; } = default!;
@@ -28,7 +28,7 @@ public sealed class PostgreSqlDatabaseServiceFixture : IDatabaseServiceFixture
 
     internal string DatabaseName { get; } = $"{TestHelper.TargetFramework}{Guid.NewGuid():N}";
 
-    public DatabaseType DatabaseType => DatabaseType.PostgreSQL;
+    public ServiceType ServiceType => ServiceType.PostgreSQL;
 
     public async ValueTask DisposeAsync()
     {

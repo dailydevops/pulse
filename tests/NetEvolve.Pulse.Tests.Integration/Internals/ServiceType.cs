@@ -1,10 +1,11 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
-public enum DatabaseType
+public enum ServiceType
 {
     InMemory,
     SqlServer,
     SQLite,
     PostgreSQL,
     MySql,
+    Redis,
 }

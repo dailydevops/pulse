@@ -23,7 +23,7 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
         "IdempotencyKey.sql"
     );
 
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddSqlServerIdempotencyStore(databaseService.ConnectionString);
@@ -38,11 +38,11 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
             ?? throw new InvalidOperationException("IdempotencyKeyOptions.ConnectionString is not configured.");
 
         var schema = string.IsNullOrWhiteSpace(options.Schema)
-            ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultSchema
+            ? Extensibility.Idempotency.IdempotencyKeySchema.DefaultSchema
             : options.Schema;
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)
-            ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultTableName
+            ? Extensibility.Idempotency.IdempotencyKeySchema.DefaultTableName
             : options.TableName;
 
         var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
@@ -74,7 +74,7 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
         }
     }
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
 
     [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
     private static partial Regex SearchSetVar();

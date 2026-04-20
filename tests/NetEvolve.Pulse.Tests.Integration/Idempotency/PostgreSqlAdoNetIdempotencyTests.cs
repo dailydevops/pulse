@@ -10,6 +10,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [TestGroup("AdoNet")]
 [InheritsTests]
 public class PostgreSqlAdoNetIdempotencyTests(
-    IDatabaseServiceFixture databaseServiceFixture,
+    IServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 ) : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);

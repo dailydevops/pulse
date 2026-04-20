@@ -9,7 +9,5 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [TestGroup("MySql")]
 [TestGroup("AdoNet")]
 [InheritsTests]
-public class MySqlAdoNetOutboxTests(
-    IDatabaseServiceFixture databaseServiceFixture,
-    IDatabaseInitializer databaseInitializer
-) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
+public class MySqlAdoNetOutboxTests(IServiceFixture databaseServiceFixture, IDatabaseInitializer databaseInitializer)
+    : OutboxTestsBase(databaseServiceFixture, databaseInitializer);

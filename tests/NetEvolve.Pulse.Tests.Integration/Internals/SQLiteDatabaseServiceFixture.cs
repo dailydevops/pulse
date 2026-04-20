@@ -1,10 +1,10 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
-internal sealed class SQLiteDatabaseServiceFixture : IDatabaseServiceFixture
+internal sealed class SQLiteDatabaseServiceFixture : IServiceFixture
 {
     public string ConnectionString => $"Data Source={DatabaseFile};";
 
-    public DatabaseType DatabaseType => DatabaseType.SQLite;
+    public ServiceType ServiceType => ServiceType.SQLite;
 
     private string DatabaseFile { get; } =
         Path.Combine(Path.GetTempPath(), $"{TestHelper.TargetFramework}{Guid.NewGuid():N}.sqlite");

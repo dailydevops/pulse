@@ -10,6 +10,6 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 [TestGroup("EntityFramework")]
 [InheritsTests]
 public class SQLiteEntityFrameworkIdempotencyTests(
-    IDatabaseServiceFixture databaseServiceFixture,
+    IServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 ) : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);

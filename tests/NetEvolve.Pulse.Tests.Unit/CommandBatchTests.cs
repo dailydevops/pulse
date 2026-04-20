@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using TUnit.Core;
-using Void = NetEvolve.Pulse.Extensibility.Void;
+using Void = Extensibility.Void;
 
 [TestGroup("CommandBatch")]
 public class CommandBatchTests

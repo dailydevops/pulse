@@ -26,7 +26,7 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IDatabaseInitializer
     );
 
     /// <inheritdoc />
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(databaseService);
         _ = mediatorBuilder.AddMySqlIdempotencyStore(databaseService.ConnectionString);
@@ -80,7 +80,7 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IDatabaseInitializer
     }
 
     /// <inheritdoc />
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService)
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService)
     {
         // No additional service initialization required for ADO.NET idempotency tests.
     }

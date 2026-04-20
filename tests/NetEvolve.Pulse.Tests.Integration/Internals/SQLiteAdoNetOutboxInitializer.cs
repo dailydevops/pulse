@@ -15,7 +15,7 @@ using NetEvolve.Pulse.Outbox;
 )]
 public sealed class SQLiteAdoNetOutboxInitializer : IDatabaseInitializer
 {
-    public void Configure(IMediatorBuilder mediatorBuilder, IDatabaseServiceFixture databaseService)
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture databaseService)
     {
         ArgumentNullException.ThrowIfNull(mediatorBuilder);
         ArgumentNullException.ThrowIfNull(databaseService);
@@ -70,5 +70,5 @@ public sealed class SQLiteAdoNetOutboxInitializer : IDatabaseInitializer
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void Initialize(IServiceCollection services, IDatabaseServiceFixture databaseService) { }
+    public void Initialize(IServiceCollection services, IServiceFixture databaseService) { }
 }

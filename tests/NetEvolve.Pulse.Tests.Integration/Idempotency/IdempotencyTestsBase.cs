@@ -18,11 +18,11 @@ using TUnit.Core;
 [TestGroup("Idempotency")]
 [Timeout(300_000)] // Increased timeout to accommodate potential delays in CI environments.
 public abstract class IdempotencyTestsBase(
-    IDatabaseServiceFixture databaseServiceFixture,
+    IServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
 )
 {
-    protected IDatabaseServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
+    protected IServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
     protected IDatabaseInitializer DatabaseInitializer { get; } = databaseInitializer;
 
     protected static DateTimeOffset TestDateTime { get; } = new DateTimeOffset(2025, 1, 1, 12, 0, 0, 0, TimeSpan.Zero);
@@ -291,6 +291,6 @@ public abstract class IdempotencyTestsBase(
         public Task<Void> HandleAsync(
             TestIdempotentVoidCommand command,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Extensibility.Void.Completed);
+        ) => Task.FromResult(Void.Completed);
     }
 }

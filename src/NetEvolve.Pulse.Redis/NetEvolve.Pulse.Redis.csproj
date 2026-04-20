@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>Redis idempotency provider for Pulse using StackExchange.Redis. Implements IIdempotencyStore with atomic SET NX EX operations for high-throughput, distributed idempotency enforcement without read-before-write round-trips.</Description>
+    <PackageTags>$(PackageTags);idempotency;redis;stackexchange;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+  </ItemGroup>
+</Project>
