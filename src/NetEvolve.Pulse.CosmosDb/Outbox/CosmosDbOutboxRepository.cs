@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -6,6 +6,7 @@ using System.Net;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using Newtonsoft.Json;
 
 /// <summary>
 /// Azure Cosmos DB implementation of <see cref="IOutboxRepository"/> using the official
@@ -406,6 +407,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     private sealed class IdProjection
     {
         [System.Text.Json.Serialization.JsonPropertyName("id")]
+        [JsonProperty("id")]
         public string Id { get; set; } = string.Empty;
     }
 }
