@@ -53,7 +53,12 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var database = _multiplexer.GetDatabase(DefaultDatabase);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         var value = await database.StringGetAsync(GetPrefixedKey(idempotencyKey)).ConfigureAwait(false);
 
         if (!value.HasValue)
@@ -92,9 +97,11 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var database = _multiplexer.GetDatabase(DefaultDatabase);
 
-        // Use a physical TTL that is larger than the logical TTL so Redis cleans up the key eventually.
+        // Use a physical TTL
         // Logical expiry is handled by the IdempotencyStore wrapper via TimeProvider.
         var physicalTtl = _options.Value.TimeToLive.HasValue
             ? _options.Value.TimeToLive.Value + TimeSpan.FromHours(1)
@@ -104,6 +111,8 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
 
         // Returns true when the key was set; false when the key already existed.
         // Both outcomes are valid — no exception is thrown for duplicates.
+        cancellationToken.ThrowIfCancellationRequested();
+
         _ = await database
             .StringSetAsync(GetPrefixedKey(idempotencyKey), timestamp, physicalTtl, When.NotExists)
             .ConfigureAwait(false);

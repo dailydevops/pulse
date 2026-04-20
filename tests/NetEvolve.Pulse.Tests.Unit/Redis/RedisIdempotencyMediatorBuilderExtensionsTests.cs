@@ -107,8 +107,14 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
             _ = config.AddRedisIdempotencyStore();
         });
 
-        var descriptors = services.Where(d => d.ServiceType == typeof(IIdempotencyKeyRepository)).ToList();
+        var repositoryDescriptors = services.Where(d => d.ServiceType == typeof(IIdempotencyKeyRepository)).ToList();
+        var storeDescriptors = services.Where(d => d.ServiceType == typeof(IIdempotencyStore)).ToList();
 
-        _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(repositoryDescriptors.Count).IsEqualTo(1);
+            _ = await Assert.That(storeDescriptors.Count).IsEqualTo(1);
+            _ = await Assert.That(storeDescriptors[0].ImplementationType).IsEqualTo(typeof(IdempotencyStore));
+        }
     }
 }
