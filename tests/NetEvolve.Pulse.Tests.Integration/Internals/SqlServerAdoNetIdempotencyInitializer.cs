@@ -38,11 +38,11 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IDatabaseIni
             ?? throw new InvalidOperationException("IdempotencyKeyOptions.ConnectionString is not configured.");
 
         var schema = string.IsNullOrWhiteSpace(options.Schema)
-            ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultSchema
+            ? Extensibility.Idempotency.IdempotencyKeySchema.DefaultSchema
             : options.Schema;
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)
-            ? NetEvolve.Pulse.Extensibility.Idempotency.IdempotencyKeySchema.DefaultTableName
+            ? Extensibility.Idempotency.IdempotencyKeySchema.DefaultTableName
             : options.TableName;
 
         var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);

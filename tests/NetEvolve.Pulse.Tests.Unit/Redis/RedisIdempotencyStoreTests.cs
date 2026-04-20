@@ -91,10 +91,10 @@ public sealed class RedisIdempotencyStoreTests
     public async Task ExistsAsync_WithNonExistentKey_ReturnsFalse(CancellationToken cancellationToken)
     {
         var databaseMock = Mock.Of<IDatabase>();
-        _ = databaseMock.KeyExistsAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(false);
+        _ = databaseMock.KeyExistsAsync(Any<RedisKey>(), Any<CommandFlags>()).Returns(false);
 
         var multiplexerMock = Mock.Of<IConnectionMultiplexer>();
-        _ = multiplexerMock.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(databaseMock.Object);
+        _ = multiplexerMock.GetDatabase(Any<int>(), Any<object?>()).Returns(databaseMock.Object);
 
         var store = new RedisIdempotencyStore(multiplexerMock.Object, Options.Create(new RedisIdempotencyKeyOptions()));
 
@@ -107,10 +107,10 @@ public sealed class RedisIdempotencyStoreTests
     public async Task ExistsAsync_WithExistingKey_ReturnsTrue(CancellationToken cancellationToken)
     {
         var databaseMock = Mock.Of<IDatabase>();
-        _ = databaseMock.KeyExistsAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(true);
+        _ = databaseMock.KeyExistsAsync(Any<RedisKey>(), Any<CommandFlags>()).Returns(true);
 
         var multiplexerMock = Mock.Of<IConnectionMultiplexer>();
-        _ = multiplexerMock.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(databaseMock.Object);
+        _ = multiplexerMock.GetDatabase(Any<int>(), Any<object?>()).Returns(databaseMock.Object);
 
         var store = new RedisIdempotencyStore(multiplexerMock.Object, Options.Create(new RedisIdempotencyKeyOptions()));
 
@@ -124,11 +124,11 @@ public sealed class RedisIdempotencyStoreTests
     {
         var databaseMock = Mock.Of<IDatabase>();
         _ = databaseMock
-            .StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>())
+            .StringSetAsync(Any<RedisKey>(), Any<RedisValue>(), Any<TimeSpan?>(), Any<When>())
             .Returns(true);
 
         var multiplexerMock = Mock.Of<IConnectionMultiplexer>();
-        _ = multiplexerMock.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(databaseMock.Object);
+        _ = multiplexerMock.GetDatabase(Any<int>(), Any<object?>()).Returns(databaseMock.Object);
 
         var store = new RedisIdempotencyStore(multiplexerMock.Object, Options.Create(new RedisIdempotencyKeyOptions()));
 
@@ -142,11 +142,11 @@ public sealed class RedisIdempotencyStoreTests
 
         // StringSetAsync with When.NotExists returns false when the key already existed
         _ = databaseMock
-            .StringSetAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(), Arg.Any<When>())
+            .StringSetAsync(Any<RedisKey>(), Any<RedisValue>(), Any<TimeSpan?>(), Any<When>())
             .Returns(false);
 
         var multiplexerMock = Mock.Of<IConnectionMultiplexer>();
-        _ = multiplexerMock.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(databaseMock.Object);
+        _ = multiplexerMock.GetDatabase(Any<int>(), Any<object?>()).Returns(databaseMock.Object);
 
         var store = new RedisIdempotencyStore(multiplexerMock.Object, Options.Create(new RedisIdempotencyKeyOptions()));
 

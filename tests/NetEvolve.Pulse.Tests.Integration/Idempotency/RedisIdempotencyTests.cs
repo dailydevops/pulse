@@ -9,4 +9,4 @@ using NetEvolve.Pulse.Tests.Integration.Internals;
 public class RedisIdempotencyTests(
     IServiceFixture databaseServiceFixture,
     IDatabaseInitializer databaseInitializer
-) : RedisIdempotencyTestsBase(databaseServiceFixture, databaseInitializer);
+) : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer);

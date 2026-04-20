@@ -291,6 +291,6 @@ public abstract class IdempotencyTestsBase(
         public Task<Void> HandleAsync(
             TestIdempotentVoidCommand command,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Extensibility.Void.Completed);
+        ) => Task.FromResult(Void.Completed);
     }
 }
