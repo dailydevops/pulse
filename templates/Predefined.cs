@@ -61,7 +61,7 @@ internal static partial class Predefined
     /// </summary>
     [GeneratedRegex(
         @"(GeneratedCode\(""NetEvolve\.Pulse\.SourceGeneration"", "")[^""]+("")",
-        RegexOptions.NonBacktracking,
+        RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture,
         1000
     )]
     private static partial Regex ScrubGeneatedCodeVersion();

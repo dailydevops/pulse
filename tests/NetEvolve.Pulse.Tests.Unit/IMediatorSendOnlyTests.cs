@@ -43,13 +43,18 @@ public class IMediatorSendOnlyTests
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
 
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-
-        _ = await Assert.That(mediatorSendOnly).IsSameReferenceAs(mediator);
+                _ = await Assert.That(mediatorSendOnly).IsSameReferenceAs(mediator);
+            }
+        }
     }
 
     [Test]
@@ -60,17 +65,22 @@ public class IMediatorSendOnlyTests
         _ = services.AddLogging();
         _ = services.AddPulse();
         _ = services.AddScoped<ICommandHandler<TestCommand, string>>(_ => handler);
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-        var consumer = new WriteOnlyConsumer(mediatorSendOnly);
-        await consumer.ExecuteAsync(cancellationToken).ConfigureAwait(false);
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(handler.HandledCommands).HasSingleItem();
-            _ = await Assert.That(consumer.EventPublished).IsTrue();
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                var consumer = new WriteOnlyConsumer(mediatorSendOnly);
+                await consumer.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(handler.HandledCommands).HasSingleItem();
+                    _ = await Assert.That(consumer.EventPublished).IsTrue();
+                }
+            }
         }
     }
 

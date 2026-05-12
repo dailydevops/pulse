@@ -58,19 +58,25 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IServiceInit
         // Split on GO (on its own line) and execute each batch independently
         var batches = SearchGoStatements().Split(script);
 
-        await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        foreach (var batch in batches)
+        var connection = new SqlConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
         {
-            var trimmed = batch.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed))
-            {
-                continue;
-            }
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            await using var command = new SqlCommand(trimmed, connection);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var batch in batches)
+            {
+                var trimmed = batch.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var command = new SqlCommand(trimmed, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 

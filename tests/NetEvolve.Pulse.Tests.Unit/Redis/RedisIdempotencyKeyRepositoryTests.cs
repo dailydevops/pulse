@@ -43,7 +43,9 @@ public sealed class RedisIdempotencyKeyRepositoryTests
                 await new RedisIdempotencyKeyRepository(
                     Mock.Of<StackExchange.Redis.IConnectionMultiplexer>().Object,
                     Options.Create(new IdempotencyKeyOptions())
-                ).ExistsAsync(null!)
+                )
+                    .ExistsAsync(null!)
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
 
@@ -54,7 +56,9 @@ public sealed class RedisIdempotencyKeyRepositoryTests
                 await new RedisIdempotencyKeyRepository(
                     Mock.Of<StackExchange.Redis.IConnectionMultiplexer>().Object,
                     Options.Create(new IdempotencyKeyOptions())
-                ).ExistsAsync(string.Empty)
+                )
+                    .ExistsAsync(string.Empty)
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
 
@@ -65,7 +69,9 @@ public sealed class RedisIdempotencyKeyRepositoryTests
                 await new RedisIdempotencyKeyRepository(
                     Mock.Of<StackExchange.Redis.IConnectionMultiplexer>().Object,
                     Options.Create(new IdempotencyKeyOptions())
-                ).ExistsAsync("   ")
+                )
+                    .ExistsAsync("   ")
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
 
@@ -76,7 +82,9 @@ public sealed class RedisIdempotencyKeyRepositoryTests
                 await new RedisIdempotencyKeyRepository(
                     Mock.Of<StackExchange.Redis.IConnectionMultiplexer>().Object,
                     Options.Create(new IdempotencyKeyOptions())
-                ).StoreAsync(null!, DateTimeOffset.UtcNow)
+                )
+                    .StoreAsync(null!, DateTimeOffset.UtcNow)
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
 
@@ -87,7 +95,9 @@ public sealed class RedisIdempotencyKeyRepositoryTests
                 await new RedisIdempotencyKeyRepository(
                     Mock.Of<StackExchange.Redis.IConnectionMultiplexer>().Object,
                     Options.Create(new IdempotencyKeyOptions())
-                ).StoreAsync(string.Empty, DateTimeOffset.UtcNow)
+                )
+                    .StoreAsync(string.Empty, DateTimeOffset.UtcNow)
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
 
@@ -98,7 +108,9 @@ public sealed class RedisIdempotencyKeyRepositoryTests
                 await new RedisIdempotencyKeyRepository(
                     Mock.Of<StackExchange.Redis.IConnectionMultiplexer>().Object,
                     Options.Create(new IdempotencyKeyOptions())
-                ).StoreAsync("   ", DateTimeOffset.UtcNow)
+                )
+                    .StoreAsync("   ", DateTimeOffset.UtcNow)
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
 }

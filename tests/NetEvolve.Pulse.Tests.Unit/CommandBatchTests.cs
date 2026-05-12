@@ -73,16 +73,21 @@ public class CommandBatchTests
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                CommandBatch? batch = null;
 
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-        CommandBatch? batch = null;
-
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(
-            "batch",
-            async () => await mediator.SendBatchAsync(batch!, cancellationToken).ConfigureAwait(false)
-        );
+                _ = await Assert.ThrowsAsync<ArgumentNullException>(
+                    "batch",
+                    async () => await mediator.SendBatchAsync(batch!, cancellationToken).ConfigureAwait(false)
+                );
+            }
+        }
     }
 
     [Test]
@@ -93,15 +98,20 @@ public class CommandBatchTests
         _ = services.AddLogging();
         _ = services.AddPulse();
         _ = services.AddScoped<ICommandHandler<TestCommand, Void>>(_ => handler);
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                var batch = new CommandBatch();
 
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-        var batch = new CommandBatch();
+                await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false);
 
-        await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false);
-
-        _ = await Assert.That(handler.HandledCommands).IsEmpty();
+                _ = await Assert.That(handler.HandledCommands).IsEmpty();
+            }
+        }
     }
 
     [Test]
@@ -113,23 +123,28 @@ public class CommandBatchTests
         _ = services.AddLogging();
         _ = services.AddPulse();
         _ = services.AddScoped<ICommandHandler<OrderedCommand, Void>>(_ => handler);
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-        var batch = new CommandBatch()
-            .Add(new OrderedCommand("first"))
-            .Add(new OrderedCommand("second"))
-            .Add(new OrderedCommand("third"));
-
-        await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false);
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(executionOrder.Count).IsEqualTo(3);
-            _ = await Assert.That(executionOrder[0]).IsEqualTo("first");
-            _ = await Assert.That(executionOrder[1]).IsEqualTo("second");
-            _ = await Assert.That(executionOrder[2]).IsEqualTo("third");
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                var batch = new CommandBatch()
+                    .Add(new OrderedCommand("first"))
+                    .Add(new OrderedCommand("second"))
+                    .Add(new OrderedCommand("third"));
+
+                await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(executionOrder.Count).IsEqualTo(3);
+                    _ = await Assert.That(executionOrder[0]).IsEqualTo("first");
+                    _ = await Assert.That(executionOrder[1]).IsEqualTo("second");
+                    _ = await Assert.That(executionOrder[2]).IsEqualTo("third");
+                }
+            }
         }
     }
 
@@ -144,24 +159,29 @@ public class CommandBatchTests
         _ = services.AddLogging();
         _ = services.AddPulse();
         _ = services.AddScoped<ICommandHandler<OrderedCommand, Void>>(_ => handler);
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
-
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-        var batch = new CommandBatch()
-            .Add(new OrderedCommand("first"))
-            .Add(new OrderedCommand("second"))
-            .Add(new OrderedCommand("third"));
-
-        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false)
-        );
-
-        using (Assert.Multiple())
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
         {
-            _ = await Assert.That(executionOrder.Count).IsEqualTo(2);
-            _ = await Assert.That(executionOrder[0]).IsEqualTo("first");
-            _ = await Assert.That(executionOrder[1]).IsEqualTo("second");
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                var batch = new CommandBatch()
+                    .Add(new OrderedCommand("first"))
+                    .Add(new OrderedCommand("second"))
+                    .Add(new OrderedCommand("third"));
+
+                _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false)
+                );
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(executionOrder.Count).IsEqualTo(2);
+                    _ = await Assert.That(executionOrder[0]).IsEqualTo("first");
+                    _ = await Assert.That(executionOrder[1]).IsEqualTo("second");
+                }
+            }
         }
     }
 

@@ -86,16 +86,21 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_getDeadLetterMessagesSql, connection)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            CommandType = CommandType.StoredProcedure,
-        };
+            var command = new SqlCommand(_getDeadLetterMessagesSql, connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@pageSize", pageSize);
+                _ = command.Parameters.AddWithValue("@page", page);
 
-        _ = command.Parameters.AddWithValue("@pageSize", pageSize);
-        _ = command.Parameters.AddWithValue("@page", page);
-
-        return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -104,97 +109,120 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_getDeadLetterMessageSql, connection)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            CommandType = CommandType.StoredProcedure,
-        };
+            var command = new SqlCommand(_getDeadLetterMessageSql, connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId);
-
-        var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
-        return messages.Count > 0 ? messages[0] : null;
+                var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return messages.Count > 0 ? messages[0] : null;
+            }
+        }
     }
 
     /// <inheritdoc />
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_getDeadLetterCountSql, connection)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            CommandType = CommandType.StoredProcedure,
-        };
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is long count
-            ? count
-            : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+            var command = new SqlCommand(_getDeadLetterCountSql, connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            await using (command.ConfigureAwait(false))
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is long count
+                    ? count
+                    : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
     }
 
     /// <inheritdoc />
     public async Task<bool> ReplayMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_replayMessageSql, connection)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            CommandType = CommandType.StoredProcedure,
-        };
+            var command = new SqlCommand(_replayMessageSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId);
+                _ = command.Parameters.AddWithValue("@nowUtc", _timeProvider.GetUtcNow());
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId);
-        _ = command.Parameters.AddWithValue("@nowUtc", _timeProvider.GetUtcNow());
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        var updated = result is int count
-            ? count
-            : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
-        return updated > 0;
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                var updated = result is int count
+                    ? count
+                    : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+                return updated > 0;
+            }
+        }
     }
 
     /// <inheritdoc />
     public async Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_replayAllDeadLetterSql, connection)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            CommandType = CommandType.StoredProcedure,
-        };
+            var command = new SqlCommand(_replayAllDeadLetterSql, connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@nowUtc", _timeProvider.GetUtcNow());
 
-        _ = command.Parameters.AddWithValue("@nowUtc", _timeProvider.GetUtcNow());
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is int count ? count : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is int count
+                    ? count
+                    : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
     }
 
     /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_getStatisticsSql, connection)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            CommandType = CommandType.StoredProcedure,
-        };
+            var command = new SqlCommand(_getStatisticsSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using (reader.ConfigureAwait(false))
+                {
+                    if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return new OutboxStatistics();
+                    }
 
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    var ordPending = reader.GetOrdinal("Pending");
+                    var ordProcessing = reader.GetOrdinal("Processing");
+                    var ordCompleted = reader.GetOrdinal("Completed");
+                    var ordFailed = reader.GetOrdinal("Failed");
+                    var ordDeadLetter = reader.GetOrdinal("DeadLetter");
 
-        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            return new OutboxStatistics();
+                    return new OutboxStatistics
+                    {
+                        Pending = reader.GetInt64(ordPending),
+                        Processing = reader.GetInt64(ordProcessing),
+                        Completed = reader.GetInt64(ordCompleted),
+                        Failed = reader.GetInt64(ordFailed),
+                        DeadLetter = reader.GetInt64(ordDeadLetter),
+                    };
+                }
+            }
         }
-
-        var ordPending = reader.GetOrdinal("Pending");
-        var ordProcessing = reader.GetOrdinal("Processing");
-        var ordCompleted = reader.GetOrdinal("Completed");
-        var ordFailed = reader.GetOrdinal("Failed");
-        var ordDeadLetter = reader.GetOrdinal("DeadLetter");
-
-        return new OutboxStatistics
-        {
-            Pending = reader.GetInt64(ordPending),
-            Processing = reader.GetInt64(ordProcessing),
-            Completed = reader.GetInt64(ordCompleted),
-            Failed = reader.GetInt64(ordFailed),
-            DeadLetter = reader.GetInt64(ordDeadLetter),
-        };
     }
 
     /// <summary>
@@ -222,47 +250,49 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        await using (reader.ConfigureAwait(false))
         {
-            return [];
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return [];
+            }
+
+            var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
+            var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
+            var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
+            var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+            var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
+            var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
+            var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
+            var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+            var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
+            var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
+            var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
+
+            var messages = new List<OutboxMessage>();
+            do
+            {
+                messages.Add(
+                    MapToMessage(
+                        reader,
+                        ordId,
+                        ordEventType,
+                        ordPayload,
+                        ordCorrelationId,
+                        ordCausationId,
+                        ordCreatedAt,
+                        ordUpdatedAt,
+                        ordProcessedAt,
+                        ordRetryCount,
+                        ordError,
+                        ordStatus
+                    )
+                );
+            } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
+
+            return messages;
         }
-
-        var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
-        var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
-        var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
-        var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
-        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
-        var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
-        var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
-        var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
-        var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
-        var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
-        var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
-
-        var messages = new List<OutboxMessage>();
-        do
-        {
-            messages.Add(
-                MapToMessage(
-                    reader,
-                    ordId,
-                    ordEventType,
-                    ordPayload,
-                    ordCorrelationId,
-                    ordCausationId,
-                    ordCreatedAt,
-                    ordUpdatedAt,
-                    ordProcessedAt,
-                    ordRetryCount,
-                    ordError,
-                    ordStatus
-                )
-            );
-        } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
-
-        return messages;
     }
 
     /// <summary>

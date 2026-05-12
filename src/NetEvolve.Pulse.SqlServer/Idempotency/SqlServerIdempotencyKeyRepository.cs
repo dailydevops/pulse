@@ -72,22 +72,27 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_existsSql, connection) { CommandType = CommandType.StoredProcedure };
-
-        _ = command.Parameters.Add(
-            new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
-        );
-
-        if (validFrom.HasValue)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            _ = command.Parameters.Add(
-                new SqlParameter("@validFrom", SqlDbType.DateTimeOffset) { Value = validFrom.Value }
-            );
-        }
+            var command = new SqlCommand(_existsSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.Add(
+                    new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
+                );
 
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is bool exists && exists;
+                if (validFrom.HasValue)
+                {
+                    _ = command.Parameters.Add(
+                        new SqlParameter("@validFrom", SqlDbType.DateTimeOffset) { Value = validFrom.Value }
+                    );
+                }
+
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is bool exists && exists;
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -99,22 +104,29 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqlCommand(_insertSql, connection) { CommandType = CommandType.StoredProcedure };
-
-        _ = command.Parameters.Add(
-            new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
-        );
-        _ = command.Parameters.Add(new SqlParameter("@createdAt", SqlDbType.DateTimeOffset) { Value = createdAt });
-
-        try
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (SqlException ex) when (IsDuplicateKeyException(ex))
-        {
-            // A concurrent request already stored the same key — this is idempotent and safe to ignore.
-            // The stored procedure uses MERGE which should handle this, but we catch it for safety.
+            var command = new SqlCommand(_insertSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.Add(
+                    new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
+                );
+                _ = command.Parameters.Add(
+                    new SqlParameter("@createdAt", SqlDbType.DateTimeOffset) { Value = createdAt }
+                );
+
+                try
+                {
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (SqlException ex) when (IsDuplicateKeyException(ex))
+                {
+                    // A concurrent request already stored the same key — this is idempotent and safe to ignore.
+                    // The stored procedure uses MERGE which should handle this, but we catch it for safety.
+                }
+            }
         }
     }
 

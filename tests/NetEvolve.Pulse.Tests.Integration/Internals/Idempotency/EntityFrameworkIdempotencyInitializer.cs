@@ -40,7 +40,7 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
                     return;
                 }
 
-                await _gate.WaitAsync(cancellationToken);
+                await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 try
                 {
@@ -55,10 +55,10 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
 
             if (databaseCreator is IRelationalDatabaseCreator relationalTableCreator)
             {
-                await _gate.WaitAsync(cancellationToken);
+                await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await relationalTableCreator.CreateTablesAsync(cancellationToken);
+                    await relationalTableCreator.CreateTablesAsync(cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -115,9 +115,12 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
             CancellationToken cancellationToken = default
         )
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText = Pragmas;
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = connection.CreateCommand();
+            await using (command.ConfigureAwait(false))
+            {
+                command.CommandText = Pragmas;
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

@@ -54,8 +54,11 @@ public abstract class PulseTestsBase
 
         using (Assert.Multiple())
         {
-            await using var scope = server.Services.CreateAsyncScope();
-            await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+            var scope = server.Services.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         await host.StopAsync(cancellationToken).ConfigureAwait(false);

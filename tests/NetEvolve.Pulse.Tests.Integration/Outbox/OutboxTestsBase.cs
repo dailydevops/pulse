@@ -20,7 +20,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
 
@@ -41,23 +42,27 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         timeProvider.AdjustTime(TestDateTime);
 
         await RunAndVerify(
-            async (services, token) =>
-            {
-                var mediator = services.GetRequiredService<IMediator>();
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
 
-                await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
-                var outbox = services.GetRequiredService<IOutboxRepository>();
-                var result = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var result = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
 
-                _ = await Verify(result.OrderBy(x => x.Payload)).HashParameters().ConfigureAwait(false);
-            },
-            cancellationToken,
-            configureServices: services =>
-                services
-                    .AddSingleton<TimeProvider>(timeProvider)
-                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-        );
+                    _ = await Verify(result.OrderBy(x => x.Payload, StringComparer.Ordinal))
+                        .HashParameters()
+                        .ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -97,7 +102,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await PublishEventsAsync(mediator, 5, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 5, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(3, token).ConfigureAwait(false);
@@ -121,7 +127,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -147,7 +153,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -174,7 +181,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -204,7 +211,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -235,31 +243,32 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         timeProvider.AdjustTime(TestDateTime);
 
         await RunAndVerify(
-            async (services, token) =>
-            {
-                var mediator = services.GetRequiredService<IMediator>();
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
 
-                await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
-                var outbox = services.GetRequiredService<IOutboxRepository>();
-                var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(pending.Count).IsEqualTo(1);
+                    _ = await Assert.That(pending.Count).IsEqualTo(1);
 
-                await outbox
-                    .MarkAsFailedAsync(pending[0].Id, "Test error", TestDateTime.AddHours(1), token)
-                    .ConfigureAwait(false);
+                    await outbox
+                        .MarkAsFailedAsync(pending[0].Id, "Test error", TestDateTime.AddHours(1), token)
+                        .ConfigureAwait(false);
 
-                var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+                    var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(failedForRetry).IsEmpty();
-            },
-            cancellationToken,
-            configureServices: services =>
-                services
-                    .AddSingleton<TimeProvider>(timeProvider)
-                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-        );
+                    _ = await Assert.That(failedForRetry).IsEmpty();
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -269,7 +278,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -299,7 +308,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -330,33 +340,35 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         timeProvider.AdjustTime(TestDateTime);
 
         await RunAndVerify(
-            async (services, token) =>
-            {
-                var mediator = services.GetRequiredService<IMediator>();
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
 
-                await PublishEventsAsync(mediator, 2, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 2, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
-                var outbox = services.GetRequiredService<IOutboxRepository>();
-                var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(pending.Count).IsEqualTo(2);
+                    _ = await Assert.That(pending.Count).IsEqualTo(2);
 
-                await Task.WhenAll(
-                        outbox.MarkAsFailedAsync(pending[0].Id, "Scheduled error", TestDateTime.AddHours(1), token),
-                        outbox.MarkAsFailedAsync(pending[1].Id, "Immediate error", token)
-                    )
-                    .ConfigureAwait(false);
+                    await Task.WhenAll(
+                            outbox.MarkAsFailedAsync(pending[0].Id, "Scheduled error", TestDateTime.AddHours(1), token),
+                            outbox.MarkAsFailedAsync(pending[1].Id, "Immediate error", token)
+                        )
+                        .ConfigureAwait(false);
 
-                var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+                    var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(failedForRetry.Count).IsEqualTo(1);
-            },
-            cancellationToken,
-            configureServices: services =>
-                services
-                    .AddSingleton<TimeProvider>(timeProvider)
-                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-        );
+                    _ = await Assert.That(failedForRetry.Count).IsEqualTo(1);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -366,32 +378,36 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         timeProvider.AdjustTime(TestDateTime);
 
         await RunAndVerify(
-            async (services, token) =>
-            {
-                var mediator = services.GetRequiredService<IMediator>();
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
 
-                await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
-                var outbox = services.GetRequiredService<IOutboxRepository>();
-                var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(pending.Count).IsEqualTo(3);
+                    _ = await Assert.That(pending.Count).IsEqualTo(3);
 
-                var messageIds = pending.Select(m => m.Id).ToArray();
-                await outbox.MarkAsCompletedAsync(messageIds, token).ConfigureAwait(false);
+                    var messageIds = pending.Select(m => m.Id).ToArray();
+                    await outbox.MarkAsCompletedAsync(messageIds, token).ConfigureAwait(false);
 
-                timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
 
-                var deleted = await outbox.DeleteCompletedAsync(TimeSpan.FromSeconds(30), token).ConfigureAwait(false);
+                    var deleted = await outbox
+                        .DeleteCompletedAsync(TimeSpan.FromSeconds(30), token)
+                        .ConfigureAwait(false);
 
-                _ = await Assert.That(deleted).IsEqualTo(3);
-            },
-            cancellationToken,
-            configureServices: services =>
-                services
-                    .AddSingleton<TimeProvider>(timeProvider)
-                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-        );
+                    _ = await Assert.That(deleted).IsEqualTo(3);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -401,7 +417,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     _ = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -438,7 +455,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 {
                     var mediator = services.GetRequiredService<IMediator>();
 
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -470,39 +487,43 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         timeProvider.AdjustTime(TestDateTime);
 
         await RunAndVerify(
-            async (services, token) =>
-            {
-                var mediator = services.GetRequiredService<IMediator>();
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
 
-                await PublishEventsAsync(mediator, 4, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 4, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
-                var outbox = services.GetRequiredService<IOutboxRepository>();
-                var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(pending.Count).IsEqualTo(4);
+                    _ = await Assert.That(pending.Count).IsEqualTo(4);
 
-                var completedIds = pending.Take(2).Select(m => m.Id).ToArray();
-                await outbox.MarkAsCompletedAsync(completedIds, token).ConfigureAwait(false);
+                    var completedIds = pending.Take(2).Select(m => m.Id).ToArray();
+                    await outbox.MarkAsCompletedAsync(completedIds, token).ConfigureAwait(false);
 
-                var failedIds = pending.Skip(2).Select(m => m.Id).ToArray();
-                await outbox.MarkAsFailedAsync(failedIds, "Test error", token).ConfigureAwait(false);
+                    var failedIds = pending.Skip(2).Select(m => m.Id).ToArray();
+                    await outbox.MarkAsFailedAsync(failedIds, "Test error", token).ConfigureAwait(false);
 
-                timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
 
-                var deleted = await outbox.DeleteCompletedAsync(TimeSpan.FromSeconds(30), token).ConfigureAwait(false);
+                    var deleted = await outbox
+                        .DeleteCompletedAsync(TimeSpan.FromSeconds(30), token)
+                        .ConfigureAwait(false);
 
-                _ = await Assert.That(deleted).IsEqualTo(2);
+                    _ = await Assert.That(deleted).IsEqualTo(2);
 
-                var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+                    var failedForRetry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
 
-                _ = await Assert.That(failedForRetry.Count).IsEqualTo(2);
-            },
-            cancellationToken,
-            configureServices: services =>
-                services
-                    .AddSingleton<TimeProvider>(timeProvider)
-                    .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-        );
+                    _ = await Assert.That(failedForRetry.Count).IsEqualTo(2);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
     }
 
     [Test]
@@ -528,7 +549,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -556,7 +578,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await PublishEventsAsync(mediator, 5, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 5, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -590,7 +613,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -636,7 +659,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -661,7 +685,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -691,7 +715,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
 
                     // GetPendingAsync moves the message to Processing — not a dead-letter
                     var outbox = services.GetRequiredService<IOutboxRepository>();
@@ -714,7 +738,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
                     var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
@@ -760,7 +785,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await PublishEventsAsync(mediator, 4, x => new TestEvent { Id = $"Test{x:D3}" }, token);
+                    await PublishEventsAsync(mediator, 4, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
 
                     var outbox = services.GetRequiredService<IOutboxRepository>();
 

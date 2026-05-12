@@ -63,8 +63,11 @@ public sealed partial class PostgreSqlAdoNetOutboxInitializer : IServiceInitiali
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            await using var command = new NpgsqlCommand(script, connection);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = new NpgsqlCommand(script, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

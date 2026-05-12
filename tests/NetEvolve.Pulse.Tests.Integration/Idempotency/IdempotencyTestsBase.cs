@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Idempotency;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Idempotency;
 
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Hosting;
@@ -60,8 +60,11 @@ public abstract class IdempotencyTestsBase(
 
         using (Assert.Multiple())
         {
-            await using var scope = server.Services.CreateAsyncScope();
-            await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+            var scope = server.Services.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                await testableCode.Invoke(scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         await host.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -178,15 +181,18 @@ public abstract class IdempotencyTestsBase(
                     // which must be caught and treated as an idempotent no-op (exercises
                     // the IsDuplicateKeyException code path).
                     var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
-                    await using var scope2 = scopeFactory.CreateAsyncScope();
-                    var store2 = scope2.ServiceProvider.GetRequiredService<IIdempotencyStore>();
+                    var scope2 = scopeFactory.CreateAsyncScope();
+                    await using (scope2.ConfigureAwait(false))
+                    {
+                        var store2 = scope2.ServiceProvider.GetRequiredService<IIdempotencyStore>();
 
-                    _ = await Assert
-                        .That(async () => await store2.StoreAsync("cross-scope-key", token).ConfigureAwait(false))
-                        .ThrowsNothing();
+                        _ = await Assert
+                            .That(async () => await store2.StoreAsync("cross-scope-key", token).ConfigureAwait(false))
+                            .ThrowsNothing();
 
-                    var exists = await store2.ExistsAsync("cross-scope-key", token).ConfigureAwait(false);
-                    _ = await Assert.That(exists).IsTrue();
+                        var exists = await store2.ExistsAsync("cross-scope-key", token).ConfigureAwait(false);
+                        _ = await Assert.That(exists).IsTrue();
+                    }
                 },
                 cancellationToken
             )

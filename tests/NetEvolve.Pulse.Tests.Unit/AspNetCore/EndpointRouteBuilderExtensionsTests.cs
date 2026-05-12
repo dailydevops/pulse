@@ -335,14 +335,17 @@ public sealed class EndpointRouteBuilderExtensionsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
-        using var reader = new StreamReader(stream);
+        var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+        await using (stream.ConfigureAwait(false))
+        {
+            using var reader = new StreamReader(stream);
 
-        // Read one SSE line to confirm streaming has started.
-        _ = await reader.ReadLineAsync(cts.Token).ConfigureAwait(false);
+            // Read one SSE line to confirm streaming has started.
+            _ = await reader.ReadLineAsync(cts.Token).ConfigureAwait(false);
 
-        // Cancel the token to simulate client disconnect; endpoint should not throw.
-        await cts.CancelAsync().ConfigureAwait(false);
+            // Cancel the token to simulate client disconnect; endpoint should not throw.
+            await cts.CancelAsync().ConfigureAwait(false);
+        }
     }
 
     private static async Task<IHost> CreateTestHostAsync(IEnumerable<string> items, CancellationToken cancellationToken)

@@ -281,14 +281,14 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
                 await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
                 await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
-                await using var cmd = new SqliteCommand(
-                    "SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
-                    _keepAlive
-                );
-                _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
-                var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+                var cmd = new SqliteCommand("SELECT COUNT(*) FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+                await using (cmd.ConfigureAwait(false))
+                {
+                    _ = cmd.Parameters.AddWithValue("@Id", message.Id.ToString());
+                    var count = (long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
 
-                _ = await Assert.That(count).IsEqualTo(0L);
+                    _ = await Assert.That(count).IsEqualTo(0L);
+                }
             }
         }
     }

@@ -63,11 +63,17 @@ public sealed class SQLiteAdoNetOutboxInitializer : IServiceInitializer
                 ON {quotedTable} ("Status", "ProcessedAt") WHERE "Status" = 2;
             """;
 
-        await using var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        var connection = new SqliteConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        await using var command = new SqliteCommand(createTableSql, connection);
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = new SqliteCommand(createTableSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) { }
