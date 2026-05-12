@@ -61,21 +61,30 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IServiceInitializer
                 StringComparison.Ordinal
             );
 
-        await using var connection = new MySqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        // Execute each SQL statement individually (CREATE TABLE, CREATE INDEX)
-        foreach (
-            var statement in script.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        )
+        var connection = new MySqlConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
         {
-            if (IsCommentOrEmpty(statement))
-            {
-                continue;
-            }
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            await using var command = new MySqlCommand(statement, connection);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            // Execute each SQL statement individually (CREATE TABLE, CREATE INDEX)
+            foreach (
+                var statement in script.Split(
+                    ';',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                )
+            )
+            {
+                if (IsCommentOrEmpty(statement))
+                {
+                    continue;
+                }
+
+                var command = new MySqlCommand(statement, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 

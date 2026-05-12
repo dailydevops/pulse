@@ -75,28 +75,31 @@ public sealed class FluentValidationRequestInterceptorTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            await using var scope = provider.CreateAsyncScope();
-            var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
-            var handlerCalled = false;
-
-            // Act
-            var result = await interceptor
-                .HandleAsync(
-                    new TestCommand("valid"),
-                    (_, _) =>
-                    {
-                        handlerCalled = true;
-                        return Task.FromResult("success");
-                    },
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
-
-            // Assert
-            using (Assert.Multiple())
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
             {
-                _ = await Assert.That(handlerCalled).IsTrue();
-                _ = await Assert.That(result).IsEqualTo("success");
+                var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
+                var handlerCalled = false;
+
+                // Act
+                var result = await interceptor
+                    .HandleAsync(
+                        new TestCommand("valid"),
+                        (_, _) =>
+                        {
+                            handlerCalled = true;
+                            return Task.FromResult("success");
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+
+                // Assert
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(handlerCalled).IsTrue();
+                    _ = await Assert.That(result).IsEqualTo("success");
+                }
             }
         }
     }
@@ -110,26 +113,29 @@ public sealed class FluentValidationRequestInterceptorTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            await using var scope = provider.CreateAsyncScope();
-            var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
-            var handlerCalled = false;
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
+                var handlerCalled = false;
 
-            // Act & Assert
-            _ = await Assert
-                .That(() =>
-                    interceptor.HandleAsync(
-                        new TestCommand("invalid"),
-                        (_, _) =>
-                        {
-                            handlerCalled = true;
-                            return Task.FromResult("should not reach");
-                        },
-                        cancellationToken
-                    )!
-                )
-                .Throws<ValidationException>();
+                // Act & Assert
+                _ = await Assert
+                    .That(() =>
+                        interceptor.HandleAsync(
+                            new TestCommand("invalid"),
+                            (_, _) =>
+                            {
+                                handlerCalled = true;
+                                return Task.FromResult("should not reach");
+                            },
+                            cancellationToken
+                        )!
+                    )
+                    .Throws<ValidationException>();
 
-            _ = await Assert.That(handlerCalled).IsFalse();
+                _ = await Assert.That(handlerCalled).IsFalse();
+            }
         }
     }
 
@@ -143,22 +149,25 @@ public sealed class FluentValidationRequestInterceptorTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            await using var scope = provider.CreateAsyncScope();
-            var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
 
-            // Act
-            var exception = await Assert
-                .That(() =>
-                    interceptor.HandleAsync(
-                        new TestCommand("invalid"),
-                        (_, _) => Task.FromResult("should not reach"),
-                        cancellationToken
-                    )!
-                )
-                .Throws<ValidationException>();
+                // Act
+                var exception = await Assert
+                    .That(() =>
+                        interceptor.HandleAsync(
+                            new TestCommand("invalid"),
+                            (_, _) => Task.FromResult("should not reach"),
+                            cancellationToken
+                        )!
+                    )
+                    .Throws<ValidationException>();
 
-            // Assert — both validators contributed failures
-            _ = await Assert.That(exception!.Errors.Count()).IsGreaterThanOrEqualTo(2);
+                // Assert — both validators contributed failures
+                _ = await Assert.That(exception!.Errors.Count()).IsGreaterThanOrEqualTo(2);
+            }
         }
     }
 
@@ -174,19 +183,22 @@ public sealed class FluentValidationRequestInterceptorTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            await using var scope = provider.CreateAsyncScope();
-            var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
 
-            // Act & Assert
-            _ = await Assert
-                .That(() =>
-                    interceptor.HandleAsync(
-                        new TestCommand("input"),
-                        (_, _) => Task.FromResult("should not reach"),
-                        cancellationToken
-                    )!
-                )
-                .Throws<ValidationException>();
+                // Act & Assert
+                _ = await Assert
+                    .That(() =>
+                        interceptor.HandleAsync(
+                            new TestCommand("input"),
+                            (_, _) => Task.FromResult("should not reach"),
+                            cancellationToken
+                        )!
+                    )
+                    .Throws<ValidationException>();
+            }
         }
     }
 

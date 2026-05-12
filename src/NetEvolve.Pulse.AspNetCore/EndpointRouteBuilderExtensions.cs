@@ -191,29 +191,11 @@ public static class EndpointRouteBuilderExtensions
             {
                 var items = mediator.StreamQueryAsync<TQuery, TResponse>(query, cancellationToken);
 
-                if (request.Headers.Accept.Contains(NdjsonContentType))
+                if (request.Headers.Accept.Contains(NdjsonContentType, StringComparer.Ordinal))
                 {
                     return (IResult)
                         TypedResults.Stream(
-                            async outputStream =>
-                            {
-                                try
-                                {
-                                    await foreach (var item in items.ConfigureAwait(false))
-                                    {
-                                        var json = JsonSerializer.SerializeToUtf8Bytes(item);
-                                        await outputStream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
-                                        await outputStream
-                                            .WriteAsync(new byte[] { (byte)'\n' }, cancellationToken)
-                                            .ConfigureAwait(false);
-                                        await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    // Client disconnected cleanly; do not re-throw.
-                                }
-                            },
+                            ExecuteStreamReadNdjson(items, cancellationToken),
                             contentType: NdjsonContentType
                         );
                 }
@@ -222,28 +204,58 @@ public static class EndpointRouteBuilderExtensions
                 return TypedResults.ServerSentEvents(items);
 #else
                 return TypedResults.Stream(
-                    async outputStream =>
-                    {
-                        try
-                        {
-                            await foreach (var item in items.ConfigureAwait(false))
-                            {
-                                var line = Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(item)}\n\n");
-                                await outputStream.WriteAsync(line, cancellationToken).ConfigureAwait(false);
-                                await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                            }
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            // Client disconnected cleanly; do not re-throw.
-                        }
-                    },
+                    ExecuteStreamReadServerSentEvents(items, cancellationToken),
                     contentType: "text/event-stream"
                 );
 #endif
             }
         );
     }
+
+#if !NET10_0_OR_GREATER
+    private static Func<Stream, Task> ExecuteStreamReadServerSentEvents<TResponse>(
+        IAsyncEnumerable<TResponse> items,
+        CancellationToken cancellationToken
+    ) =>
+        async outputStream =>
+        {
+            try
+            {
+                await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
+                {
+                    var line = Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(item)}\n\n");
+                    await outputStream.WriteAsync(line, cancellationToken).ConfigureAwait(false);
+                    await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected cleanly; do not re-throw.
+            }
+        };
+#endif
+
+    private static Func<Stream, Task> ExecuteStreamReadNdjson<TResponse>(
+        IAsyncEnumerable<TResponse> items,
+        CancellationToken cancellationToken
+    ) =>
+        async outputStream =>
+        {
+            try
+            {
+                await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
+                {
+                    var json = JsonSerializer.SerializeToUtf8Bytes(item);
+                    await outputStream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
+                    await outputStream.WriteAsync(new byte[] { (byte)'\n' }, cancellationToken).ConfigureAwait(false);
+                    await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected cleanly; do not re-throw.
+            }
+        };
 
     private static string ToHttpMethodString(this CommandHttpMethod method) =>
         method switch

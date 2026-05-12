@@ -299,7 +299,7 @@ public class LoggingStreamQueryInterceptorTests
             yield return item;
         }
 
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     private static async IAsyncEnumerable<T> GenerateItemsWithDelay<T>(
@@ -317,7 +317,7 @@ public class LoggingStreamQueryInterceptorTests
 
     private static async IAsyncEnumerable<T> ThrowingStream<T>(Exception exception)
     {
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
         throw exception;
 #pragma warning disable CS0162
         yield break;
@@ -331,7 +331,7 @@ public class LoggingStreamQueryInterceptorTests
             yield return item;
         }
 
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
         throw exception;
     }
 

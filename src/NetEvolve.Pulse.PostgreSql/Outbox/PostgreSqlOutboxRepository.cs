@@ -135,17 +135,27 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
-            await using var command = new NpgsqlCommand(_insertSql, connection, transaction);
-            AddMessageParameters(command, message);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = new NpgsqlCommand(_insertSql, connection, transaction);
+            await using (command.ConfigureAwait(false))
+            {
+                AddMessageParameters(command, message);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
         else
         {
             // Create a new connection when no ambient transaction exists
-            await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = new NpgsqlCommand(_insertSql, connection);
-            AddMessageParameters(command, message);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+            // Create a new connection when no ambient transaction exists
+            await using (connection.ConfigureAwait(false))
+            {
+                var command = new NpgsqlCommand(_insertSql, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    AddMessageParameters(command, message);
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 
@@ -155,24 +165,34 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_getPendingSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getPendingSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("batch_size", batchSize);
 
-        _ = command.Parameters.AddWithValue("batch_size", batchSize);
-
-        return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_getPendingCountSql, connection);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is long count
-            ? count
-            : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getPendingCountSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is long count
+                    ? count
+                    : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -184,14 +204,19 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_getFailedForRetrySql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getFailedForRetrySql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("max_retry_count", maxRetryCount);
+                _ = command.Parameters.AddWithValue("batch_size", batchSize);
+                _ = command.Parameters.AddWithValue("now_utc", now);
 
-        _ = command.Parameters.AddWithValue("max_retry_count", maxRetryCount);
-        _ = command.Parameters.AddWithValue("batch_size", batchSize);
-        _ = command.Parameters.AddWithValue("now_utc", now);
-
-        return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -199,14 +224,19 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_markCompletedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_markCompletedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("message_id", messageId);
+                _ = command.Parameters.AddWithValue("processed_at", now);
+                _ = command.Parameters.AddWithValue("updated_at", now);
 
-        _ = command.Parameters.AddWithValue("message_id", messageId);
-        _ = command.Parameters.AddWithValue("processed_at", now);
-        _ = command.Parameters.AddWithValue("updated_at", now);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -217,14 +247,20 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var messageId in messageIds)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            await using var command = new NpgsqlCommand(_markCompletedSql, connection);
-            _ = command.Parameters.AddWithValue("message_id", messageId);
-            _ = command.Parameters.AddWithValue("processed_at", now);
-            _ = command.Parameters.AddWithValue("updated_at", now);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var messageId in messageIds)
+            {
+                var command = new NpgsqlCommand(_markCompletedSql, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = command.Parameters.AddWithValue("message_id", messageId);
+                    _ = command.Parameters.AddWithValue("processed_at", now);
+                    _ = command.Parameters.AddWithValue("updated_at", now);
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 
@@ -235,14 +271,19 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_markFailedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_markFailedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("message_id", messageId);
+                _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+                _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
 
-        _ = command.Parameters.AddWithValue("message_id", messageId);
-        _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
-        _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -253,14 +294,22 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_markFailedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_markFailedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("message_id", messageId);
+                _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+                _ = command.Parameters.AddWithValue(
+                    "next_retry_at",
+                    nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value
+                );
 
-        _ = command.Parameters.AddWithValue("message_id", messageId);
-        _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
-        _ = command.Parameters.AddWithValue("next_retry_at", nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -270,14 +319,20 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var messageId in messageIds)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            await using var command = new NpgsqlCommand(_markFailedSql, connection);
-            _ = command.Parameters.AddWithValue("message_id", messageId);
-            _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
-            _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var messageId in messageIds)
+            {
+                var command = new NpgsqlCommand(_markFailedSql, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = command.Parameters.AddWithValue("message_id", messageId);
+                    _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+                    _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 
@@ -288,13 +343,18 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_markDeadLetterSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_markDeadLetterSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("message_id", messageId);
+                _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
 
-        _ = command.Parameters.AddWithValue("message_id", messageId);
-        _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -302,13 +362,18 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     {
         var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_deleteCompletedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_deleteCompletedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("older_than_utc", cutoffTime);
 
-        _ = command.Parameters.AddWithValue("older_than_utc", cutoffTime);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is int count ? count : 0;
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is int count ? count : 0;
+            }
+        }
     }
 
     /// <summary>
@@ -376,50 +441,52 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        await using (reader.ConfigureAwait(false))
         {
-            return [];
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return [];
+            }
+
+            // Resolve ordinals once per result set — GetOrdinal is a string lookup
+            var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
+            var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
+            var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
+            var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+            var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
+            var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
+            var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
+            var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+            var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
+            var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
+            var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
+            var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
+
+            var messages = new List<OutboxMessage>();
+            do
+            {
+                messages.Add(
+                    MapToMessage(
+                        reader,
+                        ordId,
+                        ordEventType,
+                        ordPayload,
+                        ordCorrelationId,
+                        ordCausationId,
+                        ordCreatedAt,
+                        ordUpdatedAt,
+                        ordProcessedAt,
+                        ordNextRetryAt,
+                        ordRetryCount,
+                        ordError,
+                        ordStatus
+                    )
+                );
+            } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
+
+            return messages;
         }
-
-        // Resolve ordinals once per result set — GetOrdinal is a string lookup
-        var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
-        var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
-        var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
-        var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
-        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
-        var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
-        var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
-        var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
-        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
-        var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
-        var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
-        var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
-
-        var messages = new List<OutboxMessage>();
-        do
-        {
-            messages.Add(
-                MapToMessage(
-                    reader,
-                    ordId,
-                    ordEventType,
-                    ordPayload,
-                    ordCorrelationId,
-                    ordCausationId,
-                    ordCreatedAt,
-                    ordUpdatedAt,
-                    ordProcessedAt,
-                    ordNextRetryAt,
-                    ordRetryCount,
-                    ordError,
-                    ordStatus
-                )
-            );
-        } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
-
-        return messages;
     }
 
     /// <summary>

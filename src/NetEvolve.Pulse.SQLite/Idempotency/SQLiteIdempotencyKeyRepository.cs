@@ -98,17 +98,19 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         await using (connection.ConfigureAwait(false))
         {
             var sql = validFrom.HasValue ? _existsWithTtlSql : _existsSql;
-            await using var command = new SqliteCommand(sql, connection);
-
-            _ = command.Parameters.AddWithValue("@key", idempotencyKey);
-
-            if (validFrom.HasValue)
+            var command = new SqliteCommand(sql, connection);
+            await using (command.ConfigureAwait(false))
             {
-                _ = command.Parameters.AddWithValue("@validFrom", validFrom.Value.ToString("O"));
-            }
+                _ = command.Parameters.AddWithValue("@key", idempotencyKey);
 
-            var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-            return result is not null and not DBNull;
+                if (validFrom.HasValue)
+                {
+                    _ = command.Parameters.AddWithValue("@validFrom", validFrom.Value.ToString("O"));
+                }
+
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is not null and not DBNull;
+            }
         }
     }
 
@@ -124,12 +126,14 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
-            await using var command = new SqliteCommand(_insertSql, connection);
+            var command = new SqliteCommand(_insertSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = command.Parameters.AddWithValue("@createdAt", createdAt.ToString("O"));
 
-            _ = command.Parameters.AddWithValue("@key", idempotencyKey);
-            _ = command.Parameters.AddWithValue("@createdAt", createdAt.ToString("O"));
-
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
@@ -147,8 +151,11 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
 
         if (_enableWalMode)
         {
-            await using var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
-            _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
+            await using (walCmd.ConfigureAwait(false))
+            {
+                _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return connection;

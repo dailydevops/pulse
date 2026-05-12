@@ -71,14 +71,22 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_existsSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_existsSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
+                _ = command.Parameters.AddWithValue(
+                    "valid_from",
+                    validFrom.HasValue ? (object)validFrom.Value : DBNull.Value
+                );
 
-        _ = command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
-        _ = command.Parameters.AddWithValue("valid_from", validFrom.HasValue ? (object)validFrom.Value : DBNull.Value);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is true;
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is true;
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -90,20 +98,25 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new NpgsqlCommand(_insertSql, connection);
-
-        _ = command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
-        _ = command.Parameters.AddWithValue("created_at", createdAt);
-
-        try
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            _ = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (PostgresException ex) when (IsDuplicateKeyException(ex))
-        {
-            // A concurrent request already stored the same key — this is idempotent and safe to ignore.
-            // The function uses ON CONFLICT DO NOTHING which should handle this, but we catch it for safety.
+            var command = new NpgsqlCommand(_insertSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
+                _ = command.Parameters.AddWithValue("created_at", createdAt);
+
+                try
+                {
+                    _ = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (PostgresException ex) when (IsDuplicateKeyException(ex))
+                {
+                    // A concurrent request already stored the same key — this is idempotent and safe to ignore.
+                    // The function uses ON CONFLICT DO NOTHING which should handle this, but we catch it for safety.
+                }
+            }
         }
     }
 

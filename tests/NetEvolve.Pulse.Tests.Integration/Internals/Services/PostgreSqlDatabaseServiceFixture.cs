@@ -36,8 +36,15 @@ public sealed class PostgreSqlDatabaseServiceFixture : IServiceFixture
         // physical connections are returned to the server immediately instead of sitting
         // idle for ConnectionIdleLifetime seconds.  Without this, completed-test pools
         // accumulate and exhaust PostgreSQL's max_connections during parallel runs.
-        await using var conn = new NpgsqlConnection(ConnectionString);
-        NpgsqlConnection.ClearPool(conn);
+        var conn = new NpgsqlConnection(ConnectionString);
+        // Eagerly clear the Npgsql pool for this test's unique connection string so that
+        // physical connections are returned to the server immediately instead of sitting
+        // idle for ConnectionIdleLifetime seconds.  Without this, completed-test pools
+        // accumulate and exhaust PostgreSQL's max_connections during parallel runs.
+        await using (conn.ConfigureAwait(false))
+        {
+            NpgsqlConnection.ClearPool(conn);
+        }
     }
 
     public async Task InitializeAsync()
@@ -45,15 +52,22 @@ public sealed class PostgreSqlDatabaseServiceFixture : IServiceFixture
         try
         {
             // Create temporary database to ensure the container is fully initialized and ready to accept connections
-            await using var con = new NpgsqlConnection(Container.ConnectionString);
-            await con.OpenAsync();
+            var con = new NpgsqlConnection(Container.ConnectionString);
+            // Create temporary database to ensure the container is fully initialized and ready to accept connections
+            await using (con.ConfigureAwait(false))
+            {
+                await con.OpenAsync().ConfigureAwait(false);
 
-            await using var cmd = con.CreateCommand();
+                var cmd = con.CreateCommand();
+                await using (cmd.ConfigureAwait(false))
+                {
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
-            cmd.CommandText = $"CREATE DATABASE \"{DatabaseName}\"";
+                    cmd.CommandText = $"CREATE DATABASE \"{DatabaseName}\"";
 #pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
 
-            _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
         }
         catch (Exception ex)
         {

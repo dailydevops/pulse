@@ -230,17 +230,27 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
-            await using var command = new MySqlCommand(_insertSql, connection, transaction);
-            AddMessageParameters(command, message);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = new MySqlCommand(_insertSql, connection, transaction);
+            await using (command.ConfigureAwait(false))
+            {
+                AddMessageParameters(command, message);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
         else
         {
             // Create a new connection when no ambient transaction exists
-            await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = new MySqlCommand(_insertSql, connection);
-            AddMessageParameters(command, message);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+            // Create a new connection when no ambient transaction exists
+            await using (connection.ConfigureAwait(false))
+            {
+                var command = new MySqlCommand(_insertSql, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    AddMessageParameters(command, message);
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 
@@ -264,13 +274,18 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_getPendingCountSql, connection);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is long count
-            ? count
-            : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_getPendingCountSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is long count
+                    ? count
+                    : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -278,13 +293,18 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     {
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_markCompletedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_markCompletedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
+                _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
-        _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -296,14 +316,19 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     {
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_markFailedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_markFailedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
+                _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
-        _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
-        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -316,18 +341,23 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     {
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_markFailedWithRetrySql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_markFailedWithRetrySql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
+                _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                _ = command.Parameters.AddWithValue(
+                    "@nextRetryAtTicks",
+                    nextRetryAt.HasValue ? (object)nextRetryAt.Value.UtcTicks : DBNull.Value
+                );
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
-        _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
-        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-        _ = command.Parameters.AddWithValue(
-            "@nextRetryAtTicks",
-            nextRetryAt.HasValue ? (object)nextRetryAt.Value.UtcTicks : DBNull.Value
-        );
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -339,14 +369,19 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     {
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_markDeadLetterSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_markDeadLetterSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
+                _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToByteArray());
-        _ = command.Parameters.AddWithValue("@nowTicks", nowTicks);
-        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -354,12 +389,17 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     {
         var cutoffTicks = _timeProvider.GetUtcNow().Subtract(olderThan).UtcTicks;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_deleteCompletedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_deleteCompletedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@olderThanTicks", cutoffTicks);
 
-        _ = command.Parameters.AddWithValue("@olderThanTicks", cutoffTicks);
-
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>
@@ -389,82 +429,95 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     {
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        // REPEATABLE READ + FOR UPDATE SKIP LOCKED ensures concurrent workers see a consistent
-        // snapshot and skip rows already locked by another worker.
-        await using var transaction = await connection
-            .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
-            .ConfigureAwait(false);
-
-        try
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            // Phase 1: lock and collect IDs
-            var ids = new List<byte[]>();
+            // REPEATABLE READ + FOR UPDATE SKIP LOCKED ensures concurrent workers see a consistent
+            // snapshot and skip rows already locked by another worker.
+            var transaction = await connection
+                .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
+                .ConfigureAwait(false);
 
-            await using (var selectCmd = new MySqlCommand(selectIdsSql, connection, transaction))
+            // REPEATABLE READ + FOR UPDATE SKIP LOCKED ensures concurrent workers see a consistent
+            // snapshot and skip rows already locked by another worker.
+            await using (transaction.ConfigureAwait(false))
             {
-                _ = selectCmd.Parameters.AddWithValue("@batchSize", batchSize);
-                _ = selectCmd.Parameters.AddWithValue("@nowTicks", nowTicks);
-
-                if (maxRetryCount.HasValue)
+                try
                 {
-                    _ = selectCmd.Parameters.AddWithValue("@maxRetryCount", maxRetryCount.Value);
-                }
+                    // Phase 1: lock and collect IDs
+                    var ids = new List<byte[]>();
 
-                await using var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    var selectCmd = new MySqlCommand(selectIdsSql, connection, transaction);
+                    await using (selectCmd.ConfigureAwait(false))
+                    {
+                        _ = selectCmd.Parameters.AddWithValue("@batchSize", batchSize);
+                        _ = selectCmd.Parameters.AddWithValue("@nowTicks", nowTicks);
+
+                        if (maxRetryCount.HasValue)
+                        {
+                            _ = selectCmd.Parameters.AddWithValue("@maxRetryCount", maxRetryCount.Value);
+                        }
+
+                        var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                        await using (reader.ConfigureAwait(false))
+                        {
+                            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                            {
+                                ids.Add((byte[])reader[0]);
+                            }
+                        }
+                    }
+
+                    if (ids.Count == 0)
+                    {
+                        await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                        return [];
+                    }
+
+                    var inParams = BuildInParameters(ids.Count);
+
+                    // Phase 2: claim the locked rows
+                    var updateSql = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        _updateToProcessingSqlTemplate,
+                        inParams
+                    );
+
+                    var updateCmd = new MySqlCommand(updateSql, connection, transaction);
+                    await using (updateCmd.ConfigureAwait(false))
+                    {
+                        _ = updateCmd.Parameters.AddWithValue("@nowTicks", nowTicks);
+                        AddIdParameters(updateCmd, ids);
+
+                        _ = await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Phase 3: read the updated rows
+                    var selectSql = string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        _selectByIdsSqlTemplate,
+                        inParams
+                    );
+
+                    IReadOnlyList<OutboxMessage> messages;
+
+                    var fetchCmd = new MySqlCommand(selectSql, connection, transaction);
+                    await using (fetchCmd.ConfigureAwait(false))
+                    {
+                        AddIdParameters(fetchCmd, ids);
+                        messages = await ReadMessagesAsync(fetchCmd, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                    return messages;
+                }
+                catch
                 {
-                    ids.Add((byte[])reader[0]);
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    throw;
                 }
             }
-
-            if (ids.Count == 0)
-            {
-                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                return [];
-            }
-
-            var inParams = BuildInParameters(ids.Count);
-
-            // Phase 2: claim the locked rows
-            var updateSql = string.Format(
-                System.Globalization.CultureInfo.InvariantCulture,
-                _updateToProcessingSqlTemplate,
-                inParams
-            );
-
-            await using (var updateCmd = new MySqlCommand(updateSql, connection, transaction))
-            {
-                _ = updateCmd.Parameters.AddWithValue("@nowTicks", nowTicks);
-                AddIdParameters(updateCmd, ids);
-
-                _ = await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            // Phase 3: read the updated rows
-            var selectSql = string.Format(
-                System.Globalization.CultureInfo.InvariantCulture,
-                _selectByIdsSqlTemplate,
-                inParams
-            );
-
-            IReadOnlyList<OutboxMessage> messages;
-
-            await using (var fetchCmd = new MySqlCommand(selectSql, connection, transaction))
-            {
-                AddIdParameters(fetchCmd, ids);
-                messages = await ReadMessagesAsync(fetchCmd, cancellationToken).ConfigureAwait(false);
-            }
-
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-            return messages;
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            throw;
         }
     }
 
@@ -531,67 +584,75 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        await using (reader.ConfigureAwait(false))
         {
-            return [];
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return [];
+            }
+
+            // Resolve ordinals once per result set — GetOrdinal is a string lookup
+            var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
+            var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
+            var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
+            var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+            var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
+            var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
+            var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
+            var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+            var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
+            var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
+            var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
+            var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
+
+            var messages = new List<OutboxMessage>();
+            do
+            {
+                var idBytes = await reader.GetFieldValueAsync<byte[]>(ordId, cancellationToken).ConfigureAwait(false);
+                var correlationIdNull = await reader
+                    .IsDBNullAsync(ordCorrelationId, cancellationToken)
+                    .ConfigureAwait(false);
+                var causationIdNull = await reader
+                    .IsDBNullAsync(ordCausationId, cancellationToken)
+                    .ConfigureAwait(false);
+                var processedAtNull = await reader
+                    .IsDBNullAsync(ordProcessedAt, cancellationToken)
+                    .ConfigureAwait(false);
+                var nextRetryAtNull = await reader
+                    .IsDBNullAsync(ordNextRetryAt, cancellationToken)
+                    .ConfigureAwait(false);
+                var errorNull = await reader.IsDBNullAsync(ordError, cancellationToken).ConfigureAwait(false);
+
+                messages.Add(
+                    new OutboxMessage
+                    {
+                        Id = new Guid(idBytes),
+                        EventType =
+                            Type.GetType(reader.GetString(ordEventType))
+                            ?? throw new InvalidOperationException(
+                                $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
+                            ),
+                        Payload = reader.GetString(ordPayload),
+                        CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
+                        CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
+                        CreatedAt = new DateTimeOffset(reader.GetInt64(ordCreatedAt), TimeSpan.Zero),
+                        UpdatedAt = new DateTimeOffset(reader.GetInt64(ordUpdatedAt), TimeSpan.Zero),
+                        ProcessedAt = processedAtNull
+                            ? null
+                            : new DateTimeOffset(reader.GetInt64(ordProcessedAt), TimeSpan.Zero),
+                        NextRetryAt = nextRetryAtNull
+                            ? null
+                            : new DateTimeOffset(reader.GetInt64(ordNextRetryAt), TimeSpan.Zero),
+                        RetryCount = reader.GetInt32(ordRetryCount),
+                        Error = errorNull ? null : reader.GetString(ordError),
+                        Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),
+                    }
+                );
+            } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
+
+            return messages;
         }
-
-        // Resolve ordinals once per result set — GetOrdinal is a string lookup
-        var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
-        var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
-        var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
-        var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
-        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
-        var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
-        var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
-        var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
-        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
-        var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
-        var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
-        var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
-
-        var messages = new List<OutboxMessage>();
-        do
-        {
-            var idBytes = await reader.GetFieldValueAsync<byte[]>(ordId, cancellationToken).ConfigureAwait(false);
-            var correlationIdNull = await reader
-                .IsDBNullAsync(ordCorrelationId, cancellationToken)
-                .ConfigureAwait(false);
-            var causationIdNull = await reader.IsDBNullAsync(ordCausationId, cancellationToken).ConfigureAwait(false);
-            var processedAtNull = await reader.IsDBNullAsync(ordProcessedAt, cancellationToken).ConfigureAwait(false);
-            var nextRetryAtNull = await reader.IsDBNullAsync(ordNextRetryAt, cancellationToken).ConfigureAwait(false);
-            var errorNull = await reader.IsDBNullAsync(ordError, cancellationToken).ConfigureAwait(false);
-
-            messages.Add(
-                new OutboxMessage
-                {
-                    Id = new Guid(idBytes),
-                    EventType =
-                        Type.GetType(reader.GetString(ordEventType))
-                        ?? throw new InvalidOperationException(
-                            $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                        ),
-                    Payload = reader.GetString(ordPayload),
-                    CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
-                    CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
-                    CreatedAt = new DateTimeOffset(reader.GetInt64(ordCreatedAt), TimeSpan.Zero),
-                    UpdatedAt = new DateTimeOffset(reader.GetInt64(ordUpdatedAt), TimeSpan.Zero),
-                    ProcessedAt = processedAtNull
-                        ? null
-                        : new DateTimeOffset(reader.GetInt64(ordProcessedAt), TimeSpan.Zero),
-                    NextRetryAt = nextRetryAtNull
-                        ? null
-                        : new DateTimeOffset(reader.GetInt64(ordNextRetryAt), TimeSpan.Zero),
-                    RetryCount = reader.GetInt32(ordRetryCount),
-                    Error = errorNull ? null : reader.GetString(ordError),
-                    Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),
-                }
-            );
-        } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
-
-        return messages;
     }
 
     /// <summary>

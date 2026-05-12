@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
@@ -63,8 +63,11 @@ public sealed partial class PostgreSqlAdoNetIdempotencyInitializer : IServiceIni
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            await using var command = new NpgsqlCommand(script, connection);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = new NpgsqlCommand(script, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

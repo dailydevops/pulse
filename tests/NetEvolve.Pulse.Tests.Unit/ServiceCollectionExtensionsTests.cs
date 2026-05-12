@@ -59,13 +59,18 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
-        await using var provider = services.BuildServiceProvider();
-        await using var scope = provider.CreateAsyncScope();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
 
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var mediatorSendOnly = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-
-        _ = await Assert.That(mediatorSendOnly).IsSameReferenceAs(mediator);
+                _ = await Assert.That(mediatorSendOnly).IsSameReferenceAs(mediator);
+            }
+        }
     }
 
     [Test]

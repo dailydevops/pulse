@@ -25,15 +25,22 @@ public sealed class MySqlDatabaseServiceFixture : IServiceFixture
         try
         {
             // Create temporary database to ensure the container is fully initialized and ready to accept connections
-            await using var con = new MySqlConnection(Container.ConnectionString);
-            await con.OpenAsync();
+            var con = new MySqlConnection(Container.ConnectionString);
+            // Create temporary database to ensure the container is fully initialized and ready to accept connections
+            await using (con.ConfigureAwait(false))
+            {
+                await con.OpenAsync().ConfigureAwait(false);
 
-            await using var cmd = con.CreateCommand();
+                var cmd = con.CreateCommand();
+                await using (cmd.ConfigureAwait(false))
+                {
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
-            cmd.CommandText = $"CREATE DATABASE {DatabaseName}";
+                    cmd.CommandText = $"CREATE DATABASE {DatabaseName}";
 #pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
 
-            _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
         }
         catch (Exception ex)
         {

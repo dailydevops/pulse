@@ -77,7 +77,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             CorrelationId = message.CorrelationId,
             ContentType = "application/json",
             Timestamp = new AmqpTimestamp(message.CreatedAt.ToUnixTimeSeconds()),
-            Headers = new Dictionary<string, object?>
+            Headers = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["eventType"] = message.EventType.ToOutboxEventTypeName(),
                 ["retryCount"] = message.RetryCount,

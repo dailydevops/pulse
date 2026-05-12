@@ -98,18 +98,23 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
 
         var sql = validFrom.HasValue ? _existsWithTtlSql : _existsSql;
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(sql, connection);
-
-        _ = command.Parameters.AddWithValue("@key", idempotencyKey);
-
-        if (validFrom.HasValue)
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            _ = command.Parameters.AddWithValue("@validFromTicks", validFrom.Value.UtcTicks);
-        }
+            var command = new MySqlCommand(sql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@key", idempotencyKey);
 
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is not null and not DBNull;
+                if (validFrom.HasValue)
+                {
+                    _ = command.Parameters.AddWithValue("@validFromTicks", validFrom.Value.UtcTicks);
+                }
+
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is not null and not DBNull;
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -121,13 +126,18 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new MySqlCommand(_insertSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_insertSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = command.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
 
-        _ = command.Parameters.AddWithValue("@key", idempotencyKey);
-        _ = command.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>

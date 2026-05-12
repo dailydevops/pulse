@@ -57,7 +57,7 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         ArgumentNullException.ThrowIfNull(messages);
 
         // Group messages by resolved topic name for efficient batching
-        var messagesByTopic = messages.ToLookup(m => _topicNameResolver.Resolve(m));
+        var messagesByTopic = messages.ToLookup(m => _topicNameResolver.Resolve(m), StringComparer.Ordinal);
 
         if (!_options.EnableBatching)
         {

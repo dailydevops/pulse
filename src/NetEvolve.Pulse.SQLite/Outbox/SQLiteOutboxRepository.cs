@@ -226,18 +226,24 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
-            await using var command = new SqliteCommand(_insertSql, connection, transaction);
-            AddMessageParameters(command, message);
-            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var command = new SqliteCommand(_insertSql, connection, transaction);
+            await using (command.ConfigureAwait(false))
+            {
+                AddMessageParameters(command, message);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
         else
         {
             var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
             await using (connection.ConfigureAwait(false))
             {
-                await using var command = new SqliteCommand(_insertSql, connection);
-                AddMessageParameters(command, message);
-                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                var command = new SqliteCommand(_insertSql, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    AddMessageParameters(command, message);
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
         }
     }
@@ -250,30 +256,39 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        // BEGIN IMMEDIATE prevents concurrent duplicate pickup (IsolationLevel.RepeatableRead maps to BEGIN IMMEDIATE in SQLite)
-        await using var transaction = (SqliteTransaction)
-            await connection
-                .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
-                .ConfigureAwait(false);
-
-        try
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            await using var command = new SqliteCommand(_getPendingSql, connection, transaction);
-            _ = command.Parameters.AddWithValue("@batchSize", batchSize);
-            _ = command.Parameters.AddWithValue("@nowUtc", now);
+            // BEGIN IMMEDIATE prevents concurrent duplicate pickup (IsolationLevel.RepeatableRead maps to BEGIN IMMEDIATE in SQLite)
+            var transaction = (SqliteTransaction)
+                await connection
+                    .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
+                    .ConfigureAwait(false);
 
-            var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            // BEGIN IMMEDIATE prevents concurrent duplicate pickup (IsolationLevel.RepeatableRead maps to BEGIN IMMEDIATE in SQLite)
+            await using (transaction.ConfigureAwait(false))
+            {
+                try
+                {
+                    var command = new SqliteCommand(_getPendingSql, connection, transaction);
+                    await using (command.ConfigureAwait(false))
+                    {
+                        _ = command.Parameters.AddWithValue("@batchSize", batchSize);
+                        _ = command.Parameters.AddWithValue("@nowUtc", now);
 
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                        var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
-            return messages;
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            throw;
+                        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                        return messages;
+                    }
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    throw;
+                }
+            }
         }
     }
 
@@ -286,31 +301,40 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        // BEGIN IMMEDIATE prevents concurrent duplicate pickup (IsolationLevel.RepeatableRead maps to BEGIN IMMEDIATE in SQLite)
-        await using var transaction = (SqliteTransaction)
-            await connection
-                .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
-                .ConfigureAwait(false);
-
-        try
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
         {
-            await using var command = new SqliteCommand(_getFailedForRetrySql, connection, transaction);
-            _ = command.Parameters.AddWithValue("@maxRetryCount", maxRetryCount);
-            _ = command.Parameters.AddWithValue("@batchSize", batchSize);
-            _ = command.Parameters.AddWithValue("@nowUtc", now);
+            // BEGIN IMMEDIATE prevents concurrent duplicate pickup (IsolationLevel.RepeatableRead maps to BEGIN IMMEDIATE in SQLite)
+            var transaction = (SqliteTransaction)
+                await connection
+                    .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken)
+                    .ConfigureAwait(false);
 
-            var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            // BEGIN IMMEDIATE prevents concurrent duplicate pickup (IsolationLevel.RepeatableRead maps to BEGIN IMMEDIATE in SQLite)
+            await using (transaction.ConfigureAwait(false))
+            {
+                try
+                {
+                    var command = new SqliteCommand(_getFailedForRetrySql, connection, transaction);
+                    await using (command.ConfigureAwait(false))
+                    {
+                        _ = command.Parameters.AddWithValue("@maxRetryCount", maxRetryCount);
+                        _ = command.Parameters.AddWithValue("@batchSize", batchSize);
+                        _ = command.Parameters.AddWithValue("@nowUtc", now);
 
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                        var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
-            return messages;
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            throw;
+                        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                        return messages;
+                    }
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    throw;
+                }
+            }
         }
     }
 
@@ -319,13 +343,18 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_markCompletedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_markCompletedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+                _ = command.Parameters.AddWithValue("@nowUtc", now);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
-        _ = command.Parameters.AddWithValue("@nowUtc", now);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -337,14 +366,19 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_markFailedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_markFailedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+                _ = command.Parameters.AddWithValue("@nowUtc", now);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
-        _ = command.Parameters.AddWithValue("@nowUtc", now);
-        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -357,18 +391,23 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_markFailedWithRetrySql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_markFailedWithRetrySql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+                _ = command.Parameters.AddWithValue("@nowUtc", now);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                _ = command.Parameters.AddWithValue(
+                    "@nextRetryAt",
+                    nextRetryAt.HasValue ? (object)nextRetryAt.Value : DBNull.Value
+                );
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
-        _ = command.Parameters.AddWithValue("@nowUtc", now);
-        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-        _ = command.Parameters.AddWithValue(
-            "@nextRetryAt",
-            nextRetryAt.HasValue ? (object)nextRetryAt.Value : DBNull.Value
-        );
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -380,26 +419,36 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var now = _timeProvider.GetUtcNow();
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_markDeadLetterSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_markDeadLetterSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+                _ = command.Parameters.AddWithValue("@nowUtc", now);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
 
-        _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
-        _ = command.Parameters.AddWithValue("@nowUtc", now);
-        _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-
-        _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_getPendingCountSql, connection);
-
-        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is long count
-            ? count
-            : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_getPendingCountSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is long count
+                    ? count
+                    : Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -407,12 +456,17 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
-        await using var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var command = new SqliteCommand(_deleteCompletedSql, connection);
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_deleteCompletedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@olderThanUtc", cutoffTime);
 
-        _ = command.Parameters.AddWithValue("@olderThanUtc", cutoffTime);
-
-        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>
@@ -429,8 +483,11 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
 
         if (_enableWalMode)
         {
-            await using var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
-            _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
+            await using (walCmd.ConfigureAwait(false))
+            {
+                _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return connection;
@@ -486,75 +543,83 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     {
         var messages = new List<OutboxMessage>();
 
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        await using (reader.ConfigureAwait(false))
         {
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return messages;
+            }
+
+            var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
+            var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
+            var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
+            var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
+            var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
+            var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
+            var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
+            var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
+            var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
+            var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
+            var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
+            var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
+
+            do
+            {
+                var correlationIdNull = await reader
+                    .IsDBNullAsync(ordCorrelationId, cancellationToken)
+                    .ConfigureAwait(false);
+                var causationIdNull = await reader
+                    .IsDBNullAsync(ordCausationId, cancellationToken)
+                    .ConfigureAwait(false);
+                var processedAtNull = await reader
+                    .IsDBNullAsync(ordProcessedAt, cancellationToken)
+                    .ConfigureAwait(false);
+                var nextRetryAtNull = await reader
+                    .IsDBNullAsync(ordNextRetryAt, cancellationToken)
+                    .ConfigureAwait(false);
+                var errorNull = await reader.IsDBNullAsync(ordError, cancellationToken).ConfigureAwait(false);
+                var createdAt = await reader
+                    .GetFieldValueAsync<DateTimeOffset>(ordCreatedAt, cancellationToken)
+                    .ConfigureAwait(false);
+                var updatedAt = await reader
+                    .GetFieldValueAsync<DateTimeOffset>(ordUpdatedAt, cancellationToken)
+                    .ConfigureAwait(false);
+                var processedAt = processedAtNull
+                    ? (DateTimeOffset?)null
+                    : await reader
+                        .GetFieldValueAsync<DateTimeOffset>(ordProcessedAt, cancellationToken)
+                        .ConfigureAwait(false);
+                var nextRetryAt = nextRetryAtNull
+                    ? (DateTimeOffset?)null
+                    : await reader
+                        .GetFieldValueAsync<DateTimeOffset>(ordNextRetryAt, cancellationToken)
+                        .ConfigureAwait(false);
+
+                messages.Add(
+                    new OutboxMessage
+                    {
+                        Id = Guid.Parse(reader.GetString(ordId)),
+                        EventType =
+                            Type.GetType(reader.GetString(ordEventType))
+                            ?? throw new InvalidOperationException(
+                                $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
+                            ),
+                        Payload = reader.GetString(ordPayload),
+                        CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
+                        CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
+                        CreatedAt = createdAt,
+                        UpdatedAt = updatedAt,
+                        ProcessedAt = processedAt,
+                        NextRetryAt = nextRetryAt,
+                        RetryCount = (int)reader.GetInt64(ordRetryCount),
+                        Error = errorNull ? null : reader.GetString(ordError),
+                        Status = (OutboxMessageStatus)reader.GetInt64(ordStatus),
+                    }
+                );
+            } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
+
             return messages;
         }
-
-        var ordId = reader.GetOrdinal(OutboxMessageSchema.Columns.Id);
-        var ordEventType = reader.GetOrdinal(OutboxMessageSchema.Columns.EventType);
-        var ordPayload = reader.GetOrdinal(OutboxMessageSchema.Columns.Payload);
-        var ordCorrelationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CorrelationId);
-        var ordCausationId = reader.GetOrdinal(OutboxMessageSchema.Columns.CausationId);
-        var ordCreatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.CreatedAt);
-        var ordUpdatedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.UpdatedAt);
-        var ordProcessedAt = reader.GetOrdinal(OutboxMessageSchema.Columns.ProcessedAt);
-        var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
-        var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
-        var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
-        var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
-
-        do
-        {
-            var correlationIdNull = await reader
-                .IsDBNullAsync(ordCorrelationId, cancellationToken)
-                .ConfigureAwait(false);
-            var causationIdNull = await reader.IsDBNullAsync(ordCausationId, cancellationToken).ConfigureAwait(false);
-            var processedAtNull = await reader.IsDBNullAsync(ordProcessedAt, cancellationToken).ConfigureAwait(false);
-            var nextRetryAtNull = await reader.IsDBNullAsync(ordNextRetryAt, cancellationToken).ConfigureAwait(false);
-            var errorNull = await reader.IsDBNullAsync(ordError, cancellationToken).ConfigureAwait(false);
-            var createdAt = await reader
-                .GetFieldValueAsync<DateTimeOffset>(ordCreatedAt, cancellationToken)
-                .ConfigureAwait(false);
-            var updatedAt = await reader
-                .GetFieldValueAsync<DateTimeOffset>(ordUpdatedAt, cancellationToken)
-                .ConfigureAwait(false);
-            var processedAt = processedAtNull
-                ? (DateTimeOffset?)null
-                : await reader
-                    .GetFieldValueAsync<DateTimeOffset>(ordProcessedAt, cancellationToken)
-                    .ConfigureAwait(false);
-            var nextRetryAt = nextRetryAtNull
-                ? (DateTimeOffset?)null
-                : await reader
-                    .GetFieldValueAsync<DateTimeOffset>(ordNextRetryAt, cancellationToken)
-                    .ConfigureAwait(false);
-
-            messages.Add(
-                new OutboxMessage
-                {
-                    Id = Guid.Parse(reader.GetString(ordId)),
-                    EventType =
-                        Type.GetType(reader.GetString(ordEventType))
-                        ?? throw new InvalidOperationException(
-                            $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                        ),
-                    Payload = reader.GetString(ordPayload),
-                    CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
-                    CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
-                    CreatedAt = createdAt,
-                    UpdatedAt = updatedAt,
-                    ProcessedAt = processedAt,
-                    NextRetryAt = nextRetryAt,
-                    RetryCount = (int)reader.GetInt64(ordRetryCount),
-                    Error = errorNull ? null : reader.GetString(ordError),
-                    Status = (OutboxMessageStatus)reader.GetInt64(ordStatus),
-                }
-            );
-        } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
-
-        return messages;
     }
 }
