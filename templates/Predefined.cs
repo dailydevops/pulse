@@ -41,7 +41,7 @@ internal static partial class Predefined
         VerifierSettings.ScrubLinesWithReplace(line =>
         {
             line = ScrubLangVersion().Replace(line, "CSharpLatest");
-            return ScrubGeneatedCodeVersion().Replace(line, "$1{version}$2");
+            return ScrubGeneatedCodeVersion().Replace(line, "${prefix}{version}${suffix}");
         });
 
         VerifierSettings.AddExtraSettings(o =>
@@ -60,7 +60,7 @@ internal static partial class Predefined
     /// for version-agnostic scrubbing.
     /// </summary>
     [GeneratedRegex(
-        @"(GeneratedCode\(""NetEvolve\.Pulse\.SourceGeneration"", "")[^""]+("")",
+        @"(?<prefix>GeneratedCode\(""NetEvolve\.Pulse\.SourceGeneration"", "")[^""]+(?<suffix>"")",
         RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture,
         1000
     )]
