@@ -7,7 +7,7 @@ using TUnit.Core.Interfaces;
 public sealed class PostgreSqlContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(
-        /*dockerimage*/"postgres:18.3"
+        /*dockerimage*/"postgres:18.4"
     )
         .WithLogger(NullLogger.Instance)
         .WithCommand("-c", "max_connections=500") // Raised for parallel integration tests; each test creates its own unique database/pool.
