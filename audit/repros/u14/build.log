@@ -1,0 +1,35 @@
+
+Willkommen bei .NET 8.0!
+---------------------
+SDK-Version: 8.0.421
+
+Telemetrie
+---------
+Die .NET-Tools erfassen Nutzungsdaten, damit wir die Plattform stetig verbessern können. Diese werden von Microsoft erfasst und mit der Community geteilt. Sie können das Erfassen von Telemetriedaten deaktivieren, indem Sie die Umgebungsvariable DOTNET_CLI_TELEMETRY_OPTOUT in Ihrer bevorzugten Shell auf "1" oder TRUE festlegen.
+
+Weitere Informationen zu Telemetriedaten in .NET-CLI-Tools finden Sie hier: https://aka.ms/dotnet-cli-telemetry
+
+----------------
+Ein ASP.NET Core-HTTPS-Entwicklungszertifikat installiert.
+Um dem Zertifikat zu vertrauen, führen Sie "dotnet dev-certs https --trust" aus
+Informationen zu HTTPS: https://aka.ms/dotnet-https
+
+----------------
+Schreiben Sie Ihre erste App: https://aka.ms/dotnet-hello-world
+Neuigkeiten: https://aka.ms/dotnet-whats-new
+Dokumentation: https://aka.ms/dotnet-docs
+Probleme melden und Quelle in GitHub suchen: https://github.com/dotnet/core
+verwenden Sie "dotnet --help", um verfügbare Befehle anzuzeigen, oder besuchen Sie https://aka.ms/dotnet-cli
+--------------------------------------------------------------------------------------
+  Wiederherzustellende Projekte werden ermittelt...
+C:\Program Files\dotnet\sdk\8.0.421\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.TargetFrameworkInference.targets(166,5): error NETSDK1045: Das aktuelle .NET SDK unterstützt .NET 9.0 nicht als Ziel. Geben Sie entweder .NET 8.0 oder niedriger als Ziel ein, oder verwenden Sie eine Version des .NET SDK, die .NET 9.0 unterstützt. .NET SDK von https://aka.ms/dotnet/download herunterladen [D:\sources\dailydevops\pulse\.claude\worktrees\agent-aeb9770965eb05553\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj::TargetFramework=net9.0]
+C:\Program Files\dotnet\sdk\8.0.421\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.TargetFrameworkInference.targets(166,5): error NETSDK1045: Das aktuelle .NET SDK unterstützt .NET 9.0 nicht als Ziel. Geben Sie entweder .NET 8.0 oder niedriger als Ziel ein, oder verwenden Sie eine Version des .NET SDK, die .NET 9.0 unterstützt. .NET SDK von https://aka.ms/dotnet/download herunterladen [D:\sources\dailydevops\pulse\.claude\worktrees\agent-aeb9770965eb05553\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj::TargetFramework=net9.0]
+
+Fehler beim Buildvorgang.
+
+C:\Program Files\dotnet\sdk\8.0.421\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.TargetFrameworkInference.targets(166,5): error NETSDK1045: Das aktuelle .NET SDK unterstützt .NET 9.0 nicht als Ziel. Geben Sie entweder .NET 8.0 oder niedriger als Ziel ein, oder verwenden Sie eine Version des .NET SDK, die .NET 9.0 unterstützt. .NET SDK von https://aka.ms/dotnet/download herunterladen [D:\sources\dailydevops\pulse\.claude\worktrees\agent-aeb9770965eb05553\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj::TargetFramework=net9.0]
+C:\Program Files\dotnet\sdk\8.0.421\Sdks\Microsoft.NET.Sdk\targets\Microsoft.NET.TargetFrameworkInference.targets(166,5): error NETSDK1045: Das aktuelle .NET SDK unterstützt .NET 9.0 nicht als Ziel. Geben Sie entweder .NET 8.0 oder niedriger als Ziel ein, oder verwenden Sie eine Version des .NET SDK, die .NET 9.0 unterstützt. .NET SDK von https://aka.ms/dotnet/download herunterladen [D:\sources\dailydevops\pulse\.claude\worktrees\agent-aeb9770965eb05553\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj::TargetFramework=net9.0]
+    0 Warnung(en)
+    2 Fehler
+
+Verstrichene Zeit 00:00:16.95
