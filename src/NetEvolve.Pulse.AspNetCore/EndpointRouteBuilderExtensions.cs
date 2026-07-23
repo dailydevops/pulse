@@ -191,7 +191,9 @@ public static class EndpointRouteBuilderExtensions
             {
                 var items = mediator.StreamQueryAsync<TQuery, TResponse>(query, cancellationToken);
 
-                if (request.Headers.Accept.Contains(NdjsonContentType, StringComparer.Ordinal))
+                // RFC 7231 §3.1.1.1 makes media types case-insensitive; match accordingly so
+                // clients sending e.g. "Application/X-NDJSON" still receive the NDJSON variant.
+                if (request.Headers.Accept.Contains(NdjsonContentType, StringComparer.OrdinalIgnoreCase))
                 {
                     return (IResult)
                         TypedResults.Stream(

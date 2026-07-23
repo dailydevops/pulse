@@ -281,6 +281,27 @@ public sealed class EndpointRouteBuilderExtensionsTests
         _ = await Assert.That(body).Contains("\"beta\"\n");
     }
 
+    // INVARIANT: Media types are case-insensitive per RFC 7231 §3.1.1.1, so a request
+    // sending the upper-cased / mixed-case ndjson media type must be treated as ndjson.
+    [Test]
+    public async Task MapStreamQuery_WithMixedCaseNdjsonAccept_ReturnsNdjson(CancellationToken cancellationToken)
+    {
+        using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/X-NDJSON"));
+
+        using var response = await client
+            .GetAsync(new Uri("/stream", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        _ = await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/x-ndjson");
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(body).Contains("\"alpha\"\n");
+    }
+
     // MapStreamQuery — empty stream
 
     [Test]
