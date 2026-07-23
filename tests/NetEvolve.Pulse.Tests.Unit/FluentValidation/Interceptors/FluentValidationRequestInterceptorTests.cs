@@ -27,9 +27,11 @@ public sealed class FluentValidationRequestInterceptorTests
             var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(provider);
 
             // Act & Assert
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
             _ = await Assert
                 .That(() => interceptor.HandleAsync(new TestCommand("valid"), null!, cancellationToken)!)
                 .Throws<ArgumentNullException>();
+#pragma warning restore S8969
         }
     }
 
@@ -120,6 +122,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 var handlerCalled = false;
 
                 // Act & Assert
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
                 _ = await Assert
                     .That(() =>
                         interceptor.HandleAsync(
@@ -133,6 +136,7 @@ public sealed class FluentValidationRequestInterceptorTests
                         )!
                     )
                     .Throws<ValidationException>();
+#pragma warning restore S8969
 
                 _ = await Assert.That(handlerCalled).IsFalse();
             }
@@ -155,6 +159,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
 
                 // Act
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
                 var exception = await Assert
                     .That(() =>
                         interceptor.HandleAsync(
@@ -164,6 +169,7 @@ public sealed class FluentValidationRequestInterceptorTests
                         )!
                     )
                     .Throws<ValidationException>();
+#pragma warning restore S8969
 
                 // Assert — both validators contributed failures
                 _ = await Assert.That(exception!.Errors.Count()).IsGreaterThanOrEqualTo(2);
@@ -189,6 +195,7 @@ public sealed class FluentValidationRequestInterceptorTests
                 var interceptor = new FluentValidationRequestInterceptor<TestCommand, string>(scope.ServiceProvider);
 
                 // Act & Assert
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
                 _ = await Assert
                     .That(() =>
                         interceptor.HandleAsync(
@@ -198,6 +205,7 @@ public sealed class FluentValidationRequestInterceptorTests
                         )!
                     )
                     .Throws<ValidationException>();
+#pragma warning restore S8969
             }
         }
     }

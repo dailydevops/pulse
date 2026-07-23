@@ -20,9 +20,11 @@ public sealed class DataAnnotationsRequestInterceptorTests
     {
         var interceptor = new DataAnnotationsRequestInterceptor<TestCommand, string>();
 
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
         _ = await Assert
             .That(() => interceptor.HandleAsync(new TestCommand("valid"), null!, cancellationToken)!)
             .Throws<ArgumentNullException>();
+#pragma warning restore S8969
     }
 
     [Test]
@@ -81,6 +83,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
         var interceptor = new DataAnnotationsRequestInterceptor<TestCommand, string>();
         var handlerCalled = false;
 
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
         _ = await Assert
             .That(() =>
                 interceptor.HandleAsync(
@@ -94,6 +97,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
                 )!
             )
             .Throws<ValidationException>();
+#pragma warning restore S8969
 
         _ = await Assert.That(handlerCalled).IsFalse();
     }
@@ -104,6 +108,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
         var interceptor = new DataAnnotationsRequestInterceptor<RangeCommand, string>();
         var handlerCalled = false;
 
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
         _ = await Assert
             .That(() =>
                 interceptor.HandleAsync(
@@ -117,6 +122,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
                 )!
             )
             .Throws<ValidationException>();
+#pragma warning restore S8969
 
         _ = await Assert.That(handlerCalled).IsFalse();
     }
@@ -127,6 +133,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
         var interceptor = new DataAnnotationsRequestInterceptor<MaxLengthCommand, string>();
         var handlerCalled = false;
 
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
         _ = await Assert
             .That(() =>
                 interceptor.HandleAsync(
@@ -140,6 +147,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
                 )!
             )
             .Throws<ValidationException>();
+#pragma warning restore S8969
 
         _ = await Assert.That(handlerCalled).IsFalse();
     }
@@ -151,6 +159,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
     {
         var interceptor = new DataAnnotationsRequestInterceptor<MultiConstraintCommand, string>();
 
+#pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
         var exception = await Assert
             .That(() =>
                 interceptor.HandleAsync(
@@ -160,6 +169,7 @@ public sealed class DataAnnotationsRequestInterceptorTests
                 )!
             )
             .Throws<ValidationException>();
+#pragma warning restore S8969
 
         // Assert — all violations are captured in the composite ValidationResult
         using (Assert.Multiple())

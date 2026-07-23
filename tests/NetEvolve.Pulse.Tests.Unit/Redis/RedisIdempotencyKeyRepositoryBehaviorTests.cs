@@ -47,7 +47,9 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
                         var expiry = (TimeSpan?)args[2];
                         var when = (When)(args[3] ?? When.Always);
                         StringSetCalls.Add(new StringSetCall(key, value, expiry, when));
+#pragma warning disable S8969 // RedisKey's implicit string conversion is annotated nullable; the value is never null here
                         var keyStr = (string)key!;
+#pragma warning restore S8969
                         if (when == When.NotExists && Storage.ContainsKey(keyStr))
                         {
                             return Task.FromResult(false);
@@ -61,7 +63,9 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
                 {
                     if (args is { Length: >= 1 } && args[0] is RedisKey key)
                     {
+#pragma warning disable S8969 // RedisKey's implicit string conversion is annotated nullable; the value is never null here
                         return Task.FromResult(Storage.TryGetValue((string)key!, out var v) ? v : RedisValue.Null);
+#pragma warning restore S8969
                     }
                     throw new NotSupportedException($"Unexpected StringGetAsync overload: {targetMethod}");
                 }
@@ -156,7 +160,9 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         await repo.StoreAsync("ident-key", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(capture.StringSetCalls).HasCount(1);
+#pragma warning disable S8969 // RedisKey's implicit string conversion is annotated nullable; the value is never null here
         _ = await Assert.That((string)capture.StringSetCalls[0].Key!).IsEqualTo("tenant1:idem:ident-key");
+#pragma warning restore S8969
     }
 
     // INVARIANT (Q07): Stored value is the ISO-8601 round-trip ("O") timestamp - what
@@ -171,7 +177,9 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         await repo.StoreAsync("k1", createdAt, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(capture.StringSetCalls).HasCount(1);
+#pragma warning disable S8969 // RedisValue's implicit string conversion is annotated nullable; the value is never null here
         _ = await Assert.That((string)capture.StringSetCalls[0].Value!).IsEqualTo("2025-01-01T10:00:00.0000000+00:00");
+#pragma warning restore S8969
     }
 
     [Test]
@@ -239,7 +247,9 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         await repo.StoreAsync("k1", second, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(capture.StringSetCalls).HasCount(2);
+#pragma warning disable S8969 // RedisKey/RedisValue's implicit string conversion is annotated nullable; the value is never null here
         var stored = capture.Storage[(string)capture.StringSetCalls[0].Key!];
         _ = await Assert.That((string)stored!).IsEqualTo("2025-01-01T10:00:00.0000000+00:00");
+#pragma warning restore S8969
     }
 }
