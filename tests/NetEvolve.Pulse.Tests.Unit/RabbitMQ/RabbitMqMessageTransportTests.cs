@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
+using System.Linq;
 using System.Text;
 using global::RabbitMQ.Client;
 using Microsoft.Extensions.Options;
@@ -145,6 +146,64 @@ public sealed class RabbitMqMessageTransportTests
         _ = await Assert.That(connectionAdapter.CreatedChannels.Count).IsEqualTo(2);
     }
 
+    // INVARIANT (resource lifecycle): when a previously-created channel has closed and a
+    // new channel must be acquired, the closed channel MUST be disposed. Overwriting the
+    // reference without disposal leaks unmanaged RabbitMQ.Client channel resources.
+    [Test]
+    public async Task SendAsync_Disposes_closed_channel_before_creating_new_one(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        var firstChannel = connectionAdapter.CreatedChannels.Single();
+        firstChannel.IsOpen = false; // Simulate channel closure
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        // The first (closed) channel must have been disposed before the new one was created.
+        _ = await Assert.That(firstChannel.DisposeCalled).IsTrue();
+        _ = await Assert.That(connectionAdapter.CreatedChannels.Count).IsEqualTo(2);
+    }
+
+    // INVARIANT (thread-safety): SendBatchAsync MUST publish sequentially on the shared
+    // channel. RabbitMQ.Client IChannel is NOT thread-safe; concurrent BasicPublishAsync
+    // calls are unsupported and can corrupt the AMQP frame stream.
+    [Test]
+    public async Task SendBatchAsync_Publishes_messages_sequentially_on_shared_channel(
+        CancellationToken cancellationToken
+    )
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver, exchangeName: "batch-ex");
+
+        var messages = Enumerable.Range(0, 5).Select(_ => CreateOutboxMessage()).ToArray();
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        // Exactly one channel created and reused; all publishes routed through it.
+        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
+        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(messages.Length);
+        // All routed to the configured exchange.
+        _ = await Assert.That(channel.PublishCalls.All(p => p.Exchange == "batch-ex")).IsTrue();
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_messages_null_throws(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            transport.SendBatchAsync(null!, cancellationToken)
+        );
+
+        _ = await Assert.That(exception).IsNotNull();
+    }
+
     [Test]
     public async Task SendAsync_Uses_topic_name_resolver_for_routing_key(CancellationToken cancellationToken)
     {
@@ -258,6 +317,75 @@ public sealed class RabbitMqMessageTransportTests
         transport.Dispose();
 
         _ = await Assert.That(channel.DisposeCallCount).IsEqualTo(1);
+    }
+
+    // ── Post-dispose contract (DEEP-G-01) ─────────────────────────────────────
+
+    [Test]
+    public async Task SendAsync_After_Dispose_Throws_ObjectDisposedException(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        transport.Dispose();
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken)
+        );
+
+        _ = await Assert.That(exception).IsNotNull();
+    }
+
+    [Test]
+    public async Task SendBatchAsync_After_Dispose_Throws_ObjectDisposedException(CancellationToken cancellationToken)
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        transport.Dispose();
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+            transport.SendBatchAsync([CreateOutboxMessage()], cancellationToken)
+        );
+
+        _ = await Assert.That(exception).IsNotNull();
+    }
+
+    [Test]
+    public async Task IsHealthyAsync_After_Dispose_Returns_false(CancellationToken cancellationToken)
+    {
+        // Health probes typically run during shutdown; disposed transports must report unhealthy
+        // rather than throwing so the probe path stays observable.
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        transport.Dispose();
+
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(healthy).IsFalse();
+    }
+
+    [Test]
+    public async Task SendAsync_When_message_null_throws_even_after_dispose(CancellationToken cancellationToken)
+    {
+        // ArgumentNullException must take precedence over ObjectDisposedException because
+        // the order of checks pins the public contract for callers passing bad arguments.
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+
+        transport.Dispose();
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            transport.SendAsync(null!, cancellationToken)
+        );
+
+        _ = await Assert.That(exception).IsNotNull();
+        _ = await Assert.That(exception!.ParamName).IsEqualTo("message");
     }
 
     [Test]
