@@ -753,7 +753,13 @@ public sealed class OutboxProcessorHostedServiceTests
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+
+        // Wait deterministically for a poll cycle (ProcessingDurationHistogram.Record runs right
+        // after ProcessBatchAsync completes within that same cycle) instead of a fixed delay,
+        // which was flaky under CI load.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
+
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
