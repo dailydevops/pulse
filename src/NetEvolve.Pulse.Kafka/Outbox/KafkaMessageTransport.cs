@@ -59,7 +59,7 @@ public sealed class KafkaMessageTransport : IMessageTransport
 
         var topic = _topicNameResolver.Resolve(message);
 
-        await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+        await EnsureTopicAsync(topic).ConfigureAwait(false);
 
         var kafkaMessage = CreateKafkaMessage(message);
 
@@ -82,7 +82,7 @@ public sealed class KafkaMessageTransport : IMessageTransport
         {
             var topic = _topicNameResolver.Resolve(message);
 
-            await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+            await EnsureTopicAsync(topic).ConfigureAwait(false);
 
             var kafkaMessage = CreateKafkaMessage(message);
 
@@ -131,14 +131,12 @@ public sealed class KafkaMessageTransport : IMessageTransport
         }
     }
 
-    private async Task EnsureTopicAsync(string topic, CancellationToken cancellationToken)
+    private async Task EnsureTopicAsync(string topic)
     {
         if (!_options.AutoCreateTopics || _ensuredTopics.ContainsKey(topic))
         {
             return;
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
 
         var configs = new Dictionary<string, string>();
 
