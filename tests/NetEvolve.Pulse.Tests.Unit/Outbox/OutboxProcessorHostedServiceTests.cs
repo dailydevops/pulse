@@ -115,8 +115,10 @@ public sealed class OutboxProcessorHostedServiceTests
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
 
-        // Give it a moment to start
-        await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+        // Wait deterministically for the first poll instead of a fixed delay, which is flaky
+        // under CI load (the polling loop may not fire within a short margin).
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -137,7 +139,9 @@ public sealed class OutboxProcessorHostedServiceTests
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -1089,6 +1093,7 @@ public sealed class OutboxProcessorHostedServiceTests
         internal readonly List<OutboxMessage> _messages = [];
         private readonly object _lock = new();
         private readonly SemaphoreSlim _markingEvent = new(0, int.MaxValue);
+        private readonly SemaphoreSlim _pollEvent = new(0, int.MaxValue);
 
         /// <summary>
         /// Waits until at least <paramref name="count"/> processing events (completed, failed, or dead-letter)
@@ -1099,6 +1104,19 @@ public sealed class OutboxProcessorHostedServiceTests
             for (var i = 0; i < count; i++)
             {
                 await _markingEvent.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Waits until at least <paramref name="count"/> polling calls (<see cref="GetPendingAsync"/> or
+        /// <see cref="GetPendingCountAsync"/>) have occurred, or the <paramref name="cancellationToken"/> is
+        /// cancelled. Avoids relying on fixed <c>Task.Delay</c> margins that are flaky under CI load.
+        /// </summary>
+        public async Task WaitForPollAsync(int count, CancellationToken cancellationToken = default)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                await _pollEvent.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1131,6 +1149,7 @@ public sealed class OutboxProcessorHostedServiceTests
             {
                 GetPendingCallCount++;
                 var count = _messages.Count(m => m.Status == OutboxMessageStatus.Pending);
+                _ = _pollEvent.Release();
                 return Task.FromResult((long)count);
             }
         }
@@ -1184,6 +1203,8 @@ public sealed class OutboxProcessorHostedServiceTests
                 {
                     msg.Status = OutboxMessageStatus.Processing;
                 }
+
+                _ = _pollEvent.Release();
 
                 return Task.FromResult<IReadOnlyList<OutboxMessage>>(messages);
             }
@@ -1273,7 +1294,11 @@ public sealed class OutboxProcessorHostedServiceTests
             return Task.CompletedTask;
         }
 
-        public void Dispose() => _markingEvent.Dispose();
+        public void Dispose()
+        {
+            _markingEvent.Dispose();
+            _pollEvent.Dispose();
+        }
     }
 
     private sealed class InMemoryMessageTransport : IMessageTransport
