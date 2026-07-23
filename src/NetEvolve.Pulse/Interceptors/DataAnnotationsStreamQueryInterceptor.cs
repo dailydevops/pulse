@@ -39,10 +39,10 @@ internal sealed class DataAnnotationsStreamQueryInterceptor<TQuery, TResponse>
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        var validationContext = new ValidationContext(request!);
+        var validationContext = new ValidationContext(request);
         var results = new List<ValidationResult>();
 
-        if (!Validator.TryValidateObject(request!, validationContext, results, validateAllProperties: true))
+        if (!Validator.TryValidateObject(request, validationContext, results, validateAllProperties: true))
         {
             var memberNames = results.SelectMany(r => r.MemberNames).Distinct(StringComparer.Ordinal);
             var errorMessage = string.Join(Environment.NewLine, results.Select(r => r.ErrorMessage));

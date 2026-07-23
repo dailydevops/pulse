@@ -89,10 +89,11 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
             return handler(request, cancellationToken);
         }
 
-        return IterateAsync(request, handler, cancellationToken);
+        return IterateAsync(_pipeline, request, handler, cancellationToken);
     }
 
-    private async IAsyncEnumerable<TResponse> IterateAsync(
+    private static async IAsyncEnumerable<TResponse> IterateAsync(
+        ResiliencePipeline pipeline,
         TQuery request,
         Func<TQuery, CancellationToken, IAsyncEnumerable<TResponse>> handler,
         [EnumeratorCancellation] CancellationToken cancellationToken
@@ -100,7 +101,7 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
     {
         // Wrap the handler invocation (stream open) inside the pipeline.
         // This protects the stream initialization phase; items are yielded directly afterwards.
-        var stream = await _pipeline!
+        var stream = await pipeline
             .ExecuteAsync(
                 token => new ValueTask<IAsyncEnumerable<TResponse>>(handler(request, token)),
                 cancellationToken
