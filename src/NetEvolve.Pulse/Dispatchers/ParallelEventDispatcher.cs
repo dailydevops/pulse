@@ -54,6 +54,9 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
     )
         where TEvent : IEvent
     {
+        ArgumentNullException.ThrowIfNull(handlers);
+        ArgumentNullException.ThrowIfNull(invoker);
+
         var exceptions = new ConcurrentBag<Exception>();
 
         await Parallel

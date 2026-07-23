@@ -94,6 +94,9 @@ public sealed class RateLimitedEventDispatcher : IEventDispatcher
     )
         where TEvent : IEvent
     {
+        ArgumentNullException.ThrowIfNull(handlers);
+        ArgumentNullException.ThrowIfNull(invoker);
+
         var exceptions = new ConcurrentBag<Exception>();
         var options = new ParallelOptions
         {

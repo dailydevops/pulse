@@ -73,6 +73,7 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
     )
         where TEvent : IEvent
     {
+        ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 
         // Sort handlers by priority, preserving order for equal priorities
