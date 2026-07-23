@@ -34,9 +34,9 @@ public sealed class MySqlDatabaseServiceFixture : IServiceFixture
                 var cmd = con.CreateCommand();
                 await using (cmd.ConfigureAwait(false))
                 {
-#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+#pragma warning disable CA2100, S2077 // Review SQL queries for security vulnerabilities; DatabaseName is test-controlled, not user input
                     cmd.CommandText = $"CREATE DATABASE {DatabaseName}";
-#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+#pragma warning restore CA2100, S2077
 
                     _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }

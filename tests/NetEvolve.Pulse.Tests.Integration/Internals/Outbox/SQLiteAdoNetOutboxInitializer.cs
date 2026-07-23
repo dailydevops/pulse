@@ -68,7 +68,9 @@ public sealed class SQLiteAdoNetOutboxInitializer : IServiceInitializer
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
+#pragma warning disable S2077 // SQL is constructed from validated OutboxOptions.TableName property, not user input.
             var command = new SqliteCommand(createTableSql, connection);
+#pragma warning restore S2077
             await using (command.ConfigureAwait(false))
             {
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
