@@ -115,6 +115,105 @@ public sealed class KafkaMessageTransportTests
         _ = await Assert.That(exception!.InnerExceptions.Count).IsEqualTo(messages.Length);
     }
 
+    // INVARIANT: Even when delivery reports indicate errors, the producer's Flush()
+    // MUST be invoked (otherwise enqueued, in-flight messages could be lost on disposal
+    // and Acks.All durability is undermined).
+    [Test]
+    public async Task SendBatchAsync_Flushes_producer_even_when_delivery_errors_occur(
+        CancellationToken cancellationToken
+    )
+    {
+        var error = new Error(ErrorCode.BrokerNotAvailable, "down");
+        using var producer = new FakeProducer { DeliveryError = error };
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var transport = CreateTransport(producer, admin);
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
+
+        _ = await Assert.ThrowsAsync<AggregateException>(() => transport.SendBatchAsync(messages, cancellationToken));
+
+        // The aggregate must wrap the per-message delivery errors after Flush completes.
+        _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+        _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(messages.Length);
+    }
+
+    // INVARIANT: Synchronous Produce() failures (e.g., local queue full) must also be
+    // collected and surfaced via AggregateException after Flush completes.
+    [Test]
+    public async Task SendBatchAsync_Collects_synchronous_produce_exceptions(CancellationToken cancellationToken)
+    {
+        var error = new Error(ErrorCode.Local_QueueFull, "queue full");
+        using var producer = new FakeProducer { ThrowOnProduce = error };
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var transport = CreateTransport(producer, admin);
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
+
+        var ex = await Assert.ThrowsAsync<AggregateException>(() =>
+            transport.SendBatchAsync(messages, cancellationToken)
+        );
+
+        _ = await Assert.That(ex!.InnerExceptions.Count).IsEqualTo(messages.Length);
+        _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+    }
+
+    // INVARIANT: A successful batch must NOT throw and Flush() must be called exactly once.
+    [Test]
+    public async Task SendBatchAsync_When_all_messages_succeed_calls_Flush_once(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var transport = CreateTransport(producer, admin);
+        var messages = Enumerable.Range(0, 5).Select(_ => CreateOutboxMessage()).ToArray();
+
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+        _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(messages.Length);
+    }
+
+    // INVARIANT: SendBatchAsync forwards the caller's CancellationToken to IProducer.Flush so a
+    // shutdown (cancellation) while flushing surfaces OperationCanceledException rather than
+    // blocking indefinitely against an unreachable broker.
+    [Test]
+    public async Task SendBatchAsync_Forwards_cancellation_token_to_Flush(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var transport = CreateTransport(producer, admin);
+        var messages = new[] { CreateOutboxMessage() };
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        await transport.SendBatchAsync(messages, cts.Token).ConfigureAwait(false);
+
+        _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+        _ = await Assert.That(producer.FlushCancellationTokens).HasSingleItem();
+        // The exact same CT instance the caller passed must reach Flush; otherwise the worker
+        // shutdown cannot interrupt an in-flight flush against an unreachable broker.
+        _ = await Assert.That(producer.FlushCancellationTokens[0]).IsEqualTo(cts.Token);
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_cancellation_requested_during_flush_propagates_OperationCanceledException(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var transport = CreateTransport(producer, admin);
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        // The CT is already cancelled. SendBatchAsync still iterates Produce() (which is the
+        // librdkafka enqueue path and intentionally ignores CT), but Flush(ct) must observe the
+        // cancellation and throw OperationCanceledException so the worker can shut down
+        // promptly instead of hanging on Timeout.InfiniteTimeSpan.
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => transport.SendBatchAsync(messages, cts.Token));
+
+        _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+    }
+
     [Test]
     public async Task IsHealthyAsync_Returns_true_when_broker_metadata_is_available(CancellationToken cancellationToken)
     {
@@ -191,6 +290,7 @@ public sealed class KafkaMessageTransportTests
         public int FlushCallCount { get; private set; }
         public Error? ProduceAsyncError { get; init; }
         public Error? DeliveryError { get; init; }
+        public Error? ThrowOnProduce { get; init; }
 
         public string Name => "fake-producer";
         public Handle Handle => default!;
@@ -238,6 +338,19 @@ public sealed class KafkaMessageTransportTests
             Action<DeliveryReport<string, string>>? deliveryHandler = null
         )
         {
+            if (ThrowOnProduce is not null)
+            {
+                throw new ProduceException<string, string>(
+                    ThrowOnProduce,
+                    new DeliveryResult<string, string>
+                    {
+                        Topic = topic,
+                        Message = message,
+                        Status = PersistenceStatus.NotPersisted,
+                    }
+                );
+            }
+
             EnqueuedMessages.Add(message);
 
             if (DeliveryError is not null && deliveryHandler is not null)
@@ -266,7 +379,14 @@ public sealed class KafkaMessageTransportTests
             return 0;
         }
 
-        public void Flush(CancellationToken cancellationToken = default) { }
+        public void Flush(CancellationToken cancellationToken = default)
+        {
+            FlushCallCount++;
+            FlushCancellationTokens.Add(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        public List<CancellationToken> FlushCancellationTokens { get; } = [];
 
         public int Poll(TimeSpan timeout) => 0;
 

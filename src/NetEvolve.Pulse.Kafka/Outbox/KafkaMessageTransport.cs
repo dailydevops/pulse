@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
@@ -91,7 +91,10 @@ public sealed class KafkaMessageTransport : IMessageTransport
             }
         }
 
-        _ = _producer.Flush(Timeout.InfiniteTimeSpan);
+        // Use the cancellation-token-aware overload so worker shutdown does not block
+        // indefinitely when the broker is unreachable. Confluent.Kafka's IProducer.Flush(CancellationToken)
+        // throws OperationCanceledException when the token fires, which is the contract callers expect.
+        _producer.Flush(cancellationToken);
 
         if (!errors.IsEmpty)
         {
