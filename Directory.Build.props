@@ -20,4 +20,8 @@
     <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Integration" />
     <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Unit" />
   </ItemGroup>
+
+  <ItemGroup Label="Temporary NuGet audit suppression (no fixed version yet): https://github.com/advisories/GHSA-2m69-gcr7-jv3q">
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
 </Project>
