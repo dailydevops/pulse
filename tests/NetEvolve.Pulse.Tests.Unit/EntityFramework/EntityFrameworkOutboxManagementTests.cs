@@ -139,28 +139,34 @@ public sealed class EntityFrameworkOutboxManagementTests
         await using (context.ConfigureAwait(false))
         {
             var now = DateTimeOffset.UtcNow;
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = Guid.NewGuid(),
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.DeadLetter,
-                }
-            );
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = Guid.NewGuid(),
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.Pending,
-                }
-            );
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        Status = OutboxMessageStatus.DeadLetter,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        Status = OutboxMessageStatus.Pending,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -187,17 +193,20 @@ public sealed class EntityFrameworkOutboxManagementTests
         {
             var now = DateTimeOffset.UtcNow;
             var messageId = Guid.NewGuid();
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = messageId,
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.DeadLetter,
-                }
-            );
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = messageId,
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        Status = OutboxMessageStatus.DeadLetter,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -222,17 +231,20 @@ public sealed class EntityFrameworkOutboxManagementTests
         {
             var now = DateTimeOffset.UtcNow;
             var messageId = Guid.NewGuid();
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = messageId,
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.Completed,
-                }
-            );
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = messageId,
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        Status = OutboxMessageStatus.Completed,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -293,7 +305,24 @@ public sealed class EntityFrameworkOutboxManagementTests
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < 3; i++)
             {
-                _ = context.OutboxMessages.Add(
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                            Status = OutboxMessageStatus.DeadLetter,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
+
+            _ = await context
+                .OutboxMessages.AddAsync(
                     new OutboxMessage
                     {
                         Id = Guid.NewGuid(),
@@ -301,22 +330,11 @@ public sealed class EntityFrameworkOutboxManagementTests
                         Payload = "{}",
                         CreatedAt = now,
                         UpdatedAt = now,
-                        Status = OutboxMessageStatus.DeadLetter,
-                    }
-                );
-            }
-
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = Guid.NewGuid(),
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.Pending,
-                }
-            );
+                        Status = OutboxMessageStatus.Pending,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -340,19 +358,22 @@ public sealed class EntityFrameworkOutboxManagementTests
         {
             var now = DateTimeOffset.UtcNow;
             var messageId = Guid.NewGuid();
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = messageId,
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    RetryCount = 5,
-                    Error = "Some error",
-                    Status = OutboxMessageStatus.DeadLetter,
-                }
-            );
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = messageId,
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        RetryCount = 5,
+                        Error = "Some error",
+                        Status = OutboxMessageStatus.DeadLetter,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -382,17 +403,20 @@ public sealed class EntityFrameworkOutboxManagementTests
         {
             var now = DateTimeOffset.UtcNow;
             var messageId = Guid.NewGuid();
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = messageId,
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.Failed,
-                }
-            );
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = messageId,
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        Status = OutboxMessageStatus.Failed,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -451,7 +475,26 @@ public sealed class EntityFrameworkOutboxManagementTests
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < 3; i++)
             {
-                _ = context.OutboxMessages.Add(
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                            RetryCount = 5,
+                            Error = "Some error",
+                            Status = OutboxMessageStatus.DeadLetter,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
+
+            _ = await context
+                .OutboxMessages.AddAsync(
                     new OutboxMessage
                     {
                         Id = Guid.NewGuid(),
@@ -459,24 +502,11 @@ public sealed class EntityFrameworkOutboxManagementTests
                         Payload = "{}",
                         CreatedAt = now,
                         UpdatedAt = now,
-                        RetryCount = 5,
-                        Error = "Some error",
-                        Status = OutboxMessageStatus.DeadLetter,
-                    }
-                );
-            }
-
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = Guid.NewGuid(),
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = OutboxMessageStatus.Pending,
-                }
-            );
+                        Status = OutboxMessageStatus.Pending,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var management = new EntityFrameworkOutboxManagement<TestDbContext>(context, TimeProvider.System);
@@ -538,17 +568,20 @@ public sealed class EntityFrameworkOutboxManagementTests
 
             foreach (var status in statuses)
             {
-                _ = context.OutboxMessages.Add(
-                    new OutboxMessage
-                    {
-                        Id = Guid.NewGuid(),
-                        EventType = typeof(TestDbEvent),
-                        Payload = "{}",
-                        CreatedAt = now,
-                        UpdatedAt = now,
-                        Status = status,
-                    }
-                );
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                            Status = status,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
 
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -581,17 +614,20 @@ public sealed class EntityFrameworkOutboxManagementTests
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < 5; i++)
             {
-                _ = context.OutboxMessages.Add(
-                    new OutboxMessage
-                    {
-                        Id = Guid.NewGuid(),
-                        EventType = typeof(TestDbEvent),
-                        Payload = "{}",
-                        CreatedAt = now,
-                        UpdatedAt = now.AddMinutes(-i),
-                        Status = OutboxMessageStatus.DeadLetter,
-                    }
-                );
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = now.AddMinutes(-i),
+                            Status = OutboxMessageStatus.DeadLetter,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -627,17 +663,20 @@ public sealed class EntityFrameworkOutboxManagementTests
 
             foreach (var updatedAt in new[] { now, oldest, newest })
             {
-                _ = context.OutboxMessages.Add(
-                    new OutboxMessage
-                    {
-                        Id = Guid.NewGuid(),
-                        EventType = typeof(TestDbEvent),
-                        Payload = "{}",
-                        CreatedAt = now,
-                        UpdatedAt = updatedAt,
-                        Status = OutboxMessageStatus.DeadLetter,
-                    }
-                );
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = updatedAt,
+                            Status = OutboxMessageStatus.DeadLetter,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -669,19 +708,22 @@ public sealed class EntityFrameworkOutboxManagementTests
         {
             var now = DateTimeOffset.UtcNow;
             var messageId = Guid.NewGuid();
-            _ = context.OutboxMessages.Add(
-                new OutboxMessage
-                {
-                    Id = messageId,
-                    EventType = typeof(TestDbEvent),
-                    Payload = "{}",
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    RetryCount = 3,
-                    Error = "Some error",
-                    Status = OutboxMessageStatus.DeadLetter,
-                }
-            );
+            _ = await context
+                .OutboxMessages.AddAsync(
+                    new OutboxMessage
+                    {
+                        Id = messageId,
+                        EventType = typeof(TestDbEvent),
+                        Payload = "{}",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        RetryCount = 3,
+                        Error = "Some error",
+                        Status = OutboxMessageStatus.DeadLetter,
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             var timeProvider = new FakeTimeProvider(expectedTime);
@@ -717,18 +759,21 @@ public sealed class EntityFrameworkOutboxManagementTests
                 }
             )
             {
-                _ = context.OutboxMessages.Add(
-                    new OutboxMessage
-                    {
-                        Id = id,
-                        EventType = typeof(TestDbEvent),
-                        Payload = "{}",
-                        CreatedAt = now,
-                        UpdatedAt = now,
-                        RetryCount = retryCount,
-                        Status = status,
-                    }
-                );
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = id,
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                            RetryCount = retryCount,
+                            Status = status,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -765,19 +810,22 @@ public sealed class EntityFrameworkOutboxManagementTests
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < 3; i++)
             {
-                _ = context.OutboxMessages.Add(
-                    new OutboxMessage
-                    {
-                        Id = Guid.NewGuid(),
-                        EventType = typeof(TestDbEvent),
-                        Payload = "{}",
-                        CreatedAt = now,
-                        UpdatedAt = now,
-                        RetryCount = 5,
-                        Error = "Fatal error",
-                        Status = OutboxMessageStatus.DeadLetter,
-                    }
-                );
+                _ = await context
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            EventType = typeof(TestDbEvent),
+                            Payload = "{}",
+                            CreatedAt = now,
+                            UpdatedAt = now,
+                            RetryCount = 5,
+                            Error = "Fatal error",
+                            Status = OutboxMessageStatus.DeadLetter,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
