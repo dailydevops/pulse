@@ -477,6 +477,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                     var inParams = BuildInParameters(ids.Count);
 
                     // Phase 2: claim the locked rows
+#pragma warning disable S2077 // inParams contains only "@id0, @id1, ..." placeholder names, never user data
                     var updateSql = string.Format(
                         System.Globalization.CultureInfo.InvariantCulture,
                         _updateToProcessingSqlTemplate,
@@ -484,6 +485,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                     );
 
                     var updateCmd = new MySqlCommand(updateSql, connection, transaction);
+#pragma warning restore S2077
                     await using (updateCmd.ConfigureAwait(false))
                     {
                         _ = updateCmd.Parameters.AddWithValue("@nowTicks", nowTicks);
@@ -493,6 +495,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                     }
 
                     // Phase 3: read the updated rows
+#pragma warning disable S2077 // inParams contains only "@id0, @id1, ..." placeholder names, never user data
                     var selectSql = string.Format(
                         System.Globalization.CultureInfo.InvariantCulture,
                         _selectByIdsSqlTemplate,
@@ -502,6 +505,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                     IReadOnlyList<OutboxMessage> messages;
 
                     var fetchCmd = new MySqlCommand(selectSql, connection, transaction);
+#pragma warning restore S2077
                     await using (fetchCmd.ConfigureAwait(false))
                     {
                         AddIdParameters(fetchCmd, ids);
