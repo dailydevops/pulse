@@ -357,11 +357,9 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
                 continue;
             }
 
-            // Only claim if still in the expected status (Pending=0 or Failed=3).
-            if (
-                current.Resource.Status != message.Status.GetHashCode()
-                && current.Resource.Status != (int)message.Status
-            )
+            // Only claim if the persisted status still matches the in-memory candidate. The
+            // OutboxMessageStatus enum is int-backed, so a single cast to int is sufficient.
+            if (current.Resource.Status != (int)message.Status)
             {
                 continue;
             }
