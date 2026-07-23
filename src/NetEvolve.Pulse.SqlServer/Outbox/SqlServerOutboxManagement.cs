@@ -68,6 +68,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
             : options.Value.Schema;
+        SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
         _getDeadLetterMessagesSql = $"[{schema}].[usp_GetDeadLetterOutboxMessages]";
         _getDeadLetterMessageSql = $"[{schema}].[usp_GetDeadLetterOutboxMessage]";
         _getDeadLetterCountSql = $"[{schema}].[usp_GetDeadLetterOutboxMessageCount]";

@@ -1,5 +1,7 @@
 namespace NetEvolve.Pulse.Idempotency;
 
+using NetEvolve.Pulse.Extensibility.Outbox;
+
 /// <summary>
 /// Extension methods for <see cref="IdempotencyKeyOptions"/> to provide additional functionality
 /// related to MySQL idempotency implementations.
@@ -16,6 +18,17 @@ internal static class MySqlIdempotencyKeyOptionsExtensions
         /// Tables are always created in the active database from the connection string.
         /// The <see cref="IdempotencyKeyOptions.Schema"/> property is not used for MySQL.
         /// </remarks>
-        public string FullTableName => $"`{options.TableName}`";
+        /// <exception cref="System.ArgumentException">
+        /// Thrown when <see cref="IdempotencyKeyOptions.TableName"/> contains characters outside
+        /// the safe SQL-identifier subset enforced by <see cref="SqlIdentifier.Validate"/>.
+        /// </exception>
+        public string FullTableName
+        {
+            get
+            {
+                SqlIdentifier.Validate(options.TableName, nameof(options.TableName));
+                return $"`{options.TableName}`";
+            }
+        }
     }
 }

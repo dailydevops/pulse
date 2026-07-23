@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Idempotency;
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// SQL Server implementation of <see cref="IIdempotencyKeyRepository"/> using ADO.NET.
@@ -58,6 +59,7 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? IdempotencyKeySchema.DefaultSchema
             : options.Value.Schema;
+        SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
 
         _existsSql = $"[{schema}].[usp_ExistsIdempotencyKey]";
         _insertSql = $"[{schema}].[usp_InsertIdempotencyKey]";

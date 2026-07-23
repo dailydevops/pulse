@@ -92,6 +92,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
             : options.Value.Schema;
+        SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
         _getPendingSql = $"[{schema}].[usp_GetPendingOutboxMessages]";
         _getFailedForRetrySql = $"[{schema}].[usp_GetFailedOutboxMessagesForRetry]";
         _markCompletedSql = $"[{schema}].[usp_MarkOutboxMessageCompleted]";

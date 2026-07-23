@@ -129,4 +129,37 @@ public sealed class SqlServerOutboxRepositoryTests
             .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
+
+    // Defense-in-depth: pin that an attacker-controlled Schema value cannot reach the SQL
+    // builder. The repository's constructor must fail fast when Schema contains characters
+    // that would break out of the [bracketed] identifier (e.g. ']' followed by injected SQL).
+    [Test]
+    public async Task Constructor_WithMaliciousSchema_ThrowsArgumentException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "pulse].[evil] -- " }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentException>();
+
+    [Test]
+    public async Task Constructor_WithMaliciousTableName_ThrowsArgumentException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            TableName = "OutboxMessage]; DROP TABLE Users; --",
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentException>();
 }

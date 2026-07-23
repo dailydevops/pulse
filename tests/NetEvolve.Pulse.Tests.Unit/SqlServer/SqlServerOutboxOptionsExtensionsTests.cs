@@ -1,7 +1,9 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.SqlServer;
 
+using System;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
+using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 using static NetEvolve.Pulse.Outbox.SqlServerOutboxOptionsExtensions;
@@ -57,4 +59,26 @@ public sealed class SqlServerOutboxOptionsExtensionsTests
 
         _ = await Assert.That(options.FullTableName).IsEqualTo("[myschema].[OutboxMessage]");
     }
+
+    // Defense-in-depth: prevent SQL injection through configuration-supplied Schema/TableName
+    // that bypasses the [bracketed] identifier by including a closing bracket and arbitrary SQL.
+    // See SqlIdentifierTests for the underlying allowlist contract.
+
+    [Test]
+    public async Task FullTableName_RejectsBracketBreakoutInSchema() =>
+        _ = await Assert
+            .That(() => _ = new OutboxOptions { Schema = "pulse].[evil] -- " }.FullTableName)
+            .Throws<ArgumentException>();
+
+    [Test]
+    public async Task FullTableName_RejectsBracketBreakoutInTableName() =>
+        _ = await Assert
+            .That(() => _ = new OutboxOptions { TableName = "OutboxMessage]; DROP TABLE Users; --" }.FullTableName)
+            .Throws<ArgumentException>();
+
+    [Test]
+    public async Task FullTableName_RejectsSemicolonInTableName() =>
+        _ = await Assert
+            .That(() => _ = new OutboxOptions { TableName = "x;y" }.FullTableName)
+            .Throws<ArgumentException>();
 }

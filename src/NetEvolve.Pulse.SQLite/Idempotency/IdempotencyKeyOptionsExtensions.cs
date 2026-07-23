@@ -1,5 +1,7 @@
 namespace NetEvolve.Pulse.Idempotency;
 
+using NetEvolve.Pulse.Extensibility.Outbox;
+
 /// <summary>
 /// Extension methods for <see cref="IdempotencyKeyOptions"/> to provide additional functionality
 /// related to SQLite idempotency implementations.
@@ -11,6 +13,17 @@ internal static class IdempotencyKeyOptionsExtensions
         /// <summary>
         /// Gets the fully qualified (quoted) table name for use in SQL statements.
         /// </summary>
-        public string FullTableName => $"\"{options.TableName}\"";
+        /// <exception cref="System.ArgumentException">
+        /// Thrown when <see cref="IdempotencyKeyOptions.TableName"/> contains characters outside
+        /// the safe SQL-identifier subset enforced by <see cref="SqlIdentifier.Validate"/>.
+        /// </exception>
+        public string FullTableName
+        {
+            get
+            {
+                SqlIdentifier.Validate(options.TableName, nameof(options.TableName));
+                return $"\"{options.TableName}\"";
+            }
+        }
     }
 }

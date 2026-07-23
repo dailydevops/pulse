@@ -61,6 +61,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
             : options.Value.Schema;
+        SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
         _getDeadLetterMessagesSql = $"SELECT * FROM \"{schema}\".get_dead_letter_outbox_messages(@page_size, @page)";
         _getDeadLetterMessageSql = $"SELECT * FROM \"{schema}\".get_dead_letter_outbox_message(@message_id)";
         _getDeadLetterCountSql = $"SELECT \"{schema}\".get_dead_letter_outbox_message_count()";

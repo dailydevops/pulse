@@ -91,6 +91,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
             : options.Value.Schema;
+        SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
         _getPendingSql = $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size)";
         _getFailedForRetrySql =
             $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size, @now_utc)";

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Idempotency;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using Npgsql;
 
 /// <summary>
@@ -57,6 +58,7 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? IdempotencyKeySchema.DefaultSchema
             : options.Value.Schema;
+        SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
 
         _existsSql = $"SELECT \"{schema}\".fn_exists_idempotency_key(@idempotency_key, @valid_from)";
         _insertSql = $"SELECT \"{schema}\".fn_insert_idempotency_key(@idempotency_key, @created_at)";

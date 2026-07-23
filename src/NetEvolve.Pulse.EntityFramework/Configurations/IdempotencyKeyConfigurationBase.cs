@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Idempotency;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
@@ -54,6 +55,8 @@ internal abstract class IdempotencyKeyConfigurationBase : IEntityTypeConfigurati
             ? IdempotencyKeySchema.DefaultSchema
             : _options.Schema.Trim();
         var tableName = _options.TableName;
+        SqlIdentifier.Validate(schema, nameof(_options.Schema));
+        SqlIdentifier.Validate(tableName, nameof(_options.TableName));
 
         _ = builder.ToTable(tableName, schema);
 

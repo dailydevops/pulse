@@ -95,6 +95,8 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
             ? OutboxMessageSchema.DefaultSchema
             : _options.Schema.Trim();
         var tableName = _options.TableName;
+        SqlIdentifier.Validate(schema, nameof(_options.Schema));
+        SqlIdentifier.Validate(tableName, nameof(_options.TableName));
 
         _ = builder.ToTable(tableName, schema);
 
