@@ -2,10 +2,12 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
+using NetEvolve.Http.Correlation.Abstractions;
 using NetEvolve.Http.Correlation.AspNetCore;
 using NetEvolve.Http.Correlation.TestGenerator;
 using NetEvolve.Pulse.Extensibility;
@@ -127,6 +129,81 @@ public sealed class HttpCorrelationEventInterceptorTests
 
         // Assert
         _ = await Assert.That(message.CorrelationId).IsEqualTo(existingId);
+    }
+
+    [Test]
+    public async Task HandleAsync_AccessorHasCorrelationId_MessageHasNoCorrelationId_SetsCorrelationId(
+        CancellationToken cancellationToken
+    )
+    {
+        // Arrange — verifies the core invariant: when accessor exposes a correlation id and the
+        // event message has none, the interceptor propagates the accessor value onto the message
+        // before the next handler in the chain is invoked.
+        const string httpId = "http-correlation-id";
+        var services = new ServiceCollection();
+        _ = services
+            .AddSingleton(Mock.Of<IHttpContextAccessor>().Object)
+            .AddHttpCorrelation()
+            .WithTestGenerator(httpId);
+        var provider = services.BuildServiceProvider();
+
+        using var scope = provider.CreateScope();
+        var accessor = scope.ServiceProvider.GetRequiredService<IHttpCorrelationAccessor>();
+        var field = accessor.GetType().GetField("_correlationId", BindingFlags.NonPublic | BindingFlags.Instance);
+        field!.SetValue(accessor, httpId);
+
+        var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(scope.ServiceProvider);
+        var message = new TestEvent { CorrelationId = null };
+        string? observedCorrelationId = null;
+
+        // Act
+        await interceptor
+            .HandleAsync(
+                message,
+                (m, _) =>
+                {
+                    observedCorrelationId = m.CorrelationId;
+                    return Task.CompletedTask;
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        // Assert
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(message.CorrelationId).IsEqualTo(httpId);
+            _ = await Assert.That(observedCorrelationId).IsEqualTo(httpId);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_AccessorHasCorrelationId_MessageHasEmptyCorrelationId_SetsCorrelationId(
+        CancellationToken cancellationToken
+    )
+    {
+        // Arrange — string.Empty is treated the same as null per IsNullOrEmpty contract.
+        const string httpId = "http-correlation-id";
+        var services = new ServiceCollection();
+        _ = services
+            .AddSingleton(Mock.Of<IHttpContextAccessor>().Object)
+            .AddHttpCorrelation()
+            .WithTestGenerator(httpId);
+        var provider = services.BuildServiceProvider();
+
+        using var scope = provider.CreateScope();
+        var accessor = scope.ServiceProvider.GetRequiredService<IHttpCorrelationAccessor>();
+        var field = accessor.GetType().GetField("_correlationId", BindingFlags.NonPublic | BindingFlags.Instance);
+        field!.SetValue(accessor, httpId);
+
+        var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(scope.ServiceProvider);
+        var message = new TestEvent { CorrelationId = string.Empty };
+
+        // Act
+        await interceptor.HandleAsync(message, (_, _) => Task.CompletedTask, cancellationToken).ConfigureAwait(false);
+
+        // Assert
+        _ = await Assert.That(message.CorrelationId).IsEqualTo(httpId);
     }
 
     [Test]

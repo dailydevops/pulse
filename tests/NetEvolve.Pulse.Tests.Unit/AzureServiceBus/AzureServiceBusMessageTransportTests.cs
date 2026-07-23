@@ -394,6 +394,103 @@ public sealed class AzureServiceBusMessageTransportTests
         }
     }
 
+    // ── SendBatchAsync – atomicity / error-propagation invariants ─────────────
+
+    // INVARIANT: When batching is enabled and the underlying SendMessagesAsync fails,
+    // SendBatchAsync must propagate the exception so the outbox processor can mark
+    // the messages as failed and retry. Silent partial success is unacceptable.
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_When_sender_fails_propagates_exception(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient();
+        fakeClient.FailuresByTopic["bad-topic"] = new ServiceBusException(
+            "broker unavailable",
+            ServiceBusFailureReason.ServiceCommunicationProblem
+        );
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("bad-topic");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
+
+                _ = await Assert.ThrowsAsync<ServiceBusException>(() =>
+                    transport.SendBatchAsync(messages, cancellationToken)
+                );
+            }
+        }
+    }
+
+    // INVARIANT: When batching is disabled and SendMessageAsync fails mid-group,
+    // SendBatchAsync must abort and propagate. The outbox processor relies on this
+    // signal to drive its retry/dead-letter logic.
+    [Test]
+    public async Task SendBatchAsync_BatchingDisabled_When_send_fails_propagates_exception(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient();
+        fakeClient.FailuresByTopic["bad-topic"] = new ServiceBusException(
+            "transient",
+            ServiceBusFailureReason.ServiceCommunicationProblem
+        );
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("bad-topic");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = false });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
+
+                _ = await Assert.ThrowsAsync<ServiceBusException>(() =>
+                    transport.SendBatchAsync(messages, cancellationToken)
+                );
+            }
+        }
+    }
+
+    // INVARIANT (Q07 verification): a batch targeting a single topic must be delivered
+    // through one SendMessagesAsync call (atomic-per-partition in the SDK). Mixed-topic
+    // batches are split per topic, so cross-topic atomicity is intentionally NOT promised.
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Cross_topic_batch_uses_one_send_per_topic_group(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient();
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new TopicPerEventTypeResolver();
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[]
+                {
+                    CreateOutboxMessage(typeof(AlphaEvent)),
+                    CreateOutboxMessage(typeof(AlphaEvent)),
+                    CreateOutboxMessage(typeof(AlphaEvent)),
+                    CreateOutboxMessage(typeof(BetaEvent)),
+                    CreateOutboxMessage(typeof(BetaEvent)),
+                };
+
+                await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+                // Each topic must receive exactly one SendMessagesAsync call (one atomic batch).
+                _ = await Assert.That(fakeClient.GetSender(nameof(AlphaEvent))!.BatchedMessages.Count).IsEqualTo(1);
+                _ = await Assert.That(fakeClient.GetSender(nameof(BetaEvent))!.BatchedMessages.Count).IsEqualTo(1);
+            }
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static OutboxMessage CreateOutboxMessage(Type? eventType = null) =>
@@ -468,11 +565,17 @@ public sealed class AzureServiceBusMessageTransportTests
     {
         private readonly Dictionary<string, FakeServiceBusSender> _senders = new(StringComparer.Ordinal);
 
+        public Dictionary<string, Exception> FailuresByTopic { get; } = new(StringComparer.Ordinal);
+
         public FakeServiceBusSender? GetSender(string name) => _senders.TryGetValue(name, out var s) ? s : null;
 
         public override ServiceBusSender CreateSender(string queueOrTopicName)
         {
             var sender = new FakeServiceBusSender();
+            if (FailuresByTopic.TryGetValue(queueOrTopicName, out var failure))
+            {
+                sender.FailureToRaise = failure;
+            }
             _senders[queueOrTopicName] = sender;
             return sender;
         }
@@ -491,8 +594,14 @@ public sealed class AzureServiceBusMessageTransportTests
         public List<ServiceBusMessage> SentMessages { get; } = [];
         public List<IReadOnlyList<ServiceBusMessage>> BatchedMessages { get; } = [];
 
+        public Exception? FailureToRaise { get; set; }
+
         public override Task SendMessageAsync(ServiceBusMessage message, CancellationToken cancellationToken = default)
         {
+            if (FailureToRaise is not null)
+            {
+                return Task.FromException(FailureToRaise);
+            }
             SentMessages.Add(message);
             return Task.CompletedTask;
         }
@@ -502,6 +611,10 @@ public sealed class AzureServiceBusMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
+            if (FailureToRaise is not null)
+            {
+                return Task.FromException(FailureToRaise);
+            }
             BatchedMessages.Add([.. messages]);
             return Task.CompletedTask;
         }
