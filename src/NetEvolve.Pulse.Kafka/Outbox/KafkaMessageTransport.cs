@@ -19,7 +19,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// registered in the DI container by the caller before using this transport.
 /// Topic routing is determined by the registered <see cref="ITopicNameResolver" />.
 /// </remarks>
-public sealed class KafkaMessageTransport : IMessageTransport
+public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
 {
     private readonly IProducer<string, string> _producer;
     private readonly IAdminClient _adminClient;
@@ -165,6 +165,9 @@ public sealed class KafkaMessageTransport : IMessageTransport
             _ = _ensuredTopics.TryAdd(topic, true);
         }
     }
+
+    /// <inheritdoc />
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask; // Do not dispose injected dependencies
 
     private static Message<string, string> CreateKafkaMessage(OutboxMessage message)
     {

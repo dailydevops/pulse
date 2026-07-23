@@ -24,7 +24,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
@@ -48,7 +48,7 @@ public sealed class KafkaMessageTransportTests
         var expectedError = new Error(ErrorCode.BrokerNotAvailable, "broker unavailable");
         using var producer = new FakeProducer { ProduceAsyncError = expectedError };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var outboxMessage = CreateOutboxMessage();
 
         var exception = await Assert.ThrowsAsync<ProduceException<string, string>>(() =>
@@ -64,7 +64,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
+        await using var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
@@ -77,7 +77,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin, topicName: "test-topic");
+        await using var transport = CreateTransport(producer, admin, topicName: "test-topic");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
@@ -90,7 +90,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -105,7 +105,7 @@ public sealed class KafkaMessageTransportTests
         var error = new Error(ErrorCode.BrokerNotAvailable, "broker down");
         using var producer = new FakeProducer { DeliveryError = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         var exception = await Assert.ThrowsAsync<AggregateException>(() =>
@@ -127,7 +127,7 @@ public sealed class KafkaMessageTransportTests
         var error = new Error(ErrorCode.BrokerNotAvailable, "down");
         using var producer = new FakeProducer { DeliveryError = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         _ = await Assert.ThrowsAsync<AggregateException>(() => transport.SendBatchAsync(messages, cancellationToken));
@@ -145,7 +145,7 @@ public sealed class KafkaMessageTransportTests
         var error = new Error(ErrorCode.Local_QueueFull, "queue full");
         using var producer = new FakeProducer { ThrowOnProduce = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         var ex = await Assert.ThrowsAsync<AggregateException>(() =>
@@ -162,7 +162,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = Enumerable.Range(0, 5).Select(_ => CreateOutboxMessage()).ToArray();
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -179,7 +179,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage() };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -200,7 +200,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -220,7 +220,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -233,7 +233,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 0 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -247,11 +247,26 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { ThrowOnGetMetadata = true };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
+    }
+
+    [Test]
+    public async Task DisposeAsync_Does_not_dispose_injected_producer_or_admin_client(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(producer, admin);
+
+        await transport.DisposeAsync().ConfigureAwait(false);
+
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(healthy).IsTrue();
     }
 
     [Test]
@@ -261,7 +276,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = true }
@@ -279,7 +294,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = false }
@@ -296,7 +311,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = true }
@@ -314,7 +329,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = true, DefaultPartitionCount = 3 }
@@ -331,7 +346,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = true, DefaultReplicationFactor = 2 }
@@ -349,7 +364,7 @@ public sealed class KafkaMessageTransportTests
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var retention = TimeSpan.FromHours(24);
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = true, MessageRetention = retention }
@@ -370,7 +385,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = true, MessageRetention = null }
@@ -387,7 +402,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(
+        await using var transport = CreateTransport(
             producer,
             admin,
             options: new KafkaTransportOptions { AutoCreateTopics = false }
