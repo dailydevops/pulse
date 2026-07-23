@@ -63,7 +63,7 @@ public class CommandBatchTests
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(
             "mediator",
-            async () => await mediator!.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false)
+            async () => await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false)
         );
     }
 

@@ -27,7 +27,7 @@ public sealed class RabbitMqMessageTransportTests
         );
 
         _ = await Assert.That(exception).IsNotNull();
-        _ = await Assert.That(exception!.ParamName).IsEqualTo("connectionAdapter");
+        _ = await Assert.That(exception.ParamName).IsEqualTo("connectionAdapter");
     }
 
     [Test]
@@ -42,7 +42,7 @@ public sealed class RabbitMqMessageTransportTests
         );
 
         _ = await Assert.That(exception).IsNotNull();
-        _ = await Assert.That(exception!.ParamName).IsEqualTo("topicNameResolver");
+        _ = await Assert.That(exception.ParamName).IsEqualTo("topicNameResolver");
     }
 
     [Test]
@@ -57,7 +57,7 @@ public sealed class RabbitMqMessageTransportTests
         );
 
         _ = await Assert.That(exception).IsNotNull();
-        _ = await Assert.That(exception!.ParamName).IsEqualTo("options");
+        _ = await Assert.That(exception.ParamName).IsEqualTo("options");
     }
 
     [Test]

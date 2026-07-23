@@ -65,7 +65,7 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(SQLiteIdempotencyKeyRepository));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(SQLiteIdempotencyKeyRepository));
         }
     }
 
@@ -81,7 +81,7 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
         }
     }
 
@@ -159,7 +159,7 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(SQLiteIdempotencyKeyRepository));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(SQLiteIdempotencyKeyRepository));
         }
     }
 
@@ -175,7 +175,7 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
         }
     }
 
@@ -246,7 +246,7 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(SQLiteIdempotencyKeyRepository));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(SQLiteIdempotencyKeyRepository));
         }
     }
 
@@ -264,7 +264,7 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
         }
     }
 

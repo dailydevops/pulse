@@ -69,7 +69,7 @@ public sealed class MySqlExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(OutboxEventStore));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(OutboxEventStore));
         }
     }
 
@@ -208,7 +208,7 @@ public sealed class MySqlExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(OutboxEventStore));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(OutboxEventStore));
         }
     }
 
@@ -290,7 +290,7 @@ public sealed class MySqlExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(TestUnitOfWork));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(TestUnitOfWork));
         }
     }
 

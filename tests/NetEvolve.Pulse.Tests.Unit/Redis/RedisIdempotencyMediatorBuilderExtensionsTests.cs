@@ -45,7 +45,7 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(RedisIdempotencyKeyRepository));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RedisIdempotencyKeyRepository));
         }
     }
 
@@ -61,7 +61,7 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
-            _ = await Assert.That(descriptor!.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(IdempotencyStore));
         }
     }
 

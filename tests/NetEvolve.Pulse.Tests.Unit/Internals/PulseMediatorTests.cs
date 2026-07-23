@@ -183,7 +183,7 @@ public class PulseMediatorTests
         {
             _ = await Assert.That(publishedAt).IsNotNull();
             _ = await Assert.That(publishedAt!.Value).IsGreaterThanOrEqualTo(beforePublish);
-            _ = await Assert.That(publishedAt!.Value).IsLessThanOrEqualTo(afterPublish);
+            _ = await Assert.That(publishedAt.Value).IsLessThanOrEqualTo(afterPublish);
         }
     }
 

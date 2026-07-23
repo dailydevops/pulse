@@ -80,7 +80,7 @@ public sealed class RabbitMqExtensionsTests
         var exception = Assert.Throws<ArgumentNullException>(() => configurator.UseRabbitMqTransport());
 
         _ = await Assert.That(exception).IsNotNull();
-        _ = await Assert.That(exception!.ParamName).IsEqualTo("configurator");
+        _ = await Assert.That(exception.ParamName).IsEqualTo("configurator");
     }
 
     [Test]
