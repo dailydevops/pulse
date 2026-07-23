@@ -771,7 +771,7 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         };
 
-        var pendingObserved = 0L;
+        var pendingObserved = -1L;
         meterListener.SetMeasurementEventCallback<long>(
             (instrument, measurement, _, _) =>
             {
@@ -796,27 +796,42 @@ public sealed class OutboxProcessorHostedServiceTests
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
 
-        // Wait at least one polling cycle so the gauge is refreshed before observing
-        await Task.Delay(75, cancellationToken).ConfigureAwait(false);
-        meterListener.RecordObservableInstruments();
-
-        var earlyObservation = Volatile.Read(ref pendingObserved);
-
+        // Wait deterministically for the processor to mark all 3 messages.
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await repository.WaitForMarkingsAsync(3, timeoutCts.Token).ConfigureAwait(false);
+
+        // After all messages are marked, ProcessBatchAsync performs a post-batch
+        // RefreshPendingCountAsync that brings the gauge to 0. We poll for that convergence
+        // before stopping the service — a TaskCompletionSource gate is impractical because
+        // gauge observation is pull-based (RecordObservableInstruments). The deadline is
+        // generous so we tolerate CI thread-pool saturation; cancellation here is benign and
+        // we proceed to the final assertion either way.
+        var convergenceDeadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(10);
+        while (DateTimeOffset.UtcNow < convergenceDeadline && !cancellationToken.IsCancellationRequested)
+        {
+            meterListener.RecordObservableInstruments();
+            if (Volatile.Read(ref pendingObserved) == 0L)
+            {
+                break;
+            }
+
+            try
+            {
+                await Task.Delay(25, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+        }
+
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
-        // After processing all messages, the pending count should be 0
         meterListener.RecordObservableInstruments();
         var lateObservation = Volatile.Read(ref pendingObserved);
 
-        using (Assert.Multiple())
-        {
-            // The gauge should have been observed at some point (>= 0 is always valid for a count)
-            _ = await Assert.That(earlyObservation).IsGreaterThanOrEqualTo(0L);
-            // After all messages are processed, pending count should be 0
-            _ = await Assert.That(lateObservation).IsEqualTo(0L);
-        }
+        // After all messages are processed, the pending gauge must converge to 0.
+        _ = await Assert.That(lateObservation).IsEqualTo(0L);
     }
 
     [Test]

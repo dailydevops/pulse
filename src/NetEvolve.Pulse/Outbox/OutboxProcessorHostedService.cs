@@ -288,6 +288,11 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             )
             .ConfigureAwait(false);
 
+        // Refresh the pending count gauge after processing so the observed value reflects the
+        // post-batch state. Without this, observers may continue to see the pre-batch count
+        // until the next polling cycle runs RefreshPendingCountAsync, which races with shutdown.
+        await RefreshPendingCountAsync(cancellationToken).ConfigureAwait(false);
+
         return messages.Count;
     }
 
