@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.RabbitMQ;
+﻿namespace NetEvolve.Pulse.Tests.Integration.RabbitMQ;
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.RabbitMq;
@@ -9,7 +9,11 @@ using TUnit.Core.Interfaces;
 /// </summary>
 public sealed class RabbitMqContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
-    private readonly RabbitMqContainer _container = new RabbitMqBuilder().WithLogger(NullLogger.Instance).Build();
+    private readonly RabbitMqContainer _container = new RabbitMqBuilder( /*dockerimage*/
+        "rabbitmq:4-management"
+    )
+        .WithLogger(NullLogger.Instance)
+        .Build();
 
     /// <summary>
     /// Gets the connection string for the running RabbitMQ container.

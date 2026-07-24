@@ -201,7 +201,7 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         _ = cts.Token.Register(() => tcs.TrySetResult(null));
 
         var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += (_, ea) =>
+        consumer.ReceivedAsync += (sender, ea) =>
         {
             _ = tcs.TrySetResult(ea);
             return Task.CompletedTask;
@@ -228,7 +228,7 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         _ = cts.Token.Register(() => tcs.TrySetResult(false));
 
         var consumer = new AsyncEventingBasicConsumer(channel);
-        consumer.ReceivedAsync += (_, ea) =>
+        consumer.ReceivedAsync += (sender, ea) =>
         {
             received.Add(ea);
             if (received.Count >= expectedCount)
