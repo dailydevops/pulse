@@ -155,7 +155,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
         }
         finally
         {
-            _initLock.Release();
+            _ = _initLock.Release();
         }
     }
 }

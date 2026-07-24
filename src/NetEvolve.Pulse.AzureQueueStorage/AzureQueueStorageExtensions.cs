@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System.Linq;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -68,6 +69,10 @@ public static class AzureQueueStorageExtensions
     {
         var services = configurator.Services;
 
+        _ = services.AddSingleton<IConfigureOptions<AzureQueueStorageTransportOptions>>(
+            sp => new AzureQueueStorageTransportOptionsConfiguration(sp.GetService<IConfiguration>())
+        );
+
         _ = services.AddOptions<AzureQueueStorageTransportOptions>().Configure(coreOptions);
 
         if (configureOptions is not null)
@@ -90,7 +95,9 @@ public static class AzureQueueStorageExtensions
             _ = services.Remove(existing);
         }
 
-        _ = services.AddSingleton<IMessageTransport, AzureQueueStorageMessageTransport>();
+        _ = services.AddSingleton<IMessageTransport>(sp => new AzureQueueStorageMessageTransport(
+            sp.GetRequiredService<IOptions<AzureQueueStorageTransportOptions>>()
+        ));
 
         return configurator;
     }

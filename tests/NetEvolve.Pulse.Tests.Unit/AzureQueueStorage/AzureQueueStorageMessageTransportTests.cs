@@ -287,12 +287,12 @@ public sealed class AzureQueueStorageMessageTransportTests
         public override Stream? ContentStream
         {
             get => null;
-            set { }
+            set => _ = value;
         }
         public override string ClientRequestId
         {
             get => string.Empty;
-            set { }
+            set => _ = value;
         }
 
         public override void Dispose() { }

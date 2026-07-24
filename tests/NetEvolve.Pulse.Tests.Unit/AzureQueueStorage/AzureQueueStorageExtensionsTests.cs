@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Tests.Unit.AzureQueueStorage;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
@@ -181,6 +182,60 @@ public sealed class AzureQueueStorageExtensionsTests
 
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
         _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+    }
+
+    [Test]
+    public async Task UseAzureQueueStorageTransport_Binds_options_from_configuration_section()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection([
+                new KeyValuePair<string, string?>("Pulse:Transports:AzureQueueStorage:QueueName", "cfg-queue"),
+                new KeyValuePair<string, string?>("Pulse:Transports:AzureQueueStorage:CreateQueueIfNotExists", "false"),
+            ])
+            .Build();
+
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(configuration);
+        _ = services.AddPulse(config => config.UseAzureQueueStorageTransport(FakeConnectionString));
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options =
+                provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureQueueStorageTransportOptions>>();
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.Value.QueueName).IsEqualTo("cfg-queue");
+                _ = await Assert.That(options.Value.CreateQueueIfNotExists).IsFalse();
+            }
+        }
+    }
+
+    [Test]
+    public async Task UseAzureQueueStorageTransport_Explicit_connectionString_overrides_configuration_section()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection([
+                new KeyValuePair<string, string?>(
+                    "Pulse:Transports:AzureQueueStorage:ConnectionString",
+                    "cfg-connection-string"
+                ),
+            ])
+            .Build();
+
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(configuration);
+        _ = services.AddPulse(config => config.UseAzureQueueStorageTransport(FakeConnectionString));
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options =
+                provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureQueueStorageTransportOptions>>();
+
+            _ = await Assert.That(options.Value.ConnectionString).IsEqualTo(FakeConnectionString);
+        }
     }
 
     private sealed class DummyTransport : IMessageTransport

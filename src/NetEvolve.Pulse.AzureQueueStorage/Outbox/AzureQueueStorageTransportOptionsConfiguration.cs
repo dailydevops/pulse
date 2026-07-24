@@ -12,19 +12,19 @@ internal sealed class AzureQueueStorageTransportOptionsConfiguration
 {
     private const string ConfigurationSection = "Pulse:Transports:AzureQueueStorage";
 
-    private readonly IConfiguration _configuration;
+    private readonly IConfiguration? _configuration;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureQueueStorageTransportOptionsConfiguration"/> class.
     /// </summary>
-    /// <param name="configuration">The configuration root.</param>
-    public AzureQueueStorageTransportOptionsConfiguration(IConfiguration configuration)
-    {
-        ArgumentNullException.ThrowIfNull(configuration);
+    /// <param name="configuration">
+    /// The configuration root, or <see langword="null"/> when no <see cref="IConfiguration"/> is registered in the
+    /// service provider. In that case, binding is skipped and the transport relies solely on code-based configuration.
+    /// </param>
+    public AzureQueueStorageTransportOptionsConfiguration(IConfiguration? configuration) =>
         _configuration = configuration;
-    }
 
     /// <inheritdoc />
     public void Configure(AzureQueueStorageTransportOptions options) =>
-        _configuration.GetSection(ConfigurationSection).Bind(options);
+        _configuration?.GetSection(ConfigurationSection).Bind(options);
 }
