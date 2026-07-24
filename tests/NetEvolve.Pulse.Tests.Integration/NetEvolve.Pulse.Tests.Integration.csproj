@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Storage.Queues" />
     <PackageReference Include="Confluent.Kafka" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
@@ -34,6 +35,7 @@
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Testcontainers" />
+    <PackageReference Include="Testcontainers.Azurite" />
     <PackageReference Include="Testcontainers.CosmosDb" />
     <PackageReference Include="Testcontainers.Kafka" />
     <PackageReference Include="Testcontainers.MongoDb" />
@@ -52,6 +54,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.CosmosDb\NetEvolve.Pulse.CosmosDb.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AspNetCore\NetEvolve.Pulse.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureQueueStorage\NetEvolve.Pulse.AzureQueueStorage.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureServiceBus\NetEvolve.Pulse.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.EntityFramework\NetEvolve.Pulse.EntityFramework.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
