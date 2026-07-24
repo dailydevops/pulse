@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -23,7 +24,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
@@ -47,7 +48,7 @@ public sealed class KafkaMessageTransportTests
         var expectedError = new Error(ErrorCode.BrokerNotAvailable, "broker unavailable");
         using var producer = new FakeProducer { ProduceAsyncError = expectedError };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var outboxMessage = CreateOutboxMessage();
 
         var exception = await Assert.ThrowsAsync<ProduceException<string, string>>(() =>
@@ -63,7 +64,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
+        await using var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
@@ -76,7 +77,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin, topicName: "test-topic");
+        await using var transport = CreateTransport(producer, admin, topicName: "test-topic");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
@@ -89,7 +90,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -104,7 +105,7 @@ public sealed class KafkaMessageTransportTests
         var error = new Error(ErrorCode.BrokerNotAvailable, "broker down");
         using var producer = new FakeProducer { DeliveryError = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         var exception = await Assert.ThrowsAsync<AggregateException>(() =>
@@ -126,7 +127,7 @@ public sealed class KafkaMessageTransportTests
         var error = new Error(ErrorCode.BrokerNotAvailable, "down");
         using var producer = new FakeProducer { DeliveryError = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         _ = await Assert.ThrowsAsync<AggregateException>(() => transport.SendBatchAsync(messages, cancellationToken));
@@ -144,7 +145,7 @@ public sealed class KafkaMessageTransportTests
         var error = new Error(ErrorCode.Local_QueueFull, "queue full");
         using var producer = new FakeProducer { ThrowOnProduce = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         var ex = await Assert.ThrowsAsync<AggregateException>(() =>
@@ -161,7 +162,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = Enumerable.Range(0, 5).Select(_ => CreateOutboxMessage()).ToArray();
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -178,7 +179,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage() };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -199,7 +200,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -219,7 +220,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -232,7 +233,7 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 0 };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -246,18 +247,197 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { ThrowOnGetMetadata = true };
-        var transport = CreateTransport(producer, admin);
+        await using var transport = CreateTransport(producer, admin);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
     }
 
+    [Test]
+    public async Task DisposeAsync_Does_not_dispose_injected_producer_or_admin_client(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(producer, admin);
+
+        await transport.DisposeAsync().ConfigureAwait(false);
+
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(healthy).IsTrue();
+    }
+
+    [Test]
+    public async Task SendAsync_AutoCreateTopics_true_Creates_topic_before_producing(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+        _ = await Assert.That(admin.CreatedTopics).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SendAsync_AutoCreateTopics_false_Skips_topic_creation(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = false }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task SendAsync_AutoCreateTopics_only_Creates_topic_once_per_topic(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SendAsync_Creates_topic_with_custom_partition_count(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true, DefaultPartitionCount = 3 }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreatedTopics.Single().NumPartitions).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task SendAsync_Creates_topic_with_custom_replication_factor(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true, DefaultReplicationFactor = 2 }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreatedTopics.Single().ReplicationFactor).IsEqualTo((short)2);
+    }
+
+    [Test]
+    public async Task SendAsync_Creates_topic_with_custom_retention(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var retention = TimeSpan.FromHours(24);
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true, MessageRetention = retention }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        var createdTopic = admin.CreatedTopics.Single();
+        _ = await Assert.That(createdTopic.Configs).IsNotNull();
+        _ = await Assert
+            .That(createdTopic.Configs!["retention.ms"])
+            .IsEqualTo(((long)retention.TotalMilliseconds).ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Test]
+    public async Task SendAsync_Creates_topic_without_retention_config_when_not_set(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true, MessageRetention = null }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreatedTopics.Single().Configs).IsNull();
+    }
+
+    [Test]
+    public async Task SendBatchAsync_AutoCreateTopics_false_Skips_topic_creation(CancellationToken cancellationToken)
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = false }
+        );
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
+
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Constructor_When_options_is_null_throws_ArgumentNullException()
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        var resolver = new FixedTopicNameResolver("test-topic");
+
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            Task.FromResult(new KafkaMessageTransport(producer, admin, resolver, null!))
+        );
+    }
+
     private static KafkaMessageTransport CreateTransport(
         IProducer<string, string> producer,
         IAdminClient admin,
-        string topicName = "test-topic"
-    ) => new(producer, admin, new FixedTopicNameResolver(topicName));
+        string topicName = "test-topic",
+        KafkaTransportOptions? options = null
+    ) =>
+        new(
+            producer,
+            admin,
+            new FixedTopicNameResolver(topicName),
+            Options.Create(options ?? new KafkaTransportOptions())
+        );
 
     private static OutboxMessage CreateOutboxMessage() =>
         new()
@@ -420,6 +600,8 @@ public sealed class KafkaMessageTransportTests
         public int BrokerCount { get; init; }
         public bool ThrowOnGetMetadata { get; init; }
         public int GetMetadataCallCount { get; private set; }
+        public List<TopicSpecification> CreatedTopics { get; } = [];
+        public int CreateTopicsCallCount { get; private set; }
 
         public string Name => "fake-admin";
         public Handle Handle => default!;
@@ -447,8 +629,12 @@ public sealed class KafkaMessageTransportTests
 
         public GroupInfo ListGroup(string group, TimeSpan timeout) => throw new NotSupportedException();
 
-        public Task CreateTopicsAsync(IEnumerable<TopicSpecification> topics, CreateTopicsOptions? options = null) =>
-            throw new NotSupportedException();
+        public Task CreateTopicsAsync(IEnumerable<TopicSpecification> topics, CreateTopicsOptions? options = null)
+        {
+            CreateTopicsCallCount++;
+            CreatedTopics.AddRange(topics);
+            return Task.CompletedTask;
+        }
 
         public Task DeleteTopicsAsync(IEnumerable<string> topics, DeleteTopicsOptions? options = null) =>
             throw new NotSupportedException();
