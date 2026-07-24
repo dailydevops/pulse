@@ -69,8 +69,12 @@ public sealed class AzureQueueStorageExtensionsTests
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseAzureQueueStorageTransport(FakeConnectionString));
 
-        var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
-        _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(AzureQueueStorageMessageTransport));
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var transport = provider.GetRequiredService<IMessageTransport>();
+            _ = await Assert.That(transport).IsTypeOf<AzureQueueStorageMessageTransport>();
+        }
     }
 
     [Test]
@@ -79,8 +83,12 @@ public sealed class AzureQueueStorageExtensionsTests
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseAzureQueueStorageTransport(FakeServiceUri));
 
-        var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
-        _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(AzureQueueStorageMessageTransport));
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var transport = provider.GetRequiredService<IMessageTransport>();
+            _ = await Assert.That(transport).IsTypeOf<AzureQueueStorageMessageTransport>();
+        }
     }
 
     [Test]
@@ -170,8 +178,12 @@ public sealed class AzureQueueStorageExtensionsTests
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
         _ = services.AddPulse(config => config.UseAzureQueueStorageTransport(FakeConnectionString));
 
-        var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
-        _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(AzureQueueStorageMessageTransport));
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var transport = provider.GetRequiredService<IMessageTransport>();
+            _ = await Assert.That(transport).IsTypeOf<AzureQueueStorageMessageTransport>();
+        }
     }
 
     [Test]
