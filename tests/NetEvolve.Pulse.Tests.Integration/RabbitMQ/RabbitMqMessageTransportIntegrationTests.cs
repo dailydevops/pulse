@@ -17,6 +17,7 @@ using TUnit.Core;
 [ClassDataSource<RabbitMqContainerFixture>(Shared = SharedType.PerTestSession)]
 [TestGroup("RabbitMQ")]
 [Timeout(120_000)]
+[NotInParallel]
 public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFixture containerFixture)
     : IAsyncDisposable
 {
