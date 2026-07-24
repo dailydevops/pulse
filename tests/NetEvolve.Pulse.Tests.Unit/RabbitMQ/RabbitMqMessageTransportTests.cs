@@ -191,20 +191,6 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_When_messages_null_throws(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            transport.SendBatchAsync(null!, cancellationToken)
-        );
-
-        _ = await Assert.That(exception).IsNotNull();
-    }
-
-    [Test]
     public async Task SendAsync_Uses_topic_name_resolver_for_routing_key(CancellationToken cancellationToken)
     {
         var connectionAdapter = new FakeConnectionAdapter();

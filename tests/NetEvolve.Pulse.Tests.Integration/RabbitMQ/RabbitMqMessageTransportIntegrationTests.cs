@@ -198,16 +198,16 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         var tcs = new TaskCompletionSource<BasicDeliverEventArgs?>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(15));
-        cts.Token.Register(() => tcs.TrySetResult(null));
+        _ = cts.Token.Register(() => tcs.TrySetResult(null));
 
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.ReceivedAsync += (_, ea) =>
         {
-            tcs.TrySetResult(ea);
+            _ = tcs.TrySetResult(ea);
             return Task.CompletedTask;
         };
 
-        await channel
+        _ = await channel
             .BasicConsumeAsync(queueName, autoAck: true, consumer: consumer, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
@@ -225,7 +225,7 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(15));
-        cts.Token.Register(() => tcs.TrySetResult(false));
+        _ = cts.Token.Register(() => tcs.TrySetResult(false));
 
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.ReceivedAsync += (_, ea) =>
@@ -233,17 +233,17 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
             received.Add(ea);
             if (received.Count >= expectedCount)
             {
-                tcs.TrySetResult(true);
+                _ = tcs.TrySetResult(true);
             }
 
             return Task.CompletedTask;
         };
 
-        await channel
+        _ = await channel
             .BasicConsumeAsync(queueName, autoAck: true, consumer: consumer, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        await tcs.Task.ConfigureAwait(false);
+        _ = await tcs.Task.ConfigureAwait(false);
         return received;
     }
 
