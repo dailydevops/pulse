@@ -1159,6 +1159,54 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    public async Task ExecuteAsync_WhenGetPendingCountThrows_StillProcessesPendingMessages(
+        CancellationToken cancellationToken
+    )
+    {
+        using var repository = new InMemoryOutboxRepository { ThrowOnGetPendingCount = true };
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(transport.SentMessages).HasSingleItem();
+            _ = await Assert.That(repository.CompletedMessageIds).Contains(message.Id);
+        }
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithDefaultGetPendingCount_StillProcessesPendingMessages(
+        CancellationToken cancellationToken
+    )
+    {
+        using var repository = new DefaultCountOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await repository.WaitForCompletionAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(transport.SentMessages).HasSingleItem();
+    }
+
+    [Test]
     public async Task ExecuteAsync_WithBatchSendFailureAndExponentialBackoffEnabled_SetsNextRetryAtOnFailedMessages(
         CancellationToken cancellationToken
     )
@@ -1468,6 +1516,84 @@ public sealed class OutboxProcessorHostedServiceTests
             _markingEvent.Dispose();
             _pollEvent.Dispose();
         }
+    }
+
+    private sealed class DefaultCountOutboxRepository : IOutboxRepository, IDisposable
+    {
+        private readonly List<OutboxMessage> _messages = [];
+        private readonly object _lock = new();
+        private readonly SemaphoreSlim _completionEvent = new(0, int.MaxValue);
+
+        public async Task WaitForCompletionAsync(int count, CancellationToken cancellationToken = default)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                await _completionEvent.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            lock (_lock)
+            {
+                _messages.Add(message);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
+            int batchSize,
+            CancellationToken cancellationToken = default
+        )
+        {
+            lock (_lock)
+            {
+                var messages = _messages.Where(m => m.Status == OutboxMessageStatus.Pending).Take(batchSize).ToList();
+
+                foreach (var msg in messages)
+                {
+                    msg.Status = OutboxMessageStatus.Processing;
+                }
+
+                return Task.FromResult<IReadOnlyList<OutboxMessage>>(messages);
+            }
+        }
+
+        public Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
+        {
+            lock (_lock)
+            {
+                var message = _messages.Find(m => m.Id == messageId);
+                message?.Status = OutboxMessageStatus.Completed;
+            }
+
+            _ = _completionEvent.Release();
+            return Task.CompletedTask;
+        }
+
+        public Task MarkAsFailedAsync(
+            Guid messageId,
+            string errorMessage,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task MarkAsDeadLetterAsync(
+            Guid messageId,
+            string errorMessage,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
+            int maxRetryCount,
+            int batchSize,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
+
+        public void Dispose() => _completionEvent.Dispose();
     }
 
     private sealed class InMemoryMessageTransport : IMessageTransport
