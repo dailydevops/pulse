@@ -221,6 +221,40 @@ public sealed class KafkaMessageTransportTests
         _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
     }
 
+    // INVARIANT: The final Flush() must be offloaded (e.g. via Task.Run) instead of executed
+    // inline on the calling thread. Every prior await in SendBatchAsync completes synchronously
+    // against the fakes, so a synchronous Flush() call would block the caller for as long as the
+    // gate below is held, and the returned task could never be observed as pending. Releasing the
+    // gate from a background delay proves the caller is not blocked while the flush is in flight.
+    [Test]
+    public async Task SendBatchAsync_Offloads_Flush_instead_of_blocking_the_calling_thread(
+        CancellationToken cancellationToken
+    )
+    {
+        using var flushGate = new ManualResetEventSlim(false);
+        using var producer = new FakeProducer { FlushGate = flushGate };
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(producer, admin);
+        var messages = new[] { CreateOutboxMessage() };
+
+        _ = Task.Run(
+            async () =>
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(300), CancellationToken.None).ConfigureAwait(false);
+                flushGate.Set();
+            },
+            CancellationToken.None
+        );
+
+        var task = transport.SendBatchAsync(messages, cancellationToken);
+
+        _ = await Assert.That(task.IsCompleted).IsFalse();
+
+        await task.ConfigureAwait(false);
+
+        _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+    }
+
     [Test]
     public async Task IsHealthyAsync_Returns_true_when_broker_metadata_is_available(CancellationToken cancellationToken)
     {
@@ -544,6 +578,7 @@ public sealed class KafkaMessageTransportTests
         public Error? ProduceAsyncError { get; init; }
         public Error? DeliveryError { get; init; }
         public Error? ThrowOnProduce { get; init; }
+        public ManualResetEventSlim? FlushGate { get; init; }
 
         public string Name => "fake-producer";
         public Handle Handle => default!;
@@ -634,6 +669,7 @@ public sealed class KafkaMessageTransportTests
 
         public void Flush(CancellationToken cancellationToken = default)
         {
+            FlushGate?.Wait(cancellationToken);
             FlushCallCount++;
             FlushCancellationTokens.Add(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
