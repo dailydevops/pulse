@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.AzureQueueStorage;
+﻿namespace NetEvolve.Pulse.Tests.Integration.AzureQueueStorage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Testcontainers.Azurite;
@@ -9,7 +9,9 @@ using TUnit.Core.Interfaces;
 /// </summary>
 public sealed class AzuriteContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
-    private readonly AzuriteContainer _container = new AzuriteBuilder("mcr.microsoft.com/azure-storage/azurite:3.36.0")
+    private readonly AzuriteContainer _container = new AzuriteBuilder( /*dockerimage*/
+        "mcr.microsoft.com/azure-storage/azurite:3.36.0"
+    )
         .WithLogger(NullLogger.Instance)
         .Build();
 
