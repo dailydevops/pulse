@@ -281,6 +281,26 @@ public sealed class EndpointRouteBuilderExtensionsTests
         _ = await Assert.That(body).Contains("\"beta\"\n");
     }
 
+    // MapStreamQuery — NDJSON newline delimiter
+
+    [Test]
+    public async Task MapStreamQuery_WithMultipleItems_WritesExactlyOneNewlinePerItem(
+        CancellationToken cancellationToken
+    )
+    {
+        using var host = await CreateTestHostAsync(["alpha", "beta"], cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-ndjson"));
+
+        using var response = await client
+            .GetAsync(new Uri("/stream", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(body).IsEqualTo("\"alpha\"\n\"beta\"\n");
+    }
+
     // INVARIANT: Media types are case-insensitive per RFC 7231 §3.1.1.1, so a request
     // sending the upper-cased / mixed-case ndjson media type must be treated as ndjson.
     [Test]
