@@ -152,10 +152,13 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         _ = builder.Property(m => m.Error).HasColumnName(OutboxMessageSchema.Columns.Error);
 
         // Status column
+        // The status acts as an optimistic concurrency token so that change-tracking based
+        // executors detect competing pollers that claimed the same row after it was loaded.
         _ = builder
             .Property(m => m.Status)
             .HasColumnName(OutboxMessageSchema.Columns.Status)
             .HasDefaultValue(OutboxMessageStatus.Pending)
+            .IsConcurrencyToken()
             .IsRequired();
 
         // Provider-specific column type overrides

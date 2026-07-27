@@ -79,6 +79,6 @@ internal sealed class MySqlOutboxRepositoryExecutor<TContext>(TContext context, 
             }
         }
 
-        _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _ = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
     }
 }
