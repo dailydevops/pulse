@@ -123,6 +123,56 @@ public sealed class PollyRequestInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_WithRetryPolicy_PassesRequestInstanceToHandlerOnEachAttempt(
+        CancellationToken cancellationToken
+    )
+    {
+        // Arrange
+        var pipeline = new ResiliencePipelineBuilder<string>()
+            .AddRetry(new RetryStrategyOptions<string> { MaxRetryAttempts = 1, Delay = TimeSpan.FromMilliseconds(10) })
+            .Build();
+        var serviceProvider = CreateServiceProvider<TestCommand, string>(pipeline);
+        var interceptor = new PollyRequestInterceptor<TestCommand, string>(serviceProvider);
+        var request = new TestCommand();
+
+        var callCount = 0;
+        var allSameRequestInstance = true;
+        var tokenNeverCanceled = true;
+
+        // Act
+        var result = await interceptor
+            .HandleAsync(
+                request,
+                (req, ct) =>
+                {
+                    callCount++;
+                    if (!ReferenceEquals(req, request))
+                    {
+                        allSameRequestInstance = false;
+                    }
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        tokenNeverCanceled = false;
+                    }
+
+                    return callCount < 2
+                        ? Task.FromException<string>(new InvalidOperationException("Transient failure"))
+                        : Task.FromResult("success");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        // Assert - the state-passing execution path forwards the exact request instance
+        // and a live cancellation token to the handler on every attempt
+        _ = await Assert.That(result).IsEqualTo("success");
+        _ = await Assert.That(callCount).IsEqualTo(2);
+        _ = await Assert.That(allSameRequestInstance).IsTrue();
+        _ = await Assert.That(tokenNeverCanceled).IsTrue();
+    }
+
+    [Test]
     public async Task HandleAsync_WithRetryPolicy_RetriesOnFailure(CancellationToken cancellationToken)
     {
         // Arrange

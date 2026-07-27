@@ -129,6 +129,55 @@ public sealed class PollyEventInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_WithRetryPolicy_PassesMessageInstanceToHandlerOnEachAttempt(
+        CancellationToken cancellationToken
+    )
+    {
+        // Arrange
+        var pipeline = new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 1, Delay = TimeSpan.FromMilliseconds(10) })
+            .Build();
+        var serviceProvider = CreateServiceProvider<TestEvent>(pipeline);
+        var interceptor = new PollyEventInterceptor<TestEvent>(serviceProvider);
+        var message = new TestEvent();
+
+        var callCount = 0;
+        var allSameMessageInstance = true;
+        var tokenNeverCanceled = true;
+
+        // Act
+        await interceptor
+            .HandleAsync(
+                message,
+                (msg, ct) =>
+                {
+                    callCount++;
+                    if (!ReferenceEquals(msg, message))
+                    {
+                        allSameMessageInstance = false;
+                    }
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        tokenNeverCanceled = false;
+                    }
+
+                    return callCount < 2
+                        ? Task.FromException(new InvalidOperationException("Transient failure"))
+                        : Task.CompletedTask;
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        // Assert - the state-passing execution path forwards the exact event instance
+        // and a live cancellation token to the handler on every attempt
+        _ = await Assert.That(callCount).IsEqualTo(2);
+        _ = await Assert.That(allSameMessageInstance).IsTrue();
+        _ = await Assert.That(tokenNeverCanceled).IsTrue();
+    }
+
+    [Test]
     public async Task HandleAsync_WithRetryPolicy_RetriesOnFailure(CancellationToken cancellationToken)
     {
         // Arrange

@@ -114,7 +114,11 @@ internal sealed class PollyEventInterceptor<TEvent> : IEventInterceptor<TEvent>
         ArgumentNullException.ThrowIfNull(handler);
 
         await _pipeline
-            .ExecuteAsync(async token => await handler(message, token).ConfigureAwait(false), cancellationToken)
+            .ExecuteAsync(
+                static (state, token) => new ValueTask(state.Handler(state.Message, token)),
+                (Handler: handler, Message: message),
+                cancellationToken
+            )
             .ConfigureAwait(false);
     }
 }
