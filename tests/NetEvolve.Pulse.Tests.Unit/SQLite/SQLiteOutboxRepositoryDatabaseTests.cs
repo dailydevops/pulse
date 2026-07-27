@@ -1,6 +1,9 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.SQLite;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
@@ -469,6 +472,148 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
                 }
             }
         }
+    }
+
+    [Test]
+    public async Task MarkAsBatchOverloads_AreImplementedBySQLiteRepository()
+    {
+        var markCompleted = typeof(SQLiteOutboxRepository).GetMethod(
+            nameof(IOutboxRepository.MarkAsCompletedAsync),
+            [typeof(IReadOnlyCollection<Guid>), typeof(CancellationToken)]
+        );
+        var markFailed = typeof(SQLiteOutboxRepository).GetMethod(
+            nameof(IOutboxRepository.MarkAsFailedAsync),
+            [typeof(IReadOnlyCollection<Guid>), typeof(string), typeof(CancellationToken)]
+        );
+        var markDeadLetter = typeof(SQLiteOutboxRepository).GetMethod(
+            nameof(IOutboxRepository.MarkAsDeadLetterAsync),
+            [typeof(IReadOnlyCollection<Guid>), typeof(string), typeof(CancellationToken)]
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(markCompleted).IsNotNull();
+            _ = await Assert.That(markFailed).IsNotNull();
+            _ = await Assert.That(markDeadLetter).IsNotNull();
+        }
+    }
+
+    [Test]
+    public async Task MarkAsCompletedAsync_WithMultipleMessageIds_MarksAllAsCompleted(
+        CancellationToken cancellationToken
+    )
+    {
+        IOutboxRepository repository = CreateRepository();
+        var messages = new[] { CreateMessage(), CreateMessage(), CreateMessage() };
+        foreach (var message in messages)
+        {
+            await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
+        var messageIds = messages.Select(m => m.Id).ToArray();
+        await repository.MarkAsCompletedAsync(messageIds, cancellationToken).ConfigureAwait(false);
+
+        var statuses = await GetStatusesAsync(messageIds, cancellationToken).ConfigureAwait(false);
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(statuses.Count).IsEqualTo(3);
+            _ = await Assert.That(statuses).All(s => s == (long)OutboxMessageStatus.Completed);
+        }
+    }
+
+    [Test]
+    public async Task MarkAsFailedAsync_WithMultipleMessageIds_MarksAllAsFailed(CancellationToken cancellationToken)
+    {
+        IOutboxRepository repository = CreateRepository();
+        var messages = new[] { CreateMessage(), CreateMessage() };
+        foreach (var message in messages)
+        {
+            await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
+        var messageIds = messages.Select(m => m.Id).ToArray();
+        await repository.MarkAsFailedAsync(messageIds, "Batch error", cancellationToken).ConfigureAwait(false);
+
+        foreach (var messageId in messageIds)
+        {
+            var cmd = new SqliteCommand(
+                "SELECT \"Status\", \"Error\", \"RetryCount\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id",
+                _keepAlive
+            );
+            await using (cmd.ConfigureAwait(false))
+            {
+                _ = cmd.Parameters.AddWithValue("@Id", messageId.ToString());
+                var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using (reader.ConfigureAwait(false))
+                {
+                    _ = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(reader.GetInt64(0)).IsEqualTo((long)OutboxMessageStatus.Failed);
+                        _ = await Assert.That(reader.GetString(1)).IsEqualTo("Batch error");
+                        _ = await Assert.That(reader.GetInt64(2)).IsEqualTo(1L);
+                    }
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task MarkAsDeadLetterAsync_WithMultipleMessageIds_MarksAllAsDeadLetter(
+        CancellationToken cancellationToken
+    )
+    {
+        IOutboxRepository repository = CreateRepository();
+        var messages = new[] { CreateMessage(), CreateMessage() };
+        foreach (var message in messages)
+        {
+            await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
+        var messageIds = messages.Select(m => m.Id).ToArray();
+        await repository
+            .MarkAsDeadLetterAsync(messageIds, "Fatal batch error", cancellationToken)
+            .ConfigureAwait(false);
+
+        var statuses = await GetStatusesAsync(messageIds, cancellationToken).ConfigureAwait(false);
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(statuses.Count).IsEqualTo(2);
+            _ = await Assert.That(statuses).All(s => s == (long)OutboxMessageStatus.DeadLetter);
+        }
+    }
+
+    [Test]
+    public async Task MarkAsCompletedAsync_WithEmptyMessageIds_DoesNotThrow(CancellationToken cancellationToken)
+    {
+        IOutboxRepository repository = CreateRepository();
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await repository.MarkAsCompletedAsync(Array.Empty<Guid>(), cancellationToken).ConfigureAwait(false);
+
+        var statuses = await GetStatusesAsync([message.Id], cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(statuses[0]).IsEqualTo((long)OutboxMessageStatus.Pending);
+    }
+
+    private async Task<List<long>> GetStatusesAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken
+    )
+    {
+        var statuses = new List<long>();
+        foreach (var messageId in messageIds)
+        {
+            var cmd = new SqliteCommand("SELECT \"Status\" FROM \"OutboxMessage\" WHERE \"Id\" = @Id", _keepAlive);
+            await using (cmd.ConfigureAwait(false))
+            {
+                _ = cmd.Parameters.AddWithValue("@Id", messageId.ToString());
+                statuses.Add((long)(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!);
+            }
+        }
+
+        return statuses;
     }
 
     private static async Task<string?> SetJournalModeDeleteAsync(
