@@ -11,13 +11,18 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// Suitable for any EF Core provider that supports these operations and can correctly
 /// translate a parameterised <see cref="Guid"/> collection into a SQL <c>IN</c> clause
 /// (SQL Server, PostgreSQL, SQLite, and others).
+/// A <c>maxDegreeOfParallelism</c> below one is clamped to one, so the executor stays usable
+/// on single-CPU hosts where callers derive the value from <see cref="Environment.ProcessorCount"/>.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
 internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, int maxDegreeOfParallelism)
     : IOutboxRepositoryExecutor
     where TContext : DbContext, IOutboxDbContext
 {
-    private readonly SemaphoreSlim _semaphore = new(maxDegreeOfParallelism, maxDegreeOfParallelism);
+    private readonly SemaphoreSlim _semaphore = new(
+        Math.Max(1, maxDegreeOfParallelism),
+        Math.Max(1, maxDegreeOfParallelism)
+    );
     private bool _disposedValue;
 
     /// <inheritdoc />
