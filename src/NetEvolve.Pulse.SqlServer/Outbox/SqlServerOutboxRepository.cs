@@ -505,7 +505,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         {
             Id = reader.GetGuid(ordId),
             EventType =
-                Type.GetType(reader.GetString(ordEventType))
+                OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType))
                 ?? throw new InvalidOperationException(
                     $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
                 ),
