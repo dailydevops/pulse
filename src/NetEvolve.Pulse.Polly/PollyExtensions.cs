@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -57,7 +58,9 @@ public static class PollyExtensions
     /// <typeparam name="TResponse">The response type produced by the request handler.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
-    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton for optimal performance).</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor registrations (default: Singleton).
+    /// The pipeline instance itself is built once per registration and cached, so stateful strategies such as
+    /// circuit breakers keep their state across scopes and resolutions regardless of the chosen lifetime.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -68,8 +71,10 @@ public static class PollyExtensions
     /// The <paramref name="configure"/> action receives a <see cref="ResiliencePipelineBuilder{TResult}"/>
     /// which supports fluent configuration of multiple strategies. Strategies execute in the order they are added.
     /// <para><strong>Lifetime Management:</strong></para>
-    /// Singleton lifetime (default) is recommended for performance. The pipeline is thread-safe and stateless
-    /// unless you use stateful strategies like circuit breakers (which are also thread-safe).
+    /// Singleton lifetime (default) is recommended for performance. The built pipeline is cached per
+    /// registration and shared across scopes and resolutions even for Scoped or Transient lifetimes,
+    /// so stateful strategies like circuit breakers accumulate state as expected. The pipeline is
+    /// thread-safe and designed to be reused.
     /// </remarks>
     /// <example>
     /// <para><strong>Simple retry policy:</strong></para>
@@ -133,17 +138,25 @@ public static class PollyExtensions
             _ = configurator.Services.Remove(existingPipeline);
         }
 
-        // Register the resilience pipeline as keyed service with TRequest as key
+        // Register the resilience pipeline as keyed service with TRequest as key.
+        // The pipeline is built once per registration and cached regardless of the chosen
+        // lifetime, so stateful strategies (circuit breaker, rate limiter, bulkhead) keep
+        // their state across scopes and resolutions.
+        var lazyPipeline = new Lazy<ResiliencePipeline<TResponse>>(
+            () =>
+            {
+                var builder = new ResiliencePipelineBuilder<TResponse>();
+                configure(builder);
+                return builder.Build();
+            },
+            LazyThreadSafetyMode.ExecutionAndPublication
+        );
+
         configurator.Services.Add(
             new ServiceDescriptor(
                 typeof(ResiliencePipeline<TResponse>),
                 typeof(TRequest),
-                (_, _) =>
-                {
-                    var builder = new ResiliencePipelineBuilder<TResponse>();
-                    configure(builder);
-                    return builder.Build();
-                },
+                (_, _) => lazyPipeline.Value,
                 lifetime
             )
         );
@@ -161,7 +174,9 @@ public static class PollyExtensions
     /// <typeparam name="TResponse">The response type produced by the command handler.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
-    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor registrations (default: Singleton).
+    /// The pipeline instance itself is built once per registration and cached, so stateful strategies such as
+    /// circuit breakers keep their state across scopes and resolutions regardless of the chosen lifetime.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -194,7 +209,9 @@ public static class PollyExtensions
     /// <typeparam name="TCommand">The command type that implements <see cref="ICommand{TResponse}"/> with <see cref="Void"/> as the response.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
-    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor registrations (default: Singleton).
+    /// The pipeline instance itself is built once per registration and cached, so stateful strategies such as
+    /// circuit breakers keep their state across scopes and resolutions regardless of the chosen lifetime.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -226,7 +243,9 @@ public static class PollyExtensions
     /// <typeparam name="TResponse">The response type produced by the query handler.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
-    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor registrations (default: Singleton).
+    /// The pipeline instance itself is built once per registration and cached, so stateful strategies such as
+    /// circuit breakers keep their state across scopes and resolutions regardless of the chosen lifetime.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -259,7 +278,9 @@ public static class PollyExtensions
     /// <typeparam name="TResponse">The type of each item yielded by the stream query handler.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
-    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor registrations (default: Singleton).
+    /// The pipeline instance itself is built once per registration and cached, so stateful strategies such as
+    /// circuit breakers keep their state across scopes and resolutions regardless of the chosen lifetime.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -315,19 +336,22 @@ public static class PollyExtensions
             _ = configurator.Services.Remove(existingPipeline);
         }
 
-        // Register the resilience pipeline as keyed service with TQuery as key
+        // Register the resilience pipeline as keyed service with TQuery as key.
+        // The pipeline is built once per registration and cached regardless of the chosen
+        // lifetime, so stateful strategies (circuit breaker, rate limiter, bulkhead) keep
+        // their state across scopes and resolutions.
+        var lazyPipeline = new Lazy<ResiliencePipeline>(
+            () =>
+            {
+                var builder = new ResiliencePipelineBuilder();
+                configure(builder);
+                return builder.Build();
+            },
+            LazyThreadSafetyMode.ExecutionAndPublication
+        );
+
         configurator.Services.Add(
-            new ServiceDescriptor(
-                typeof(ResiliencePipeline),
-                typeof(TQuery),
-                (_, _) =>
-                {
-                    var builder = new ResiliencePipelineBuilder();
-                    configure(builder);
-                    return builder.Build();
-                },
-                lifetime
-            )
+            new ServiceDescriptor(typeof(ResiliencePipeline), typeof(TQuery), (_, _) => lazyPipeline.Value, lifetime)
         );
 
         // Register the stream query interceptor
@@ -348,7 +372,9 @@ public static class PollyExtensions
     /// <typeparam name="TEvent">The event type that implements <see cref="IEvent"/>.</typeparam>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">Action to configure the Polly resilience pipeline builder.</param>
-    /// <param name="lifetime">The service lifetime for the pipeline and interceptor (default: Singleton).</param>
+    /// <param name="lifetime">The service lifetime for the pipeline and interceptor registrations (default: Singleton).
+    /// The pipeline instance itself is built once per registration and cached, so stateful strategies such as
+    /// circuit breakers keep their state across scopes and resolutions regardless of the chosen lifetime.</param>
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -412,19 +438,22 @@ public static class PollyExtensions
             _ = configurator.Services.Remove(existingPipeline);
         }
 
-        // Register the resilience pipeline as keyed service with TEvent as key
+        // Register the resilience pipeline as keyed service with TEvent as key.
+        // The pipeline is built once per registration and cached regardless of the chosen
+        // lifetime, so stateful strategies (circuit breaker, rate limiter, bulkhead) keep
+        // their state across scopes and resolutions.
+        var lazyPipeline = new Lazy<ResiliencePipeline>(
+            () =>
+            {
+                var builder = new ResiliencePipelineBuilder();
+                configure(builder);
+                return builder.Build();
+            },
+            LazyThreadSafetyMode.ExecutionAndPublication
+        );
+
         configurator.Services.Add(
-            new ServiceDescriptor(
-                typeof(ResiliencePipeline),
-                typeof(TEvent),
-                (_1, _2) =>
-                {
-                    var builder = new ResiliencePipelineBuilder();
-                    configure(builder);
-                    return builder.Build();
-                },
-                lifetime
-            )
+            new ServiceDescriptor(typeof(ResiliencePipeline), typeof(TEvent), (_, _) => lazyPipeline.Value, lifetime)
         );
 
         // Register the event interceptor
