@@ -70,10 +70,12 @@ internal sealed partial class PulseMediator : IMediator
     /// The event's <see cref="IEvent.PublishedAt"/> property is automatically set before handlers execute.
     /// If any handler throws an exception, it is logged but does not prevent other handlers from executing.
     /// Event interceptors are applied in reverse registration order, allowing pre- and post-processing.
-    /// A new DI scope is created per invocation so that concurrent publishes each receive isolated scoped
-    /// services, preventing thread-safety violations caused by shared state across parallel calls.
+    /// Handlers are resolved from the same service provider the mediator was resolved from, so scoped
+    /// handlers share the caller's scoped services (e.g. the same DbContext) and can participate in the
+    /// caller's transaction — a prerequisite for atomic outbox writes. When the mediator is resolved from
+    /// the root provider, scoped handler dependencies live in the root scope for the provider's lifetime.
     /// </remarks>
-    public async Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
+    public Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -81,23 +83,18 @@ internal sealed partial class PulseMediator : IMediator
         // Set the publication timestamp for tracking purposes
         message.PublishedAt = _timeProvider.GetUtcNow();
 
-        // Create a new scope per publish so concurrent invocations each get isolated
-        // scoped services (e.g. a fresh DbContext), preventing thread-safety violations.
-        var scope = _serviceProvider.CreateAsyncScope();
-        await using (scope.ConfigureAwait(false))
+        // Resolve handlers from the caller's provider so scoped services (e.g. DbContext)
+        // are shared with the publishing code and ambient transactions remain effective.
+        var handlers = _serviceProvider.GetServices<IEventHandler<TEvent>>().ToArray();
+
+        // If there are no handlers, simply return
+        if (handlers.Length == 0)
         {
-            // Retrieve all handlers for the event type from the new scope
-            var handlers = scope.ServiceProvider.GetServices<IEventHandler<TEvent>>().ToArray();
-
-            // If there are no handlers, simply return
-            if (handlers.Length == 0)
-            {
-                return;
-            }
-
-            // Execute handlers through the interceptor pipeline and dispatcher using scoped services
-            await ExecuteAsync(message, handlers, scope.ServiceProvider, cancellationToken).ConfigureAwait(false);
+            return Task.CompletedTask;
         }
+
+        // Execute handlers through the interceptor pipeline and dispatcher using the caller's services
+        return ExecuteAsync(message, handlers, _serviceProvider, cancellationToken);
     }
 
     /// <inheritdoc />

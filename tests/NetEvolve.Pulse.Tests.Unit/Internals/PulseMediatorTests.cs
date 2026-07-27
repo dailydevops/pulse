@@ -371,6 +371,59 @@ public class PulseMediatorTests
         }
     }
 
+    [Test]
+    public async Task PublishAsync_WithScopedHandler_ResolvesHandlersFromCallerScope(
+        CancellationToken cancellationToken
+    )
+    {
+        var collector = new ScopedDependencyCollector();
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton(collector);
+        _ = services.AddScoped<ScopedDependency>();
+        _ = services.AddScoped<IEventHandler<TestEvent>, ScopedDependencyCapturingHandler>();
+        var serviceProvider = services.BuildServiceProvider();
+
+        var scope = serviceProvider.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<PulseMediator>>();
+            var mediator = new PulseMediator(logger, scope.ServiceProvider, TimeProvider.System);
+            var callerDependency = scope.ServiceProvider.GetRequiredService<ScopedDependency>();
+
+            await mediator.PublishAsync(new TestEvent(), cancellationToken).ConfigureAwait(false);
+
+            // The handler must observe the same scoped dependency instance as the caller's scope,
+            // so that e.g. an outbox write shares the caller's DbContext and its transaction.
+            _ = await Assert.That(collector.Captured).IsSameReferenceAs(callerDependency);
+        }
+    }
+
+    private sealed class ScopedDependency;
+
+    private sealed class ScopedDependencyCollector
+    {
+        public ScopedDependency? Captured { get; set; }
+    }
+
+    private sealed class ScopedDependencyCapturingHandler : IEventHandler<TestEvent>
+    {
+        private readonly ScopedDependency _dependency;
+        private readonly ScopedDependencyCollector _collector;
+
+        public ScopedDependencyCapturingHandler(ScopedDependency dependency, ScopedDependencyCollector collector)
+        {
+            _dependency = dependency;
+            _collector = collector;
+        }
+
+        public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
+        {
+            _collector.Captured = _dependency;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class TestEvent : IEvent
     {
         public string Id { get; init; } = Guid.NewGuid().ToString();
