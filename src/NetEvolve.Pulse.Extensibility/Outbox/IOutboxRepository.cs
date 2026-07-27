@@ -56,17 +56,15 @@ public interface IOutboxRepository
     /// <param name="messageIds">The IDs of the messages to mark as completed.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    async Task MarkAsCompletedAsync(
-        IReadOnlyCollection<Guid> messageIds,
-        CancellationToken cancellationToken = default
-    ) =>
-        await Parallel
-            .ForEachAsync(
-                messageIds,
-                cancellationToken,
-                async (id, token) => await MarkAsCompletedAsync(id, token).ConfigureAwait(false)
-            )
-            .ConfigureAwait(false);
+    async Task MarkAsCompletedAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        foreach (var messageId in messageIds)
+        {
+            await MarkAsCompletedAsync(messageId, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Marks a message as failed and records the error.
@@ -114,14 +112,15 @@ public interface IOutboxRepository
         IReadOnlyCollection<Guid> messageIds,
         string errorMessage,
         CancellationToken cancellationToken = default
-    ) =>
-        await Parallel
-            .ForEachAsync(
-                messageIds,
-                cancellationToken,
-                async (id, token) => await MarkAsFailedAsync(id, errorMessage, token).ConfigureAwait(false)
-            )
-            .ConfigureAwait(false);
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        foreach (var messageId in messageIds)
+        {
+            await MarkAsFailedAsync(messageId, errorMessage, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Moves a message to dead letter status after exceeding retry limits.
@@ -143,14 +142,15 @@ public interface IOutboxRepository
         IReadOnlyCollection<Guid> messageIds,
         string errorMessage,
         CancellationToken cancellationToken = default
-    ) =>
-        await Parallel
-            .ForEachAsync(
-                messageIds,
-                cancellationToken,
-                async (id, token) => await MarkAsDeadLetterAsync(id, errorMessage, token).ConfigureAwait(false)
-            )
-            .ConfigureAwait(false);
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        foreach (var messageId in messageIds)
+        {
+            await MarkAsDeadLetterAsync(messageId, errorMessage, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Returns the current count of pending outbox messages.
