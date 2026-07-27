@@ -523,6 +523,64 @@ public class DistributedCacheQueryInterceptorTests
         public string? CorrelationId { get; set; }
     }
 
+    [Test]
+    public async Task HandleAsync_ConcurrentCacheMisses_ExecutesHandlerOnlyOnce(CancellationToken cancellationToken)
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            // Two interceptor instances mirror the scoped registration: each request gets its own
+            // instance, so stampede protection must work across instances.
+            var interceptor1 = new DistributedCacheQueryInterceptor<CacheableQuery, string>(
+                provider,
+                DefaultOptions,
+                DefaultSerializer
+            );
+            var interceptor2 = new DistributedCacheQueryInterceptor<CacheableQuery, string>(
+                provider,
+                DefaultOptions,
+                DefaultSerializer
+            );
+            var query = new CacheableQuery("stampede-key");
+
+            var executionCount = 0;
+            using var handlerEntered = new SemaphoreSlim(0, int.MaxValue);
+            var releaseHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            async Task<string> Handler(CacheableQuery request, CancellationToken token)
+            {
+                _ = Interlocked.Increment(ref executionCount);
+                _ = handlerEntered.Release();
+#pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
+                await releaseHandler.Task.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+                return "value";
+            }
+
+            var firstCall = interceptor1.HandleAsync(query, Handler, cancellationToken);
+            await handlerEntered.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+            // A second identical query misses the cache while the first handler is still running.
+            var secondCall = interceptor2.HandleAsync(query, Handler, cancellationToken);
+
+            // Without single-flight protection the second caller enters the handler almost
+            // immediately; give it ample time so the defect is observed reliably.
+            _ = await handlerEntered.WaitAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+
+            releaseHandler.SetResult();
+            var results = await Task.WhenAll(firstCall, secondCall).ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(results[0]).IsEqualTo("value");
+                _ = await Assert.That(results[1]).IsEqualTo("value");
+                _ = await Assert.That(executionCount).IsEqualTo(1);
+            }
+        }
+    }
+
     private sealed record CacheableQuery(string Key) : ICacheableQuery<string>
     {
         public string? CausationId { get; set; }

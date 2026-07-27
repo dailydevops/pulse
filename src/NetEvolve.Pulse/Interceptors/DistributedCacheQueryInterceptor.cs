@@ -21,6 +21,11 @@ using NetEvolve.Pulse.Extensibility.Caching;
 /// When no cached entry exists, the handler is invoked and the response is serialized using the
 /// configured <see cref="IPayloadSerializer"/> of <see cref="DistributedCacheQueryInterceptor{TQuery, TResponse}"/>
 /// and stored in the cache before being returned to the caller.
+/// <para><strong>Stampede Protection:</strong></para>
+/// Concurrent in-process misses for the same cache key are coordinated through striped per-key locks:
+/// only one caller executes the handler while the others wait and are served from the freshly populated
+/// cache. Keys may share a stripe, so unrelated misses can occasionally serialize. Cross-process
+/// stampede protection (e.g. a distributed lock) is out of scope for this interceptor.
 /// <para><strong>No Cache Registered:</strong></para>
 /// When <see cref="IDistributedCache"/> is not registered in the DI container, the interceptor
 /// falls through to the handler without error.
@@ -39,6 +44,12 @@ using NetEvolve.Pulse.Extensibility.Caching;
 internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQueryInterceptor<TQuery, TResponse>
     where TQuery : IQuery<TResponse>
 {
+    /// <summary>
+    /// Striped per-key locks providing in-process single-flight execution on cache misses.
+    /// Static so the protection spans all (scoped) interceptor instances of this closed generic type.
+    /// </summary>
+    private static readonly SemaphoreSlim[] KeyLocks = CreateKeyLocks();
+
     private readonly IServiceProvider _serviceProvider;
     private readonly QueryCachingOptions _options;
     private readonly IPayloadSerializer _payloadSerializer;
@@ -98,17 +109,63 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
             await cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
         }
 
-        var response = await handler(request, cancellationToken).ConfigureAwait(false);
-
-        if (response is not null)
+        var keyLock = KeyLocks[GetKeyLockIndex(cacheKey)];
+        await keyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var serialized = _payloadSerializer.SerializeToBytes(response);
-            var entryOptions = GetCacheEntryOptions(cacheableQuery);
-            await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
+            // Re-check after acquiring the lock: a concurrent in-process caller may have
+            // populated the cache while this caller was waiting.
+            cachedBytes = await cache.GetAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+            if (cachedBytes is not null)
+            {
+                var cached = _payloadSerializer.Deserialize<TResponse>(cachedBytes);
+                if (cached is not null)
+                {
+                    return cached;
+                }
+
+                await cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+            }
+
+            var response = await handler(request, cancellationToken).ConfigureAwait(false);
+
+            if (response is not null)
+            {
+                var serialized = _payloadSerializer.SerializeToBytes(response);
+                var entryOptions = GetCacheEntryOptions(cacheableQuery);
+                await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
+            }
+
+            return response;
+        }
+        finally
+        {
+            _ = keyLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Creates the fixed set of stripe locks used for in-process single-flight coordination.
+    /// </summary>
+    /// <returns>An array of single-count <see cref="SemaphoreSlim"/> instances.</returns>
+    private static SemaphoreSlim[] CreateKeyLocks()
+    {
+        var locks = new SemaphoreSlim[32];
+        for (var i = 0; i < locks.Length; i++)
+        {
+            locks[i] = new SemaphoreSlim(1, 1);
         }
 
-        return response;
+        return locks;
     }
+
+    /// <summary>
+    /// Maps a cache key to its stripe lock index.
+    /// </summary>
+    /// <param name="cacheKey">The cache key to map.</param>
+    /// <returns>The index of the stripe lock responsible for the key.</returns>
+    private static uint GetKeyLockIndex(string cacheKey) =>
+        (uint)StringComparer.Ordinal.GetHashCode(cacheKey) % (uint)KeyLocks.Length;
 
     /// <summary>
     /// Determines the appropriate cache entry options based on the query's expiry and the configured expiration mode.
