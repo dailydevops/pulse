@@ -175,6 +175,74 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
         }
     }
 
+    /// <summary>
+    /// INVARIANT (concurrency / disposal): when <c>Dispose()</c> races a sender that is
+    /// inside <c>EnsureChannelAsync</c> creating a new channel, the freshly created
+    /// channel must not leak (it must end up disposed) and the sender's semaphore
+    /// release must not throw <see cref="ObjectDisposedException"/>. Currently
+    /// <c>Dispose()</c> tears down the semaphore without acquiring it, so the in-flight
+    /// sender's <c>Release()</c> throws and the new channel is orphaned.
+    /// </summary>
+    [Test]
+    public async Task Dispose_DuringInFlightChannelCreation_DisposesNewChannelAndDoesNotThrowOnRelease(
+        CancellationToken cancellationToken
+    )
+    {
+        var connectionAdapter = new FakeConnectionAdapter();
+        var topicNameResolver = new FakeTopicNameResolver();
+        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        try
+        {
+            // Make the first channel creation block until we explicitly release it.
+            var creationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCreation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            connectionAdapter.CreationGate = (start: creationStarted, release: releaseCreation);
+
+            var sendTask = Task.Run(
+                async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
+                cancellationToken
+            );
+
+            // Wait until the sender is inside EnsureChannelAsync, holding the
+            // initialization lock and awaiting channel creation.
+            await creationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+
+            var disposeTask = Task.Run(transport.Dispose, cancellationToken);
+
+            // Give an unguarded Dispose implementation time to complete while the
+            // channel creation is still in flight, then let the creation finish.
+            _ = await Task.WhenAny(disposeTask, Task.Delay(500, cancellationToken)).ConfigureAwait(false);
+            releaseCreation.SetResult();
+
+            Exception? sendException = null;
+            try
+            {
+                await sendTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+            }
+#pragma warning disable CA1031 // Test must capture any exception type that SendAsync might surface.
+            catch (Exception ex)
+            {
+                sendException = ex;
+            }
+#pragma warning restore CA1031
+
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+
+            var createdChannel = connectionAdapter.CreatedChannels[0];
+            using (Assert.Multiple())
+            {
+                // The channel created concurrently with Dispose must not leak.
+                _ = await Assert.That(createdChannel.DisposeCallCount).IsGreaterThan(0);
+                // The sender's semaphore release must not observe a disposed semaphore.
+                _ = await Assert.That(sendException is ObjectDisposedException).IsFalse();
+            }
+        }
+        finally
+        {
+            transport.Dispose();
+        }
+    }
+
     private static RabbitMqMessageTransport CreateTransport(
         IRabbitMqConnectionAdapter connectionAdapter,
         ITopicNameResolver topicNameResolver,
@@ -215,11 +283,22 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
 
         public List<FakeChannelAdapter> CreatedChannels { get; } = [];
 
-        public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
+        public (TaskCompletionSource start, TaskCompletionSource release)? CreationGate { get; set; }
+
+        public async Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
         {
+            if (CreationGate is { } gate)
+            {
+                CreationGate = null;
+                _ = gate.start.TrySetResult();
+#pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
+                await gate.release.Task.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+            }
+
             var channel = new FakeChannelAdapter();
             CreatedChannels.Add(channel);
-            return Task.FromResult<IRabbitMqChannelAdapter>(channel);
+            return channel;
         }
     }
 
