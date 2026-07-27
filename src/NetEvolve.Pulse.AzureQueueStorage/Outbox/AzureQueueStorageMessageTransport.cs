@@ -133,16 +133,18 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
                 return _queueClient;
             }
 
+            var clientOptions = new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05);
+
             QueueClient client;
 
             if (!string.IsNullOrWhiteSpace(_options.ConnectionString))
             {
-                client = new QueueClient(_options.ConnectionString, _options.QueueName);
+                client = new QueueClient(_options.ConnectionString, _options.QueueName, clientOptions);
             }
             else
             {
                 var queueUri = new Uri(_options.QueueServiceUri!, _options.QueueName);
-                client = new QueueClient(queueUri, new DefaultAzureCredential());
+                client = new QueueClient(queueUri, new DefaultAzureCredential(), clientOptions);
             }
 
             if (_options.CreateQueueIfNotExists)

@@ -40,7 +40,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
 
         await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
-        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName);
+        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
         var response = await queueClient
             .ReceiveMessageAsync(cancellationToken: cancellationToken)
             .ConfigureAwait(false);
@@ -91,7 +91,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
 
-        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName);
+        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
         var response = await queueClient
             .ReceiveMessagesAsync(maxMessages: messageCount, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
@@ -118,7 +118,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
 
             await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
-            var queueClient = new QueueClient(containerFixture.ConnectionString, queueName);
+            var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
             var response = await queueClient
                 .ReceiveMessageAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
@@ -126,6 +126,10 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
             _ = await Assert.That(response.Value).IsNotNull();
         }
     }
+
+    private static readonly QueueClientOptions VerificationClientOptions = new(
+        QueueClientOptions.ServiceVersion.V2025_11_05
+    );
 
     private static string CreateUniqueQueueName() => $"pulse-it-{Guid.NewGuid():N}";
 
