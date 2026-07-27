@@ -154,8 +154,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             .SyntaxProvider.CreateSyntaxProvider(
                 predicate: static (node, _) =>
                     node
-                        is ClassDeclarationSyntax { BaseList: not null }
-                            or RecordDeclarationSyntax { BaseList: not null },
+                        is ClassDeclarationSyntax { BaseList: not null, TypeParameterList: null }
+                            or RecordDeclarationSyntax { BaseList: not null, TypeParameterList: null },
                 transform: static (ctx, ct) => ExtractUnannotatedHandlerInfo(ctx, ct)
             )
             .Where(static info => info.HasValue)
@@ -405,44 +405,66 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Skip classes already annotated with [PulseHandler] or [PulseHandler<T>].
-        // [PulseGenericHandler] is only valid on open generic types; closed classes annotated with it
-        // are not skipped here so that PULSE003 is emitted for misuse (the TypeParameters.Length > 0
-        // guard above already ensures that open-generic classes never reach this point).
-        if (
-            classSymbol
-                .GetAttributes()
-                .Any(attr =>
-                    attr.AttributeClass is not null
-                    && (
-                        string.Equals(
-                            GetFullMetadataName(attr.AttributeClass),
-                            PulseHandlerAttributeFullName,
-                            StringComparison.Ordinal
-                        )
-                        || string.Equals(
-                            GetFullMetadataName(attr.AttributeClass.OriginalDefinition),
-                            PulseHandlerGenericAttributeFullName,
-                            StringComparison.Ordinal
-                        )
-                    )
-                )
-        )
+        // Check whether the class implements any known handler interface. This runs before the
+        // attribute inspection so that the (far more common) non-handler types bail out without
+        // paying for attribute binding. The cheap simple-name pre-filter avoids building full
+        // metadata name strings for unrelated interfaces.
+        var implementsHandlerInterface = false;
+        foreach (var iface in classSymbol.AllInterfaces)
+        {
+            if (
+                IsKnownHandlerInterfaceSimpleName(iface.Name)
+                && TryGetHandlerKind(GetFullMetadataName(iface.OriginalDefinition), out _)
+            )
+            {
+                implementsHandlerInterface = true;
+                break;
+            }
+        }
+
+        if (!implementsHandlerInterface)
         {
             return null;
         }
 
-        // Check whether the class implements any known handler interface.
-        foreach (var iface in classSymbol.AllInterfaces)
+        // Skip classes already annotated with [PulseHandler] or [PulseHandler<T>].
+        // [PulseGenericHandler] is only valid on open generic types; closed classes annotated with it
+        // are not skipped here so that PULSE003 is emitted for misuse (the TypeParameters.Length > 0
+        // guard above already ensures that open-generic classes never reach this point).
+        foreach (var attr in classSymbol.GetAttributes())
         {
-            if (TryGetHandlerKind(GetFullMetadataName(iface.OriginalDefinition), out _))
+            var attrClass = attr.AttributeClass;
+            if (attrClass is null || !string.Equals(attrClass.Name, "PulseHandlerAttribute", StringComparison.Ordinal))
             {
-                return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], typeDeclaration.GetLocation());
+                continue;
+            }
+
+            if (
+                string.Equals(GetFullMetadataName(attrClass), PulseHandlerAttributeFullName, StringComparison.Ordinal)
+                || string.Equals(
+                    GetFullMetadataName(attrClass.OriginalDefinition),
+                    PulseHandlerGenericAttributeFullName,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                return null;
             }
         }
 
-        return null;
+        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], typeDeclaration.GetLocation());
     }
+
+    /// <summary>
+    /// Fast, allocation-free pre-filter that checks whether an interface simple name matches one of
+    /// the known Pulse handler interface names before the full metadata name is constructed.
+    /// </summary>
+    /// <param name="simpleName">The simple (unqualified, arity-free) interface name.</param>
+    /// <returns>
+    /// <see langword="true"/> when the name matches a known Pulse handler interface simple name.
+    /// </returns>
+    private static bool IsKnownHandlerInterfaceSimpleName(string simpleName) =>
+        simpleName is "ICommandHandler" or "IQueryHandler" or "IEventHandler" or "IStreamQueryHandler";
 
     /// <summary>
     /// Generates the source output and reports diagnostics.

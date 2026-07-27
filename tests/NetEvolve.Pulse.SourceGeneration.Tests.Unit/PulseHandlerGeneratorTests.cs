@@ -767,6 +767,52 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenHandlerInterfaceInheritedViaBaseClassAndNotAnnotatedThenPulse003Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            public abstract class BaseCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public abstract Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default);
+            }
+
+            public class DerivedCommandHandler : BaseCommandHandler
+            {
+                public override Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenUnrelatedInterfacesImplementedThenNoPulse003()
+    {
+        const string source = """
+            using System;
+            using System.Threading.Tasks;
+
+            public class NotAHandler : IDisposable, IComparable<NotAHandler>
+            {
+                public void Dispose() { }
+
+                public int CompareTo(NotAHandler? other) => 0;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenMultipleUnannotatedHandlersThenPulse003ReportedForEach()
     {
         const string source = """
