@@ -39,22 +39,30 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
         CancellationToken cancellationToken
     )
     {
-        var entities = await baseQuery.ToArrayAsync(cancellationToken).ConfigureAwait(false);
-
-        if (entities.Length == 0)
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return entities;
-        }
+            var entities = await baseQuery.ToArrayAsync(cancellationToken).ConfigureAwait(false);
 
-        foreach (var entity in entities)
+            if (entities.Length == 0)
+            {
+                return entities;
+            }
+
+            foreach (var entity in entities)
+            {
+                entity.Status = newStatus;
+                entity.UpdatedAt = updatedAt;
+            }
+
+            var conflicted = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
+
+            return conflicted.Count == 0 ? entities : [.. entities.Where(e => !conflicted.Contains(e))];
+        }
+        finally
         {
-            entity.Status = newStatus;
-            entity.UpdatedAt = updatedAt;
+            _ = _semaphore.Release();
         }
-
-        var conflicted = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
-
-        return conflicted.Count == 0 ? entities : [.. entities.Where(e => !conflicted.Contains(e))];
     }
 
     /// <inheritdoc />
@@ -118,33 +126,41 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
     /// <inheritdoc />
     public async Task<int> DeleteByQueryAsync(IQueryable<OutboxMessage> query, CancellationToken cancellationToken)
     {
-        // Project only the key (plus status) instead of materializing full entities —
-        // deleting does not need the potentially large payload column in memory.
-        var rows = await query
-            .Select(m => new { m.Id, m.Status })
-            .ToArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (rows.Length == 0)
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return 0;
+            // Project only the key (plus status) instead of materializing full entities —
+            // deleting does not need the potentially large payload column in memory.
+            var rows = await query
+                .Select(m => new { m.Id, m.Status })
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (rows.Length == 0)
+            {
+                return 0;
+            }
+
+            var tracked = _context.ChangeTracker.Entries<OutboxMessage>().ToDictionary(e => e.Entity.Id, e => e.Entity);
+
+            var entities = new OutboxMessage[rows.Length];
+            for (var i = 0; i < rows.Length; i++)
+            {
+                var row = rows[i];
+                entities[i] = tracked.TryGetValue(row.Id, out var entity)
+                    ? entity
+                    : new OutboxMessage { Id = row.Id, Status = row.Status };
+            }
+
+            _context.OutboxMessages.RemoveRange(entities);
+            var conflicted = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
+
+            return entities.Length - conflicted.Count;
         }
-
-        var tracked = _context.ChangeTracker.Entries<OutboxMessage>().ToDictionary(e => e.Entity.Id, e => e.Entity);
-
-        var entities = new OutboxMessage[rows.Length];
-        for (var i = 0; i < rows.Length; i++)
+        finally
         {
-            var row = rows[i];
-            entities[i] = tracked.TryGetValue(row.Id, out var entity)
-                ? entity
-                : new OutboxMessage { Id = row.Id, Status = row.Status };
+            _ = _semaphore.Release();
         }
-
-        _context.OutboxMessages.RemoveRange(entities);
-        var conflicted = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
-
-        return entities.Length - conflicted.Count;
     }
 
     /// <summary>
