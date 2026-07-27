@@ -249,6 +249,79 @@ public sealed class AzureServiceBusMessageTransportTests
         }
     }
 
+    // ── Sender caching ────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task SendAsync_Reuses_cached_sender_for_same_topic(CancellationToken cancellationToken)
+    {
+        var fakeClient = new FakeServiceBusClient();
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions());
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+                await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+                await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(fakeClient.CreateSenderCalls["orders"]).IsEqualTo(1);
+                    _ = await Assert.That(fakeClient.GetSender("orders")!.SentMessages.Count).IsEqualTo(3);
+                    _ = await Assert.That(fakeClient.GetSender("orders")!.IsDisposed).IsFalse();
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_Reuses_cached_sender_across_invocations(CancellationToken cancellationToken)
+    {
+        var fakeClient = new FakeServiceBusClient();
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                await transport
+                    .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                    .ConfigureAwait(false);
+                await transport.SendBatchAsync([CreateOutboxMessage()], cancellationToken).ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(fakeClient.CreateSenderCalls["orders"]).IsEqualTo(1);
+                    _ = await Assert.That(fakeClient.GetSender("orders")!.BatchedMessages.Count).IsEqualTo(2);
+                    _ = await Assert.That(fakeClient.GetSender("orders")!.IsDisposed).IsFalse();
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task DisposeAsync_Disposes_cached_senders(CancellationToken cancellationToken)
+    {
+        var fakeClient = new FakeServiceBusClient();
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions());
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+            await transport.DisposeAsync().ConfigureAwait(false);
+
+            _ = await Assert.That(fakeClient.GetSender("orders")!.IsDisposed).IsTrue();
+        }
+    }
+
     // ── SendBatchAsync null/empty guards ──────────────────────────────────────
 
     [Test]
@@ -567,10 +640,15 @@ public sealed class AzureServiceBusMessageTransportTests
 
         public Dictionary<string, Exception> FailuresByTopic { get; } = new(StringComparer.Ordinal);
 
+        public Dictionary<string, int> CreateSenderCalls { get; } = new(StringComparer.Ordinal);
+
         public FakeServiceBusSender? GetSender(string name) => _senders.TryGetValue(name, out var s) ? s : null;
 
         public override ServiceBusSender CreateSender(string queueOrTopicName)
         {
+            CreateSenderCalls[queueOrTopicName] = CreateSenderCalls.TryGetValue(queueOrTopicName, out var count)
+                ? count + 1
+                : 1;
             var sender = new FakeServiceBusSender();
             if (FailuresByTopic.TryGetValue(queueOrTopicName, out var failure))
             {
@@ -595,6 +673,8 @@ public sealed class AzureServiceBusMessageTransportTests
         public List<IReadOnlyList<ServiceBusMessage>> BatchedMessages { get; } = [];
 
         public Exception? FailureToRaise { get; set; }
+
+        public bool IsDisposed { get; private set; }
 
         public override Task SendMessageAsync(ServiceBusMessage message, CancellationToken cancellationToken = default)
         {
@@ -625,6 +705,10 @@ public sealed class AzureServiceBusMessageTransportTests
             "CA2215",
             Justification = "Test fake with no underlying transport; calling base would throw NullReferenceException."
         )]
-        public override ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public override ValueTask DisposeAsync()
+        {
+            IsDisposed = true;
+            return ValueTask.CompletedTask;
+        }
     }
 }
