@@ -1062,6 +1062,35 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    public async Task StopAsync_BeforeApplicationStarted_CompletesWithoutWaitingForStartup(
+        CancellationToken cancellationToken
+    )
+    {
+        using var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = CreateLogger();
+        using var lifetime = new PendingStartLifetime();
+        using var service = new OutboxProcessorHostedService(repository, transport, lifetime, options, logger);
+
+        // Startup never completes: ApplicationStarted is never signaled.
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+
+        // Stopping must not hang until the caller-provided token expires; ExecuteAsync has to
+        // observe the stopping token while still waiting for ApplicationStarted.
+        using var stopTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        stopTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+        await service.StopAsync(stopTimeout.Token).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(service.ExecuteTask).IsNotNull();
+            _ = await Assert.That(service.ExecuteTask!.IsCompleted).IsTrue();
+            _ = await Assert.That(repository.GetPendingCallCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
     public async Task ExecuteAsync_WhenDatabaseIsUnhealthy_SkipsProcessingCycle(CancellationToken cancellationToken)
     {
         using var repository = new InMemoryOutboxRepository { IsHealthy = false };

@@ -136,10 +136,17 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var applicationStarted = new TaskCompletionSource();
-        _ = _lifetime.ApplicationStarted.Register(() => applicationStarted.TrySetResult());
+        var applicationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var startedRegistration = _lifetime.ApplicationStarted.Register(() => applicationStarted.TrySetResult());
 
-        await applicationStarted.Task.ConfigureAwait(false);
+        try
+        {
+            await applicationStarted.Task.WaitAsync(stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            return;
+        }
 
         LogProcessorStarted(_logger, _options.PollingInterval, _options.BatchSize);
 
