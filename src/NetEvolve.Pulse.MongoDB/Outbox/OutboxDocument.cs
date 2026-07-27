@@ -57,6 +57,15 @@ internal sealed class OutboxDocument
     [BsonElement(OutboxMessageSchema.Columns.NextRetryAt)]
     public DateTime? NextRetryAt { get; set; }
 
+    /// <summary>
+    /// Gets or sets the UTC timestamp when the message was claimed for processing, or <see langword="null"/>
+    /// when the message is not currently claimed. Documents written by earlier versions of this provider
+    /// do not contain this element; the value then remains <see langword="null"/> after deserialization.
+    /// </summary>
+    [BsonElement("ProcessingStartedAt")]
+    [BsonIgnoreIfNull]
+    public DateTime? ProcessingStartedAt { get; set; }
+
     /// <summary>Gets or sets the number of processing attempts made so far.</summary>
     [BsonElement(OutboxMessageSchema.Columns.RetryCount)]
     public int RetryCount { get; set; }
