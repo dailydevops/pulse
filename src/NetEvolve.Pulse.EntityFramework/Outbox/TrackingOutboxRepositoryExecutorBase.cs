@@ -8,9 +8,10 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// through EF Core change tracking and <c>SaveChangesAsync</c>.
 /// </summary>
 /// <remarks>
-/// Provides shared implementations of <see cref="FetchAndMarkAsync"/>,
-/// <see cref="UpdateByQueryAsync"/>, and <see cref="DeleteByQueryAsync"/> that load entities
-/// into the change tracker, apply in-memory mutations, and flush via <c>SaveChangesAsync</c>.
+/// Provides shared implementations of <see cref="FetchAndMarkAsync"/> and
+/// <see cref="UpdateByQueryAsync"/> that load entities into the change tracker, apply in-memory
+/// mutations, and flush via <c>SaveChangesAsync</c>. <see cref="DeleteByQueryAsync"/> projects
+/// only the entity keys and deletes through key stubs, avoiding materialization of payloads.
 /// Rows claimed by a competing poller between load and save are detected through the
 /// <see cref="OutboxMessage.Status"/> concurrency token and skipped instead of overwritten.
 /// Derived classes only need to implement <see cref="UpdateByIdsAsync"/>, which varies by provider.
@@ -117,11 +118,27 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
     /// <inheritdoc />
     public async Task<int> DeleteByQueryAsync(IQueryable<OutboxMessage> query, CancellationToken cancellationToken)
     {
-        var entities = await query.ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        // Project only the key (plus status) instead of materializing full entities —
+        // deleting does not need the potentially large payload column in memory.
+        var rows = await query
+            .Select(m => new { m.Id, m.Status })
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        if (entities.Length == 0)
+        if (rows.Length == 0)
         {
             return 0;
+        }
+
+        var tracked = _context.ChangeTracker.Entries<OutboxMessage>().ToDictionary(e => e.Entity.Id, e => e.Entity);
+
+        var entities = new OutboxMessage[rows.Length];
+        for (var i = 0; i < rows.Length; i++)
+        {
+            var row = rows[i];
+            entities[i] = tracked.TryGetValue(row.Id, out var entity)
+                ? entity
+                : new OutboxMessage { Id = row.Id, Status = row.Status };
         }
 
         _context.OutboxMessages.RemoveRange(entities);
