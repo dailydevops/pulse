@@ -338,6 +338,27 @@ public sealed class EndpointRouteBuilderExtensionsTests
             .Throws<InvalidOperationException>();
     }
 
+    // MapStreamQuery — cancellation not caused by client disconnect
+
+    [Test]
+    public async Task MapStreamQuery_WhenForeignCancellationThrown_PropagatesAsError(
+        CancellationToken cancellationToken
+    )
+    {
+        using var host = await CreateForeignCancellationTestHostAsync(cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-ndjson"));
+
+        // The handler throws an OperationCanceledException tied to an unrelated token while the
+        // client stays connected (the request token is never canceled). This must not be treated
+        // as a clean client disconnect; it must propagate as an error.
+        _ = await Assert
+            .That(async () =>
+                await client.GetAsync(new Uri("/stream", UriKind.Relative), cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<OperationCanceledException>();
+    }
+
     // MapStreamQuery — client disconnect
 
     [Test]
@@ -406,6 +427,32 @@ public sealed class EndpointRouteBuilderExtensionsTests
                     _ = services.AddRouting();
                     _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(
                         new ThrowingStreamQueryHandler()
+                    );
+                    _ = services.AddPulse(_ => { });
+                });
+                _ = webBuilder.Configure(app =>
+                {
+                    _ = app.UseRouting();
+                    _ = app.UseEndpoints(endpoints => endpoints.MapStreamQuery<TestStreamQuery, string>("/stream"));
+                });
+            })
+            .Build();
+
+        await host.StartAsync(cancellationToken).ConfigureAwait(false);
+        return host;
+    }
+
+    private static async Task<IHost> CreateForeignCancellationTestHostAsync(CancellationToken cancellationToken)
+    {
+        var host = new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                _ = webBuilder.UseTestServer();
+                _ = webBuilder.ConfigureServices(services =>
+                {
+                    _ = services.AddRouting();
+                    _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(
+                        new ForeignCancellationStreamQueryHandler()
                     );
                     _ = services.AddPulse(_ => { });
                 });
@@ -497,6 +544,20 @@ public sealed class EndpointRouteBuilderExtensionsTests
         )
         {
             await Task.FromException(new InvalidOperationException("Handler failure.")).ConfigureAwait(false);
+            yield break;
+        }
+    }
+
+    private sealed class ForeignCancellationStreamQueryHandler : IStreamQueryHandler<TestStreamQuery, string>
+    {
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery request,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            using var foreignCts = new CancellationTokenSource();
+            await foreignCts.CancelAsync().ConfigureAwait(false);
+            foreignCts.Token.ThrowIfCancellationRequested();
             yield break;
         }
     }
