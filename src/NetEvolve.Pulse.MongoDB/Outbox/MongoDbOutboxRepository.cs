@@ -36,6 +36,9 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <summary>The name of the MongoDB collection used to store outbox documents.</summary>
     private readonly string _collectionName;
 
+    /// <summary>Tracks whether the claim index has already been created by this instance (0 = no, 1 = yes).</summary>
+    private int _claimIndexCreated;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MongoDbOutboxRepository"/> class.
     /// </summary>
@@ -99,7 +102,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         };
 
         var messages = new List<OutboxMessage>(batchSize);
-        var collection = GetCollection();
+        var collection = await GetClaimCollectionAsync(cancellationToken).ConfigureAwait(false);
 
         for (var i = 0; i < batchSize; i++)
         {
@@ -148,7 +151,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         };
 
         var messages = new List<OutboxMessage>(batchSize);
-        var collection = GetCollection();
+        var collection = await GetClaimCollectionAsync(cancellationToken).ConfigureAwait(false);
 
         for (var i = 0; i < batchSize; i++)
         {
@@ -301,4 +304,38 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <returns>The outbox MongoDB collection.</returns>
     private IMongoCollection<OutboxDocument> GetCollection() =>
         _mongoClient.GetDatabase(_databaseName).GetCollection<OutboxDocument>(_collectionName);
+
+    /// <summary>
+    /// Returns the outbox collection and ensures a compound index on <c>Status</c> and <c>CreatedAt</c>
+    /// exists, so each sorted claim operation avoids a full collection scan with an in-memory sort.
+    /// The index is created at most once per repository instance; <c>createIndexes</c> is idempotent,
+    /// so concurrent instances targeting the same collection are safe.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>The outbox MongoDB collection.</returns>
+    private async Task<IMongoCollection<OutboxDocument>> GetClaimCollectionAsync(CancellationToken cancellationToken)
+    {
+        var collection = GetCollection();
+
+        if (Interlocked.CompareExchange(ref _claimIndexCreated, 1, 0) == 0)
+        {
+            try
+            {
+                var keys = Builders<OutboxDocument>.IndexKeys.Ascending(d => d.Status).Ascending(d => d.CreatedAt);
+                _ = await collection
+                    .Indexes.CreateOneAsync(
+                        new CreateIndexModel<OutboxDocument>(keys),
+                        cancellationToken: cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                _ = Interlocked.Exchange(ref _claimIndexCreated, 0);
+                throw;
+            }
+        }
+
+        return collection;
+    }
 }
