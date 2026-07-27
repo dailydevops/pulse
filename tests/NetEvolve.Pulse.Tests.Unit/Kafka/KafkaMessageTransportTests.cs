@@ -200,7 +200,13 @@ public sealed class KafkaMessageTransportTests
     {
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
-        await using var transport = CreateTransport(producer, admin);
+        // AutoCreateTopics is disabled so this scenario is isolated to Flush cancellation;
+        // EnsureTopicAsync's own (separately tested) cancellation check would otherwise fire first.
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = false }
+        );
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -428,6 +434,55 @@ public sealed class KafkaMessageTransportTests
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(0);
+    }
+
+    // INVARIANT: EnsureTopicAsync must forward the caller's CancellationToken instead of ignoring
+    // it. A pre-cancelled token must abort the topic-creation round-trip promptly (before it runs
+    // to whatever timeout the admin client would otherwise use) rather than letting SendAsync
+    // proceed to produce, or otherwise swallowing the cancellation.
+    [Test]
+    public async Task SendAsync_When_cancellation_already_requested_throws_OperationCanceledException_promptly(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true }
+        );
+        var outboxMessage = CreateOutboxMessage();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => transport.SendAsync(outboxMessage, cts.Token));
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(0);
+        _ = await Assert.That(producer.ProducedMessages).IsEmpty();
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_cancellation_already_requested_throws_OperationCanceledException_promptly(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(
+            producer,
+            admin,
+            options: new KafkaTransportOptions { AutoCreateTopics = true }
+        );
+        var messages = new[] { CreateOutboxMessage() };
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => transport.SendBatchAsync(messages, cts.Token));
 
         _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(0);
     }

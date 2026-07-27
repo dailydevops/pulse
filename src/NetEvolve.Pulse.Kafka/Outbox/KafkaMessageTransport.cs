@@ -59,7 +59,7 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
 
         var topic = _topicNameResolver.Resolve(message);
 
-        await EnsureTopicAsync(topic).ConfigureAwait(false);
+        await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
 
         var kafkaMessage = CreateKafkaMessage(message);
 
@@ -82,7 +82,7 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
         {
             var topic = _topicNameResolver.Resolve(message);
 
-            await EnsureTopicAsync(topic).ConfigureAwait(false);
+            await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
 
             var kafkaMessage = CreateKafkaMessage(message);
 
@@ -136,12 +136,14 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
             )
             .WaitAsync(cancellationToken);
 
-    private async Task EnsureTopicAsync(string topic)
+    private async Task EnsureTopicAsync(string topic, CancellationToken cancellationToken)
     {
         if (!_options.AutoCreateTopics || _ensuredTopics.ContainsKey(topic))
         {
             return;
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var configs = new Dictionary<string, string>();
 
@@ -162,7 +164,7 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
 
         try
         {
-            await _adminClient.CreateTopicsAsync([spec]).ConfigureAwait(false);
+            await _adminClient.CreateTopicsAsync([spec]).WaitAsync(cancellationToken).ConfigureAwait(false);
             _ = _ensuredTopics.TryAdd(topic, true);
         }
         catch (CreateTopicsException ex) when (ex.Results.All(static r => r.Error.Code == ErrorCode.TopicAlreadyExists))
