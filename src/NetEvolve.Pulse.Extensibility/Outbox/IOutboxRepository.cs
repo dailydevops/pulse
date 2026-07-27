@@ -56,6 +56,12 @@ public interface IOutboxRepository
     /// <param name="messageIds">The IDs of the messages to mark as completed.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// The default implementation calls <see cref="MarkAsCompletedAsync(Guid, CancellationToken)"/>
+    /// once per id sequentially, resulting in one storage round trip per message. Implementations
+    /// SHOULD override this overload with a single set-based storage operation
+    /// (e.g., <c>UPDATE ... WHERE Id IN (...)</c>) to reduce round trips for large batches.
+    /// </remarks>
     async Task MarkAsCompletedAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messageIds);
@@ -107,6 +113,10 @@ public interface IOutboxRepository
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
     /// Implementations SHOULD increment the retry count and update the status accordingly.
+    /// The default implementation calls <see cref="MarkAsFailedAsync(Guid, string, CancellationToken)"/>
+    /// once per id sequentially, resulting in one storage round trip per message. Implementations
+    /// SHOULD override this overload with a single set-based storage operation
+    /// (e.g., <c>UPDATE ... WHERE Id IN (...)</c>) to reduce round trips for large batches.
     /// </remarks>
     async Task MarkAsFailedAsync(
         IReadOnlyCollection<Guid> messageIds,
@@ -138,6 +148,12 @@ public interface IOutboxRepository
     /// <param name="errorMessage">The final error message.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// The default implementation calls <see cref="MarkAsDeadLetterAsync(Guid, string, CancellationToken)"/>
+    /// once per id sequentially, resulting in one storage round trip per message. Implementations
+    /// SHOULD override this overload with a single set-based storage operation
+    /// (e.g., <c>UPDATE ... WHERE Id IN (...)</c>) to reduce round trips for large batches.
+    /// </remarks>
     async Task MarkAsDeadLetterAsync(
         IReadOnlyCollection<Guid> messageIds,
         string errorMessage,
