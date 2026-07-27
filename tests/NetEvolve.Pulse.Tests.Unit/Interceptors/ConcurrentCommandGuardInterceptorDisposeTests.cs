@@ -46,6 +46,39 @@ public sealed class ConcurrentCommandGuardInterceptorDisposeTests
         _ = await Assert.That(interceptor).IsNotNull();
     }
 
+    [Test]
+    public async Task Dispose_WhileHandlerInFlight_DoesNotReplaceCommandOutcome(CancellationToken cancellationToken)
+    {
+        var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
+        var handlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var inFlightCall = interceptor.HandleAsync(
+            new ExclusiveCommand(),
+            async (_, _) =>
+            {
+                handlerEntered.SetResult();
+#pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
+                await releaseHandler.Task.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+                return "real-result";
+            },
+            cancellationToken
+        );
+
+        await handlerEntered.Task.ConfigureAwait(false);
+
+        // The DI container disposes the singleton interceptor while the command still executes.
+        interceptor.Dispose();
+
+        releaseHandler.SetResult();
+
+        // The command's real outcome must not be replaced by an ObjectDisposedException
+        // thrown when the finally block releases the disposed semaphore.
+        var result = await inFlightCall.ConfigureAwait(false);
+        _ = await Assert.That(result).IsEqualTo("real-result");
+    }
+
     private sealed record ExclusiveCommand : IExclusiveCommand<string>
     {
         public string? CausationId { get; set; }
