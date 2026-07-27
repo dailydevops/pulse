@@ -46,6 +46,18 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     /// <summary>
+    /// Semaphore serializing publish calls on the shared channel. RabbitMQ.Client's
+    /// <see cref="IChannel"/> is NOT thread-safe for concurrent publish calls, so every
+    /// publish (single send or batch item) must go through this gate.
+    /// </summary>
+    [SuppressMessage(
+        "Usage",
+        "CA2213:Disposable fields should be disposed",
+        Justification = "The semaphore must outlive Dispose so in-flight senders can still release it; SemaphoreSlim holds no unmanaged resources unless its wait handle is accessed, which this type never does."
+    )]
+    private readonly SemaphoreSlim _publishLock = new(1, 1);
+
+    /// <summary>
     /// Disposal sentinel handled via <see cref="Interlocked.Exchange(ref int, int)"/> so that
     /// concurrent <see cref="Dispose"/> calls observe a single winning thread. Storing this as a
     /// plain <c>bool</c> would leave a TOCTOU window between the early-exit check and the
@@ -135,16 +147,24 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             },
         };
 
-        await channel
-            .BasicPublishAsync(
-                exchange: _options.ExchangeName,
-                routingKey: routingKey,
-                mandatory: false,
-                basicProperties: properties,
-                body: body,
-                cancellationToken: cancellationToken
-            )
-            .ConfigureAwait(false);
+        await _publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await channel
+                .BasicPublishAsync(
+                    exchange: _options.ExchangeName,
+                    routingKey: routingKey,
+                    mandatory: false,
+                    basicProperties: properties,
+                    body: body,
+                    cancellationToken: cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _publishLock.Release();
+        }
     }
 
     /// <inheritdoc />
