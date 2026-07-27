@@ -97,13 +97,16 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
 
         using var iterator = _container.GetItemQueryIterator<long>(query);
 
-        if (!iterator.HasMoreResults)
+        var count = 0L;
+
+        while (iterator.HasMoreResults)
         {
-            return 0L;
+            var response = await iterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
+
+            count += response.Sum();
         }
 
-        var response = await iterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
-        return response.FirstOrDefault();
+        return count;
     }
 
     /// <inheritdoc />
