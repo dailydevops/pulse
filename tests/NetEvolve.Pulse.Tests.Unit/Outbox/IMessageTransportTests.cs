@@ -14,7 +14,7 @@ using TUnit.Core;
 /// <summary>
 /// Unit tests for the default interface implementations on <see cref="IMessageTransport"/>,
 /// in particular <see cref="IMessageTransport.SendBatchAsync"/>, which calls
-/// <see cref="IMessageTransport.SendAsync"/> for each message sequentially, as documented,
+/// <see cref="IMessageTransport.SendAsync"/> for each message sequentially, as documented, and fails fast
 /// for implementations that do not override the batch method.
 /// </summary>
 [TestGroup("Outbox")]
@@ -43,14 +43,32 @@ public sealed class IMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_DefaultImplementation_InvokesSendAsyncSequentiallyAsDocumented()
+    public async Task SendBatchAsync_WithoutOverride_SendsMessagesSequentiallyInOrder()
     {
-        using var transport = new OverlapDetectingTransport();
+        using var transport = new SequenceRecordingTransport();
         var messages = new List<OutboxMessage> { CreateMessage(), CreateMessage(), CreateMessage(), CreateMessage() };
 
         await ((IMessageTransport)transport).SendBatchAsync(messages, CancellationToken.None).ConfigureAwait(false);
 
         _ = await Assert.That(transport.OverlapDetected).IsFalse();
+        _ = await Assert.That(transport.SendOrder.Count).IsEqualTo(messages.Count);
+        for (var i = 0; i < messages.Count; i++)
+        {
+            _ = await Assert.That(transport.SendOrder[i]).IsEqualTo(messages[i].Id);
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_WithoutOverride_WhenSendFails_StopsAtFailedMessage()
+    {
+        var transport = new SequentialFailingTransport(failAtCallNumber: 2);
+        var messages = new List<OutboxMessage> { CreateMessage(), CreateMessage(), CreateMessage(), CreateMessage() };
+
+        _ = await Assert
+            .That(() => ((IMessageTransport)transport).SendBatchAsync(messages, CancellationToken.None))
+            .Throws<InvalidOperationException>();
+
+        _ = await Assert.That(transport.AttemptedSends).IsEqualTo(2);
     }
 
     [Test]
@@ -75,12 +93,13 @@ public sealed class IMessageTransportTests
         };
 
     /// <summary>
-    /// Transport implementing only <see cref="IMessageTransport.SendAsync"/> that detects overlapping
-    /// (concurrent) invocations. The first send waits briefly for a subsequent send to start; if one
-    /// starts before the first completes, the default batch dispatch is concurrent and violates the
-    /// documented sequential contract of <see cref="IMessageTransport.SendBatchAsync"/>.
+    /// Transport implementing only <see cref="IMessageTransport.SendAsync"/> that records the
+    /// invocation order and detects overlapping (concurrent) invocations. The first send waits briefly
+    /// for a subsequent send to start; if one starts before the first completes, the default batch
+    /// dispatch is concurrent and violates the documented sequential contract of
+    /// <see cref="IMessageTransport.SendBatchAsync"/>.
     /// </summary>
-    private sealed class OverlapDetectingTransport : IMessageTransport, IDisposable
+    private sealed class SequenceRecordingTransport : IMessageTransport, IDisposable
     {
         private readonly SemaphoreSlim _subsequentSendStarted = new(0);
         private int _activeSends;
@@ -88,11 +107,18 @@ public sealed class IMessageTransportTests
 
         public bool OverlapDetected { get; private set; }
 
+        public List<Guid> SendOrder { get; } = [];
+
         public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref _activeSends) > 1)
             {
                 OverlapDetected = true;
+            }
+
+            lock (SendOrder)
+            {
+                SendOrder.Add(message.Id);
             }
 
             if (Interlocked.Increment(ref _totalSends) == 1)
@@ -108,6 +134,25 @@ public sealed class IMessageTransportTests
         }
 
         public void Dispose() => _subsequentSendStarted.Dispose();
+    }
+
+    /// <summary>
+    /// Transport implementing only <see cref="IMessageTransport.SendAsync"/> that throws on a
+    /// configurable invocation, used to verify fail-fast semantics of the default batch dispatch.
+    /// </summary>
+    private sealed class SequentialFailingTransport(int failAtCallNumber) : IMessageTransport
+    {
+        private int _attemptedSends;
+
+        public int AttemptedSends => _attemptedSends;
+
+        public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            var callNumber = Interlocked.Increment(ref _attemptedSends);
+            return callNumber == failAtCallNumber
+                ? Task.FromException(new InvalidOperationException("Send failed."))
+                : Task.CompletedTask;
+        }
     }
 
     /// <summary>
