@@ -16,10 +16,11 @@ using NetEvolve.Pulse.Interceptors;
 /// <para><strong>Purpose:</strong></para>
 /// The idempotency interceptor automatically enforces at-most-once execution semantics
 /// for commands that implement <see cref="IIdempotentCommand{TResponse}"/>.
-/// Before delegating to the command handler, the interceptor queries the registered
-/// <see cref="IIdempotencyStore"/>. If the idempotency key has already been stored,
-/// an <see cref="IdempotencyConflictException"/> is thrown. Otherwise the handler executes
-/// and the key is persisted afterwards.
+/// Before delegating to the command handler, the interceptor reserves the idempotency key in the
+/// registered <see cref="IIdempotencyStore"/>. If the key has already been reserved,
+/// an <see cref="IdempotencyConflictException"/> is thrown. Otherwise the handler executes; because
+/// the key is reserved before execution, concurrent duplicate submissions are rejected while the
+/// handler is still running, and a failed execution keeps its key reserved.
 /// <para><strong>Optional Dependency:</strong></para>
 /// If <see cref="IIdempotencyStore"/> is not registered in the DI container, the interceptor
 /// passes through without any store interaction and without error.
