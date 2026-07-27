@@ -75,6 +75,9 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
     /// <remarks>
     /// If no <see cref="ResiliencePipeline"/> is registered for <typeparamref name="TQuery"/>,
     /// the interceptor delegates directly to <paramref name="handler"/> without wrapping.
+    /// The handler is always invoked with the caller's <paramref name="cancellationToken"/>,
+    /// never with a pipeline-scoped token, because enumeration of the returned stream happens
+    /// after the pipeline execution has completed.
     /// </remarks>
     public IAsyncEnumerable<TResponse> HandleAsync(
         TQuery request,
@@ -100,10 +103,14 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
     )
     {
         // Wrap the handler invocation (stream open) inside the pipeline.
-        // This protects the stream initialization phase; items are yielded directly afterwards.
+        // The handler receives the caller's token instead of Polly's execution-scoped token,
+        // because the deferred enumerable is consumed after ExecuteAsync has completed and
+        // Polly resets/pools the CancellationTokenSource backing its execution token.
         var stream = await pipeline
             .ExecuteAsync(
-                token => new ValueTask<IAsyncEnumerable<TResponse>>(handler(request, token)),
+                static (state, _) =>
+                    new ValueTask<IAsyncEnumerable<TResponse>>(state.Handler(state.Request, state.CallerToken)),
+                (Handler: handler, Request: request, CallerToken: cancellationToken),
                 cancellationToken
             )
             .ConfigureAwait(false);

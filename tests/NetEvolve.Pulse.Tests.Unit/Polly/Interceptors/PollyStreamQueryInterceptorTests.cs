@@ -368,6 +368,42 @@ public sealed class PollyStreamQueryInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_WithTimeoutStrategy_DeferredStreamUsesCallerToken(CancellationToken cancellationToken)
+    {
+        // Arrange
+        var pipeline = new ResiliencePipelineBuilder().AddTimeout(TimeSpan.FromSeconds(30)).Build();
+        var serviceProvider = CreateServiceProvider<TestStreamQuery>(pipeline);
+        var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
+        var request = new TestStreamQuery();
+
+        CancellationToken observedToken = default;
+
+        // Act - the handler returns a deferred enumerable that is consumed after ExecuteAsync completed
+        var items = new List<string>();
+        await foreach (
+            var item in interceptor
+                .HandleAsync(
+                    request,
+                    (_, ct) =>
+                    {
+                        observedToken = ct;
+                        return YieldItemsAsync(["item1"], ct);
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        )
+        {
+            items.Add(item);
+        }
+
+        // Assert - the deferred stream must not capture a pipeline-scoped token, because that
+        // token's CancellationTokenSource is reset/pooled by Polly once ExecuteAsync completes
+        _ = await Assert.That(observedToken).IsEqualTo(cancellationToken);
+        _ = await Assert.That(items).IsEquivalentTo(["item1"]);
+    }
+
+    [Test]
     public async Task HandleAsync_WithCancellation_ThrowsOperationCanceledException(CancellationToken cancellationToken)
     {
         // Arrange
