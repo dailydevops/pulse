@@ -20,6 +20,13 @@ using Newtonsoft.Json;
 /// When <see cref="CosmosDbOutboxOptions.EnableTimeToLive"/> is <see langword="true"/>,
 /// the <c>ttl</c> field is set on completed and dead-letter documents so the Cosmos DB
 /// TTL engine removes them automatically after <see cref="CosmosDbOutboxOptions.TtlSeconds"/> seconds.
+/// <para><strong>Query fan-out:</strong></para>
+/// With the default partition key path <c>/id</c> every document forms its own logical partition,
+/// so the recurring status-polling and count queries cannot target a single partition and fan out
+/// to all physical partitions. The queries are issued with bounded page sizes and maximum
+/// parallelism to limit the cost; keeping the container small (see
+/// <see cref="CosmosDbOutboxOptions.EnableTimeToLive"/>) prevents the fan-out from growing with
+/// accumulated completed documents.
 /// <para><strong>Prerequisites:</strong></para>
 /// The caller must register a <see cref="CosmosClient"/> in the DI container before calling the
 /// registration extension methods.
@@ -86,7 +93,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             .WithParameter("@now", now)
             .WithParameter("@batchSize", batchSize);
 
-        var candidates = await ExecuteQueryAsync(query, cancellationToken).ConfigureAwait(false);
+        var candidates = await ExecuteQueryAsync(query, CreateBatchQueryOptions(batchSize), cancellationToken)
+            .ConfigureAwait(false);
 
         if (candidates.Count == 0)
         {
@@ -113,7 +121,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             .WithParameter("@now", now)
             .WithParameter("@batchSize", batchSize);
 
-        var candidates = await ExecuteQueryAsync(query, cancellationToken).ConfigureAwait(false);
+        var candidates = await ExecuteQueryAsync(query, CreateBatchQueryOptions(batchSize), cancellationToken)
+            .ConfigureAwait(false);
 
         if (candidates.Count == 0)
         {
@@ -232,7 +241,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     {
         var query = new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.status = 0");
 
-        using var iterator = _container.GetItemQueryIterator<long>(query);
+        using var iterator = _container.GetItemQueryIterator<long>(
+            query,
+            requestOptions: new QueryRequestOptions { MaxConcurrency = -1 }
+        );
 
         var count = 0L;
 
@@ -257,7 +269,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
 
         var deleted = 0;
 
-        using var iterator = _container.GetItemQueryIterator<IdProjection>(query);
+        using var iterator = _container.GetItemQueryIterator<IdProjection>(
+            query,
+            requestOptions: new QueryRequestOptions { MaxConcurrency = -1 }
+        );
 
         while (iterator.HasMoreResults)
         {
@@ -302,16 +317,29 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     }
 
     /// <summary>
+    /// Creates <see cref="QueryRequestOptions"/> for the recurring status-polling queries.
+    /// The queries filter on <c>c.status</c> without a partition key and therefore fan out to
+    /// every physical partition; bounding the page size to the batch size and enabling maximum
+    /// parallelism keeps the per-poll latency and RU cost as low as possible.
+    /// </summary>
+    private static QueryRequestOptions CreateBatchQueryOptions(int batchSize) =>
+        new QueryRequestOptions { MaxItemCount = batchSize, MaxConcurrency = -1 };
+
+    /// <summary>
     /// Executes a parameterized query and returns all matching documents.
     /// </summary>
     private async Task<IReadOnlyList<CosmosDbOutboxDocument>> ExecuteQueryAsync(
         QueryDefinition query,
+        QueryRequestOptions requestOptions,
         CancellationToken cancellationToken
     )
     {
         var documents = new List<CosmosDbOutboxDocument>();
 
-        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(query);
+        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(
+            query,
+            requestOptions: requestOptions
+        );
 
         while (iterator.HasMoreResults)
         {
