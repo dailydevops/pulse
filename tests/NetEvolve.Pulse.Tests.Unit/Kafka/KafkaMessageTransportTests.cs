@@ -254,6 +254,24 @@ public sealed class KafkaMessageTransportTests
         _ = await Assert.That(healthy).IsFalse();
     }
 
+    // INVARIANT: IsHealthyAsync must observe the caller's CancellationToken promptly instead of
+    // always running the blocking GetMetadata() call to completion. With a pre-cancelled token the
+    // method must throw OperationCanceledException without reporting a (misleading) health result.
+    [Test]
+    public async Task IsHealthyAsync_When_cancellation_already_requested_throws_OperationCanceledException_promptly(
+        CancellationToken cancellationToken
+    )
+    {
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1 };
+        await using var transport = CreateTransport(producer, admin);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => transport.IsHealthyAsync(cts.Token));
+    }
+
     [Test]
     public async Task DisposeAsync_Does_not_dispose_injected_producer_or_admin_client(
         CancellationToken cancellationToken
