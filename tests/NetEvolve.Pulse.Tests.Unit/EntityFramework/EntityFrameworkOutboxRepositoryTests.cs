@@ -1,6 +1,8 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Extensions.TUnit;
@@ -10,6 +12,28 @@ using TUnit.Core;
 [TestGroup("EntityFramework")]
 public sealed class EntityFrameworkOutboxRepositoryTests
 {
+    [Test]
+    public async Task Constructor_WithRelationalProvider_CreatesExecutorWithSinglePermit()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>().UseSqlite("Data Source=:memory:").Options;
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+
+            var executor = typeof(EntityFrameworkOutboxRepository<TestDbContext>)
+                .GetField("_executor", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(repository)!;
+            var semaphore = (SemaphoreSlim)
+                executor
+                    .GetType()
+                    .GetField("_semaphore", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .GetValue(executor)!;
+
+            _ = await Assert.That(semaphore.CurrentCount).IsEqualTo(1);
+        }
+    }
+
     [Test]
     public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert

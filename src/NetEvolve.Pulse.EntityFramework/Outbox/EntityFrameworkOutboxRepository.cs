@@ -53,7 +53,9 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
             // cannot translate a parameterised Guid collection into a SQL IN clause.
             ProviderName.OracleMySql => new MySqlOutboxRepositoryExecutor<TContext>(context, 1),
             ProviderName.Npgsql => new BulkOutboxRepositoryExecutor<TContext>(context, 1),
-            _ => new BulkOutboxRepositoryExecutor<TContext>(context, Environment.ProcessorCount - 1),
+            // DbContext is not thread-safe, so a single permit is the only safe degree of
+            // parallelism for executors sharing the scoped context instance.
+            _ => new BulkOutboxRepositoryExecutor<TContext>(context, 1),
         };
     }
 
