@@ -353,6 +353,115 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         }
     }
 
+    [Test]
+    public async Task CreateConnection_WithWalModeEnabled_AppliesJournalModePragmaOnlyOnce(
+        CancellationToken cancellationToken
+    )
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"pulse_wal_{Guid.NewGuid():N}.db");
+        var fileConnectionString = $"Data Source={dbPath};Pooling=False";
+
+        try
+        {
+            var schemaConnection = new SqliteConnection(fileConnectionString);
+            await using (schemaConnection.ConfigureAwait(false))
+            {
+                await schemaConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+                var schemaCmd = new SqliteCommand(
+                    """
+                    CREATE TABLE IF NOT EXISTS "OutboxMessage"
+                    (
+                        "Id"            TEXT    NOT NULL,
+                        "EventType"     TEXT    NOT NULL,
+                        "Payload"       TEXT    NOT NULL,
+                        "CorrelationId" TEXT    NULL,
+                        "CausationId"   TEXT    NULL,
+                        "CreatedAt"     TEXT    NOT NULL,
+                        "UpdatedAt"     TEXT    NOT NULL,
+                        "ProcessedAt"   TEXT    NULL,
+                        "NextRetryAt"   TEXT    NULL,
+                        "RetryCount"    INTEGER NOT NULL DEFAULT 0,
+                        "Error"         TEXT    NULL,
+                        "Status"        INTEGER NOT NULL DEFAULT 0,
+                        CONSTRAINT "PK_OutboxMessage" PRIMARY KEY ("Id")
+                    );
+                    """,
+                    schemaConnection
+                );
+                await using (schemaCmd.ConfigureAwait(false))
+                {
+                    _ = await schemaCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            var options = Options.Create(
+                new OutboxOptions { ConnectionString = fileConnectionString, EnableWalMode = true }
+            );
+            var repository = new SQLiteOutboxRepository(options, TimeProvider.System);
+
+            _ = await repository.GetPendingCountAsync(cancellationToken).ConfigureAwait(false);
+
+            var afterFirstUse = await SetJournalModeDeleteAsync(fileConnectionString, cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await repository.GetPendingCountAsync(cancellationToken).ConfigureAwait(false);
+
+            var afterSecondUse = await GetJournalModeAsync(fileConnectionString, cancellationToken)
+                .ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(afterFirstUse).IsEqualTo("delete");
+                _ = await Assert.That(afterSecondUse).IsEqualTo("delete");
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            foreach (var suffix in new[] { string.Empty, "-wal", "-shm" })
+            {
+                var path = dbPath + suffix;
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+    }
+
+    private static async Task<string?> SetJournalModeDeleteAsync(
+        string connectionString,
+        CancellationToken cancellationToken
+    )
+    {
+        var connection = new SqliteConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            var command = new SqliteCommand("PRAGMA journal_mode=DELETE;", connection);
+            await using (command.ConfigureAwait(false))
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result as string;
+            }
+        }
+    }
+
+    private static async Task<string?> GetJournalModeAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        var connection = new SqliteConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            var command = new SqliteCommand("PRAGMA journal_mode;", connection);
+            await using (command.ConfigureAwait(false))
+            {
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result as string;
+            }
+        }
+    }
+
     private sealed class StubTransactionScope(SqliteTransaction transaction) : IOutboxTransactionScope
     {
         public object? GetCurrentTransaction() => transaction;

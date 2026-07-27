@@ -20,8 +20,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// pending-message claims to prevent duplicate processing by concurrent workers.
 /// <para><strong>WAL Mode:</strong></para>
 /// When <see cref="OutboxOptions.EnableWalMode"/> is <see langword="true"/>, the
-/// <c>PRAGMA journal_mode=WAL</c> command is applied on each connection to allow concurrent
-/// read access during writes.
+/// <c>PRAGMA journal_mode=WAL</c> command is applied once per repository instance to allow concurrent
+/// read access during writes; WAL is a persistent database property.
 /// <para><strong>Claim Lease:</strong></para>
 /// Each claim records the claim timestamp in <c>UpdatedAt</c>. Messages that remain in the
 /// <c>Processing</c> status longer than <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for
@@ -48,8 +48,11 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <summary>The SQLite connection string resolved from <see cref="OutboxOptions"/>.</summary>
     private readonly string _connectionString;
 
-    /// <summary>Whether to apply WAL journal mode on each opened connection.</summary>
+    /// <summary>Whether to apply WAL journal mode to the database.</summary>
     private readonly bool _enableWalMode;
+
+    /// <summary>Tracks whether the persistent WAL journal mode has already been applied to the database.</summary>
+    private int _walModeApplied;
 
     /// <summary>The optional transaction scope providing an ambient <see cref="SqliteTransaction"/> for <see cref="AddAsync"/>.</summary>
     private readonly IOutboxTransactionScope? _transactionScope;
@@ -489,7 +492,9 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
 
     /// <summary>
     /// Opens and returns a new <see cref="SqliteConnection"/> using the stored connection string.
-    /// Applies WAL mode when <see cref="OutboxOptions.EnableWalMode"/> is <see langword="true"/>.
+    /// Applies WAL mode once per repository instance when <see cref="OutboxOptions.EnableWalMode"/> is
+    /// <see langword="true"/>; the journal mode is a persistent database property and does not need
+    /// to be re-applied on subsequent connections.
     /// The caller is responsible for disposing the connection.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -499,13 +504,15 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_enableWalMode)
+        if (_enableWalMode && Volatile.Read(ref _walModeApplied) == 0)
         {
             var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
             await using (walCmd.ConfigureAwait(false))
             {
                 _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
+
+            Volatile.Write(ref _walModeApplied, 1);
         }
 
         return connection;
