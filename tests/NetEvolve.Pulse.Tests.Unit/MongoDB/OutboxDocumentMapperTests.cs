@@ -144,4 +144,51 @@ public sealed class OutboxDocumentMapperTests
 
         _ = await Assert.That(() => OutboxDocumentMapper.ToOutboxMessage(doc)).Throws<InvalidOperationException>();
     }
+
+    // INVARIANT: Repeated materialization of the same persisted type name resolves to the
+    // identical Type instance (the resolution is memoized instead of re-parsed per document).
+    [Test]
+    public async Task ToOutboxMessage_with_Repeated_EventType_resolves_same_type_instance()
+    {
+        var doc = new OutboxDocument
+        {
+            Id = Guid.NewGuid(),
+            EventType = typeof(SampleEvent).AssemblyQualifiedName!,
+            Payload = "{}",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Status = (int)OutboxMessageStatus.Pending,
+        };
+
+        var first = OutboxDocumentMapper.ToOutboxMessage(doc);
+        var second = OutboxDocumentMapper.ToOutboxMessage(doc);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(first.EventType).IsEqualTo(typeof(SampleEvent));
+            _ = await Assert.That(ReferenceEquals(first.EventType, second.EventType)).IsTrue();
+        }
+    }
+
+    // INVARIANT: Failed resolutions are not cached; every re-encounter of an unresolvable
+    // type name fails loudly again instead of returning a stale poisoned entry.
+    [Test]
+    public async Task ToOutboxMessage_with_Unresolvable_EventType_throws_on_every_call()
+    {
+        var doc = new OutboxDocument
+        {
+            Id = Guid.NewGuid(),
+            EventType = "Nonexistent.Repeated.Type, Nonexistent.Assembly",
+            Payload = "{}",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Status = (int)OutboxMessageStatus.Pending,
+        };
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(() => OutboxDocumentMapper.ToOutboxMessage(doc)).Throws<InvalidOperationException>();
+            _ = await Assert.That(() => OutboxDocumentMapper.ToOutboxMessage(doc)).Throws<InvalidOperationException>();
+        }
+    }
 }
