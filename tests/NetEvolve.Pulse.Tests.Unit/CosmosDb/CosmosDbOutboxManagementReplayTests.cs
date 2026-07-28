@@ -30,15 +30,13 @@ public sealed class CosmosDbOutboxManagementReplayTests
                 capturedEtags.Add(options?.IfMatchEtag);
                 return new FakeItemResponse<CosmosDbOutboxDocument>(CreateDeadLetterDocument(Guid.NewGuid(), null));
             },
+            OnQueryIterator = (itemType, _, _) => CreateIterator(itemType, [firstDocument, secondDocument]),
+            OnReadItem = (id, _) =>
+                new FakeItemResponse<CosmosDbOutboxDocument>(
+                    CreateDeadLetterDocument(Guid.Parse(id), "\"read-etag\""),
+                    "\"read-etag\""
+                ),
         };
-
-        container.OnQueryIterator = (itemType, _, _) => CreateIterator(itemType, [firstDocument, secondDocument]);
-
-        container.OnReadItem = (id, _) =>
-            new FakeItemResponse<CosmosDbOutboxDocument>(
-                CreateDeadLetterDocument(Guid.Parse(id), "\"read-etag\""),
-                "\"read-etag\""
-            );
 
         using var client = new FakeCosmosClient(container);
 
