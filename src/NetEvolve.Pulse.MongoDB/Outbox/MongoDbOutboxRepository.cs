@@ -18,6 +18,11 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// Each pending-message claim uses <c>FindOneAndUpdateAsync</c> to atomically transition one document
 /// from <see cref="OutboxMessageStatus.Pending"/> to <see cref="OutboxMessageStatus.Processing"/>.
 /// A batch is claimed by calling this operation up to <c>batchSize</c> times.
+/// <para><strong>Claim Lease:</strong></para>
+/// Each claim records the claim timestamp. Messages that remain in
+/// <see cref="OutboxMessageStatus.Processing"/> longer than
+/// <see cref="MongoDbOutboxOptions.ProcessingLeaseTimeout"/> (for example, after a worker crash or
+/// host shutdown) are reclaimed by subsequent pending polls, preserving at-least-once delivery.
 /// <para><strong>Date/Time Storage:</strong></para>
 /// All <see cref="DateTimeOffset"/> values are stored as UTC <see cref="DateTime"/> in BSON. The UTC offset
 /// is always zero when reading back from the database.
@@ -39,6 +44,9 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <summary>Tracks whether the claim index has already been created by this instance (0 = no, 1 = yes).</summary>
     private int _claimIndexCreated;
 
+    /// <summary>The maximum duration a claimed message may remain in the Processing status before it is reclaimed.</summary>
+    private readonly TimeSpan _processingLeaseTimeout;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MongoDbOutboxRepository"/> class.
     /// </summary>
@@ -59,10 +67,13 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.DatabaseName);
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.CollectionName);
 
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(opts.ProcessingLeaseTimeout, TimeSpan.Zero);
+
         _mongoClient = mongoClient;
         _timeProvider = timeProvider;
         _databaseName = opts.DatabaseName;
         _collectionName = opts.CollectionName;
+        _processingLeaseTimeout = opts.ProcessingLeaseTimeout;
     }
 
     /// <inheritdoc />
@@ -81,8 +92,9 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     )
     {
         var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var leaseExpiredBefore = now - _processingLeaseTimeout;
 
-        var filter = Builders<OutboxDocument>.Filter.And(
+        var pendingFilter = Builders<OutboxDocument>.Filter.And(
             Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.Pending),
             Builders<OutboxDocument>.Filter.Or(
                 Builders<OutboxDocument>.Filter.Eq(d => d.NextRetryAt, null),
@@ -90,9 +102,23 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
             )
         );
 
+        var expiredLeaseFilter = Builders<OutboxDocument>.Filter.And(
+            Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.Processing),
+            Builders<OutboxDocument>.Filter.Or(
+                Builders<OutboxDocument>.Filter.Lte(d => d.ProcessingStartedAt, (DateTime?)leaseExpiredBefore),
+                Builders<OutboxDocument>.Filter.And(
+                    Builders<OutboxDocument>.Filter.Eq(d => d.ProcessingStartedAt, null),
+                    Builders<OutboxDocument>.Filter.Lte(d => d.UpdatedAt, leaseExpiredBefore)
+                )
+            )
+        );
+
+        var filter = Builders<OutboxDocument>.Filter.Or(pendingFilter, expiredLeaseFilter);
+
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.Processing)
-            .Set(d => d.UpdatedAt, now);
+            .Set(d => d.UpdatedAt, now)
+            .Set(d => d.ProcessingStartedAt, (DateTime?)now);
 
         var sort = Builders<OutboxDocument>.Sort.Ascending(d => d.CreatedAt);
         var findOptions = new FindOneAndUpdateOptions<OutboxDocument>
@@ -141,7 +167,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
 
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.Processing)
-            .Set(d => d.UpdatedAt, now);
+            .Set(d => d.UpdatedAt, now)
+            .Set(d => d.ProcessingStartedAt, (DateTime?)now);
 
         var sort = Builders<OutboxDocument>.Sort.Ascending(d => d.CreatedAt);
         var findOptions = new FindOneAndUpdateOptions<OutboxDocument>
