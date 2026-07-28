@@ -27,6 +27,9 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <c>Processing</c> status longer than <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for
 /// example, after a worker crash, cancellation, or unhandled exception during dispatch) are
 /// reclaimed by subsequent pending polls, preserving at-least-once delivery.
+/// <para><strong>Timestamp Normalization:</strong></para>
+/// All <see cref="DateTimeOffset"/> values are normalized to UTC before persistence, because SQLite
+/// stores them as TEXT and compares them lexicographically; mixed offsets would break chronological ordering.
 /// </remarks>
 [SuppressMessage(
     "Reliability",
@@ -423,7 +426,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
                 _ = command.Parameters.AddWithValue(
                     "@nextRetryAt",
-                    nextRetryAt.HasValue ? (object)nextRetryAt.Value : DBNull.Value
+                    nextRetryAt.HasValue ? (object)nextRetryAt.Value.ToUniversalTime() : DBNull.Value
                 );
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -539,15 +542,15 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         _ = command.Parameters.AddWithValue("@Payload", message.Payload);
         _ = command.Parameters.AddWithValue("@CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("@CausationId", (object?)message.CausationId ?? DBNull.Value);
-        _ = command.Parameters.AddWithValue("@CreatedAt", message.CreatedAt);
-        _ = command.Parameters.AddWithValue("@UpdatedAt", message.UpdatedAt);
+        _ = command.Parameters.AddWithValue("@CreatedAt", message.CreatedAt.ToUniversalTime());
+        _ = command.Parameters.AddWithValue("@UpdatedAt", message.UpdatedAt.ToUniversalTime());
         _ = command.Parameters.AddWithValue(
             "@ProcessedAt",
-            message.ProcessedAt.HasValue ? (object)message.ProcessedAt.Value : DBNull.Value
+            message.ProcessedAt.HasValue ? (object)message.ProcessedAt.Value.ToUniversalTime() : DBNull.Value
         );
         _ = command.Parameters.AddWithValue(
             "@NextRetryAt",
-            message.NextRetryAt.HasValue ? (object)message.NextRetryAt.Value : DBNull.Value
+            message.NextRetryAt.HasValue ? (object)message.NextRetryAt.Value.ToUniversalTime() : DBNull.Value
         );
         _ = command.Parameters.AddWithValue("@RetryCount", message.RetryCount);
         _ = command.Parameters.AddWithValue("@Error", (object?)message.Error ?? DBNull.Value);

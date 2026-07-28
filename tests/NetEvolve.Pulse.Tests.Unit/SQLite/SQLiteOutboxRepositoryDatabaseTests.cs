@@ -324,6 +324,48 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     }
 
     [Test]
+    public async Task GetFailedForRetryAsync_WithDueNonUtcNextRetryAt_ReturnsMessage(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = CreateRepository();
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var nextRetry = DateTimeOffset.UtcNow.AddMinutes(-30).ToOffset(TimeSpan.FromHours(2));
+        await repository
+            .MarkAsFailedAsync(message.Id, "Failure with offset retry", nextRetry, cancellationToken)
+            .ConfigureAwait(false);
+
+        var forRetry = await repository
+            .GetFailedForRetryAsync(maxRetryCount: 3, batchSize: 10, cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(forRetry.Count).IsEqualTo(1);
+            _ = await Assert.That(forRetry).All(m => m.Id == message.Id);
+        }
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WithDueNonUtcNextRetryAt_ReturnsMessage(CancellationToken cancellationToken)
+    {
+        var repository = CreateRepository();
+        var message = CreateMessage();
+        message.NextRetryAt = DateTimeOffset.UtcNow.AddMinutes(-30).ToOffset(TimeSpan.FromHours(2));
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(pending.Count).IsEqualTo(1);
+            _ = await Assert.That(pending).All(m => m.Id == message.Id);
+        }
+    }
+
+    [Test]
     public async Task AddAsync_UsesAmbientTransactionScope(CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection(_connectionString);
