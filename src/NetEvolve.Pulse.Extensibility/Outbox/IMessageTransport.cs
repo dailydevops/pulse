@@ -59,35 +59,30 @@ public interface IMessageTransport
     }
 
     /// <summary>
-    /// Internal implementation of batch sending that dispatches each message concurrently via <see cref="SendAsync"/>.
-    /// Uses <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, CancellationToken, Func{TSource, CancellationToken, ValueTask})"/> to maximize throughput while respecting the provided cancellation token.
+    /// Internal implementation of batch sending that dispatches each message sequentially via <see cref="SendAsync"/>,
+    /// preserving the enumeration order of <paramref name="messages"/>.
     /// </summary>
     /// <remarks>
     /// <para><strong>Concurrency Model:</strong></para>
-    /// Messages are processed in parallel (not sequentially), which may improve throughput significantly.
-    /// The degree of parallelism is determined by the system's thread pool.
+    /// Messages are sent one at a time in enumeration order; <see cref="SendAsync"/> is never invoked
+    /// concurrently by this implementation, matching the documented contract of <see cref="SendBatchAsync"/>.
     /// <para><strong>Error Handling:</strong></para>
-    /// Individual message send failures propagate as exceptions and interrupt batch processing.
-    /// The first exception encountered will be thrown, terminating the batch operation.
+    /// The first send failure propagates as an exception and terminates the batch operation (fail-fast);
+    /// messages after the failed one are not attempted, so a subset of the batch may have been delivered.
     /// <para><strong>Cancellation:</strong></para>
-    /// If the cancellation token is triggered, all remaining concurrent operations are cancelled,
-    /// and the task completes. Already-attempted messages may have partial results depending on
-    /// the transport's concurrency model.
+    /// Cancellation is observed before each send; already-sent messages are unaffected.
     /// </remarks>
-    /// <param name="messages">The collection of messages to send concurrently.</param>
+    /// <param name="messages">The collection of messages to send sequentially.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the concurrent send operation that completes when all messages have been attempted.</returns>
-    private async Task SendBatchInternalAsync(
-        IEnumerable<OutboxMessage> messages,
-        CancellationToken cancellationToken
-    ) =>
-        await Parallel
-            .ForEachAsync(
-                messages,
-                cancellationToken,
-                async (message, token) => await SendAsync(message, token).ConfigureAwait(false)
-            )
-            .ConfigureAwait(false);
+    /// <returns>A task representing the sequential send operation that completes when all messages have been sent.</returns>
+    private async Task SendBatchInternalAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken)
+    {
+        foreach (var message in messages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await SendAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Checks if the transport is healthy and ready to send messages.

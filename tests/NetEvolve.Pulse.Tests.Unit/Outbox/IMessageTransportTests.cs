@@ -13,8 +13,8 @@ using TUnit.Core;
 
 /// <summary>
 /// Unit tests for the default interface implementations on <see cref="IMessageTransport"/>,
-/// in particular <see cref="IMessageTransport.SendBatchAsync"/>, which fans out to
-/// <see cref="IMessageTransport.SendAsync"/> concurrently via <see cref="Parallel.ForEachAsync{TSource}(System.Collections.Generic.IEnumerable{TSource}, System.Threading.CancellationToken, System.Func{TSource, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask})"/>
+/// in particular <see cref="IMessageTransport.SendBatchAsync"/>, which calls
+/// <see cref="IMessageTransport.SendAsync"/> for each message sequentially, as documented,
 /// for implementations that do not override the batch method.
 /// </summary>
 [TestGroup("Outbox")]
@@ -43,6 +43,17 @@ public sealed class IMessageTransportTests
     }
 
     [Test]
+    public async Task SendBatchAsync_DefaultImplementation_InvokesSendAsyncSequentiallyAsDocumented()
+    {
+        using var transport = new OverlapDetectingTransport();
+        var messages = new List<OutboxMessage> { CreateMessage(), CreateMessage(), CreateMessage(), CreateMessage() };
+
+        await ((IMessageTransport)transport).SendBatchAsync(messages, CancellationToken.None).ConfigureAwait(false);
+
+        _ = await Assert.That(transport.OverlapDetected).IsFalse();
+    }
+
+    [Test]
     public async Task SendBatchAsync_WithoutOverride_WithNullMessages_ThrowsArgumentNullException()
     {
         var transport = new SendAsyncOnlyTransport();
@@ -64,9 +75,45 @@ public sealed class IMessageTransportTests
         };
 
     /// <summary>
+    /// Transport implementing only <see cref="IMessageTransport.SendAsync"/> that detects overlapping
+    /// (concurrent) invocations. The first send waits briefly for a subsequent send to start; if one
+    /// starts before the first completes, the default batch dispatch is concurrent and violates the
+    /// documented sequential contract of <see cref="IMessageTransport.SendBatchAsync"/>.
+    /// </summary>
+    private sealed class OverlapDetectingTransport : IMessageTransport, IDisposable
+    {
+        private readonly SemaphoreSlim _subsequentSendStarted = new(0);
+        private int _activeSends;
+        private int _totalSends;
+
+        public bool OverlapDetected { get; private set; }
+
+        public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref _activeSends) > 1)
+            {
+                OverlapDetected = true;
+            }
+
+            if (Interlocked.Increment(ref _totalSends) == 1)
+            {
+                _ = await _subsequentSendStarted.WaitAsync(500, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                _ = _subsequentSendStarted.Release();
+            }
+
+            _ = Interlocked.Decrement(ref _activeSends);
+        }
+
+        public void Dispose() => _subsequentSendStarted.Dispose();
+    }
+
+    /// <summary>
     /// Minimal transport that implements only <see cref="IMessageTransport.SendAsync"/>, leaving
     /// <see cref="IMessageTransport.SendBatchAsync"/> to fall through to the default interface
-    /// implementation, which dispatches concurrently via <see cref="Parallel.ForEachAsync{TSource}(System.Collections.Generic.IEnumerable{TSource}, System.Threading.CancellationToken, System.Func{TSource, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask})"/>.
+    /// implementation, which dispatches each message sequentially.
     /// </summary>
     private sealed class SendAsyncOnlyTransport : IMessageTransport
     {
