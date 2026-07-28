@@ -41,9 +41,18 @@ public sealed class CosmosDbOutboxOptions
     /// Gets or sets the partition key path for the container.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Defaults to <see cref="DefaultPartitionKeyPath"/> (<c>/id</c>).
     /// This value is informational for container creation guidance; the repository uses it
     /// to construct <see cref="Microsoft.Azure.Cosmos.PartitionKey"/> values for point operations.
+    /// </para>
+    /// <para>
+    /// With the default <c>/id</c> path every document is its own logical partition. Point
+    /// operations stay single-partition, but the recurring status-based queries (pending polling,
+    /// retry polling, counts, and cleanup) fan out to all physical partitions, so their RU cost
+    /// and latency grow with the number of physical partitions. Enable
+    /// <see cref="EnableTimeToLive"/> to keep the container small and the fan-out inexpensive.
+    /// </para>
     /// </remarks>
     public string PartitionKeyPath { get; set; } = DefaultPartitionKeyPath;
 
