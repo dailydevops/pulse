@@ -98,6 +98,40 @@ public sealed class PostgreSqlOutboxRepositoryTests
     }
 
     [Test]
+    public async Task Constructor_WithZeroProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException() =>
+        _ = await Assert
+            .That(() =>
+                new PostgreSqlOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            ProcessingLeaseTimeout = TimeSpan.Zero,
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+
+    [Test]
+    public async Task Constructor_WithNegativeProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException() =>
+        _ = await Assert
+            .That(() =>
+                new PostgreSqlOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            ProcessingLeaseTimeout = TimeSpan.FromSeconds(-1),
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+
+    [Test]
     public async Task Constructor_WithNullSchema_CreatesInstance()
     {
         var options = new OutboxOptions { ConnectionString = ValidConnectionString, Schema = null };
