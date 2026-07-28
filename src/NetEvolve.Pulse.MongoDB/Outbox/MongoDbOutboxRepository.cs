@@ -319,7 +319,11 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
 
             return true;
         }
-        catch
+        catch (MongoException)
+        {
+            return false;
+        }
+        catch (TimeoutException)
         {
             return false;
         }
