@@ -24,8 +24,11 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// <summary>The SQLite connection string resolved from <see cref="OutboxOptions"/>.</summary>
     private readonly string _connectionString;
 
-    /// <summary>Whether to apply WAL journal mode on each opened connection.</summary>
+    /// <summary>Whether to apply WAL journal mode to the database.</summary>
     private readonly bool _enableWalMode;
+
+    /// <summary>Tracks whether the persistent WAL journal mode has already been applied to the database.</summary>
+    private int _walModeApplied;
 
     /// <summary>The time provider used to generate consistent timestamps.</summary>
     private readonly TimeProvider _timeProvider;
@@ -295,7 +298,9 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
 
     /// <summary>
     /// Opens and returns a new <see cref="SqliteConnection"/> using the stored connection string.
-    /// Applies WAL mode when <see cref="OutboxOptions.EnableWalMode"/> is <see langword="true"/>.
+    /// Applies WAL mode once per instance when <see cref="OutboxOptions.EnableWalMode"/> is
+    /// <see langword="true"/>; the journal mode is a persistent database property and does not need
+    /// to be re-applied on subsequent connections.
     /// The caller is responsible for disposing the connection.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -305,13 +310,15 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_enableWalMode)
+        if (_enableWalMode && Volatile.Read(ref _walModeApplied) == 0)
         {
             var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
             await using (walCmd.ConfigureAwait(false))
             {
                 _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
+
+            Volatile.Write(ref _walModeApplied, 1);
         }
 
         return connection;
