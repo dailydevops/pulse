@@ -42,7 +42,7 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
                 return [];
             }
 
-            _ = await baseQuery
+            var claimed = await baseQuery
                 .Where(m => ids.Contains(m.Id))
                 .ExecuteUpdateAsync(
                     m => m.SetProperty(m => m.Status, newStatus).SetProperty(m => m.UpdatedAt, updatedAt),
@@ -50,9 +50,17 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
                 )
                 .ConfigureAwait(false);
 
+            if (claimed == 0)
+            {
+                return [];
+            }
+
+            // Only return rows this caller actually transitioned; rows claimed by a
+            // competing poller between the candidate SELECT and the UPDATE keep that
+            // poller's UpdatedAt value and are filtered out here.
             return await context
                 .OutboxMessages.AsNoTracking()
-                .Where(m => ids.Contains(m.Id))
+                .Where(m => ids.Contains(m.Id) && m.Status == newStatus && m.UpdatedAt == updatedAt)
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
