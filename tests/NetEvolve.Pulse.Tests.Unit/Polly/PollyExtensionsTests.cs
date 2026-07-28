@@ -2,8 +2,10 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using global::Polly;
+using global::Polly.CircuitBreaker;
 using global::Polly.Retry;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
@@ -111,7 +113,7 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyRequestPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyRequestPolicies_WithScopedLifetime_ReturnsCachedPipelineInstance()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -124,7 +126,7 @@ public sealed class PollyExtensionsTests
 
         var provider = services.BuildServiceProvider();
 
-        // Assert - Create two scopes and verify different instances
+        // Assert - Create two scopes and verify the same cached pipeline instance
         using var scope1 = provider.CreateScope();
         using var scope2 = provider.CreateScope();
 
@@ -133,7 +135,67 @@ public sealed class PollyExtensionsTests
 
         _ = await Assert.That(pipeline1).IsNotNull();
         _ = await Assert.That(pipeline2).IsNotNull();
-        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
+        _ = await Assert.That(pipeline1).IsEqualTo(pipeline2);
+    }
+
+    [Test]
+    public async Task AddPollyRequestPolicies_ScopedLifetime_CircuitBreakerStatePersistsAcrossScopes(
+        CancellationToken cancellationToken
+    )
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyRequestPolicies<TestCommand, string>(
+                pipeline =>
+                    pipeline.AddCircuitBreaker(
+                        new CircuitBreakerStrategyOptions<string>
+                        {
+                            FailureRatio = 0.5,
+                            MinimumThroughput = 2,
+                            BreakDuration = TimeSpan.FromSeconds(10),
+                            SamplingDuration = TimeSpan.FromSeconds(30),
+                        }
+                    ),
+                ServiceLifetime.Scoped
+            )
+        );
+
+        var provider = services.BuildServiceProvider();
+
+        // Act - open the circuit breaker within the first scope
+        using (var scope1 = provider.CreateScope())
+        {
+            var pipeline1 = scope1.ServiceProvider.GetRequiredKeyedService<ResiliencePipeline<string>>(
+                typeof(TestCommand)
+            );
+
+            for (var i = 0; i < 2; i++)
+            {
+                _ = await Assert
+                    .That(async () =>
+                        _ = await pipeline1
+                            .ExecuteAsync<string>(
+                                _ => throw new InvalidOperationException("Failure"),
+                                cancellationToken
+                            )
+                            .ConfigureAwait(false)
+                    )
+                    .Throws<InvalidOperationException>();
+            }
+        }
+
+        // Assert - the breaker state must survive into the next scope
+        using var scope2 = provider.CreateScope();
+        var pipeline2 = scope2.ServiceProvider.GetRequiredKeyedService<ResiliencePipeline<string>>(typeof(TestCommand));
+
+        _ = await Assert
+            .That(async () =>
+                _ = await pipeline2
+                    .ExecuteAsync(_ => new ValueTask<string>("ok"), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<BrokenCircuitException>();
     }
 
     [Test]
@@ -299,7 +361,7 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyEventPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyEventPolicies_WithScopedLifetime_ReturnsCachedPipelineInstance()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -312,7 +374,7 @@ public sealed class PollyExtensionsTests
 
         var provider = services.BuildServiceProvider();
 
-        // Assert - Create two scopes and verify different instances
+        // Assert - Create two scopes and verify the same cached pipeline instance
         using var scope1 = provider.CreateScope();
         using var scope2 = provider.CreateScope();
 
@@ -321,7 +383,7 @@ public sealed class PollyExtensionsTests
 
         _ = await Assert.That(pipeline1).IsNotNull();
         _ = await Assert.That(pipeline2).IsNotNull();
-        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
+        _ = await Assert.That(pipeline1).IsEqualTo(pipeline2);
     }
 
     [Test]
@@ -449,7 +511,7 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyCommandPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyCommandPolicies_WithScopedLifetime_ReturnsCachedPipelineInstance()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -462,7 +524,7 @@ public sealed class PollyExtensionsTests
 
         var provider = services.BuildServiceProvider();
 
-        // Assert - Create two scopes and verify different instances
+        // Assert - Create two scopes and verify the same cached pipeline instance
         using var scope1 = provider.CreateScope();
         using var scope2 = provider.CreateScope();
 
@@ -471,7 +533,7 @@ public sealed class PollyExtensionsTests
 
         _ = await Assert.That(pipeline1).IsNotNull();
         _ = await Assert.That(pipeline2).IsNotNull();
-        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
+        _ = await Assert.That(pipeline1).IsEqualTo(pipeline2);
     }
 
     [Test]
@@ -621,7 +683,7 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
-    public async Task AddPollyStreamQueryPolicies_WithDifferentLifetimes_RespectsLifetime()
+    public async Task AddPollyStreamQueryPolicies_WithScopedLifetime_ReturnsCachedPipelineInstance()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -634,7 +696,7 @@ public sealed class PollyExtensionsTests
 
         var provider = services.BuildServiceProvider();
 
-        // Assert - Create two scopes and verify different instances
+        // Assert - Create two scopes and verify the same cached pipeline instance
         using var scope1 = provider.CreateScope();
         using var scope2 = provider.CreateScope();
 
@@ -643,7 +705,7 @@ public sealed class PollyExtensionsTests
 
         _ = await Assert.That(pipeline1).IsNotNull();
         _ = await Assert.That(pipeline2).IsNotNull();
-        _ = await Assert.That(pipeline1).IsNotEqualTo(pipeline2);
+        _ = await Assert.That(pipeline1).IsEqualTo(pipeline2);
     }
 
     private sealed record TestCommand : ICommand<string>
