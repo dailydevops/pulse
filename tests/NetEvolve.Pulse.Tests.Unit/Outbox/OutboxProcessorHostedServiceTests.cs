@@ -845,6 +845,44 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task Dispose_ReleasesPendingGaugeInstrument()
+    {
+        var gaugeCompleted = false;
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (
+                string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal)
+                && string.Equals(instrument.Name, "pulse.outbox.pending", StringComparison.Ordinal)
+            )
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        meterListener.MeasurementsCompleted = (instrument, _) =>
+        {
+            if (string.Equals(instrument.Name, "pulse.outbox.pending", StringComparison.Ordinal))
+            {
+                Volatile.Write(ref gaugeCompleted, value: true);
+            }
+        };
+        meterListener.Start();
+
+        using var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions());
+        var logger = CreateLogger();
+        var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+
+        service.Dispose();
+
+        // Disposing the service must release its observable gauge so the instance is not
+        // rooted for the process lifetime by a static Meter.
+        _ = await Assert.That(Volatile.Read(ref gaugeCompleted)).IsTrue();
+    }
+
+    [Test]
     public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAt(CancellationToken cancellationToken)
     {
         using var repository = new InMemoryOutboxRepository();

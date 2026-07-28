@@ -83,6 +83,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     private long _pendingCount;
 
     /// <summary>
+    /// Instance-scoped meter hosting the <c>pulse.outbox.pending</c> observable gauge. The gauge callback
+    /// captures this service instance, so the instrument lifetime is bound to the service lifetime by
+    /// disposing this meter in <see cref="Dispose"/> instead of publishing on the process-wide static meter.
+    /// </summary>
+    private readonly Meter _meter;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="OutboxProcessorHostedService"/> class.
     /// </summary>
     /// <param name="repository">The repository for outbox message persistence.</param>
@@ -110,12 +117,20 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         _options = options.Value;
         _logger = logger;
 
-        _ = Defaults.Meter.CreateObservableGauge(
+        _meter = new Meter(Defaults.Meter.Name, Defaults.Version);
+        _ = _meter.CreateObservableGauge(
             "pulse.outbox.pending",
             observeValue: () => Volatile.Read(ref _pendingCount),
             unit: "messages",
             description: "Current number of pending outbox messages."
         );
+    }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _meter.Dispose();
+        base.Dispose();
     }
 
     /// <inheritdoc />
