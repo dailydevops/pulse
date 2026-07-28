@@ -1565,7 +1565,10 @@ public sealed class OutboxProcessorHostedServiceTests
             lock (_lock)
             {
                 var message = _messages.Find(m => m.Id == messageId);
-                message?.Status = OutboxMessageStatus.Completed;
+                if (message is { } found)
+                {
+                    found.Status = OutboxMessageStatus.Completed;
+                }
             }
 
             _ = _completionEvent.Release();
