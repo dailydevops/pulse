@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit.Models;
 
-using Microsoft.CodeAnalysis;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.SourceGeneration.Models;
 using TUnit.Assertions;
@@ -19,10 +18,10 @@ public class ExplicitHandlerResultTests
     );
 
     private static HandlerInfo CreateInfo(string handlerTypeName = "global::MyHandler") =>
-        new(handlerTypeName, [Registration], Location.None);
+        new(handlerTypeName, [Registration], default(LocationInfo));
 
     private static ExplicitTypeError CreateError(string messageTypeName = "global::string") =>
-        new(messageTypeName, "global::MyHandler", Location.None, isPulse005: true);
+        new(messageTypeName, "global::MyHandler", default(LocationInfo), isPulse005: true);
 
     [Test]
     public async Task Equals_WhenBothInfoAbsentAndNoErrorsThenTrue()
