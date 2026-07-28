@@ -15,6 +15,10 @@ using Npgsql;
 /// or by using the connection with an active transaction.
 /// <para><strong>Concurrency:</strong></para>
 /// Uses FOR UPDATE SKIP LOCKED to prevent conflicts during concurrent polling.
+/// <para><strong>Claim Lease:</strong></para>
+/// Each pending poll also reclaims messages that remain in <see cref="OutboxMessageStatus.Processing"/>
+/// longer than <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for example, after a worker crash,
+/// cancellation, or unhandled exception during dispatch), preserving at-least-once delivery.
 /// <para><strong>Performance:</strong></para>
 /// Leverages stored functions for efficient batch operations and index utilization.
 /// </remarks>
@@ -43,6 +47,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
 
     /// <summary>The time provider used to generate consistent timestamps for cutoff calculations.</summary>
     private readonly TimeProvider _timeProvider;
+
+    /// <summary>The maximum duration a claimed message may remain in the Processing status before it is reclaimed.</summary>
+    private readonly TimeSpan _processingLeaseTimeout;
 
     /// <summary>Cached SQL for calling the get_pending_outbox_messages function.</summary>
     private readonly string _getPendingSql;
@@ -83,16 +90,18 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.Value.ProcessingLeaseTimeout, TimeSpan.Zero);
 
         _connectionString = options.Value.ConnectionString;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
+        _processingLeaseTimeout = options.Value.ProcessingLeaseTimeout;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
             : options.Value.Schema;
         SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
-        _getPendingSql = $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size)";
+        _getPendingSql = $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size, @lease_expired_before)";
         _getFailedForRetrySql =
             $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size, @now_utc)";
         _markCompletedSql =
@@ -166,6 +175,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var leaseExpiredBefore = _timeProvider.GetUtcNow() - _processingLeaseTimeout;
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -173,6 +184,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("batch_size", batchSize);
+                _ = command.Parameters.AddWithValue("lease_expired_before", leaseExpiredBefore);
 
                 return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
             }
