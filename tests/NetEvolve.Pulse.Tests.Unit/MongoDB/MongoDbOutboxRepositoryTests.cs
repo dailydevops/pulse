@@ -197,4 +197,52 @@ public sealed class MongoDbOutboxRepositoryTests
 
         _ = await Assert.That(result).IsFalse();
     }
+
+    [Test]
+    public async Task IsHealthyAsync_WhenRunCommandThrowsMongoException_ReturnsFalse()
+    {
+        var database = FakeMongoDatabase.ThatThrows(new global::MongoDB.Driver.MongoException("connection lost"));
+        using var client = FakeMongoClient.Create(database);
+        var repository = new MongoDbOutboxRepository(
+            client,
+            Options.Create(new MongoDbOutboxOptions { DatabaseName = "testdb" }),
+            TimeProvider.System
+        );
+
+        var result = await repository.IsHealthyAsync(CancellationToken.None);
+
+        _ = await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task IsHealthyAsync_WhenRunCommandThrowsTimeoutException_ReturnsFalse()
+    {
+        var database = FakeMongoDatabase.ThatThrows(new TimeoutException("server selection timed out"));
+        using var client = FakeMongoClient.Create(database);
+        var repository = new MongoDbOutboxRepository(
+            client,
+            Options.Create(new MongoDbOutboxOptions { DatabaseName = "testdb" }),
+            TimeProvider.System
+        );
+
+        var result = await repository.IsHealthyAsync(CancellationToken.None);
+
+        _ = await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task IsHealthyAsync_WhenPingSucceeds_ReturnsTrue()
+    {
+        var database = FakeMongoDatabase.ThatSucceeds();
+        using var client = FakeMongoClient.Create(database);
+        var repository = new MongoDbOutboxRepository(
+            client,
+            Options.Create(new MongoDbOutboxOptions { DatabaseName = "testdb" }),
+            TimeProvider.System
+        );
+
+        var result = await repository.IsHealthyAsync(CancellationToken.None);
+
+        _ = await Assert.That(result).IsTrue();
+    }
 }
