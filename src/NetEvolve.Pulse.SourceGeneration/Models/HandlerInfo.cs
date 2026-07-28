@@ -1,7 +1,6 @@
 namespace NetEvolve.Pulse.SourceGeneration.Models;
 
 using System;
-using Microsoft.CodeAnalysis;
 
 /// <summary>
 /// Lightweight model captured per annotated class for the pipeline.
@@ -15,7 +14,7 @@ internal readonly struct HandlerInfo : IEquatable<HandlerInfo>
     public HandlerRegistration[] Registrations { get; }
 
     /// <summary>Gets the source location of the handler type declaration for diagnostic reporting.</summary>
-    public Location Location { get; }
+    public LocationInfo Location { get; }
 
     /// <summary>
     /// Initializes a new <see cref="HandlerInfo"/> with the given type name, registrations,
@@ -24,7 +23,7 @@ internal readonly struct HandlerInfo : IEquatable<HandlerInfo>
     /// <param name="handlerTypeName">The fully qualified name of the handler type.</param>
     /// <param name="registrations">The handler interface registrations for this type.</param>
     /// <param name="location">The source location of the type declaration.</param>
-    public HandlerInfo(string handlerTypeName, HandlerRegistration[] registrations, Location location)
+    public HandlerInfo(string handlerTypeName, HandlerRegistration[] registrations, LocationInfo location)
     {
         HandlerTypeName = handlerTypeName;
         Registrations = registrations;
@@ -34,6 +33,7 @@ internal readonly struct HandlerInfo : IEquatable<HandlerInfo>
     /// <inheritdoc />
     public bool Equals(HandlerInfo other) =>
         string.Equals(HandlerTypeName, other.HandlerTypeName, StringComparison.Ordinal)
+        && Location.Equals(other.Location)
         && RegistrationsEqual(Registrations, other.Registrations);
 
     /// <inheritdoc />
@@ -45,6 +45,7 @@ internal readonly struct HandlerInfo : IEquatable<HandlerInfo>
         unchecked
         {
             var hash = StringComparer.Ordinal.GetHashCode(HandlerTypeName);
+            hash = (hash * 31) + Location.GetHashCode();
             foreach (var r in Registrations)
             {
                 hash = (hash * 31) + r.GetHashCode();

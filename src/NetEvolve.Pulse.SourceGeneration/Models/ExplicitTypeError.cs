@@ -1,7 +1,6 @@
 namespace NetEvolve.Pulse.SourceGeneration.Models;
 
 using System;
-using Microsoft.CodeAnalysis;
 
 /// <summary>
 /// Carries information about an invalid <c>[PulseHandler&lt;T&gt;]</c> usage for diagnostic reporting.
@@ -15,7 +14,7 @@ internal readonly struct ExplicitTypeError : IEquatable<ExplicitTypeError>
     public string HandlerTypeName { get; }
 
     /// <summary>Gets the source location of the type declaration for diagnostic reporting.</summary>
-    public Location Location { get; }
+    public LocationInfo Location { get; }
 
     /// <summary>
     /// Gets a value indicating whether to emit PULSE005 (<see langword="true"/>) or
@@ -26,7 +25,7 @@ internal readonly struct ExplicitTypeError : IEquatable<ExplicitTypeError>
     /// <summary>
     /// Initializes a new <see cref="ExplicitTypeError"/>.
     /// </summary>
-    public ExplicitTypeError(string messageTypeName, string handlerTypeName, Location location, bool isPulse005)
+    public ExplicitTypeError(string messageTypeName, string handlerTypeName, LocationInfo location, bool isPulse005)
     {
         MessageTypeName = messageTypeName;
         HandlerTypeName = handlerTypeName;
@@ -38,6 +37,7 @@ internal readonly struct ExplicitTypeError : IEquatable<ExplicitTypeError>
     public bool Equals(ExplicitTypeError other) =>
         string.Equals(MessageTypeName, other.MessageTypeName, StringComparison.Ordinal)
         && string.Equals(HandlerTypeName, other.HandlerTypeName, StringComparison.Ordinal)
+        && Location.Equals(other.Location)
         && IsPulse005 == other.IsPulse005;
 
     /// <inheritdoc />
@@ -50,6 +50,7 @@ internal readonly struct ExplicitTypeError : IEquatable<ExplicitTypeError>
         {
             var hash = StringComparer.Ordinal.GetHashCode(MessageTypeName);
             hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(HandlerTypeName);
+            hash = (hash * 31) + Location.GetHashCode();
             hash = (hash * 31) + IsPulse005.GetHashCode();
             return hash;
         }

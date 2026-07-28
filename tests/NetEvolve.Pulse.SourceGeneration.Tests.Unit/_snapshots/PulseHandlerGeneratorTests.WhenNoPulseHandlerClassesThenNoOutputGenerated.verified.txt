@@ -17,21 +17,11 @@
       IsWarningAsError: false,
       Location: {
         IsInMetadata: false,
-        IsInSource: true,
-        Kind: SourceFile,
+        IsInSource: false,
+        Kind: ExternalFile,
         SourceSpan: {
           Start: 198,
           Length: 214
-        },
-        SourceTree: {
-          FilePath: ,
-          HasCompilationUnitRoot: true,
-          Length: 412,
-          Options: {
-            DocumentationMode: Parse,
-            Language: C#,
-            LanguageVersion: CSharpLatest
-          }
         }
       },
       Severity: Info,

@@ -136,7 +136,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(
                     Diagnostic.Create(
                         DiagnosticDescriptors.OpenGenericHandlerNotSupported,
-                        info.Location,
+                        info.Location.ToLocation(),
                         info.HandlerTypeName
                     )
                 )
@@ -167,7 +167,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(
                     Diagnostic.Create(
                         DiagnosticDescriptors.MissingPulseHandlerAttribute,
-                        info.Location,
+                        info.Location.ToLocation(),
                         info.HandlerTypeName
                     )
                 )
@@ -197,7 +197,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                         error.IsPulse005
                             ? DiagnosticDescriptors.InvalidExplicitMessageType
                             : DiagnosticDescriptors.IncompatibleExplicitMessageType,
-                        error.Location,
+                        error.Location.ToLocation(),
                         error.MessageTypeName,
                         error.HandlerTypeName
                     )
@@ -218,7 +218,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        var location = ctx.TargetNode.GetLocation();
+        var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var registrations = new List<HandlerRegistration>();
 
         foreach (var attr in ctx.Attributes)
@@ -268,7 +268,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         var handlerTypeName = GetFullyQualifiedName(classSymbol);
-        var location = ctx.TargetNode.GetLocation();
+        var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var errors = ImmutableArray.CreateBuilder<ExplicitTypeError>();
 
         foreach (var attrClass in ctx.Attributes.Select(attr => attr.AttributeClass))
@@ -322,7 +322,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         var lifetime = ReadLifetime(ctx.Attributes);
-        var location = ctx.TargetNode.GetLocation();
+        var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var registrations = BuildHandlerRegistrations(classSymbol, lifetime);
 
         return new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location);
@@ -351,7 +351,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         var lifetime = ReadLifetime(ctx.Attributes);
-        var location = ctx.TargetNode.GetLocation();
+        var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var registrations = BuildOpenGenericHandlerRegistrations(classSymbol, lifetime);
 
         return new HandlerInfo(GetOpenGenericTypeName(classSymbol), [.. registrations], location);
@@ -375,7 +375,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], ctx.TargetNode.GetLocation());
+        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], LocationInfo.CreateFrom(ctx.TargetNode));
     }
 
     /// <summary>
@@ -456,7 +456,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], typeDeclaration.GetLocation());
+        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], LocationInfo.CreateFrom(typeDeclaration));
     }
 
     /// <summary>
@@ -513,7 +513,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(
                     Diagnostic.Create(
                         DiagnosticDescriptors.NoHandlerInterface,
-                        handler.Location,
+                        handler.Location.ToLocation(),
                         handler.HandlerTypeName
                     )
                 );
