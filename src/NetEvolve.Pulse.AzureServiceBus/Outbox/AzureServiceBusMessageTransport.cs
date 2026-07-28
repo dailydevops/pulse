@@ -76,13 +76,56 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         foreach (var group in messagesByTopic)
         {
             var sender = GetSender(group.Key);
-            var serviceBusMessages = group.Select(CreateServiceBusMessage).ToList();
-            await sender.SendMessagesAsync(serviceBusMessages, cancellationToken).ConfigureAwait(false);
+            await SendChunkedBatchesAsync(sender, group, cancellationToken).ConfigureAwait(false);
         }
     }
 
     private ServiceBusSender GetSender(string topicName) =>
         _senders.GetOrAdd(topicName, static (name, client) => client.CreateSender(name), _client);
+
+    private static async Task SendChunkedBatchesAsync(
+        ServiceBusSender sender,
+        IEnumerable<OutboxMessage> messages,
+        CancellationToken cancellationToken
+    )
+    {
+        var batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            foreach (var message in messages)
+            {
+                var serviceBusMessage = CreateServiceBusMessage(message);
+                if (batch.TryAddMessage(serviceBusMessage))
+                {
+                    continue;
+                }
+
+                if (batch.Count > 0)
+                {
+                    await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                    batch.Dispose();
+                    batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                if (!batch.TryAddMessage(serviceBusMessage))
+                {
+                    throw new ServiceBusException(
+                        $"The message with id '{serviceBusMessage.MessageId}' exceeds the maximum allowed batch size.",
+                        ServiceBusFailureReason.MessageSizeExceeded
+                    );
+                }
+            }
+
+            if (batch.Count > 0)
+            {
+                await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            batch.Dispose();
+        }
+    }
 
     /// <inheritdoc />
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)

@@ -467,6 +467,82 @@ public sealed class AzureServiceBusMessageTransportTests
         }
     }
 
+    // ── SendBatchAsync – batch size chunking ──────────────────────────────────
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Splits_group_into_size_limited_batches(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient { MaxMessagesPerBatch = 2 };
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[]
+                {
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                };
+
+                await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+                var sender = fakeClient.GetSender("orders")!;
+                var sentIds = string.Join(
+                    ",",
+                    sender.BatchedMessages.SelectMany(batch => batch).Select(m => m.MessageId)
+                );
+                var expectedIds = string.Join(
+                    ",",
+                    messages.Select(m => m.Id.ToString("D", CultureInfo.InvariantCulture))
+                );
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(sender.BatchedMessages.Count).IsEqualTo(3);
+                    _ = await Assert.That(sender.BatchedMessages[0].Count).IsEqualTo(2);
+                    _ = await Assert.That(sender.BatchedMessages[1].Count).IsEqualTo(2);
+                    _ = await Assert.That(sender.BatchedMessages[2].Count).IsEqualTo(1);
+                    _ = await Assert.That(sentIds).IsEqualTo(expectedIds);
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_When_single_message_exceeds_batch_size_throws(
+        CancellationToken cancellationToken
+    )
+    {
+        var oversized = CreateOutboxMessage();
+        var fakeClient = new FakeServiceBusClient();
+        _ = fakeClient.RejectedMessageIds.Add(oversized.Id.ToString("D", CultureInfo.InvariantCulture));
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[] { CreateOutboxMessage(), oversized };
+
+                var exception = await Assert.ThrowsAsync<ServiceBusException>(() =>
+                    transport.SendBatchAsync(messages, cancellationToken)
+                );
+
+                _ = await Assert.That(exception!.Reason).IsEqualTo(ServiceBusFailureReason.MessageSizeExceeded);
+            }
+        }
+    }
+
     // ── SendBatchAsync – atomicity / error-propagation invariants ─────────────
 
     // INVARIANT: When batching is enabled and the underlying SendMessagesAsync fails,
@@ -642,6 +718,10 @@ public sealed class AzureServiceBusMessageTransportTests
 
         public Dictionary<string, int> CreateSenderCalls { get; } = new(StringComparer.Ordinal);
 
+        public HashSet<string> RejectedMessageIds { get; } = new(StringComparer.Ordinal);
+
+        public int MaxMessagesPerBatch { get; init; } = int.MaxValue;
+
         public FakeServiceBusSender? GetSender(string name) => _senders.TryGetValue(name, out var s) ? s : null;
 
         public override ServiceBusSender CreateSender(string queueOrTopicName)
@@ -649,7 +729,11 @@ public sealed class AzureServiceBusMessageTransportTests
             CreateSenderCalls[queueOrTopicName] = CreateSenderCalls.TryGetValue(queueOrTopicName, out var count)
                 ? count + 1
                 : 1;
-            var sender = new FakeServiceBusSender();
+            var sender = new FakeServiceBusSender
+            {
+                MaxMessagesPerBatch = MaxMessagesPerBatch,
+                RejectedMessageIds = RejectedMessageIds,
+            };
             if (FailuresByTopic.TryGetValue(queueOrTopicName, out var failure))
             {
                 sender.FailureToRaise = failure;
@@ -669,12 +753,18 @@ public sealed class AzureServiceBusMessageTransportTests
 
     private sealed class FakeServiceBusSender : ServiceBusSender
     {
+        private readonly Dictionary<ServiceBusMessageBatch, List<ServiceBusMessage>> _batchStores = [];
+
         public List<ServiceBusMessage> SentMessages { get; } = [];
         public List<IReadOnlyList<ServiceBusMessage>> BatchedMessages { get; } = [];
 
         public Exception? FailureToRaise { get; set; }
 
         public bool IsDisposed { get; private set; }
+
+        public int MaxMessagesPerBatch { get; init; } = int.MaxValue;
+
+        public HashSet<string> RejectedMessageIds { get; init; } = new(StringComparer.Ordinal);
 
         public override Task SendMessageAsync(ServiceBusMessage message, CancellationToken cancellationToken = default)
         {
@@ -697,6 +787,34 @@ public sealed class AzureServiceBusMessageTransportTests
             }
             BatchedMessages.Add([.. messages]);
             return Task.CompletedTask;
+        }
+
+        public override Task SendMessagesAsync(
+            ServiceBusMessageBatch messageBatch,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (FailureToRaise is not null)
+            {
+                return Task.FromException(FailureToRaise);
+            }
+            BatchedMessages.Add([.. _batchStores[messageBatch]]);
+            return Task.CompletedTask;
+        }
+
+        public override ValueTask<ServiceBusMessageBatch> CreateMessageBatchAsync(
+            CancellationToken cancellationToken = default
+        )
+        {
+            var store = new List<ServiceBusMessage>();
+            var batch = ServiceBusModelFactory.ServiceBusMessageBatch(
+                batchSizeBytes: 0,
+                batchMessageStore: store,
+                tryAddCallback: message =>
+                    store.Count < MaxMessagesPerBatch && !RejectedMessageIds.Contains(message.MessageId)
+            );
+            _batchStores[batch] = store;
+            return ValueTask.FromResult(batch);
         }
 
         // No real connection to dispose – suppress base call to avoid NullReferenceException.
