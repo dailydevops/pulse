@@ -26,8 +26,15 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var regularHandlerInfos = BuildRegularHandlerInfosPipeline(context);
-        var explicitHandlerInfos = BuildExplicitHandlerInfosPipeline(context);
+        var pulseHandlerResults = BuildPulseHandlerPipeline(context);
+        var explicitHandlerResults = BuildExplicitHandlerPipeline(context);
+
+        var regularHandlerInfos = pulseHandlerResults
+            .Where(static result => result.Info.HasValue && !result.IsOpenGeneric)
+            .Select(static (result, _) => result.Info!.Value);
+        var explicitHandlerInfos = explicitHandlerResults
+            .Where(static result => result.Info.HasValue)
+            .Select(static (result, _) => result.Info!.Value);
         var genericHandlerInfos = BuildGenericHandlerInfosPipeline(context);
 
         var rootNamespace = context.AnalyzerConfigOptionsProvider.Select(
@@ -59,43 +66,37 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             static (spc, data) => Execute(spc, data.Left.Left, data.Left.Right, data.Right)
         );
 
-        RegisterOpenGenericDiagnosticPipeline(context);
+        RegisterOpenGenericDiagnosticPipeline(context, pulseHandlerResults);
         RegisterUnannotatedHandlerDiagnosticPipeline(context);
-        RegisterExplicitMessageTypeDiagnosticPipeline(context);
+        RegisterExplicitMessageTypeDiagnosticPipeline(context, explicitHandlerResults);
     }
 
     /// <summary>
-    /// Builds the incremental pipeline that collects <c>[PulseHandler]</c>-annotated (non-generic
-    /// attribute) types and returns a provider of <see cref="HandlerInfo"/> values.
+    /// Builds the single incremental pipeline that scans <c>[PulseHandler]</c>-annotated
+    /// (non-generic attribute) types once, producing both the registration infos for closed types
+    /// and the PULSE004 candidates for open generic types.
     /// </summary>
-    private static IncrementalValuesProvider<HandlerInfo> BuildRegularHandlerInfosPipeline(
+    private static IncrementalValuesProvider<(HandlerInfo? Info, bool IsOpenGeneric)> BuildPulseHandlerPipeline(
         IncrementalGeneratorInitializationContext context
     ) =>
-        context
-            .SyntaxProvider.ForAttributeWithMetadataName(
-                PulseHandlerAttributeFullName,
-                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
-                transform: static (ctx, ct) => ExtractHandlerInfo(ctx, ct)
-            )
-            .Where(static info => info.HasValue)
-            .Select(static (info, _) => info!.Value);
+        context.SyntaxProvider.ForAttributeWithMetadataName(
+            PulseHandlerAttributeFullName,
+            predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+            transform: static (ctx, ct) => ExtractPulseHandlerResult(ctx, ct)
+        );
 
     /// <summary>
-    /// Builds the incremental pipeline that collects <c>[PulseHandler&lt;T&gt;]</c>-annotated types
-    /// and returns a provider of <see cref="HandlerInfo"/> values derived from the explicit message
-    /// type arguments.
+    /// Builds the single incremental pipeline that analyzes <c>[PulseHandler&lt;T&gt;]</c>-annotated
+    /// types once, producing both the registration infos and the PULSE005/PULSE006 error candidates.
     /// </summary>
-    private static IncrementalValuesProvider<HandlerInfo> BuildExplicitHandlerInfosPipeline(
+    private static IncrementalValuesProvider<ExplicitHandlerResult> BuildExplicitHandlerPipeline(
         IncrementalGeneratorInitializationContext context
     ) =>
-        context
-            .SyntaxProvider.ForAttributeWithMetadataName(
-                PulseHandlerGenericAttributeFullName,
-                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
-                transform: static (ctx, ct) => ExtractExplicitHandlerInfo(ctx, ct)
-            )
-            .Where(static info => info.HasValue)
-            .Select(static (info, _) => info!.Value);
+        context.SyntaxProvider.ForAttributeWithMetadataName(
+            PulseHandlerGenericAttributeFullName,
+            predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+            transform: static (ctx, ct) => ExtractExplicitHandlerResult(ctx, ct)
+        );
 
     /// <summary>
     /// Builds the incremental pipeline that collects <c>[PulseGenericHandler]</c>-annotated open
@@ -119,16 +120,15 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// open generic types that cannot be automatically registered.
     /// </summary>
     /// <param name="context">The generator initialization context.</param>
-    private static void RegisterOpenGenericDiagnosticPipeline(IncrementalGeneratorInitializationContext context)
+    /// <param name="pulseHandlerResults">The shared <c>[PulseHandler]</c> analysis pipeline.</param>
+    private static void RegisterOpenGenericDiagnosticPipeline(
+        IncrementalGeneratorInitializationContext context,
+        IncrementalValuesProvider<(HandlerInfo? Info, bool IsOpenGeneric)> pulseHandlerResults
+    )
     {
-        var openGenericHandlers = context
-            .SyntaxProvider.ForAttributeWithMetadataName(
-                PulseHandlerAttributeFullName,
-                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
-                transform: static (ctx, ct) => ExtractOpenGenericHandlerInfo(ctx, ct)
-            )
-            .Where(static info => info.HasValue)
-            .Select(static (info, _) => info!.Value);
+        var openGenericHandlers = pulseHandlerResults
+            .Where(static result => result.Info.HasValue && result.IsOpenGeneric)
+            .Select(static (result, _) => result.Info!.Value);
 
         context.RegisterSourceOutput(
             openGenericHandlers,
@@ -178,16 +178,14 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// Registers the pipeline that reports PULSE005 and PULSE006 for invalid or incompatible
     /// message type arguments passed to <c>[PulseHandler&lt;T&gt;]</c>.
     /// </summary>
-    private static void RegisterExplicitMessageTypeDiagnosticPipeline(IncrementalGeneratorInitializationContext context)
+    /// <param name="context">The generator initialization context.</param>
+    /// <param name="explicitHandlerResults">The shared <c>[PulseHandler&lt;T&gt;]</c> analysis pipeline.</param>
+    private static void RegisterExplicitMessageTypeDiagnosticPipeline(
+        IncrementalGeneratorInitializationContext context,
+        IncrementalValuesProvider<ExplicitHandlerResult> explicitHandlerResults
+    )
     {
-        var errors = context
-            .SyntaxProvider.ForAttributeWithMetadataName(
-                PulseHandlerGenericAttributeFullName,
-                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
-                transform: static (ctx, ct) => ExtractExplicitTypeErrors(ctx, ct)
-            )
-            .Where(static arr => !arr.IsDefaultOrEmpty)
-            .SelectMany(static (arr, _) => arr);
+        var errors = explicitHandlerResults.SelectMany(static (result, _) => result.Errors);
 
         context.RegisterSourceOutput(
             errors,
@@ -206,20 +204,26 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Extracts handler registration info from a class annotated with <c>[PulseHandler&lt;T&gt;]</c>.
-    /// Returns <c>null</c> when no valid registration can be produced (errors are reported separately).
+    /// Analyzes a class annotated with <c>[PulseHandler&lt;T&gt;]</c> in a single pass, producing
+    /// the handler registration info (when at least one valid registration exists) together with
+    /// the <see cref="ExplicitTypeError"/> entries for invalid or incompatible message type arguments.
     /// </summary>
-    private static HandlerInfo? ExtractExplicitHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
+    private static ExplicitHandlerResult ExtractExplicitHandlerResult(
+        GeneratorAttributeSyntaxContext ctx,
+        CancellationToken ct
+    )
     {
         ct.ThrowIfCancellationRequested();
 
         if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
         {
-            return null;
+            return new ExplicitHandlerResult(null, []);
         }
 
+        var handlerTypeName = GetFullyQualifiedName(classSymbol);
         var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var registrations = new List<HandlerRegistration>();
+        var errors = new List<ExplicitTypeError>();
 
         foreach (var attr in ctx.Attributes)
         {
@@ -235,27 +239,38 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 continue;
             }
 
+            if (!TryGetMessageInfo(messageType, out _, out _, out _))
+            {
+                var messageTypeName = messageType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                errors.Add(new ExplicitTypeError(messageTypeName, handlerTypeName, location, isPulse005: true));
+                continue;
+            }
+
             var lifetime = ReadLifetimeFromSingleAttr(attr);
             var reg = TryBuildExplicitRegistration(classSymbol, messageType, lifetime);
             if (reg.HasValue)
             {
                 registrations.Add(reg.Value);
             }
+            else
+            {
+                var messageTypeName = messageType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                errors.Add(new ExplicitTypeError(messageTypeName, handlerTypeName, location, isPulse005: false));
+            }
         }
 
-        if (registrations.Count == 0)
-        {
-            return null;
-        }
+        HandlerInfo? info =
+            registrations.Count > 0 ? new HandlerInfo(handlerTypeName, [.. registrations], location) : null;
 
-        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location);
+        return new ExplicitHandlerResult(info, [.. errors]);
     }
 
     /// <summary>
-    /// Extracts <see cref="ExplicitTypeError"/> diagnostics for each invalid or incompatible
-    /// message type argument passed to <c>[PulseHandler&lt;T&gt;]</c> on the annotated class.
+    /// Extracts the analysis result for a single <c>[PulseHandler]</c>-annotated class. Open
+    /// generic types cannot be registered in the DI container and are flagged for PULSE004
+    /// reporting instead; closed types produce their handler registration info.
     /// </summary>
-    private static ImmutableArray<ExplicitTypeError> ExtractExplicitTypeErrors(
+    private static (HandlerInfo? Info, bool IsOpenGeneric) ExtractPulseHandlerResult(
         GeneratorAttributeSyntaxContext ctx,
         CancellationToken ct
     )
@@ -264,68 +279,20 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
         {
-            return [];
+            return (null, false);
         }
 
-        var handlerTypeName = GetFullyQualifiedName(classSymbol);
         var location = LocationInfo.CreateFrom(ctx.TargetNode);
-        var errors = ImmutableArray.CreateBuilder<ExplicitTypeError>();
 
-        foreach (var attrClass in ctx.Attributes.Select(attr => attr.AttributeClass))
-        {
-            ct.ThrowIfCancellationRequested();
-
-            if (attrClass?.TypeArguments.Length != 1)
-            {
-                continue;
-            }
-
-            if (attrClass.TypeArguments[0] is not INamedTypeSymbol messageType)
-            {
-                continue;
-            }
-
-            var messageTypeName = messageType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-
-            if (!TryGetMessageInfo(messageType, out _, out _, out _))
-            {
-                errors.Add(new ExplicitTypeError(messageTypeName, handlerTypeName, location, isPulse005: true));
-                continue;
-            }
-
-            if (!TryBuildExplicitRegistration(classSymbol, messageType, DefaultLifetime).HasValue)
-            {
-                errors.Add(new ExplicitTypeError(messageTypeName, handlerTypeName, location, isPulse005: false));
-            }
-        }
-
-        return errors.ToImmutable();
-    }
-
-    /// <summary>
-    /// Extracts handler registration info from a single annotated class.
-    /// Returns <c>null</c> when the symbol cannot be resolved.
-    /// </summary>
-    private static HandlerInfo? ExtractHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
-        {
-            return null;
-        }
-
-        // Skip open generic types - they cannot be registered in the DI container.
         if (classSymbol.TypeParameters.Length > 0)
         {
-            return null;
+            return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [], location), true);
         }
 
         var lifetime = ReadLifetime(ctx.Attributes);
-        var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var registrations = BuildHandlerRegistrations(classSymbol, lifetime);
 
-        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location);
+        return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location), false);
     }
 
     /// <summary>
@@ -355,27 +322,6 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var registrations = BuildOpenGenericHandlerRegistrations(classSymbol, lifetime);
 
         return new HandlerInfo(GetOpenGenericTypeName(classSymbol), [.. registrations], location);
-    }
-
-    /// <summary>
-    /// Detects open generic types annotated with <c>[PulseHandler]</c> for PULSE004 reporting.
-    /// Returns <c>null</c> when the type is not an open generic.
-    /// </summary>
-    private static HandlerInfo? ExtractOpenGenericHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
-        {
-            return null;
-        }
-
-        if (classSymbol.TypeParameters.Length == 0)
-        {
-            return null;
-        }
-
-        return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], LocationInfo.CreateFrom(ctx.TargetNode));
     }
 
     /// <summary>
