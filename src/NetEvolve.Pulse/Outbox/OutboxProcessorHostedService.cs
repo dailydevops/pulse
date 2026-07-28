@@ -258,16 +258,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     private async Task<int> ProcessBatchAsync(CancellationToken cancellationToken)
     {
         var batchSize = _options.BatchSize;
-        // Refresh the pending count gauge before processing
+        // Refresh the pending count gauge before processing. The gauge is purely observational;
+        // dispatch must never depend on it because GetPendingCountAsync is an optional-to-override
+        // default interface member and its failures are swallowed by RefreshPendingCountAsync.
         await RefreshPendingCountAsync(cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<OutboxMessage> messages = [];
-
-        if (Volatile.Read(ref _pendingCount) > 0)
-        {
-            messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
-            batchSize -= messages.Count;
-        }
+        var messages = await _repository.GetPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
+        batchSize -= messages.Count;
 
         if (batchSize > 0)
         {
