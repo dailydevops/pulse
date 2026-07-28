@@ -1159,6 +1159,29 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenRecordHandlerAnnotatedWithGenericAttributeThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler<MyCommand>]
+            public record MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenSingleHandlerAndMultiInterfaceHandlerAndMultipleOpenGenericHandlersThenAllRegistered()
     {
         const string source = """
