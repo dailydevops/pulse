@@ -48,6 +48,9 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 )]
 internal sealed class SQLiteOutboxRepository : IOutboxRepository
 {
+    /// <summary>The maximum number of identifier parameters per batched statement, kept below the SQLite parameter limit.</summary>
+    private const int BatchChunkSize = 500;
+
     /// <summary>The SQLite connection string resolved from <see cref="OutboxOptions"/>.</summary>
     private readonly string _connectionString;
 
@@ -73,6 +76,9 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     private readonly string _markFailedSql;
     private readonly string _markFailedWithRetrySql;
     private readonly string _markDeadLetterSql;
+    private readonly string _markCompletedBatchSql;
+    private readonly string _markFailedBatchSql;
+    private readonly string _markDeadLetterBatchSql;
     private readonly string _deleteCompletedSql;
     private readonly string _getPendingCountSql;
     private readonly string _insertSql;
@@ -201,6 +207,32 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error
             WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId;
+            """;
+
+        _markCompletedBatchSql = $"""
+            UPDATE {table}
+            SET "{OutboxMessageSchema.Columns.Status}" = 2,
+                "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
+                "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc
+            WHERE "{OutboxMessageSchema.Columns.Id}" IN
+            """;
+
+        _markFailedBatchSql = $"""
+            UPDATE {table}
+            SET "{OutboxMessageSchema.Columns.Status}" = 3,
+                "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
+                "{OutboxMessageSchema.Columns.Error}" = @error,
+                "{OutboxMessageSchema.Columns.RetryCount}" = "{OutboxMessageSchema.Columns.RetryCount}" + 1
+            WHERE "{OutboxMessageSchema.Columns.Id}" IN
+            """;
+
+        _markDeadLetterBatchSql = $"""
+            UPDATE {table}
+            SET "{OutboxMessageSchema.Columns.Status}" = 4,
+                "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
+                "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc,
+                "{OutboxMessageSchema.Columns.Error}" = @error
+            WHERE "{OutboxMessageSchema.Columns.Id}" IN
             """;
 
         _deleteCompletedSql = $"""
@@ -382,6 +414,28 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
+    public async Task MarkAsCompletedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        var now = _timeProvider.GetUtcNow();
+
+        await ExecuteBatchAsync(
+                _markCompletedBatchSql,
+                messageIds,
+                command =>
+                {
+                    _ = command.Parameters.AddWithValue("@nowUtc", now);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task MarkAsFailedAsync(
         Guid messageId,
         string errorMessage,
@@ -435,6 +489,30 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
+    public async Task MarkAsFailedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        var now = _timeProvider.GetUtcNow();
+
+        await ExecuteBatchAsync(
+                _markFailedBatchSql,
+                messageIds,
+                command =>
+                {
+                    _ = command.Parameters.AddWithValue("@nowUtc", now);
+                    _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task MarkAsDeadLetterAsync(
         Guid messageId,
         string errorMessage,
@@ -456,6 +534,30 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAsDeadLetterAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        var now = _timeProvider.GetUtcNow();
+
+        await ExecuteBatchAsync(
+                _markDeadLetterBatchSql,
+                messageIds,
+                command =>
+                {
+                    _ = command.Parameters.AddWithValue("@nowUtc", now);
+                    _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -489,6 +591,56 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("@olderThanUtc", cutoffTime);
 
                 return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Executes a set-based <c>UPDATE ... WHERE Id IN (...)</c> statement for the specified message identifiers
+    /// on a single connection, chunked to stay within the SQLite parameter limit.
+    /// </summary>
+    /// <param name="sqlPrefix">The cached SQL statement ending with the <c>IN</c> keyword.</param>
+    /// <param name="messageIds">The message identifiers to update.</param>
+    /// <param name="configureParameters">A callback adding the non-identifier parameters to each command.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task ExecuteBatchAsync(
+        string sqlPrefix,
+        IReadOnlyCollection<Guid> messageIds,
+        Action<SqliteCommand> configureParameters,
+        CancellationToken cancellationToken
+    )
+    {
+        if (messageIds.Count == 0)
+        {
+            return;
+        }
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            foreach (var chunk in messageIds.Chunk(BatchChunkSize))
+            {
+                var placeholders = new string[chunk.Length];
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    placeholders[i] = "@id" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+#pragma warning disable S2077 // placeholders contains only "@id0, @id1, ..." parameter names, never user data
+                var command = new SqliteCommand($"{sqlPrefix} ({string.Join(", ", placeholders)});", connection);
+#pragma warning restore S2077
+                await using (command.ConfigureAwait(false))
+                {
+                    for (var i = 0; i < chunk.Length; i++)
+                    {
+                        _ = command.Parameters.AddWithValue(placeholders[i], chunk[i].ToString());
+                    }
+
+                    configureParameters(command);
+
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
         }
     }
