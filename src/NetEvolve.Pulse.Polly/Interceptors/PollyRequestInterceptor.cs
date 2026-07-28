@@ -115,7 +115,11 @@ internal sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInt
         ArgumentNullException.ThrowIfNull(handler);
 
         return await _pipeline
-            .ExecuteAsync(async token => await handler(request, token).ConfigureAwait(false), cancellationToken)
+            .ExecuteAsync(
+                static (state, token) => new ValueTask<TResponse>(state.Handler(state.Request, token)),
+                (Handler: handler, Request: request),
+                cancellationToken
+            )
             .ConfigureAwait(false);
     }
 }
