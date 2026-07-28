@@ -1085,7 +1085,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(service.ExecuteTask).IsNotNull();
-            _ = await Assert.That(service.ExecuteTask!.IsCompleted).IsTrue();
+            _ = await Assert.That(service.ExecuteTask.IsCompleted).IsTrue();
             _ = await Assert.That(repository.GetPendingCallCount).IsEqualTo(0);
         }
     }
