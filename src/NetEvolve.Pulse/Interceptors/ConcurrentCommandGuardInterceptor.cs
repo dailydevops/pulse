@@ -31,7 +31,9 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>Disposal:</strong></para>
 /// Implements <see cref="IDisposable"/> to release all internally held <see cref="SemaphoreSlim"/> instances.
 /// When registered as a singleton via <c>AddConcurrentCommandGuard&lt;TRequest, TResponse&gt;()</c>, disposal
-/// is managed by the DI container at application shutdown.
+/// is managed by the DI container at application shutdown. Commands still in flight during disposal
+/// complete with their real outcome — the release of a concurrently disposed semaphore is tolerated —
+/// while new invocations after disposal fail fast with <see cref="ObjectDisposedException"/>.
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddConcurrentCommandGuard()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
 /// </remarks>
@@ -43,9 +45,10 @@ internal sealed class ConcurrentCommandGuardInterceptor<TRequest, TResponse>
     where TRequest : IExclusiveCommand<TResponse>
 {
     private readonly ConcurrentDictionary<Type, SemaphoreSlim> _semaphores = new();
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <inheritdoc />
+    /// <exception cref="ObjectDisposedException">Thrown when the interceptor has already been disposed.</exception>
     public async Task<TResponse> HandleAsync(
         TRequest request,
         Func<TRequest, CancellationToken, Task<TResponse>> handler,
@@ -53,6 +56,7 @@ internal sealed class ConcurrentCommandGuardInterceptor<TRequest, TResponse>
     )
     {
         ArgumentNullException.ThrowIfNull(handler);
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         var semaphore = _semaphores.GetOrAdd(typeof(TRequest), _ => new SemaphoreSlim(1, 1));
 
@@ -63,7 +67,15 @@ internal sealed class ConcurrentCommandGuardInterceptor<TRequest, TResponse>
         }
         finally
         {
-            _ = semaphore.Release();
+            try
+            {
+                _ = semaphore.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The interceptor was disposed while the handler was in flight (application
+                // shutdown). The command's real outcome must not be replaced by this race.
+            }
         }
     }
 
@@ -75,11 +87,12 @@ internal sealed class ConcurrentCommandGuardInterceptor<TRequest, TResponse>
             return;
         }
 
+        _disposed = true;
+
         foreach (var semaphore in _semaphores.Values)
         {
             semaphore.Dispose();
         }
         _semaphores.Clear();
-        _disposed = true;
     }
 }
