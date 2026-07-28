@@ -431,25 +431,29 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         // [PulseGenericHandler] is only valid on open generic types; closed classes annotated with it
         // are not skipped here so that PULSE003 is emitted for misuse (the TypeParameters.Length > 0
         // guard above already ensures that open-generic classes never reach this point).
-        foreach (var attr in classSymbol.GetAttributes())
-        {
-            var attrClass = attr.AttributeClass;
-            if (attrClass is null || !string.Equals(attrClass.Name, "PulseHandlerAttribute", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (
-                string.Equals(GetFullMetadataName(attrClass), PulseHandlerAttributeFullName, StringComparison.Ordinal)
-                || string.Equals(
-                    GetFullMetadataName(attrClass.OriginalDefinition),
-                    PulseHandlerGenericAttributeFullName,
-                    StringComparison.Ordinal
+        var hasPulseHandlerAttribute = classSymbol
+            .GetAttributes()
+            .Select(attr => attr.AttributeClass)
+            .Any(attrClass =>
+                attrClass is not null
+                && string.Equals(attrClass.Name, "PulseHandlerAttribute", StringComparison.Ordinal)
+                && (
+                    string.Equals(
+                        GetFullMetadataName(attrClass),
+                        PulseHandlerAttributeFullName,
+                        StringComparison.Ordinal
+                    )
+                    || string.Equals(
+                        GetFullMetadataName(attrClass.OriginalDefinition),
+                        PulseHandlerGenericAttributeFullName,
+                        StringComparison.Ordinal
+                    )
                 )
-            )
-            {
-                return null;
-            }
+            );
+
+        if (hasPulseHandlerAttribute)
+        {
+            return null;
         }
 
         return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], typeDeclaration.GetLocation());
