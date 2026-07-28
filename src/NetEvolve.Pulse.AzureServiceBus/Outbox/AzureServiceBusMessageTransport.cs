@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     private readonly ServiceBusClient _client;
     private readonly ITopicNameResolver _topicNameResolver;
     private readonly AzureServiceBusTransportOptions _options;
+    private readonly ConcurrentDictionary<string, ServiceBusSender> _senders = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureServiceBusMessageTransport"/> class.
@@ -43,12 +45,9 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         ArgumentNullException.ThrowIfNull(message);
 
         var topicName = _topicNameResolver.Resolve(message);
-        var sender = _client.CreateSender(topicName);
-        await using (sender.ConfigureAwait(false))
-        {
-            var serviceBusMessage = CreateServiceBusMessage(message);
-            await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
-        }
+        var sender = GetSender(topicName);
+        var serviceBusMessage = CreateServiceBusMessage(message);
+        await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -63,14 +62,11 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         {
             foreach (var group in messagesByTopic)
             {
-                var sender = _client.CreateSender(group.Key);
-                await using (sender.ConfigureAwait(false))
+                var sender = GetSender(group.Key);
+                foreach (var message in group)
                 {
-                    foreach (var message in group)
-                    {
-                        var serviceBusMessage = CreateServiceBusMessage(message);
-                        await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
-                    }
+                    var serviceBusMessage = CreateServiceBusMessage(message);
+                    await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -79,14 +75,14 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
 
         foreach (var group in messagesByTopic)
         {
-            var sender = _client.CreateSender(group.Key);
-            await using (sender.ConfigureAwait(false))
-            {
-                var serviceBusMessages = group.Select(CreateServiceBusMessage).ToList();
-                await sender.SendMessagesAsync(serviceBusMessages, cancellationToken).ConfigureAwait(false);
-            }
+            var sender = GetSender(group.Key);
+            var serviceBusMessages = group.Select(CreateServiceBusMessage).ToList();
+            await sender.SendMessagesAsync(serviceBusMessages, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    private ServiceBusSender GetSender(string topicName) =>
+        _senders.GetOrAdd(topicName, static (name, client) => client.CreateSender(name), _client);
 
     /// <inheritdoc />
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
@@ -133,5 +129,15 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     }
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask; // Do not dispose injected dependencies
+    public async ValueTask DisposeAsync()
+    {
+        // Dispose only the senders owned by this transport; the injected client is managed externally.
+        foreach (var topicName in _senders.Keys)
+        {
+            if (_senders.TryRemove(topicName, out var sender))
+            {
+                await sender.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
 }
