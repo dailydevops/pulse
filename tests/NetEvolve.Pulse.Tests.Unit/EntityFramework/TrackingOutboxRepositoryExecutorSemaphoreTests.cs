@@ -23,7 +23,7 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
         {
-            await SeedMessageAsync(context, OutboxMessageStatus.Pending, cancellationToken).ConfigureAwait(false);
+            _ = await SeedMessageAsync(context, OutboxMessageStatus.Pending, cancellationToken).ConfigureAwait(false);
 
             using var executor = new InMemoryOutboxRepositoryExecutor<TestDbContext>(context, 1);
             var semaphore = GetSemaphore(executor);
@@ -57,7 +57,7 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
         {
-            await SeedMessageAsync(context, OutboxMessageStatus.Completed, cancellationToken).ConfigureAwait(false);
+            _ = await SeedMessageAsync(context, OutboxMessageStatus.Completed, cancellationToken).ConfigureAwait(false);
 
             using var executor = new InMemoryOutboxRepositoryExecutor<TestDbContext>(context, 1);
             var semaphore = GetSemaphore(executor);
