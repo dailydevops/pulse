@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Dapr;
 
 using System;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using global::Dapr.Client;
@@ -104,6 +105,40 @@ public sealed class DaprMessageTransportTests
         );
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(() => transport.SendAsync(null!, cancellationToken));
+    }
+
+    [Test]
+    public async Task SendAsync_Publishes_original_payload_bytes_without_deserialize_reserialize_roundtrip(
+        CancellationToken cancellationToken
+    )
+    {
+        var daprClient = new FakeDaprClient();
+        var transport = new DaprMessageTransport(
+            daprClient,
+            new FakeTopicNameResolver(),
+            Options.Create(new DaprMessageTransportOptions { PubSubName = "test-pubsub" }),
+            DefaultSerializer
+        );
+
+        // Property order and number formatting a JsonElement round-trip could alter.
+        const string OriginalPayload = "{\"z\":1,\"a\":1.50,\"m\":10}";
+        var message = new OutboxMessage
+        {
+            Id = Guid.Parse("11111111-2222-3333-4444-555555555555"),
+            EventType = typeof(string),
+            Payload = OriginalPayload,
+            CreatedAt = DateTimeOffset.UnixEpoch,
+            UpdatedAt = DateTimeOffset.UnixEpoch,
+        };
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(daprClient.PublishByteEventAsyncCalled).IsTrue();
+        _ = await Assert.That(daprClient.PublishEventAsyncCalled).IsFalse();
+        _ = await Assert.That(daprClient.PublishedPubsubName).IsEqualTo("test-pubsub");
+        _ = await Assert.That(daprClient.PublishedTopicName).IsEqualTo("test-topic");
+        _ = await Assert.That(daprClient.PublishedContentType).IsEqualTo("application/json");
+        _ = await Assert.That(daprClient.PublishedBytes).IsEquivalentTo(Encoding.UTF8.GetBytes(OriginalPayload));
     }
 
     [Test]

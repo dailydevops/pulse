@@ -38,8 +38,11 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
     /// <summary>The SQLite connection string used to open new connections for each repository operation.</summary>
     private readonly string _connectionString;
 
-    /// <summary>Whether to apply WAL journal mode on each opened connection.</summary>
+    /// <summary>Whether to apply WAL journal mode to the database.</summary>
     private readonly bool _enableWalMode;
+
+    /// <summary>Tracks whether the persistent WAL journal mode has already been applied to the database.</summary>
+    private int _walModeApplied;
 
     /// <summary>Cached SQL statement for checking if an idempotency key exists.</summary>
     private readonly string _existsSql;
@@ -139,7 +142,9 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
 
     /// <summary>
     /// Opens and returns a new <see cref="SqliteConnection"/> using the stored connection string.
-    /// Applies WAL mode when <see cref="IdempotencyKeyOptions.EnableWalMode"/> is <see langword="true"/>.
+    /// Applies WAL mode once per repository instance when <see cref="IdempotencyKeyOptions.EnableWalMode"/> is
+    /// <see langword="true"/>; the journal mode is a persistent database property and does not need
+    /// to be re-applied on subsequent connections.
     /// The caller is responsible for disposing the connection.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -149,13 +154,15 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_enableWalMode)
+        if (_enableWalMode && Volatile.Read(ref _walModeApplied) == 0)
         {
             var walCmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
             await using (walCmd.ConfigureAwait(false))
             {
                 _ = await walCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
+
+            Volatile.Write(ref _walModeApplied, 1);
         }
 
         return connection;

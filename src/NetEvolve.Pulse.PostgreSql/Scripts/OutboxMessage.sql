@@ -53,10 +53,17 @@ WHERE "Status" = 2;
 -- Stored Functions
 -- ============================================================================
 
--- get_pending_outbox_messages: Retrieves and locks pending messages for processing
--- Uses FOR UPDATE SKIP LOCKED for concurrent polling safety
+-- get_pending_outbox_messages: Retrieves and locks pending messages for processing.
+-- Also reclaims messages stuck in Processing whose lease (based on UpdatedAt) has expired,
+-- e.g. after a worker crash, cancellation, or unhandled exception during dispatch.
+-- Uses FOR UPDATE SKIP LOCKED for concurrent polling safety.
+-- The single-argument overload from earlier versions of this script is dropped first: PostgreSQL
+-- overloads functions by argument types, so CREATE OR REPLACE with an added parameter would
+-- otherwise leave both signatures behind and make a one-argument call ambiguous.
+DROP FUNCTION IF EXISTS ":schema_name".get_pending_outbox_messages(INTEGER);
 CREATE OR REPLACE FUNCTION ":schema_name".get_pending_outbox_messages(
-    batch_size INTEGER
+    batch_size INTEGER,
+    lease_expired_before TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS TABLE (
     "Id"            UUID,
@@ -80,6 +87,11 @@ BEGIN
         SELECT om."Id"
         FROM ":schema_name".":table_name" om
         WHERE om."Status" = 0 -- Pending
+           OR ( -- Processing, but the claim lease has expired (stuck after a crash/cancellation)
+                om."Status" = 1
+                AND lease_expired_before IS NOT NULL
+                AND om."UpdatedAt" <= lease_expired_before
+              )
         ORDER BY om."CreatedAt"
         LIMIT batch_size
         FOR UPDATE SKIP LOCKED

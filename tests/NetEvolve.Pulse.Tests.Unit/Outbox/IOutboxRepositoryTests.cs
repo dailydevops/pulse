@@ -45,6 +45,11 @@ public sealed class IOutboxRepositoryTests
 
         _ = await Assert.That(repository.OverlapDetected).IsFalse();
         await AssertCallOrderAsync(repository, messageIds).ConfigureAwait(false);
+        _ = await Assert.That(repository.ErrorMessages.Count).IsEqualTo(messageIds.Count);
+        foreach (var errorMessage in repository.ErrorMessages)
+        {
+            _ = await Assert.That(errorMessage).IsEqualTo("error");
+        }
     }
 
     [Test]
@@ -59,6 +64,11 @@ public sealed class IOutboxRepositoryTests
 
         _ = await Assert.That(repository.OverlapDetected).IsFalse();
         await AssertCallOrderAsync(repository, messageIds).ConfigureAwait(false);
+        _ = await Assert.That(repository.ErrorMessages.Count).IsEqualTo(messageIds.Count);
+        foreach (var errorMessage in repository.ErrorMessages)
+        {
+            _ = await Assert.That(errorMessage).IsEqualTo("error");
+        }
     }
 
     private static List<Guid> CreateMessageIds() => [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
@@ -89,20 +99,22 @@ public sealed class IOutboxRepositoryTests
 
         public List<Guid> CallOrder { get; } = [];
 
+        public List<string> ErrorMessages { get; } = [];
+
         public Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default) =>
-            RecordCallAsync(messageId);
+            RecordCallAsync(messageId, null);
 
         public Task MarkAsFailedAsync(
             Guid messageId,
             string errorMessage,
             CancellationToken cancellationToken = default
-        ) => RecordCallAsync(messageId);
+        ) => RecordCallAsync(messageId, errorMessage);
 
         public Task MarkAsDeadLetterAsync(
             Guid messageId,
             string errorMessage,
             CancellationToken cancellationToken = default
-        ) => RecordCallAsync(messageId);
+        ) => RecordCallAsync(messageId, errorMessage);
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -123,7 +135,7 @@ public sealed class IOutboxRepositoryTests
 
         public void Dispose() => _subsequentCallStarted.Dispose();
 
-        private async Task RecordCallAsync(Guid messageId)
+        private async Task RecordCallAsync(Guid messageId, string? errorMessage)
         {
             if (Interlocked.Increment(ref _activeCalls) > 1)
             {
@@ -133,6 +145,10 @@ public sealed class IOutboxRepositoryTests
             lock (CallOrder)
             {
                 CallOrder.Add(messageId);
+                if (errorMessage is not null)
+                {
+                    ErrorMessages.Add(errorMessage);
+                }
             }
 
             if (Interlocked.Increment(ref _totalCalls) == 1)

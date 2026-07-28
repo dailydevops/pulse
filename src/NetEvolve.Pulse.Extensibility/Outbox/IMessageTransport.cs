@@ -65,7 +65,8 @@ public interface IMessageTransport
     /// <remarks>
     /// <para><strong>Concurrency Model:</strong></para>
     /// Messages are sent one at a time in enumeration order; <see cref="SendAsync"/> is never invoked
-    /// concurrently by this implementation, matching the documented contract of <see cref="SendBatchAsync"/>.
+    /// concurrently by this implementation, matching the documented contract of <see cref="SendBatchAsync"/>
+    /// and supporting transports whose underlying clients are not thread-safe.
     /// <para><strong>Error Handling:</strong></para>
     /// The first send failure propagates as an exception and terminates the batch operation (fail-fast);
     /// messages after the failed one are not attempted, so a subset of the batch may have been delivered.

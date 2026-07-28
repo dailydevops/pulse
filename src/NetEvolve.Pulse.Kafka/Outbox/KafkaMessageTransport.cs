@@ -109,7 +109,10 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
         // Use the cancellation-token-aware overload so worker shutdown does not block
         // indefinitely when the broker is unreachable. Confluent.Kafka's IProducer.Flush(CancellationToken)
         // throws OperationCanceledException when the token fires, which is the contract callers expect.
-        _producer.Flush(cancellationToken);
+        // Offloaded via Task.Run because Flush is a synchronous, potentially long-running call and
+        // Confluent.Kafka has no FlushAsync; running it on the caller's thread would otherwise pin a
+        // thread-pool thread for the duration of the flush.
+        await Task.Run(() => _producer.Flush(cancellationToken), CancellationToken.None).ConfigureAwait(false);
 
         if (!errors.IsEmpty)
         {

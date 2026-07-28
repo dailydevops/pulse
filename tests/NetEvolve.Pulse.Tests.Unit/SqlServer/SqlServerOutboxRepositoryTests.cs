@@ -162,4 +162,52 @@ public sealed class SqlServerOutboxRepositoryTests
                 )
             )
             .Throws<ArgumentException>();
+
+    [Test]
+    public async Task Constructor_WithZeroProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            ProcessingLeaseTimeout = TimeSpan.Zero,
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+
+    [Test]
+    public async Task Constructor_WithNegativeProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            ProcessingLeaseTimeout = TimeSpan.FromMinutes(-1),
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+
+    [Test]
+    public async Task Constructor_WithPositiveProcessingLeaseTimeout_CreatesInstance()
+    {
+        var options = new OutboxOptions
+        {
+            ConnectionString = ValidConnectionString,
+            ProcessingLeaseTimeout = TimeSpan.FromMinutes(10),
+        };
+
+        var repository = new SqlServerOutboxRepository(Options.Create(options), TimeProvider.System);
+
+        _ = await Assert.That(repository).IsNotNull();
+    }
 }

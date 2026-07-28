@@ -54,4 +54,38 @@ public sealed class TypeValueConverterTests
             .That(() => fromProvider("Invalid.Type.Name, InvalidAssembly"))
             .Throws<InvalidOperationException>();
     }
+
+    [Test]
+    public async Task ConvertFromProvider_Called_repeatedly_returns_same_type()
+    {
+        var converter = new TypeValueConverter();
+        var fromProvider = converter.ConvertFromProvider;
+        var typeName = typeof(TypeValueConverterTests).AssemblyQualifiedName;
+
+        var first = fromProvider(typeName) as Type;
+        var second = fromProvider(typeName) as Type;
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(first).IsEqualTo(typeof(TypeValueConverterTests));
+            _ = await Assert.That(second).IsSameReferenceAs(first);
+        }
+    }
+
+    [Test]
+    public async Task ConvertFromProvider_With_invalid_type_name_throws_on_every_attempt()
+    {
+        var converter = new TypeValueConverter();
+        var fromProvider = converter.ConvertFromProvider;
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(() => fromProvider("Invalid.Repeated.Type, InvalidAssembly"))
+                .Throws<InvalidOperationException>();
+            _ = await Assert
+                .That(() => fromProvider("Invalid.Repeated.Type, InvalidAssembly"))
+                .Throws<InvalidOperationException>();
+        }
+    }
 }
