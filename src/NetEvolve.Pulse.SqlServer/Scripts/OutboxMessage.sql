@@ -72,7 +72,8 @@ GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_GetPendingOutboxMessages]
     @batchSize INT,
-    @nowUtc DATETIMEOFFSET
+    @nowUtc DATETIMEOFFSET,
+    @leaseExpiredBeforeUtc DATETIMEOFFSET = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -92,8 +93,10 @@ BEGIN
             [Error],
             [Status]
         FROM [$(SchemaName)].[$(TableName)] WITH (ROWLOCK, READPAST)
-        WHERE [Status] = 0 -- Pending
-          AND ([NextRetryAt] IS NULL OR [NextRetryAt] <= @nowUtc)
+        WHERE ([Status] = 0 -- Pending
+               AND ([NextRetryAt] IS NULL OR [NextRetryAt] <= @nowUtc))
+           OR ([Status] = 1 -- Processing, but the claim lease has expired (worker crash/cancellation/unhandled exception)
+               AND [UpdatedAt] <= @leaseExpiredBeforeUtc)
         ORDER BY [CreatedAt]
     )
     UPDATE CTE

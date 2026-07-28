@@ -16,6 +16,12 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// or by using the connection with an active transaction.
 /// <para><strong>Concurrency:</strong></para>
 /// Uses ROWLOCK and READPAST hints to prevent conflicts during concurrent polling.
+/// <para><strong>Claim Lease:</strong></para>
+/// Each claim records the claim timestamp in <c>UpdatedAt</c>. Messages that remain in
+/// <see cref="OutboxMessageStatus.Processing"/> longer than
+/// <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for example, after a worker crash,
+/// cancellation, or unhandled exception during dispatch) are reclaimed by subsequent pending
+/// polls, preserving at-least-once delivery.
 /// <para><strong>Performance:</strong></para>
 /// Leverages stored procedures for efficient batch operations and index utilization.
 /// </remarks>
@@ -44,6 +50,9 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
     /// <summary>The time provider used to generate consistent timestamps for cutoff calculations.</summary>
     private readonly TimeProvider _timeProvider;
+
+    /// <summary>The maximum duration a claimed message may remain in the Processing status before it is reclaimed.</summary>
+    private readonly TimeSpan _processingLeaseTimeout;
 
     /// <summary>Cached stored procedure name for retrieving pending outbox messages.</summary>
     private readonly string _getPendingSql;
@@ -84,10 +93,12 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.Value.ProcessingLeaseTimeout, TimeSpan.Zero);
 
         _connectionString = options.Value.ConnectionString;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
+        _processingLeaseTimeout = options.Value.ProcessingLeaseTimeout;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
@@ -184,6 +195,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     )
     {
         var now = _timeProvider.GetUtcNow();
+        var leaseExpiredBefore = now - _processingLeaseTimeout;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -193,6 +205,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
             {
                 _ = command.Parameters.AddWithValue("@batchSize", batchSize);
                 _ = command.Parameters.AddWithValue("@nowUtc", now);
+                _ = command.Parameters.AddWithValue("@leaseExpiredBeforeUtc", leaseExpiredBefore);
 
                 return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
             }
