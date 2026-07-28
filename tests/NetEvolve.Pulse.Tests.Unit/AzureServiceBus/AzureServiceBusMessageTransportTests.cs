@@ -523,7 +523,7 @@ public sealed class AzureServiceBusMessageTransportTests
     {
         var oversized = CreateOutboxMessage();
         var fakeClient = new FakeServiceBusClient();
-        fakeClient.RejectedMessageIds.Add(oversized.Id.ToString("D", CultureInfo.InvariantCulture));
+        _ = fakeClient.RejectedMessageIds.Add(oversized.Id.ToString("D", CultureInfo.InvariantCulture));
         await using (fakeClient.ConfigureAwait(false))
         {
             var resolver = new FakeTopicNameResolver("orders");
@@ -789,6 +789,19 @@ public sealed class AzureServiceBusMessageTransportTests
             return Task.CompletedTask;
         }
 
+        public override Task SendMessagesAsync(
+            ServiceBusMessageBatch messageBatch,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (FailureToRaise is not null)
+            {
+                return Task.FromException(FailureToRaise);
+            }
+            BatchedMessages.Add([.. _batchStores[messageBatch]]);
+            return Task.CompletedTask;
+        }
+
         public override ValueTask<ServiceBusMessageBatch> CreateMessageBatchAsync(
             CancellationToken cancellationToken = default
         )
@@ -802,19 +815,6 @@ public sealed class AzureServiceBusMessageTransportTests
             );
             _batchStores[batch] = store;
             return ValueTask.FromResult(batch);
-        }
-
-        public override Task SendMessagesAsync(
-            ServiceBusMessageBatch messageBatch,
-            CancellationToken cancellationToken = default
-        )
-        {
-            if (FailureToRaise is not null)
-            {
-                return Task.FromException(FailureToRaise);
-            }
-            BatchedMessages.Add([.. _batchStores[messageBatch]]);
-            return Task.CompletedTask;
         }
 
         // No real connection to dispose – suppress base call to avoid NullReferenceException.
