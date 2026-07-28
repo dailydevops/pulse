@@ -43,42 +43,50 @@ internal sealed class MySqlOutboxRepositoryExecutor<TContext>(TContext context, 
         CancellationToken cancellationToken
     )
     {
-        // bulkQuery contains a Guid IN clause that MySQL cannot type-map.
-        // Use FindAsync per ID instead: it resolves the column's own type mapping and
-        // checks the DbContext Local cache before hitting the database.
-        var entities = new List<OutboxMessage>(ids.Count);
-
-        foreach (var id in ids)
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var entity = await _context.OutboxMessages.FindAsync([id], cancellationToken).ConfigureAwait(false);
+            // bulkQuery contains a Guid IN clause that MySQL cannot type-map.
+            // Use FindAsync per ID instead: it resolves the column's own type mapping and
+            // checks the DbContext Local cache before hitting the database.
+            var entities = new List<OutboxMessage>(ids.Count);
 
-            if (entity?.Status == OutboxMessageStatus.Processing)
+            foreach (var id in ids)
             {
-                entities.Add(entity);
-            }
-        }
+                var entity = await _context.OutboxMessages.FindAsync([id], cancellationToken).ConfigureAwait(false);
 
-        if (entities.Count == 0)
+                if (entity?.Status == OutboxMessageStatus.Processing)
+                {
+                    entities.Add(entity);
+                }
+            }
+
+            if (entities.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var entity in entities)
+            {
+                entity.Status = newStatus;
+                entity.UpdatedAt = updatedAt;
+                if (processedAt.HasValue)
+                {
+                    entity.ProcessedAt = processedAt.Value;
+                }
+                entity.NextRetryAt = nextRetryAt;
+                entity.RetryCount += retryIncrement;
+                if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    entity.Error = errorMessage;
+                }
+            }
+
+            _ = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
         {
-            return;
+            _ = _semaphore.Release();
         }
-
-        foreach (var entity in entities)
-        {
-            entity.Status = newStatus;
-            entity.UpdatedAt = updatedAt;
-            if (processedAt.HasValue)
-            {
-                entity.ProcessedAt = processedAt.Value;
-            }
-            entity.NextRetryAt = nextRetryAt;
-            entity.RetryCount += retryIncrement;
-            if (!string.IsNullOrWhiteSpace(errorMessage))
-            {
-                entity.Error = errorMessage;
-            }
-        }
-
-        _ = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
     }
 }
