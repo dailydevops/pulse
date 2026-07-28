@@ -200,7 +200,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_HandlerThrows_DoesNotStoreKey(CancellationToken cancellationToken)
+    public async Task HandleAsync_HandlerThrows_KeyRemainsReserved(CancellationToken cancellationToken)
     {
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
@@ -221,7 +221,11 @@ public sealed class IdempotencyCommandInterceptorTests
             )
             .Throws<InvalidOperationException>();
 
-        _ = await Assert.That(store.StoreCallCount).IsEqualTo(0);
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(store.StoreCallCount).IsEqualTo(1);
+            _ = await Assert.That(store.StoredKey).IsEqualTo("key-throw");
+        }
     }
 
     [Test]
@@ -273,7 +277,7 @@ public sealed class IdempotencyCommandInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_VoidCommand_CallsStoreAsyncAfterExecution(CancellationToken cancellationToken)
+    public async Task HandleAsync_VoidCommand_ReservesKeyBeforeExecution(CancellationToken cancellationToken)
     {
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
@@ -330,6 +334,63 @@ public sealed class IdempotencyCommandInterceptorTests
         }
     }
 
+    [Test]
+    public async Task HandleAsync_ConcurrentDuplicateKey_ExecutesHandlerAtMostOnce(CancellationToken cancellationToken)
+    {
+        var store = new RecordingIdempotencyStore();
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IIdempotencyStore>(store);
+        var provider = services.BuildServiceProvider();
+        var interceptor = new IdempotencyCommandInterceptor<TestCommand, string>(provider);
+        var command = new TestCommand { IdempotencyKey = "key-race" };
+
+        var executionCount = 0;
+        var firstHandlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var firstCall = interceptor.HandleAsync(
+            command,
+            async (_, _) =>
+            {
+                _ = Interlocked.Increment(ref executionCount);
+                firstHandlerEntered.SetResult();
+#pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
+                await releaseFirstHandler.Task.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+                return "first";
+            },
+            cancellationToken
+        );
+
+        await firstHandlerEntered.Task.ConfigureAwait(false);
+
+        // A duplicate submission arrives while the first handler is still executing.
+        _ = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(
+                        command,
+                        (_, _) =>
+                        {
+                            _ = Interlocked.Increment(ref executionCount);
+                            return Task.FromResult("second");
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            .Throws<IdempotencyConflictException>();
+
+        releaseFirstHandler.SetResult();
+        var firstResult = await firstCall.ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(firstResult).IsEqualTo("first");
+            _ = await Assert.That(executionCount).IsEqualTo(1);
+        }
+    }
+
     private sealed record TestCommand : IIdempotentCommand<string>
     {
         public string? CausationId { get; set; }
@@ -348,6 +409,30 @@ public sealed class IdempotencyCommandInterceptorTests
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
+    }
+
+    private sealed class RecordingIdempotencyStore : IIdempotencyStore
+    {
+        private readonly HashSet<string> _keys = [];
+        private readonly object _lock = new();
+
+        public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+        {
+            lock (_lock)
+            {
+                return Task.FromResult(_keys.Contains(idempotencyKey));
+            }
+        }
+
+        public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+        {
+            lock (_lock)
+            {
+                _ = _keys.Add(idempotencyKey);
+            }
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TrackingIdempotencyStore : IIdempotencyStore
