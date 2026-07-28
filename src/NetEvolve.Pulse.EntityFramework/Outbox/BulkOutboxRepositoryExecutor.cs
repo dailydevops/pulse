@@ -36,16 +36,14 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
         await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var ids = await baseQuery
-                .AsNoTracking()
-                .Select(m => m.Id)
-                .ToArrayAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var entities = await baseQuery.AsNoTracking().ToArrayAsync(cancellationToken).ConfigureAwait(false);
 
-            if (ids.Length == 0)
+            if (entities.Length == 0)
             {
                 return [];
             }
+
+            var ids = Array.ConvertAll(entities, m => m.Id);
 
             var claimed = await baseQuery
                 .Where(m => ids.Contains(m.Id))
@@ -55,14 +53,28 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
                 )
                 .ConfigureAwait(false);
 
+            if (claimed == entities.Length)
+            {
+                // Uncontended fast path: every selected row was transitioned by this caller,
+                // so the already loaded entities can be patched in memory instead of paying
+                // a third database round trip for a re-fetch.
+                foreach (var entity in entities)
+                {
+                    entity.Status = newStatus;
+                    entity.UpdatedAt = updatedAt;
+                }
+
+                return entities;
+            }
+
             if (claimed == 0)
             {
                 return [];
             }
 
-            // Only return rows this caller actually transitioned; rows claimed by a
-            // competing poller between the candidate SELECT and the UPDATE keep that
-            // poller's UpdatedAt value and are filtered out here.
+            // A competing poller claimed part of the candidate set; re-fetch only the rows
+            // this caller actually transitioned, identified by the new status and this
+            // caller's UpdatedAt stamp.
             return await context
                 .OutboxMessages.AsNoTracking()
                 .Where(m => ids.Contains(m.Id) && m.Status == newStatus && m.UpdatedAt == updatedAt)
