@@ -1147,6 +1147,46 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenAllThreeHandlerAttributeKindsCombinedThenAllRegisteredInOrder()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+            public record MyQuery(string Id) : IQuery<string>;
+
+            [PulseHandler]
+            public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+
+            [PulseHandler<MyQuery>]
+            public class GenericQueryHandler<TQuery, TResult> : IQueryHandler<TQuery, TResult>
+                where TQuery : IQuery<TResult>
+            {
+                public Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+
+            [PulseGenericHandler]
+            public class GenericEventHandler<TEvent> : IEventHandler<TEvent>
+                where TEvent : IEvent
+            {
+                public Task HandleAsync(TEvent message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenPureGenericHandlerAnnotatedThenOpenGenericRegistrationIsGenerated()
     {
         const string source = """
