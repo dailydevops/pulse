@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Internals;
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -399,7 +400,10 @@ public class PulseMediatorTests
         }
     }
 
-    private sealed class ScopedDependency;
+    private sealed class ScopedDependency
+    {
+        public Guid Id { get; } = Guid.NewGuid();
+    }
 
     private sealed class ScopedDependencyCollector
     {
@@ -411,6 +415,11 @@ public class PulseMediatorTests
         private readonly ScopedDependency _dependency;
         private readonly ScopedDependencyCollector _collector;
 
+        [SuppressMessage(
+            "Major Code Smell",
+            "S1144:Unused private types or members should be removed",
+            Justification = "Handler is resolved by the mediator through dependency injection."
+        )]
         public ScopedDependencyCapturingHandler(ScopedDependency dependency, ScopedDependencyCollector collector)
         {
             _dependency = dependency;
