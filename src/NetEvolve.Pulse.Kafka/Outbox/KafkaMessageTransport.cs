@@ -118,18 +118,23 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var metadata = _adminClient.GetMetadata(TimeSpan.FromSeconds(5));
-            return Task.FromResult(metadata.Brokers.Count > 0);
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            return Task.FromResult(false);
-        }
-    }
+    public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(
+                () =>
+                {
+                    try
+                    {
+                        var metadata = _adminClient.GetMetadata(TimeSpan.FromSeconds(5));
+                        return metadata.Brokers.Count > 0;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                },
+                cancellationToken
+            )
+            .WaitAsync(cancellationToken);
 
     private async Task EnsureTopicAsync(string topic)
     {
