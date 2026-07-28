@@ -78,7 +78,7 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
         {
             _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (IsDuplicateKeyException(ex))
+        catch (Exception ex) when (IsDuplicateKeyException(ex) && IsIdempotencyKeyConflict(ex, entry))
         {
             // A concurrent request already stored the same key — this is idempotent and safe to ignore.
             // Detach the conflicting entry so the context remains in a clean state.
@@ -105,6 +105,36 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
     /// </description></item>
     /// </list>
     /// </remarks>
+    /// <summary>
+    /// Determines whether a duplicate-key failure can be attributed to the idempotency key
+    /// insert rather than to unrelated pending changes flushed by the same
+    /// <c>SaveChangesAsync</c> call on the shared <see cref="DbContext"/>.
+    /// </summary>
+    /// <remarks>
+    /// When the provider reports the failing entries on the <see cref="DbUpdateException"/>,
+    /// the failure is only treated as an idempotency-key duplicate if one of those entries is
+    /// the freshly added <see cref="IdempotencyKey"/>. Unique-constraint violations caused by
+    /// other entities (e.g. a domain row with its own unique index) are rethrown so callers
+    /// learn that their changes were not persisted. When no entries are reported (some
+    /// providers omit them), the failure is attributed to the idempotency key to preserve the
+    /// idempotent store semantics.
+    /// </remarks>
+    internal static bool IsIdempotencyKeyConflict(Exception ex, IdempotencyKey entry)
+    {
+        var current = ex;
+        while (current is not null)
+        {
+            if (current is DbUpdateException { Entries.Count: > 0 } updateException)
+            {
+                return updateException.Entries.Any(e => ReferenceEquals(e.Entity, entry));
+            }
+
+            current = current.InnerException;
+        }
+
+        return true;
+    }
+
     internal static bool IsDuplicateKeyException(Exception ex)
     {
         // Walk the full exception chain so that providers that nest the root cause
