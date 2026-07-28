@@ -42,16 +42,17 @@ public sealed class OutboxOptions
 
     /// <summary>
     /// Gets or sets the maximum duration a claimed message may remain in the
-    /// <see cref="Extensibility.Outbox.OutboxMessageStatus.Processing"/> status before it becomes
-    /// eligible for reclaiming by a subsequent pending poll.
+    /// <see cref="NetEvolve.Pulse.Extensibility.Outbox.OutboxMessageStatus.Processing"/> status
+    /// before it becomes eligible for reclaiming by a subsequent pending poll.
     /// Default: 5 minutes.
     /// </summary>
     /// <remarks>
-    /// This setting is used by the SQLite provider. When a worker crashes or is cancelled after
-    /// claiming a message but before completing it, the message stays in the <c>Processing</c> status.
-    /// Once this lease expires, the next pending poll claims the message again, preserving
-    /// at-least-once delivery. Choose a value comfortably larger than the longest expected message
-    /// dispatch duration to avoid duplicate publishing.
+    /// When a worker crashes or is cancelled after claiming a message but before completing it,
+    /// the message stays in the <c>Processing</c> status. Once this lease expires, the next pending
+    /// poll claims the message again, preserving at-least-once delivery. Choose a value comfortably
+    /// larger than the longest expected message dispatch duration to avoid duplicate publishing.
+    /// This setting is honored by providers that implement lease-based reclaim of stuck
+    /// <c>Processing</c> messages.
     /// </remarks>
     public TimeSpan ProcessingLeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
 }
