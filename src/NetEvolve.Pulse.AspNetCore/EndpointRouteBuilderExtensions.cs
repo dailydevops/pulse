@@ -19,6 +19,8 @@ public static class EndpointRouteBuilderExtensions
 {
     private const string NdjsonContentType = "application/x-ndjson";
 
+    private static readonly byte[] NdjsonNewLine = [(byte)'\n'];
+
     /// <summary>
     /// Maps a command to an HTTP endpoint. The command is bound from the request body,
     /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand, TResponse}"/>, and the result
@@ -260,7 +262,7 @@ public static class EndpointRouteBuilderExtensions
                 {
                     var json = JsonSerializer.SerializeToUtf8Bytes(item);
                     await outputStream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
-                    await outputStream.WriteAsync(new byte[] { (byte)'\n' }, cancellationToken).ConfigureAwait(false);
+                    await outputStream.WriteAsync(NdjsonNewLine, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
