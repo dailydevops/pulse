@@ -11,6 +11,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// Provides shared implementations of <see cref="FetchAndMarkAsync"/>,
 /// <see cref="UpdateByQueryAsync"/>, and <see cref="DeleteByQueryAsync"/> that load entities
 /// into the change tracker, apply in-memory mutations, and flush via <c>SaveChangesAsync</c>.
+/// Rows claimed by a competing poller between load and save are detected through the
+/// <see cref="OutboxMessage.Status"/> concurrency token and skipped instead of overwritten.
 /// Derived classes only need to implement <see cref="UpdateByIdsAsync"/>, which varies by provider.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
@@ -49,9 +51,9 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
             entity.UpdatedAt = updatedAt;
         }
 
-        _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var conflicted = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
 
-        return entities;
+        return conflicted.Count == 0 ? entities : [.. entities.Where(e => !conflicted.Contains(e))];
     }
 
     /// <inheritdoc />
@@ -92,7 +94,7 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
                 }
             }
 
-            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _ = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -123,9 +125,40 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
         }
 
         _context.OutboxMessages.RemoveRange(entities);
-        _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var conflicted = await SaveChangesSkippingConflictedAsync(cancellationToken).ConfigureAwait(false);
 
-        return entities.Length;
+        return entities.Length - conflicted.Count;
+    }
+
+    /// <summary>
+    /// Persists all pending changes, detaching entities that lost an optimistic concurrency
+    /// race against a competing writer and retrying until the remaining changes are saved.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The set of entities that were detached because their database row changed concurrently.</returns>
+    protected async Task<IReadOnlyCollection<object>> SaveChangesSkippingConflictedAsync(
+        CancellationToken cancellationToken
+    )
+    {
+        HashSet<object>? conflicted = null;
+
+        while (true)
+        {
+            try
+            {
+                _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return conflicted ?? (IReadOnlyCollection<object>)[];
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                conflicted ??= [];
+                foreach (var entry in ex.Entries)
+                {
+                    _ = conflicted.Add(entry.Entity);
+                    entry.State = EntityState.Detached;
+                }
+            }
+        }
     }
 
     protected virtual void Dispose(bool disposing)
