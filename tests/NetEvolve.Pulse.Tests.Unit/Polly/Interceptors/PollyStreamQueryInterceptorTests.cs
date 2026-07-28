@@ -368,39 +368,57 @@ public sealed class PollyStreamQueryInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_WithTimeoutStrategy_DeferredStreamUsesCallerToken(CancellationToken cancellationToken)
+    public async Task HandleAsync_WithRetryPolicy_DeferredEnumerableFailingDuringEnumeration_RetriesEnumeration(
+        CancellationToken cancellationToken
+    )
     {
         // Arrange
-        var pipeline = new ResiliencePipelineBuilder().AddTimeout(TimeSpan.FromSeconds(30)).Build();
+        var attemptCount = 0;
+        var pipeline = new ResiliencePipelineBuilder()
+            .AddRetry(
+                new RetryStrategyOptions
+                {
+                    MaxRetryAttempts = 2,
+                    Delay = TimeSpan.FromMilliseconds(10),
+                    BackoffType = DelayBackoffType.Constant,
+                }
+            )
+            .Build();
+
         var serviceProvider = CreateServiceProvider<TestStreamQuery>(pipeline);
         var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
         var request = new TestStreamQuery();
 
-        CancellationToken observedToken = default;
+        // Deferred async iterator: the handler body only runs on the first MoveNextAsync.
+        // The first enumeration attempt fails, the second succeeds.
+        async IAsyncEnumerable<string> FlakyStreamAsync([EnumeratorCancellation] CancellationToken token = default)
+        {
+            token.ThrowIfCancellationRequested();
+            attemptCount++;
+            await Task.Yield();
+            if (attemptCount < 2)
+            {
+                throw new InvalidOperationException("Transient failure during stream open");
+            }
 
-        // Act - the handler returns a deferred enumerable that is consumed after ExecuteAsync completed
+            yield return "item1";
+            yield return "item2";
+        }
+
+        // Act
         var items = new List<string>();
         await foreach (
             var item in interceptor
-                .HandleAsync(
-                    request,
-                    (_, ct) =>
-                    {
-                        observedToken = ct;
-                        return YieldItemsAsync(["item1"], ct);
-                    },
-                    cancellationToken
-                )
+                .HandleAsync(request, (_, ct) => FlakyStreamAsync(ct), cancellationToken)
                 .ConfigureAwait(false)
         )
         {
             items.Add(item);
         }
 
-        // Assert - the deferred stream must not capture a pipeline-scoped token, because that
-        // token's CancellationTokenSource is reset/pooled by Polly once ExecuteAsync completes
-        _ = await Assert.That(observedToken).IsEqualTo(cancellationToken);
-        _ = await Assert.That(items).IsEquivalentTo(["item1"]);
+        // Assert - the retry policy must engage for failures thrown during enumeration
+        _ = await Assert.That(attemptCount).IsEqualTo(2);
+        _ = await Assert.That(items).IsEquivalentTo(["item1", "item2"]);
     }
 
     [Test]

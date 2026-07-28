@@ -4,31 +4,41 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using Polly;
 
 /// <summary>
-/// Stream query interceptor that applies Polly resilience policies to the stream initialization phase.
+/// Stream query interceptor that applies Polly resilience policies to the entire stream execution.
 /// Integrates Polly v8 <see cref="ResiliencePipeline"/> with the Pulse mediator interceptor pipeline,
-/// enabling retry, circuit breaker, timeout, and bulkhead strategies for stream query open operations.
+/// enabling retry, circuit breaker, timeout, and bulkhead strategies for stream queries.
 /// </summary>
 /// <typeparam name="TQuery">The type of streaming query to intercept, which must implement <see cref="IStreamQuery{TResponse}"/>.</typeparam>
 /// <typeparam name="TResponse">The type of each item yielded by the streaming query.</typeparam>
 /// <remarks>
 /// <para><strong>Execution Model:</strong></para>
-/// This interceptor wraps the <em>handler invocation</em> (stream open) inside the Polly pipeline.
-/// Item enumeration happens outside the pipeline, so per-item retry is intentionally out of scope.
+/// The handler is enumerated <em>inside</em> the Polly pipeline, so resilience strategies observe
+/// failures thrown at any point during enumeration — including deferred async iterators whose body
+/// only runs on the first <c>MoveNextAsync</c>. Items are forwarded to the consumer as they are produced.
+/// <para><strong>Retry Semantics:</strong></para>
+/// A retry restarts the enumeration from the beginning. Items already yielded to the consumer before
+/// the failure are <em>not</em> withdrawn; after a retry, the restarted enumeration yields its items
+/// in addition to those already observed. Configure retries only for handlers whose enumeration is
+/// idempotent or fails before yielding items.
+/// <para><strong>Timeout Semantics:</strong></para>
+/// A timeout strategy limits the duration of the entire enumeration, not only the stream open phase.
 /// <para><strong>Transparent Pass-Through:</strong></para>
 /// If no <see cref="ResiliencePipeline"/> is registered for <typeparamref name="TQuery"/>
 /// (either as a keyed or global service), the interceptor passes through transparently
 /// without applying any resilience strategy.
 /// <para><strong>Policy Types Supported:</strong></para>
 /// <list type="bullet">
-/// <item><description><strong>Retry:</strong> Retry a handler that throws during stream initialization</description></item>
+/// <item><description><strong>Retry:</strong> Restart the enumeration when it throws</description></item>
 /// <item><description><strong>Circuit Breaker:</strong> Block requests when the failure threshold is reached</description></item>
-/// <item><description><strong>Timeout:</strong> Enforce maximum wait time before the first item is obtained</description></item>
-/// <item><description><strong>Bulkhead:</strong> Limit concurrent stream open operations</description></item>
+/// <item><description><strong>Timeout:</strong> Enforce maximum duration for the entire enumeration</description></item>
+/// <item><description><strong>Bulkhead:</strong> Limit concurrent stream executions</description></item>
 /// </list>
 /// </remarks>
 /// <example>
@@ -65,8 +75,8 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
     }
 
     /// <summary>
-    /// Intercepts the streaming query, wrapping the handler invocation in the configured Polly pipeline.
-    /// Items are yielded directly after the pipeline executes without buffering.
+    /// Intercepts the streaming query, executing the handler enumeration inside the configured Polly pipeline.
+    /// Items are forwarded to the consumer as they are produced, without buffering the whole stream.
     /// </summary>
     /// <param name="request">The streaming query to process.</param>
     /// <param name="handler">The delegate representing the next step in the interceptor chain.</param>
@@ -75,9 +85,8 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
     /// <remarks>
     /// If no <see cref="ResiliencePipeline"/> is registered for <typeparamref name="TQuery"/>,
     /// the interceptor delegates directly to <paramref name="handler"/> without wrapping.
-    /// The handler is always invoked with the caller's <paramref name="cancellationToken"/>,
-    /// never with a pipeline-scoped token, because enumeration of the returned stream happens
-    /// after the pipeline execution has completed.
+    /// When a pipeline is configured, a retry restarts the enumeration from the beginning;
+    /// items yielded before the failure are not withdrawn.
     /// </remarks>
     public IAsyncEnumerable<TResponse> HandleAsync(
         TQuery request,
@@ -102,22 +111,66 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
-        // Wrap the handler invocation (stream open) inside the pipeline.
-        // The handler receives the caller's token instead of Polly's execution-scoped token,
-        // because the deferred enumerable is consumed after ExecuteAsync has completed and
-        // Polly resets/pools the CancellationTokenSource backing its execution token.
-        var stream = await pipeline
-            .ExecuteAsync(
-                static (state, _) =>
-                    new ValueTask<IAsyncEnumerable<TResponse>>(state.Handler(state.Request, state.CallerToken)),
-                (Handler: handler, Request: request, CallerToken: cancellationToken),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        // The handler is enumerated inside the pipeline so that resilience strategies observe
+        // failures thrown at any point during enumeration. Items flow to the consumer through
+        // a bounded channel, preserving backpressure.
+        var channel = Channel.CreateBounded<TResponse>(
+            new BoundedChannelOptions(1) { SingleReader = true, SingleWriter = true }
+        );
 
-        await foreach (var item in stream.WithCancellation(cancellationToken).ConfigureAwait(false))
+        using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var producer = ProduceAsync(pipeline, request, handler, channel.Writer, linkedTokenSource.Token);
+
+        try
         {
-            yield return item;
+            await foreach (var item in channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                yield return item;
+            }
+        }
+        finally
+        {
+            await linkedTokenSource.CancelAsync().ConfigureAwait(false);
+            await producer.ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ProduceAsync(
+        ResiliencePipeline pipeline,
+        TQuery request,
+        Func<TQuery, CancellationToken, IAsyncEnumerable<TResponse>> handler,
+        ChannelWriter<TResponse> writer,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await pipeline
+                .ExecuteAsync(
+                    static async (state, token) =>
+                    {
+                        await foreach (
+                            var item in state
+                                .Handler(state.Request, token)
+                                .WithCancellation(token)
+                                .ConfigureAwait(false)
+                        )
+                        {
+                            await state.Writer.WriteAsync(item, token).ConfigureAwait(false);
+                        }
+                    },
+                    (Handler: handler, Request: request, Writer: writer),
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+
+            _ = writer.TryComplete();
+        }
+#pragma warning disable CA1031 // The failure is propagated to the consumer through the channel.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            _ = writer.TryComplete(ex);
         }
     }
 }
