@@ -260,6 +260,42 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
+    public async Task MarkAsCompletedAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        if (messageIds.Count == 0)
+        {
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            foreach (var messageId in messageIds)
+            {
+                var command = new SqlCommand(_markCompletedSql, connection)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                };
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = command.Parameters.AddWithValue("@messageId", messageId);
+                    _ = command.Parameters.AddWithValue("@processedAtUtc", now);
+                    _ = command.Parameters.AddWithValue("@updatedAtUtc", now);
+
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public async Task MarkAsFailedAsync(
         Guid messageId,
         string errorMessage,
@@ -288,14 +324,34 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
         IReadOnlyCollection<Guid> messageIds,
         string errorMessage,
         CancellationToken cancellationToken = default
-    ) =>
-        await Parallel
-            .ForEachAsync(
-                messageIds,
-                cancellationToken,
-                async (id, token) => await MarkAsFailedAsync(id, errorMessage, token).ConfigureAwait(false)
-            )
-            .ConfigureAwait(false);
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        if (messageIds.Count == 0)
+        {
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            foreach (var messageId in messageIds)
+            {
+                var command = new SqlCommand(_markFailedSql, connection) { CommandType = CommandType.StoredProcedure };
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = command.Parameters.AddWithValue("@messageId", messageId);
+                    _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                    _ = command.Parameters.AddWithValue("@nowUtc", now);
+
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
 
     /// <inheritdoc />
     public async Task MarkAsFailedAsync(
@@ -346,6 +402,43 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("@nowUtc", now);
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAsDeadLetterAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+
+        if (messageIds.Count == 0)
+        {
+            return;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            foreach (var messageId in messageIds)
+            {
+                var command = new SqlCommand(_markDeadLetterSql, connection)
+                {
+                    CommandType = CommandType.StoredProcedure,
+                };
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = command.Parameters.AddWithValue("@messageId", messageId);
+                    _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                    _ = command.Parameters.AddWithValue("@nowUtc", now);
+
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
         }
     }
