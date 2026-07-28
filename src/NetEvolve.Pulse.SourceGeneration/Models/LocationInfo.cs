@@ -69,7 +69,7 @@ internal readonly struct LocationInfo : IEquatable<LocationInfo>
     {
         unchecked
         {
-            var hash = StringComparer.Ordinal.GetHashCode(FilePath);
+            var hash = FilePath is null ? 0 : StringComparer.Ordinal.GetHashCode(FilePath);
             hash = (hash * 31) + TextSpan.GetHashCode();
             hash = (hash * 31) + LineSpan.GetHashCode();
             return hash;

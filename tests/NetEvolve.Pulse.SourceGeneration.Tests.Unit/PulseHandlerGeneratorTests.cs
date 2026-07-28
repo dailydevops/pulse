@@ -1058,6 +1058,31 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenMixedValidAndInvalidExplicitMessageTypesThenRegistrationAndPulse005Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler<MyCommand>]
+            [PulseHandler<string>]
+            public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenExplicitMessageTypeNotPulseMessageThenPulse005Reported()
     {
         const string source = """
@@ -1123,6 +1148,29 @@ public class PulseHandlerGeneratorTests
 
             [PulseHandler<MyCommand>]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenRecordHandlerAnnotatedWithGenericAttributeThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler<MyCommand>]
+            public record MyCommandHandler : ICommandHandler<MyCommand, string>
             {
                 public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
                     => Task.FromResult(command.Name);
