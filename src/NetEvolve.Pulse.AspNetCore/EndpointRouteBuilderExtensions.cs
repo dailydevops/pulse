@@ -230,7 +230,7 @@ public static class EndpointRouteBuilderExtensions
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 // Client disconnected cleanly; do not re-throw.
             }
@@ -253,7 +253,7 @@ public static class EndpointRouteBuilderExtensions
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 // Client disconnected cleanly; do not re-throw.
             }
