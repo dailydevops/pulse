@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -191,9 +193,11 @@ public static class EndpointRouteBuilderExtensions
             {
                 var items = mediator.StreamQueryAsync<TQuery, TResponse>(query, cancellationToken);
 
-                // RFC 7231 §3.1.1.1 makes media types case-insensitive; match accordingly so
-                // clients sending e.g. "Application/X-NDJSON" still receive the NDJSON variant.
-                if (request.Headers.Accept.Contains(NdjsonContentType, StringComparer.OrdinalIgnoreCase))
+                // RFC 7231 §3.1.1.1 makes media types case-insensitive, and the Accept header
+                // may contain comma-separated media types and/or q-value parameters (e.g.
+                // "application/x-ndjson;q=0.9"). Parse it properly instead of comparing whole
+                // header values.
+                if (AcceptsNdjson(request.Headers.Accept))
                 {
                     return (IResult)
                         TypedResults.Stream(
@@ -213,6 +217,13 @@ public static class EndpointRouteBuilderExtensions
             }
         );
     }
+
+    private static bool AcceptsNdjson(StringValues acceptHeader) =>
+        MediaTypeHeaderValue.TryParseList(acceptHeader, out var mediaTypes)
+        && mediaTypes is not null
+        && mediaTypes.Any(mediaType =>
+            mediaType.MediaType.Equals(NdjsonContentType, StringComparison.OrdinalIgnoreCase)
+        );
 
 #if !NET10_0_OR_GREATER
     private static Func<Stream, Task> ExecuteStreamReadServerSentEvents<TResponse>(
