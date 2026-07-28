@@ -20,6 +20,13 @@
 --     0 = Pending    1 = Processing    2 = Completed
 --     3 = Failed     4 = DeadLetter
 --
+-- Claim lease reclaim:
+--   Each claim sets UpdatedAt to the claim timestamp. The pending-poll query (see
+--   NetEvolve.Pulse.Outbox.MySqlOutboxRepository.GetPendingAsync) also reclaims rows still in the
+--   Processing status whose UpdatedAt is older than (now - OutboxOptions.ProcessingLeaseTimeout),
+--   so messages are not lost forever when a worker crashes, is cancelled, or throws an unhandled
+--   exception during dispatch. No additional column is required — UpdatedAt is reused.
+--
 -- Usage:
 --   Run this script in the target MySQL database once before deploying the application:
 --     mysql -u <user> -p <database> < OutboxMessage.sql
@@ -60,3 +67,7 @@ CREATE INDEX `IX_OutboxMessage_Status_NextRetryAt`
 -- Index for completed message cleanup
 CREATE INDEX `IX_OutboxMessage_Status_ProcessedAt`
     ON `OutboxMessage` (`Status`, `ProcessedAt`);
+
+-- Index for reclaiming Processing messages whose claim lease has expired
+CREATE INDEX `IX_OutboxMessage_Status_UpdatedAt`
+    ON `OutboxMessage` (`Status`, `UpdatedAt`);

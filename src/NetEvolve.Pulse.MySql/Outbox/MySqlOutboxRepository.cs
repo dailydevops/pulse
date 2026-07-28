@@ -28,6 +28,11 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <c>REPEATABLE READ</c> transaction, issue a <c>SELECT … FOR UPDATE SKIP LOCKED</c> to
 /// atomically claim a batch of rows, update their status to Processing, and then commit.
 /// Concurrent workers skip locked rows and each receive a distinct batch.
+/// <para><strong>Claim Lease:</strong></para>
+/// Each claim records the claim timestamp in the <c>UpdatedAt</c> column. Rows that remain in the
+/// Processing status longer than <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for example,
+/// after a worker crash, cancellation, or unhandled exception during dispatch) are reclaimed by
+/// subsequent calls to <see cref="GetPendingAsync"/>, preserving at-least-once delivery.
 /// <para><strong>Transaction Support:</strong></para>
 /// <see cref="AddAsync"/> participates in ambient transactions via <see cref="IOutboxTransactionScope"/>
 /// when one is registered; otherwise it opens its own connection.
@@ -57,6 +62,9 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
 
     /// <summary>The time provider used to generate consistent timestamps for cutoff calculations.</summary>
     private readonly TimeProvider _timeProvider;
+
+    /// <summary>The maximum duration a claimed message may remain in the Processing status before it is reclaimed.</summary>
+    private readonly TimeSpan _processingLeaseTimeout;
 
     /// <summary>Cached backtick-quoted table name, e.g. <c>`OutboxMessage`</c>.</summary>
     // Cached SQL for simple single-row operations
@@ -89,20 +97,26 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.Value.ProcessingLeaseTimeout, TimeSpan.Zero);
 
         _connectionString = options.Value.ConnectionString;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
+        _processingLeaseTimeout = options.Value.ProcessingLeaseTimeout;
 
         var tableName = options.Value.FullTableName;
 
-        // Phase 1 of pending poll: SELECT IDs with row-level locking
+        // Phase 1 of pending poll: SELECT IDs with row-level locking.
+        // Also reclaims rows stuck in Processing whose lease (UpdatedAt) has expired — for example
+        // after a worker crash, cancellation, or unhandled exception during dispatch.
         _selectPendingIdsSql = $"""
             SELECT `{OutboxMessageSchema.Columns.Id}`
             FROM {tableName}
-            WHERE `{OutboxMessageSchema.Columns.Status}` = 0
-              AND (`{OutboxMessageSchema.Columns.NextRetryAt}` IS NULL
-                   OR `{OutboxMessageSchema.Columns.NextRetryAt}` <= @nowTicks)
+            WHERE (`{OutboxMessageSchema.Columns.Status}` = 0
+                   AND (`{OutboxMessageSchema.Columns.NextRetryAt}` IS NULL
+                        OR `{OutboxMessageSchema.Columns.NextRetryAt}` <= @nowTicks))
+               OR (`{OutboxMessageSchema.Columns.Status}` = 1
+                   AND `{OutboxMessageSchema.Columns.UpdatedAt}` <= @leaseExpiredBeforeTicks)
             ORDER BY `{OutboxMessageSchema.Columns.CreatedAt}` ASC
             LIMIT @batchSize
             FOR UPDATE SKIP LOCKED
@@ -255,11 +269,23 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// In addition to claiming <see cref="OutboxMessageStatus.Pending"/> messages, this also reclaims
+    /// messages stuck in <see cref="OutboxMessageStatus.Processing"/> whose claim lease
+    /// (<see cref="OutboxOptions.ProcessingLeaseTimeout"/>) has expired, so that messages are not lost
+    /// forever when a worker crashes, is cancelled, or throws an unhandled exception during dispatch.
+    /// </remarks>
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
         int batchSize,
         CancellationToken cancellationToken = default
     ) =>
-        await FetchAndClaimMessagesAsync(_selectPendingIdsSql, batchSize, null, cancellationToken)
+        await FetchAndClaimMessagesAsync(
+                _selectPendingIdsSql,
+                batchSize,
+                null,
+                _processingLeaseTimeout,
+                cancellationToken
+            )
             .ConfigureAwait(false);
 
     /// <inheritdoc />
@@ -268,7 +294,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         int batchSize,
         CancellationToken cancellationToken = default
     ) =>
-        await FetchAndClaimMessagesAsync(_selectFailedForRetryIdsSql, batchSize, maxRetryCount, cancellationToken)
+        await FetchAndClaimMessagesAsync(_selectFailedForRetryIdsSql, batchSize, maxRetryCount, null, cancellationToken)
             .ConfigureAwait(false);
 
     /// <inheritdoc />
@@ -418,12 +444,18 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <param name="selectIdsSql">The SQL that selects IDs with <c>FOR UPDATE SKIP LOCKED</c>.</param>
     /// <param name="batchSize">Maximum number of messages to claim.</param>
     /// <param name="maxRetryCount">When non-null, bound passed as <c>@maxRetryCount</c> for the failed-for-retry query.</param>
+    /// <param name="processingLeaseTimeout">
+    /// When non-null, bound as <c>@leaseExpiredBeforeTicks</c> so <paramref name="selectIdsSql"/> can also
+    /// reclaim rows stuck in the Processing status whose lease has expired. Pass <see langword="null"/>
+    /// when <paramref name="selectIdsSql"/> does not reference that parameter.
+    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The claimed and updated outbox messages.</returns>
     private async Task<IReadOnlyList<OutboxMessage>> FetchAndClaimMessagesAsync(
         string selectIdsSql,
         int batchSize,
         int? maxRetryCount,
+        TimeSpan? processingLeaseTimeout,
         CancellationToken cancellationToken
     )
     {
@@ -456,6 +488,12 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                         if (maxRetryCount.HasValue)
                         {
                             _ = selectCmd.Parameters.AddWithValue("@maxRetryCount", maxRetryCount.Value);
+                        }
+
+                        if (processingLeaseTimeout.HasValue)
+                        {
+                            var leaseExpiredBeforeTicks = nowTicks - processingLeaseTimeout.Value.Ticks;
+                            _ = selectCmd.Parameters.AddWithValue("@leaseExpiredBeforeTicks", leaseExpiredBeforeTicks);
                         }
 
                         var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
