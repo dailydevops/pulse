@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Options;
@@ -37,6 +38,11 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     private IRabbitMqChannelAdapter? _channel;
 
     /// <summary>Semaphore for thread-safe channel initialization.</summary>
+    [SuppressMessage(
+        "Usage",
+        "CA2213:Disposable fields should be disposed",
+        Justification = "The semaphore must outlive Dispose so in-flight senders can still release it; SemaphoreSlim holds no unmanaged resources unless its wait handle is accessed, which this type never does."
+    )]
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     /// <summary>
@@ -185,6 +191,8 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         await _initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+
             if (_channel?.IsOpen == true)
             {
                 return _channel;
@@ -217,6 +225,11 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <see cref="Interlocked.Exchange(ref int, int)"/> performs the teardown; all subsequent
     /// callers (including concurrent ones) are no-ops. This prevents double-disposal of the
     /// underlying channel adapter when shutdown overlaps with another <c>Dispose()</c> call.
+    /// The teardown acquires <see cref="_initializationLock"/> so that a channel created by an
+    /// in-flight <see cref="EnsureChannelAsync"/> is disposed rather than leaked, and the
+    /// semaphore itself is intentionally never disposed because in-flight senders may still
+    /// need to release it; <see cref="SemaphoreSlim"/> holds no unmanaged resources unless
+    /// its wait handle is accessed, which this type never does.
     /// </remarks>
     public void Dispose()
     {
@@ -225,7 +238,15 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             return;
         }
 
-        _channel?.Dispose();
-        _initializationLock.Dispose();
+        _initializationLock.Wait();
+        try
+        {
+            _channel?.Dispose();
+            _channel = null;
+        }
+        finally
+        {
+            _ = _initializationLock.Release();
+        }
     }
 }
