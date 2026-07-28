@@ -90,7 +90,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
 
         if (candidates.Count == 0)
         {
-            return candidates;
+            return [];
         }
 
         return await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
@@ -117,7 +117,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
 
         if (candidates.Count == 0)
         {
-            return candidates;
+            return [];
         }
 
         return await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
@@ -302,14 +302,14 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     }
 
     /// <summary>
-    /// Executes a parameterized query and returns all matching documents as <see cref="OutboxMessage"/> instances.
+    /// Executes a parameterized query and returns all matching documents.
     /// </summary>
-    private async Task<IReadOnlyList<OutboxMessage>> ExecuteQueryAsync(
+    private async Task<IReadOnlyList<CosmosDbOutboxDocument>> ExecuteQueryAsync(
         QueryDefinition query,
         CancellationToken cancellationToken
     )
     {
-        var messages = new List<OutboxMessage>();
+        var documents = new List<CosmosDbOutboxDocument>();
 
         using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(query);
 
@@ -317,22 +317,20 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         {
             var page = await iterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
 
-            foreach (var doc in page)
-            {
-                messages.Add(doc.ToOutboxMessage());
-            }
+            documents.AddRange(page);
         }
 
-        return messages;
+        return documents;
     }
 
     /// <summary>
-    /// Attempts to atomically claim each candidate message by patching its status to
-    /// <paramref name="targetStatus"/> using ETag-based optimistic concurrency.
-    /// Messages that have been claimed by another worker (ETag mismatch) are silently skipped.
+    /// Attempts to atomically claim each candidate document by patching its status to
+    /// <paramref name="targetStatus"/> using the <c>_etag</c> returned by the candidate query
+    /// as an <c>IfMatchEtag</c> precondition, avoiding an additional point read per candidate.
+    /// Messages that have been modified by another worker (ETag mismatch) are silently skipped.
     /// </summary>
     private async Task<IReadOnlyList<OutboxMessage>> ClaimMessagesAsync(
-        IReadOnlyList<OutboxMessage> candidates,
+        IReadOnlyList<CosmosDbOutboxDocument> candidates,
         int targetStatus,
         CancellationToken cancellationToken
     )
@@ -340,34 +338,12 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         var now = _timeProvider.GetUtcNow();
         var claimed = new List<OutboxMessage>(candidates.Count);
 
-        foreach (var message in candidates)
+        foreach (var document in candidates)
         {
-            var id = message.Id.ToString();
+            var id = document.Id;
             var partitionKey = new PartitionKey(id);
 
-            // Read current ETag for optimistic concurrency.
-            ItemResponse<CosmosDbOutboxDocument> current;
-
-            try
-            {
-                current = await _container
-                    .ReadItemAsync<CosmosDbOutboxDocument>(id, partitionKey, cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                // Document deleted between query and read — skip.
-                continue;
-            }
-
-            // Only claim if the persisted status still matches the in-memory candidate. The
-            // OutboxMessageStatus enum is int-backed, so a single cast to int is sufficient.
-            if (current.Resource.Status != (int)message.Status)
-            {
-                continue;
-            }
-
-            var requestOptions = new PatchItemRequestOptions { IfMatchEtag = current.ETag };
+            var requestOptions = new PatchItemRequestOptions { IfMatchEtag = document.ETag };
 
             var patches = new List<PatchOperation>
             {

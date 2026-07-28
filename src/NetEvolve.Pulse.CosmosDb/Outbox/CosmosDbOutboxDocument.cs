@@ -109,6 +109,16 @@ internal sealed class CosmosDbOutboxDocument
     public int? Ttl { get; set; }
 
     /// <summary>
+    /// Gets or sets the Cosmos DB system <c>_etag</c> value returned by queries and reads,
+    /// used for optimistic concurrency via <c>IfMatchEtag</c> preconditions.
+    /// Never written back to the store when unset.
+    /// </summary>
+    [JsonPropertyName("_etag")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonProperty("_etag", NullValueHandling = NullValueHandling.Ignore)]
+    public string? ETag { get; set; }
+
+    /// <summary>
     /// Converts this Cosmos DB document to an <see cref="OutboxMessage"/>.
     /// </summary>
     /// <returns>The corresponding <see cref="OutboxMessage"/>.</returns>
