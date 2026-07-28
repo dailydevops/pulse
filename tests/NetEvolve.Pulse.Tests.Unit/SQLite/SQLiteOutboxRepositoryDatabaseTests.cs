@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -61,6 +62,19 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = _connectionString, EnableWalMode = false });
         return new SQLiteOutboxRepository(options, TimeProvider.System);
+    }
+
+    private SQLiteOutboxRepository CreateRepository(TimeProvider timeProvider, TimeSpan? processingLeaseTimeout = null)
+    {
+        var options = Options.Create(
+            new OutboxOptions
+            {
+                ConnectionString = _connectionString,
+                EnableWalMode = false,
+                ProcessingLeaseTimeout = processingLeaseTimeout ?? TimeSpan.FromMinutes(5),
+            }
+        );
+        return new SQLiteOutboxRepository(options, timeProvider);
     }
 
     private SQLiteOutboxRepository CreateRepositoryWithScope(IOutboxTransactionScope scope)
@@ -126,6 +140,52 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(pending.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WhenProcessingLeaseExpired_ReclaimsStuckMessage(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
+        var repository = CreateRepository(timeProvider, TimeSpan.FromMinutes(5));
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(claimed.Count).IsEqualTo(1);
+
+        // Simulate a crashed worker: the message stays in Processing and is never completed or failed.
+        timeProvider.Advance(TimeSpan.FromMinutes(10));
+
+        var reclaimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(reclaimed.Count).IsEqualTo(1);
+            _ = await Assert.That(reclaimed[0].Id).IsEqualTo(message.Id);
+            _ = await Assert.That(reclaimed[0].Status).IsEqualTo(OutboxMessageStatus.Processing);
+        }
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WhileProcessingLeaseActive_DoesNotReclaimMessage(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
+        var repository = CreateRepository(timeProvider, TimeSpan.FromMinutes(5));
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(claimed.Count).IsEqualTo(1);
+
+        timeProvider.Advance(TimeSpan.FromMinutes(1));
+
+        var reclaimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(reclaimed).IsEmpty();
     }
 
     [Test]

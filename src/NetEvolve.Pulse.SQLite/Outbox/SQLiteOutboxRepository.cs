@@ -22,6 +22,11 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// When <see cref="OutboxOptions.EnableWalMode"/> is <see langword="true"/>, the
 /// <c>PRAGMA journal_mode=WAL</c> command is applied on each connection to allow concurrent
 /// read access during writes.
+/// <para><strong>Claim Lease:</strong></para>
+/// Each claim records the claim timestamp in <c>UpdatedAt</c>. Messages that remain in the
+/// <c>Processing</c> status longer than <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for
+/// example, after a worker crash, cancellation, or unhandled exception during dispatch) are
+/// reclaimed by subsequent pending polls, preserving at-least-once delivery.
 /// </remarks>
 [SuppressMessage(
     "Reliability",
@@ -52,6 +57,9 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <summary>The time provider used to generate consistent timestamps.</summary>
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>The maximum duration a claimed message may remain in the Processing status before it is reclaimed.</summary>
+    private readonly TimeSpan _processingLeaseTimeout;
+
     // Cached SQL statements
     private readonly string _getPendingSql;
     private readonly string _getFailedForRetrySql;
@@ -80,11 +88,13 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
 
         var opts = options.Value;
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.ConnectionString);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(opts.ProcessingLeaseTimeout, TimeSpan.Zero);
 
         _connectionString = opts.ConnectionString;
         _enableWalMode = opts.EnableWalMode;
         _timeProvider = timeProvider;
         _transactionScope = transactionScope;
+        _processingLeaseTimeout = opts.ProcessingLeaseTimeout;
 
         var table = opts.FullTableName;
 
@@ -95,9 +105,15 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             WHERE "{OutboxMessageSchema.Columns.Id}" IN (
                 SELECT "{OutboxMessageSchema.Columns.Id}"
                 FROM {table}
-                WHERE "{OutboxMessageSchema.Columns.Status}" = 0
-                  AND ("{OutboxMessageSchema.Columns.NextRetryAt}" IS NULL
-                       OR "{OutboxMessageSchema.Columns.NextRetryAt}" <= @nowUtc)
+                WHERE (
+                    "{OutboxMessageSchema.Columns.Status}" = 0
+                    AND ("{OutboxMessageSchema.Columns.NextRetryAt}" IS NULL
+                         OR "{OutboxMessageSchema.Columns.NextRetryAt}" <= @nowUtc)
+                  )
+                  OR (
+                    "{OutboxMessageSchema.Columns.Status}" = 1
+                    AND "{OutboxMessageSchema.Columns.UpdatedAt}" <= @leaseExpiredBeforeUtc
+                  )
                 ORDER BY "{OutboxMessageSchema.Columns.CreatedAt}"
                 LIMIT @batchSize
             )
@@ -255,6 +271,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     )
     {
         var now = _timeProvider.GetUtcNow();
+        var leaseExpiredBefore = now.ToUniversalTime() - _processingLeaseTimeout;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -275,6 +292,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                     {
                         _ = command.Parameters.AddWithValue("@batchSize", batchSize);
                         _ = command.Parameters.AddWithValue("@nowUtc", now);
+                        _ = command.Parameters.AddWithValue("@leaseExpiredBeforeUtc", leaseExpiredBefore);
 
                         var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
