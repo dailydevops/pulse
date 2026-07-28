@@ -152,19 +152,18 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default)
     {
-        var query = new QueryDefinition("SELECT c.id FROM c WHERE c.status = 4");
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.status = 4");
         var replayed = 0;
 
-        using var iterator = _container.GetItemQueryIterator<IdProjection>(query);
+        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(query);
 
         while (iterator.HasMoreResults)
         {
             var page = await iterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
 
-            foreach (var item in page)
+            foreach (var document in page)
             {
-                var replayed1 = await ReplayMessageAsync(Guid.Parse(item.Id), cancellationToken).ConfigureAwait(false);
-                if (replayed1)
+                if (await TryReplayDocumentAsync(document, cancellationToken).ConfigureAwait(false))
                 {
                     replayed++;
                 }
@@ -172,6 +171,47 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         }
 
         return replayed;
+    }
+
+    /// <summary>
+    /// Attempts to reset a dead-letter document to pending using the <c>_etag</c> returned by the
+    /// query as an <c>IfMatchEtag</c> precondition, avoiding an additional point read per document.
+    /// Documents modified or deleted by another worker in the meantime are silently skipped.
+    /// </summary>
+    private async Task<bool> TryReplayDocumentAsync(
+        CosmosDbOutboxDocument document,
+        CancellationToken cancellationToken
+    )
+    {
+        var now = _timeProvider.GetUtcNow();
+        var requestOptions = new PatchItemRequestOptions { IfMatchEtag = document.ETag };
+
+        var patches = new List<PatchOperation>
+        {
+            PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
+            PatchOperation.Set("/retryCount", 0),
+            PatchOperation.Set("/error", (string?)null),
+            PatchOperation.Set("/updatedAt", now),
+        };
+
+        try
+        {
+            _ = await _container
+                .PatchItemAsync<CosmosDbOutboxDocument>(
+                    document.Id,
+                    new PartitionKey(document.Id),
+                    patches,
+                    requestOptions,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc />
@@ -226,15 +266,6 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         }
 
         return messages;
-    }
-
-    /// <summary>
-    /// Minimal projection used when querying only the document <c>id</c> field.
-    /// </summary>
-    private sealed class IdProjection
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
     }
 
     /// <summary>
