@@ -260,30 +260,6 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     }
 
     /// <inheritdoc />
-    public async Task MarkAsFailedAsync(
-        Guid messageId,
-        string errorMessage,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var now = _timeProvider.GetUtcNow();
-
-        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using (connection.ConfigureAwait(false))
-        {
-            var command = new SqlCommand(_markFailedSql, connection) { CommandType = CommandType.StoredProcedure };
-            await using (command.ConfigureAwait(false))
-            {
-                _ = command.Parameters.AddWithValue("@messageId", messageId);
-                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
-                _ = command.Parameters.AddWithValue("@nowUtc", now);
-
-                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
-    }
-
-    /// <inheritdoc />
     public async Task MarkAsCompletedAsync(
         IReadOnlyCollection<Guid> messageIds,
         CancellationToken cancellationToken = default
@@ -315,6 +291,30 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
                     _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task MarkAsFailedAsync(
+        Guid messageId,
+        string errorMessage,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var now = _timeProvider.GetUtcNow();
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqlCommand(_markFailedSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId);
+                _ = command.Parameters.AddWithValue("@error", (object?)errorMessage ?? DBNull.Value);
+                _ = command.Parameters.AddWithValue("@nowUtc", now);
+
+                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }
