@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 public sealed class MySqlContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly MySqlContainer _container = new MySqlBuilder(
-        /*dockerimage*/"mysql:9.7.1"
+        /*dockerimage*/"mysql:9.7.2"
     )
         .WithLogger(NullLogger.Instance)
         .WithUsername(UserName)
