@@ -47,22 +47,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             .Select(
                 static (pair, _) =>
                 {
-                    var result = ImmutableArray<HandlerInfo>.Empty;
-                    if (!pair.Left.Left.IsDefaultOrEmpty)
-                    {
-                        result = [.. result, .. pair.Left.Left];
-                    }
-
-                    if (!pair.Left.Right.IsDefaultOrEmpty)
-                    {
-                        result = [.. result, .. pair.Left.Right];
-                    }
-
-                    if (!pair.Right.IsDefaultOrEmpty)
-                    {
-                        result = [.. result, .. pair.Right];
-                    }
-
+                    ImmutableArray<HandlerInfo> result = [.. pair.Left.Left, .. pair.Left.Right, .. pair.Right];
                     return result;
                 }
             );
