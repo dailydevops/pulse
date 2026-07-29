@@ -258,6 +258,13 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         return count;
     }
 
+    /// <summary>
+    /// Upper bound on the number of concurrent <c>DeleteItemAsync</c> calls issued by
+    /// <see cref="DeleteCompletedAsync"/>. Kept small and conservative to avoid overwhelming the
+    /// container's provisioned throughput while still avoiding fully sequential round trips.
+    /// </summary>
+    private const int MaxDeleteConcurrency = 8;
+
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
@@ -278,25 +285,35 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         {
             var page = await iterator.ReadNextAsync(cancellationToken).ConfigureAwait(false);
 
-            foreach (var itemId in page.Select(x => x.Id))
-            {
-                try
-                {
-                    _ = await _container
-                        .DeleteItemAsync<CosmosDbOutboxDocument>(
-                            itemId,
-                            new PartitionKey(itemId),
-                            cancellationToken: cancellationToken
-                        )
-                        .ConfigureAwait(false);
+            await Parallel
+                .ForEachAsync(
+                    page.Select(x => x.Id),
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = MaxDeleteConcurrency,
+                        CancellationToken = cancellationToken,
+                    },
+                    async (itemId, itemCancellationToken) =>
+                    {
+                        try
+                        {
+                            _ = await _container
+                                .DeleteItemAsync<CosmosDbOutboxDocument>(
+                                    itemId,
+                                    new PartitionKey(itemId),
+                                    cancellationToken: itemCancellationToken
+                                )
+                                .ConfigureAwait(false);
 
-                    deleted++;
-                }
-                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-                {
-                    // Already deleted by another worker — ignore.
-                }
-            }
+                            _ = Interlocked.Increment(ref deleted);
+                        }
+                        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            // Already deleted by another worker — ignore.
+                        }
+                    }
+                )
+                .ConfigureAwait(false);
         }
 
         return deleted;
@@ -409,7 +426,11 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// <summary>
     /// Minimal projection used when querying only the document <c>id</c> field.
     /// </summary>
-    private sealed class IdProjection
+    /// <remarks>
+    /// Internal (rather than private) so unit tests can construct fake query results of this
+    /// exact shape without going through a live Cosmos DB query.
+    /// </remarks>
+    internal sealed class IdProjection
     {
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         [JsonProperty("id")]
