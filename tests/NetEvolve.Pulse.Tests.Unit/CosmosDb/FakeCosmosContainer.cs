@@ -142,10 +142,14 @@ internal sealed class FakeCosmosContainer : Container
         PartitionKey partitionKey,
         ItemRequestOptions? requestOptions = null,
         CancellationToken cancellationToken = default
-    ) =>
-        OnDeleteItem is null
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return OnDeleteItem is null
             ? throw new NotImplementedException()
             : Task.FromResult((ItemResponse<T>)OnDeleteItem(id, partitionKey));
+    }
 
     public override Task<ResponseMessage> CreateItemStreamAsync(
         Stream streamPayload,
