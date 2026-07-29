@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -55,22 +54,20 @@ internal sealed class FluentValidationRequestInterceptor<TRequest, TResponse> : 
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        var validators = _serviceProvider.GetServices<IValidator<TRequest>>().ToList();
+        var validators = _serviceProvider.GetServices<IValidator<TRequest>>();
 
-        if (validators.Count == 0)
-        {
-            return await handler(request, cancellationToken).ConfigureAwait(false);
-        }
-
-        var failures = new List<ValidationFailure>();
+        List<ValidationFailure>? failures = null;
 
         foreach (var validator in validators)
         {
             var result = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
-            failures.AddRange(result.Errors);
+            if (result.Errors.Count > 0)
+            {
+                (failures ??= []).AddRange(result.Errors);
+            }
         }
 
-        if (failures.Count > 0)
+        if (failures is { Count: > 0 })
         {
             throw new ValidationException(failures);
         }
