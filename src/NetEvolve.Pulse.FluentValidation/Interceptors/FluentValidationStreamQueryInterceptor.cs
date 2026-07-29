@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse.Interceptors;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,22 +65,22 @@ internal sealed class FluentValidationStreamQueryInterceptor<TQuery, TResponse>
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
-        var validators = _serviceProvider.GetServices<IValidator<TQuery>>().ToList();
+        var validators = _serviceProvider.GetServices<IValidator<TQuery>>();
 
-        if (validators.Count > 0)
+        List<ValidationFailure>? failures = null;
+
+        foreach (var validator in validators)
         {
-            var failures = new List<ValidationFailure>();
-
-            foreach (var validator in validators)
+            var result = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+            if (result.Errors.Count > 0)
             {
-                var result = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
-                failures.AddRange(result.Errors);
+                (failures ??= []).AddRange(result.Errors);
             }
+        }
 
-            if (failures.Count > 0)
-            {
-                throw new ValidationException(failures);
-            }
+        if (failures is { Count: > 0 })
+        {
+            throw new ValidationException(failures);
         }
 
         await foreach (
