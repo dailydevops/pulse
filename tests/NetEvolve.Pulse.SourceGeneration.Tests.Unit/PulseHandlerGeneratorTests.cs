@@ -977,6 +977,33 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenNestedGenericCommandHandlerWithExplicitMessageTypeThenRegistrationIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            public class Container
+            {
+                [PulseHandler<MyCommand>]
+                public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                    where TCmd : ICommand<TResult>
+                {
+                    public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                        => Task.FromResult(default(TResult)!);
+                }
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenOpenGenericHandlerWithMultipleExplicitMessageTypesThenAllRegistered()
     {
         const string source = """
