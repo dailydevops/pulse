@@ -187,17 +187,19 @@ internal sealed partial class PulseMediator : IMediator
         // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
         var next = DispatchAsync;
 
-        // Retrieve all registered event interceptors and reverse for correct pipeline order
-        var interceptors = serviceProvider.GetServices<IEventInterceptor<TEvent>>().Reverse().ToArray();
+        // Retrieve all registered event interceptors, keeping registration order
+        var interceptors = serviceProvider.GetServices<IEventInterceptor<TEvent>>().ToArray();
         if (interceptors.Length == 0)
         {
             // No interceptors registered, execute dispatcher directly
             return next(msg, cancellationToken);
         }
 
-        foreach (var interceptor in interceptors)
+        // Walk the interceptors from last-registered to first-registered so the first-registered
+        // interceptor ends up outermost, without allocating a separate reversed sequence.
+        for (var i = interceptors.Length - 1; i >= 0; i--)
         {
-            var currentInterceptor = interceptor;
+            var currentInterceptor = interceptors[i];
             var currentNext = next;
             // Wrap the next action with the current interceptor
             next = (req, token) => currentInterceptor.HandleAsync(req, currentNext, token);
@@ -225,8 +227,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TRequest : IRequest<TResponse>
     {
-        // Retrieve all registered request interceptors and reverse for correct pipeline order
-        var interceptors = _serviceProvider.GetServices<IRequestInterceptor<TRequest, TResponse>>().Reverse().ToArray();
+        // Retrieve all registered request interceptors, keeping registration order
+        var interceptors = _serviceProvider.GetServices<IRequestInterceptor<TRequest, TResponse>>().ToArray();
 
         if (interceptors.Length == 0)
         {
@@ -237,9 +239,11 @@ internal sealed partial class PulseMediator : IMediator
         // Build the interceptor chain from innermost (handler) to outermost (first interceptor)
         var next = handler;
 
-        foreach (var interceptor in interceptors)
+        // Walk the interceptors from last-registered to first-registered so the first-registered
+        // interceptor ends up outermost, without allocating a separate reversed sequence.
+        for (var i = interceptors.Length - 1; i >= 0; i--)
         {
-            var currentInterceptor = interceptor;
+            var currentInterceptor = interceptors[i];
             var nextCopy = next;
             // Wrap the next action with the current interceptor
             next = (req, token) => currentInterceptor.HandleAsync(req, nextCopy, token);
@@ -266,11 +270,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TQuery : IStreamQuery<TResponse>
     {
-        // Retrieve all registered stream query interceptors and reverse for correct pipeline order
-        var interceptors = _serviceProvider
-            .GetServices<IStreamQueryInterceptor<TQuery, TResponse>>()
-            .Reverse()
-            .ToArray();
+        // Retrieve all registered stream query interceptors, keeping registration order
+        var interceptors = _serviceProvider.GetServices<IStreamQueryInterceptor<TQuery, TResponse>>().ToArray();
 
         if (interceptors.Length == 0)
         {
@@ -281,9 +282,11 @@ internal sealed partial class PulseMediator : IMediator
         // Build the interceptor chain from innermost (handler) to outermost (first interceptor)
         var next = handler;
 
-        foreach (var interceptor in interceptors)
+        // Walk the interceptors from last-registered to first-registered so the first-registered
+        // interceptor ends up outermost, without allocating a separate reversed sequence.
+        for (var i = interceptors.Length - 1; i >= 0; i--)
         {
-            var currentInterceptor = interceptor;
+            var currentInterceptor = interceptors[i];
             var nextCopy = next;
             // Wrap the next action with the current interceptor
             next = (req, token) => currentInterceptor.HandleAsync(req, nextCopy, token);
