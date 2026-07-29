@@ -76,6 +76,24 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 
+        if (handlers is ICollection<IEventHandler<TEvent>> { Count: 1 } singleHandlerCollection)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var handler = singleHandlerCollection.First();
+
+            try
+            {
+                await invoker(handler, message, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw new AggregateException("One or more event handlers failed.", ex);
+            }
+
+            return;
+        }
+
         // Sort handlers by priority, preserving order for equal priorities
         var priorityGroups = handlers
             .Select(handler => (Handler: handler, Priority: GetPriority(handler)))

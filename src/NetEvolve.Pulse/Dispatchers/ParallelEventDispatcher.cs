@@ -57,6 +57,24 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 
+        if (handlers is ICollection<IEventHandler<TEvent>> { Count: 1 } singleHandlerCollection)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var handler = singleHandlerCollection.First();
+
+            try
+            {
+                await invoker(handler, message, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new AggregateException("One or more event handlers failed.", ex);
+            }
+
+            return;
+        }
+
         var exceptions = new ConcurrentBag<Exception>();
 
         await Parallel
