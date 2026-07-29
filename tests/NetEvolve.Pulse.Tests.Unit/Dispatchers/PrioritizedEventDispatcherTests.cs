@@ -127,6 +127,41 @@ public class PrioritizedEventDispatcherTests
     }
 
     [Test]
+    public async Task DispatchAsync_WithSingleHandler_InvokesHandlerExactlyOnce(CancellationToken cancellationToken)
+    {
+        var dispatcher = new PrioritizedEventDispatcher();
+        var message = new TestEvent();
+        var executionOrder = new ConcurrentQueue<int>();
+        var handlers = new List<IEventHandler<TestEvent>> { new PrioritizedTestHandler(1, 0, executionOrder) };
+
+        await dispatcher
+            .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(executionOrder).HasSingleItem();
+    }
+
+    [Test]
+    public async Task DispatchAsync_WithSingleHandlerThrowing_AggregatesException(CancellationToken cancellationToken)
+    {
+        var dispatcher = new PrioritizedEventDispatcher();
+        var message = new TestEvent();
+        var handlers = new List<IEventHandler<TestEvent>> { new ThrowingSingleHandler() };
+
+        var ex = await Assert.ThrowsAsync<AggregateException>(async () =>
+            await dispatcher
+                .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
+                .ConfigureAwait(false)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(ex!.InnerExceptions).Count().IsEqualTo(1);
+            _ = await Assert.That(ex.InnerExceptions[0]).IsTypeOf<InvalidOperationException>();
+        }
+    }
+
+    [Test]
     public async Task DispatchAsync_WithEmptyHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
         var dispatcher = new PrioritizedEventDispatcher();
@@ -183,6 +218,12 @@ public class PrioritizedEventDispatcherTests
             _executionOrder.Enqueue(_id);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class ThrowingSingleHandler : IEventHandler<TestEvent>
+    {
+        public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("boom");
     }
 
     private sealed class CancellingTestHandler : IPrioritizedEventHandler<TestEvent>
