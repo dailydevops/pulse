@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -801,13 +802,25 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         // Find the matching open handler interface in the class's AllInterfaces.
-        var matchingIface = classSymbol.AllInterfaces.FirstOrDefault(iface =>
-            string.Equals(
-                GetFullMetadataName(iface.OriginalDefinition),
-                expectedHandlerIfaceName,
-                StringComparison.Ordinal
+        // A manual loop is used instead of LINQ's FirstOrDefault to avoid allocating a
+        // closure/display-class per call.
+#pragma warning disable S3267 // Loops should be simplified using the "Where" LINQ method
+        INamedTypeSymbol? matchingIface = null;
+        foreach (var iface in classSymbol.AllInterfaces)
+        {
+            if (
+                string.Equals(
+                    GetFullMetadataName(iface.OriginalDefinition),
+                    expectedHandlerIfaceName,
+                    StringComparison.Ordinal
+                )
             )
-        );
+            {
+                matchingIface = iface;
+                break;
+            }
+        }
+#pragma warning restore S3267 // Loops should be simplified using the "Where" LINQ method
 
         if (matchingIface is null)
         {
@@ -1045,23 +1058,32 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// </summary>
     private static string GetFullMetadataName(INamedTypeSymbol symbol)
     {
-        var parts = new List<string>();
-        var current = symbol;
-        while (current is not null)
-        {
-            parts.Add(current.MetadataName);
-            current = current.ContainingType;
-        }
-
-        parts.Reverse();
-        var typePart = string.Join("+", parts);
+        var builder = new StringBuilder();
 
         var ns = symbol.ContainingNamespace;
         if (ns?.IsGlobalNamespace == false)
         {
-            return ns.ToDisplayString() + "." + typePart;
+            _ = builder.Append(ns.ToDisplayString()).Append('.');
         }
 
-        return typePart;
+        AppendTypePart(builder, symbol);
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Appends the containing-type chain of <paramref name="symbol"/>, outermost first, separated by
+    /// <c>+</c>, matching the <c>Outer+Inner</c> nesting notation used in metadata names.
+    /// </summary>
+    private static void AppendTypePart(StringBuilder builder, INamedTypeSymbol symbol)
+    {
+        var containingType = symbol.ContainingType;
+        if (containingType is not null)
+        {
+            AppendTypePart(builder, containingType);
+            _ = builder.Append('+');
+        }
+
+        _ = builder.Append(symbol.MetadataName);
     }
 }
