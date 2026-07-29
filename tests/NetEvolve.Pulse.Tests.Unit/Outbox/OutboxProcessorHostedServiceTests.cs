@@ -19,16 +19,16 @@ using TUnit.Core;
 public sealed class OutboxProcessorHostedServiceTests
 {
     [Test]
-    public async Task Constructor_WithNullRepository_ThrowsArgumentNullException()
+    public async Task Constructor_WithNullScopeFactory_ThrowsArgumentNullException()
     {
-        IOutboxRepository? repository = null;
+        IServiceScopeFactory? scopeFactory = null;
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions());
         var logger = CreateLogger();
 
         _ = Assert.Throws<ArgumentNullException>(
-            "repository",
-            () => _ = new OutboxProcessorHostedService(repository!, transport, CreateLifetime(), options, logger)
+            "scopeFactory",
+            () => _ = new OutboxProcessorHostedService(scopeFactory!, transport, CreateLifetime(), options, logger)
         );
     }
 
@@ -42,7 +42,14 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = Assert.Throws<ArgumentNullException>(
             "transport",
-            () => _ = new OutboxProcessorHostedService(repository, transport!, CreateLifetime(), options, logger)
+            () =>
+                _ = new OutboxProcessorHostedService(
+                    CreateScopeFactory(repository),
+                    transport!,
+                    CreateLifetime(),
+                    options,
+                    logger
+                )
         );
     }
 
@@ -56,7 +63,14 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = Assert.Throws<ArgumentNullException>(
             "options",
-            () => _ = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options!, logger)
+            () =>
+                _ = new OutboxProcessorHostedService(
+                    CreateScopeFactory(repository),
+                    transport,
+                    CreateLifetime(),
+                    options!,
+                    logger
+                )
         );
     }
 
@@ -70,7 +84,14 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = Assert.Throws<ArgumentNullException>(
             "logger",
-            () => _ = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger!)
+            () =>
+                _ = new OutboxProcessorHostedService(
+                    CreateScopeFactory(repository),
+                    transport,
+                    CreateLifetime(),
+                    options,
+                    logger!
+                )
         );
     }
 
@@ -85,7 +106,14 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = Assert.Throws<ArgumentNullException>(
             "lifetime",
-            () => _ = new OutboxProcessorHostedService(repository, transport, lifetime!, options, logger)
+            () =>
+                _ = new OutboxProcessorHostedService(
+                    CreateScopeFactory(repository),
+                    transport,
+                    lifetime!,
+                    options,
+                    logger
+                )
         );
     }
 
@@ -97,7 +125,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions());
         var logger = CreateLogger();
 
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         _ = await Assert.That(service).IsNotNull();
     }
@@ -109,7 +143,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -134,7 +174,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -159,7 +205,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Add a pending message
         var message = CreateMessage();
@@ -185,7 +237,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Add multiple messages
         var message1 = CreateMessage();
@@ -214,7 +272,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(200) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -237,7 +301,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 3 }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -259,7 +329,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 2 }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Add a message that has already been retried once
         var message = CreateMessage();
@@ -283,7 +359,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 3 }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -306,7 +388,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), EnableBatchSending = true }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message1 = CreateMessage();
         var message2 = CreateMessage();
@@ -334,7 +422,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), EnableBatchSending = true }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message1 = CreateMessage();
         var message2 = CreateMessage();
@@ -372,7 +466,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), BatchSize = 2 }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Add more messages than batch size
         for (var i = 0; i < 5; i++)
@@ -408,7 +508,13 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Message of type CriticalEvent should use override (MaxRetryCount = 1)
         var message = CreateMessage(typeof(CriticalEvent));
@@ -445,7 +551,13 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // SlowEvent message should time out and be marked as failed/dead-lettered
         var message = CreateMessage(typeof(SlowEvent));
@@ -485,7 +597,13 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Add two messages of the overridden type: should be batch-sent
         var message1 = CreateMessage(typeof(BatchEvent));
@@ -616,7 +734,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -662,7 +786,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 3 }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -706,7 +836,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 2 }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         message.RetryCount = 1;
@@ -749,7 +885,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await service.StartAsync(cts.Token).ConfigureAwait(false);
@@ -797,7 +939,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         // Add 3 pending messages before starting
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -873,7 +1021,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions());
         var logger = CreateLogger();
-        var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         service.Dispose();
 
@@ -898,7 +1052,13 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -937,7 +1097,13 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -1035,7 +1201,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
         using var lifetime = new PendingStartLifetime();
-        using var service = new OutboxProcessorHostedService(repository, transport, lifetime, options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            lifetime,
+            options,
+            logger
+        );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
@@ -1071,7 +1243,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
         using var lifetime = new PendingStartLifetime();
-        using var service = new OutboxProcessorHostedService(repository, transport, lifetime, options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            lifetime,
+            options,
+            logger
+        );
 
         // Startup never completes: ApplicationStarted is never signaled.
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -1097,7 +1275,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
@@ -1121,7 +1305,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new UnhealthyMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -1150,7 +1340,13 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions { DisableProcessing = true, PollingInterval = TimeSpan.FromMilliseconds(50) }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
@@ -1176,7 +1372,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await service.StartAsync(cts.Token).ConfigureAwait(false);
@@ -1196,7 +1398,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -1222,7 +1430,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -1254,7 +1468,13 @@ public sealed class OutboxProcessorHostedServiceTests
             }
         );
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         var message1 = CreateMessage();
         var message2 = CreateMessage();
@@ -1288,7 +1508,13 @@ public sealed class OutboxProcessorHostedServiceTests
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
         var logger = CreateLogger();
-        using var service = new OutboxProcessorHostedService(repository, transport, CreateLifetime(), options, logger);
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
@@ -1316,6 +1542,18 @@ public sealed class OutboxProcessorHostedServiceTests
             .GetRequiredService<ILogger<OutboxProcessorHostedService>>();
 
     private static FakeHostApplicationLifetime CreateLifetime() => new();
+
+    /// <summary>
+    /// Builds an <see cref="IServiceScopeFactory"/> whose scopes always resolve the given
+    /// <paramref name="repository"/> instance, mirroring how the hosted service resolves
+    /// <see cref="IOutboxRepository"/> from a fresh scope per polling cycle in production while
+    /// letting tests keep asserting against a single repository instance.
+    /// </summary>
+    private static IServiceScopeFactory CreateScopeFactory(IOutboxRepository repository) =>
+        new ServiceCollection()
+            .AddSingleton(repository)
+            .BuildServiceProvider()
+            .GetRequiredService<IServiceScopeFactory>();
 
     private static OutboxMessage CreateMessage(Type? eventType = null) =>
         new()
