@@ -21,6 +21,11 @@ public static class EndpointRouteBuilderExtensions
 
     private static readonly byte[] NdjsonNewLine = [(byte)'\n'];
 
+#if !NET10_0_OR_GREATER
+    private static readonly byte[] SseDataPrefix = Encoding.UTF8.GetBytes("data: ");
+    private static readonly byte[] SseSuffix = Encoding.UTF8.GetBytes("\n\n");
+#endif
+
     /// <summary>
     /// Maps a command to an HTTP endpoint. The command is bound from the request body,
     /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand, TResponse}"/>, and the result
@@ -238,8 +243,11 @@ public static class EndpointRouteBuilderExtensions
             {
                 await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
-                    var line = Encoding.UTF8.GetBytes($"data: {JsonSerializer.Serialize(item)}\n\n");
-                    await outputStream.WriteAsync(line, cancellationToken).ConfigureAwait(false);
+                    await outputStream.WriteAsync(SseDataPrefix, cancellationToken).ConfigureAwait(false);
+                    await JsonSerializer
+                        .SerializeAsync(outputStream, item, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    await outputStream.WriteAsync(SseSuffix, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -260,8 +268,9 @@ public static class EndpointRouteBuilderExtensions
             {
                 await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
-                    var json = JsonSerializer.SerializeToUtf8Bytes(item);
-                    await outputStream.WriteAsync(json, cancellationToken).ConfigureAwait(false);
+                    await JsonSerializer
+                        .SerializeAsync(outputStream, item, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
                     await outputStream.WriteAsync(NdjsonNewLine, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
