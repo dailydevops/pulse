@@ -121,4 +121,42 @@ public sealed class CosmosDbOutboxDocumentTests
         // DeadLetter = 4
         _ = await Assert.That(json).Contains("\"status\":4");
     }
+
+    // INVARIANT: ToOutboxMessage resolves a known, assembly-qualified event type name to the
+    // actual Type. Called twice with the same input to exercise the cached lookup path and
+    // ensure both calls agree on the resolved Type.
+    [Test]
+    public async Task ToOutboxMessage_Resolves_Known_EventType()
+    {
+        var doc = CosmosDbOutboxDocument.FromOutboxMessage(CreateMessage());
+
+        var first = doc.ToOutboxMessage();
+        var second = doc.ToOutboxMessage();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(first.EventType).IsEqualTo(typeof(SampleEvent));
+            _ = await Assert.That(second.EventType).IsEqualTo(typeof(SampleEvent));
+            _ = await Assert.That(second.EventType).IsEqualTo(first.EventType);
+        }
+    }
+
+    // INVARIANT: An unresolvable/garbage event type name falls back to typeof(object), both
+    // on first lookup and on any subsequent lookup for the same garbage name (unresolvable
+    // names are never cached, so this must keep failing gracefully every time).
+    [Test]
+    public async Task ToOutboxMessage_With_Unknown_EventType_Falls_Back_To_Object()
+    {
+        var doc = CosmosDbOutboxDocument.FromOutboxMessage(CreateMessage());
+        doc.EventType = "Totally.Bogus.Type, Totally.Bogus.Assembly";
+
+        var first = doc.ToOutboxMessage();
+        var second = doc.ToOutboxMessage();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(first.EventType).IsEqualTo(typeof(object));
+            _ = await Assert.That(second.EventType).IsEqualTo(typeof(object));
+        }
+    }
 }
