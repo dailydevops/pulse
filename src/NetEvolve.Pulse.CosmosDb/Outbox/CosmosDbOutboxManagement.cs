@@ -22,6 +22,14 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 )]
 internal sealed class CosmosDbOutboxManagement : IOutboxManagement
 {
+    /// <summary>
+    /// Shared <see cref="QueryRequestOptions"/> for the cross-partition management and dashboard
+    /// queries in this class. With the default partition key path <c>/id</c> these queries cannot
+    /// target a single partition and fan out to every physical partition; enabling maximum
+    /// parallelism keeps latency from scaling linearly with the partition count.
+    /// </summary>
+    private static readonly QueryRequestOptions ParallelQueryOptions = new() { MaxConcurrency = -1 };
+
     private readonly Container _container;
     private readonly TimeProvider _timeProvider;
 
@@ -95,7 +103,7 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     {
         var query = new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.status = 4");
 
-        using var iterator = _container.GetItemQueryIterator<long>(query);
+        using var iterator = _container.GetItemQueryIterator<long>(query, requestOptions: ParallelQueryOptions);
 
         var count = 0L;
 
@@ -155,7 +163,10 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         var query = new QueryDefinition("SELECT * FROM c WHERE c.status = 4");
         var replayed = 0;
 
-        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(query);
+        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(
+            query,
+            requestOptions: ParallelQueryOptions
+        );
 
         while (iterator.HasMoreResults)
         {
@@ -221,7 +232,7 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
 
         var counts = new Dictionary<int, long>();
 
-        using var iterator = _container.GetItemQueryIterator<StatusCount>(query);
+        using var iterator = _container.GetItemQueryIterator<StatusCount>(query, requestOptions: ParallelQueryOptions);
 
         while (iterator.HasMoreResults)
         {
@@ -253,7 +264,10 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     {
         var messages = new List<OutboxMessage>();
 
-        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(query);
+        using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(
+            query,
+            requestOptions: ParallelQueryOptions
+        );
 
         while (iterator.HasMoreResults)
         {
