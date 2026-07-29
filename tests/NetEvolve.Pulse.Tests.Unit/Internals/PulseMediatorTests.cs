@@ -703,4 +703,64 @@ public class PulseMediatorTests
             _ = await Assert.That(handler.HandledQueries).HasSingleItem();
         }
     }
+
+    [Test]
+    public async Task SendAsync_WithMultipleInterceptors_InvokesThemInRegistrationOrder(
+        CancellationToken cancellationToken
+    )
+    {
+        var log = new List<string>();
+        var handler = new TestCommandHandler("test-result");
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton<ICommandHandler<TestCommand, string>>(handler);
+        _ = services.AddSingleton<IRequestInterceptor<TestCommand, string>>(
+            new OrderTrackingCommandInterceptor("first", log)
+        );
+        _ = services.AddSingleton<IRequestInterceptor<TestCommand, string>>(
+            new OrderTrackingCommandInterceptor("second", log)
+        );
+        _ = services.AddSingleton<IRequestInterceptor<TestCommand, string>>(
+            new OrderTrackingCommandInterceptor("third", log)
+        );
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var timeProvider = TimeProvider.System;
+        var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
+        var command = new TestCommand();
+
+        var result = await mediator.SendAsync<TestCommand, string>(command, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo("test-result");
+            _ = await Assert
+                .That(string.Join(",", log))
+                .IsEqualTo("first:before,second:before,third:before,third:after,second:after,first:after");
+        }
+    }
+
+    private sealed class OrderTrackingCommandInterceptor : IRequestInterceptor<TestCommand, string>
+    {
+        private readonly string _name;
+        private readonly List<string> _log;
+
+        public OrderTrackingCommandInterceptor(string name, List<string> log)
+        {
+            _name = name;
+            _log = log;
+        }
+
+        public async Task<string> HandleAsync(
+            TestCommand request,
+            Func<TestCommand, CancellationToken, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        )
+        {
+            _log.Add($"{_name}:before");
+            var result = await handler(request, cancellationToken).ConfigureAwait(false);
+            _log.Add($"{_name}:after");
+            return result;
+        }
+    }
 }
