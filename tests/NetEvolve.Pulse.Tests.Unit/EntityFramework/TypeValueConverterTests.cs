@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Configurations;
@@ -87,5 +88,29 @@ public sealed class TypeValueConverterTests
                 .That(() => fromProvider("Invalid.Repeated.Type, InvalidAssembly"))
                 .Throws<InvalidOperationException>();
         }
+    }
+
+    [Test]
+    public async Task ConvertToProvider_With_type_whose_assembly_qualified_name_exceeds_max_length_throws_InvalidOperationException()
+    {
+        var converter = new TypeValueConverter();
+        var toProvider = converter.ConvertToProvider;
+        var type = typeof(Dictionary<Dictionary<string, string>, List<Dictionary<string, List<string>>>>);
+
+        _ = await Assert.That(type.AssemblyQualifiedName!.Length).IsGreaterThan(500);
+
+        _ = await Assert.That(() => toProvider(type)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task ConvertToProvider_With_open_generic_parameter_type_throws_InvalidOperationException()
+    {
+        var converter = new TypeValueConverter();
+        var toProvider = converter.ConvertToProvider;
+        var type = typeof(List<>).GetGenericArguments()[0];
+
+        _ = await Assert.That(type.AssemblyQualifiedName).IsNull();
+
+        _ = await Assert.That(() => toProvider(type)).Throws<InvalidOperationException>();
     }
 }
