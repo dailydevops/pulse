@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
@@ -87,5 +88,129 @@ public sealed class OutboxExtensionsTests
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
         }
+    }
+
+    [Test]
+    public async Task UseMessageTransportGeneric_WithNullConfigurator_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() => OutboxExtensions.UseMessageTransport<FakeMessageTransport>(null!))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task UseMessageTransportGeneric_WithNoExistingRegistration_AddsTransport()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        _ = builder.UseMessageTransport<FakeMessageTransport>();
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IMessageTransport)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors).HasSingleItem();
+            _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(FakeMessageTransport));
+            _ = await Assert.That(descriptors[0].Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task UseMessageTransportGeneric_WithExistingRegistration_ReplacesTransport()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+        _ = builder.AddOutbox();
+
+        _ = builder.UseMessageTransport<FakeMessageTransport>();
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IMessageTransport)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors).HasSingleItem();
+            _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(FakeMessageTransport));
+        }
+    }
+
+    [Test]
+    public async Task UseMessageTransportGeneric_ReturnsSameBuilder()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        var result = builder.UseMessageTransport<FakeMessageTransport>();
+
+        _ = await Assert.That(result).IsSameReferenceAs(builder);
+    }
+
+    [Test]
+    public async Task UseMessageTransportFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() => OutboxExtensions.UseMessageTransport(null!, _ => new FakeMessageTransport()))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task UseMessageTransportFactory_WithNullFactory_ThrowsArgumentNullException()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        _ = await Assert
+            .That(() => OutboxExtensions.UseMessageTransport(builder, null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task UseMessageTransportFactory_WithNoExistingRegistration_AddsTransport()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        _ = builder.UseMessageTransport(_ => new FakeMessageTransport());
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IMessageTransport)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors).HasSingleItem();
+            _ = await Assert.That(descriptors[0].Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        }
+    }
+
+    [Test]
+    public async Task UseMessageTransportFactory_WithExistingRegistration_ReplacesTransport()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+        _ = builder.AddOutbox();
+
+        _ = builder.UseMessageTransport(_ => new FakeMessageTransport());
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IMessageTransport)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors).HasSingleItem();
+            _ = await Assert.That(descriptors[0].ImplementationFactory).IsNotNull();
+        }
+    }
+
+    [Test]
+    public async Task UseMessageTransportFactory_ReturnsSameBuilder()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        var result = builder.UseMessageTransport(_ => new FakeMessageTransport());
+
+        _ = await Assert.That(result).IsSameReferenceAs(builder);
+    }
+
+    private sealed class FakeMessageTransport : IMessageTransport
+    {
+        public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 }

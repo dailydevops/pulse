@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Extensions.TUnit;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
@@ -45,6 +46,23 @@ public sealed class EntityFrameworkOutboxTransactionScopeTests
             var result = scope.GetCurrentTransaction();
 
             _ = await Assert.That(result).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task HasActiveTransaction_WithNoActiveTransaction_ReturnsFalse()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(nameof(HasActiveTransaction_WithNoActiveTransaction_ReturnsFalse))
+            .Options;
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            IOutboxTransactionScope scope = new EntityFrameworkOutboxTransactionScope<TestDbContext>(context);
+
+            var result = scope.HasActiveTransaction;
+
+            _ = await Assert.That(result).IsFalse();
         }
     }
 }
