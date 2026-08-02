@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility.Attributes;
+﻿namespace NetEvolve.Pulse.Extensibility.Attributes;
 
 using System.Diagnostics.CodeAnalysis;
 
@@ -50,6 +50,7 @@ using System.Diagnostics.CodeAnalysis;
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
+[ExcludeFromCodeCoverage]
 [SuppressMessage("Major Code Smell", "S2326:Unused type parameters should be removed", Justification = "As designed.")]
 public sealed class PulseHandlerAttribute<TMessage> : Attribute
 {

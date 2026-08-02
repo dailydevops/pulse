@@ -1,5 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Extensibility.Attributes;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Marks an open-generic handler class for automatic dependency injection registration as an
 /// open-generic type by the Pulse source generator. Unlike <see cref="PulseHandlerAttribute"/>,
@@ -42,6 +44,7 @@
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class PulseGenericHandlerAttribute : Attribute
 {
     /// <summary>

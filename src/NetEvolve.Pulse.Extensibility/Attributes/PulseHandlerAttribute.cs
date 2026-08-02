@@ -1,5 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Extensibility.Attributes;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Marks a handler class for automatic dependency injection registration by the Pulse source generator.
 /// The generator inspects the annotated class for implementations of
@@ -36,6 +38,7 @@
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class PulseHandlerAttribute : Attribute
 {
     /// <summary>
