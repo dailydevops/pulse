@@ -66,7 +66,7 @@
     <PackageVersion Include="TUnit.Mocks.Http" Version="1.63.0" />
     <PackageVersion Include="TUnit.Mocks.Logging" Version="1.63.0" />
     <PackageVersion Include="Verify.ParametersHashing" Version="1.0.0" />
-    <PackageVersion Include="Verify.TUnit" Version="31.27.0" />
+    <PackageVersion Include="Verify.TUnit" Version="31.28.0" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 8" Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.29" />
