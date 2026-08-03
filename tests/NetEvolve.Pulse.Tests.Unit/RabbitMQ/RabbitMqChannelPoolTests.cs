@@ -253,6 +253,30 @@ public sealed class RabbitMqChannelPoolTests
     }
 
     [Test]
+    public async Task RentAsync_When_channel_creation_fails_releases_rental_slot_and_rethrows(
+        CancellationToken cancellationToken
+    )
+    {
+        var connectionAdapter = new FakeConnectionAdapter { ThrowOnCreateChannel = true };
+        using var pool = new RabbitMqChannelPool(connectionAdapter, 1);
+
+#pragma warning disable S5034 // Refactor this 'ValueTask' usage to consume it only once
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            pool.RentAsync(cancellationToken).AsTask()
+        );
+        _ = await Assert.That(exception).IsNotNull();
+
+        // The rental slot released by the failed attempt must be available for the next
+        // caller instead of leaking, even though channel creation keeps failing.
+        var secondAttempt = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            pool.RentAsync(cancellationToken).AsTask()
+        );
+#pragma warning restore S5034
+        _ = await Assert.That(secondAttempt).IsNotNull();
+        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Return_After_dispose_disposes_channel_without_throwing(CancellationToken cancellationToken)
     {
         var connectionAdapter = new FakeConnectionAdapter();
@@ -287,11 +311,19 @@ public sealed class RabbitMqChannelPoolTests
 
         public bool ThrowOnIsOpen { get; set; }
 
+        public bool ThrowOnCreateChannel { get; set; }
+
         public int CreateChannelCallCount { get; private set; }
 
         public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
         {
             CreateChannelCallCount++;
+
+            if (ThrowOnCreateChannel)
+            {
+                throw new InvalidOperationException("Channel creation failed");
+            }
+
             return Task.FromResult<IRabbitMqChannelAdapter>(new FakeChannelAdapter());
         }
     }
