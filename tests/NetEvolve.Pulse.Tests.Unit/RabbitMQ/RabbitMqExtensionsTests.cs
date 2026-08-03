@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
@@ -52,6 +53,7 @@ public sealed class RabbitMqExtensionsTests
     public async Task UseRabbitMqTransport_Configures_options()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseRabbitMqTransport(options => options.ExchangeName = "test-exchange"));
 
         var provider = services.BuildServiceProvider();
@@ -65,9 +67,10 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
+    public async Task UseRabbitMqTransport_Without_configureOptions_registers_options()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
 
         var provider = services.BuildServiceProvider();
@@ -76,9 +79,10 @@ public sealed class RabbitMqExtensionsTests
             var options =
                 provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
 
-            // Verify default options are accessible
-            _ = await Assert.That(options.Value).IsNotNull();
-            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(string.Empty);
+            // The default ExchangeName is empty and therefore invalid; validation runs whenever
+            // the options are resolved (independent of ValidateOnStart, which only forces eager
+            // validation at host startup).
+            _ = Assert.Throws<Microsoft.Extensions.Options.OptionsValidationException>(() => _ = options.Value);
         }
     }
 
@@ -102,6 +106,7 @@ public sealed class RabbitMqExtensionsTests
     public async Task UseRabbitMqTransport_Resolves_channel_pool_from_connection_adapter_and_options()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.UseRabbitMqTransport(options =>
             {

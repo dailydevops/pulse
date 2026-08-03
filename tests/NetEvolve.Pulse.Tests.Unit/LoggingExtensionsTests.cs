@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit;
 
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -127,6 +128,7 @@ public class LoggingExtensionsTests
     public async Task AddLogging_WithConfigure_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         var configurator = new MediatorBuilder(services);
 
         _ = configurator.AddLogging(opts =>
@@ -152,6 +154,7 @@ public class LoggingExtensionsTests
     public async Task AddLogging_WithoutConfigure_UsesDefaultOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         var configurator = new MediatorBuilder(services);
 
         _ = configurator.AddLogging();

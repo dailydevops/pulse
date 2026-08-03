@@ -39,11 +39,23 @@ public static class RabbitMqExtensions
 
         var services = configurator.Services;
 
-        _ = services.AddOptions<RabbitMqTransportOptions>();
+        _ = services.AddOptions<RabbitMqTransportOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<RabbitMqTransportOptions>,
+                RabbitMqTransportOptionsConfiguration
+            >()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
         }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<RabbitMqTransportOptions>, RabbitMqTransportOptionsValidator>()
+        );
 
         // Register the connection adapter
         _ = services.AddSingleton<IRabbitMqConnectionAdapter>(sp =>

@@ -57,6 +57,13 @@ public static class LoggingExtensions
 
         _ = configurator.Services.AddOptions<LoggingInterceptorOptions>();
 
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<LoggingInterceptorOptions>,
+                LoggingInterceptorOptionsConfiguration
+            >()
+        );
+
         if (configure is not null)
         {
             _ = configurator.Services.Configure(configure);

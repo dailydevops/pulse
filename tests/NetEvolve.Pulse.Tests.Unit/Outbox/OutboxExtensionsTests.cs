@@ -4,7 +4,9 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -87,6 +89,28 @@ public sealed class OutboxExtensionsTests
         {
             _ = await Assert.That(descriptor).IsNotNull();
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
+    public async Task AddOutbox_WithInvalidTableName_ValidateOnStart_ThrowsOnServiceProviderOptionsResolution()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        var builder = new MediatorBuilder(services);
+
+        _ = builder.AddOutbox(configureOptions: opts => opts.TableName = string.Empty);
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            // The ValidateOnStart registration performed by AddOutbox eagerly validates options at
+            // IHost startup; here we assert the equivalent failure surfaces the moment the options
+            // are resolved, since the underlying validator runs on every options creation, not only
+            // via the startup hook.
+            _ = Assert.Throws<OptionsValidationException>(() =>
+                _ = provider.GetRequiredService<IOptions<OutboxOptions>>().Value
+            );
         }
     }
 

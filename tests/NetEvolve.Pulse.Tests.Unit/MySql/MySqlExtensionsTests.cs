@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.MySql;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -122,6 +123,7 @@ public sealed class MySqlExtensionsTests
     public async Task AddMySqlOutbox_WithConfigureOptions_AppliesTableName()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddMySqlOutbox("Server=localhost;Database=mydb;", options => options.TableName = "CustomTable")
         );
@@ -139,6 +141,7 @@ public sealed class MySqlExtensionsTests
     public async Task AddMySqlOutbox_WithConfigureAction_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddMySqlOutbox(opts =>
             {
@@ -246,6 +249,7 @@ public sealed class MySqlExtensionsTests
     public async Task AddMySqlOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddMySqlOutbox(_ => "Server=localhost;Database=mydb;", options => options.TableName = "CustomTable")
         );

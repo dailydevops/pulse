@@ -3,6 +3,7 @@
 using Azure.Core;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
@@ -64,12 +65,18 @@ public sealed class AzureServiceBusExtensionsTests
     public async Task UseAzureServiceBusTransport_validates_required_options()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseAzureServiceBusTransport());
 
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            _ = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<ServiceBusClient>());
+            // Validation now runs through IValidateOptions<AzureServiceBusTransportOptions>, which
+            // Microsoft.Extensions.Options surfaces as an OptionsValidationException whenever the
+            // options are resolved (not just at ValidateOnStart's eager startup check).
+            _ = Assert.Throws<Microsoft.Extensions.Options.OptionsValidationException>(() =>
+                provider.GetRequiredService<ServiceBusClient>()
+            );
         }
     }
 
@@ -77,6 +84,7 @@ public sealed class AzureServiceBusExtensionsTests
     public async Task UseAzureServiceBusTransport_with_fully_qualified_namespace_creates_ServiceBusClient()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
         // Register a fake credential so we don't depend on DefaultAzureCredential
         _ = services.AddSingleton<TokenCredential>(new FakeTokenCredential());
@@ -100,6 +108,7 @@ public sealed class AzureServiceBusExtensionsTests
     public async Task UseAzureServiceBusTransport_with_connection_string_creates_ServiceBusClient()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.UseAzureServiceBusTransport(options => options.ConnectionString = FakeConnectionString)
         );

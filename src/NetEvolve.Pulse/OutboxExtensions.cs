@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -48,17 +49,38 @@ public static class OutboxExtensions
 
         // Register options using the Options pattern for configurability
         // Always use Configure() to allow subsequent calls to modify options
-        _ = services.AddOptions<OutboxOptions>();
+        _ = services.AddOptions<OutboxOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IConfigureOptions<OutboxOptions>, OutboxOptionsConfiguration>()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
         }
 
-        _ = services.AddOptions<OutboxProcessorOptions>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<OutboxOptions>, OutboxOptionsValidator>()
+        );
+
+        _ = services.AddOptions<OutboxProcessorOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<OutboxProcessorOptions>,
+                OutboxProcessorOptionsConfiguration
+            >()
+        );
+
         if (configureProcessorOptions is not null)
         {
             _ = services.Configure(configureProcessorOptions);
         }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<OutboxProcessorOptions>, OutboxProcessorOptionsValidator>()
+        );
 
         // Register TimeProvider if not already registered
         services.TryAddSingleton(TimeProvider.System);

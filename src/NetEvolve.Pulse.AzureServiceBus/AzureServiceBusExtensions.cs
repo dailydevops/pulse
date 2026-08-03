@@ -32,16 +32,30 @@ public static class AzureServiceBusExtensions
 
         var services = configurator.Services;
 
-        _ = services.AddOptions<AzureServiceBusTransportOptions>();
+        _ = services.AddOptions<AzureServiceBusTransportOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<AzureServiceBusTransportOptions>,
+                AzureServiceBusTransportOptionsConfiguration
+            >()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
         }
 
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<AzureServiceBusTransportOptions>,
+                AzureServiceBusTransportOptionsValidator
+            >()
+        );
+
         services.TryAddSingleton(static sp =>
         {
             var options = sp.GetRequiredService<IOptions<AzureServiceBusTransportOptions>>().Value;
-            ValidateOptions(options);
 
             return CreateServiceBusClient(options, sp.GetRequiredService<TokenCredential>());
         });
@@ -70,18 +84,5 @@ public static class AzureServiceBusExtensions
         }
 
         return new ServiceBusClient(options.FullyQualifiedNamespace!, credential);
-    }
-
-    private static void ValidateOptions(AzureServiceBusTransportOptions options)
-    {
-        if (
-            string.IsNullOrWhiteSpace(options.ConnectionString)
-            && string.IsNullOrWhiteSpace(options.FullyQualifiedNamespace)
-        )
-        {
-            throw new InvalidOperationException(
-                "Either a Service Bus connection string or a fully qualified namespace must be provided."
-            );
-        }
     }
 }
