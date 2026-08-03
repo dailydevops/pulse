@@ -154,7 +154,9 @@ public sealed class EventDispatchingTests
         public async Task HandleAsync(ParallelTestEvent message, CancellationToken cancellationToken = default)
         {
             _ = gate.GateA.TrySetResult(true);
+#pragma warning disable VSTHRD003 // rendezvous on a TaskCompletionSource signaled by a sibling handler, not a foreign task
             _ = await Task.WhenAny(gate.GateB.Task, Task.Delay(10_000, cancellationToken)).ConfigureAwait(false);
+#pragma warning restore VSTHRD003
             tracker.Record("A");
         }
     }
@@ -165,7 +167,9 @@ public sealed class EventDispatchingTests
         public async Task HandleAsync(ParallelTestEvent message, CancellationToken cancellationToken = default)
         {
             _ = gate.GateB.TrySetResult(true);
+#pragma warning disable VSTHRD003 // rendezvous on a TaskCompletionSource signaled by a sibling handler, not a foreign task
             _ = await Task.WhenAny(gate.GateA.Task, Task.Delay(10_000, cancellationToken)).ConfigureAwait(false);
+#pragma warning restore VSTHRD003
             tracker.Record("B");
         }
     }

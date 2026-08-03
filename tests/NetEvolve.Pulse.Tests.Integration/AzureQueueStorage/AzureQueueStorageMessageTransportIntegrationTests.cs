@@ -106,7 +106,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     {
         var queueName = CreateUniqueQueueName();
         var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
-        await queueClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        _ = await queueClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // Options intentionally point at a different (never-created) queue, to prove the transport
         // uses the injected queueClient override rather than building a client from options.
@@ -191,7 +191,9 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     }
 
     [Test]
-    public async Task UseAzureQueueStorageTransport_Uri_overload_registers_transport()
+    public async Task UseAzureQueueStorageTransport_Uri_overload_registers_transport(
+        CancellationToken cancellationToken
+    )
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
@@ -200,6 +202,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 o => o.QueueName = CreateUniqueQueueName()
             )
         );
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
@@ -211,8 +215,10 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     }
 
     [Test]
-    public async Task UseAzureQueueStorageTransport_Replaces_existing_transport()
+    public async Task UseAzureQueueStorageTransport_Replaces_existing_transport(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
         _ = services.AddPulse(config =>

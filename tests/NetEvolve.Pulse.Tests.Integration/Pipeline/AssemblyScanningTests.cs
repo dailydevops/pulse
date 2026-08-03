@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Tests.Integration.Pipeline;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,6 +54,12 @@ public sealed class AssemblyScanningTests
         await using (scope.ConfigureAwait(false))
         {
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            // Confirm the scanned handler type was actually the one discovered and registered by
+            // reflection, not merely a coincidentally-named handler.
+            var handlers = scope.ServiceProvider.GetServices<IEventHandler<ScannedAssemblyEvent>>().ToArray();
+            _ = await Assert.That(handlers).HasSingleItem();
+            _ = await Assert.That(handlers[0]).IsTypeOf<ScannedAssemblyHandler>();
 
             await mediator.PublishAsync(new ScannedAssemblyEvent(), cancellationToken).ConfigureAwait(false);
         }
@@ -151,6 +158,14 @@ public sealed class AssemblyScanningTests
         await using (scope.ConfigureAwait(false))
         {
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            // Confirm the scanned interceptor type was actually the one discovered and registered by
+            // reflection, not merely a coincidentally-named interceptor.
+            var interceptors = scope
+                .ServiceProvider.GetServices<IRequestInterceptor<ScannedInterceptorQuery, string>>()
+                .ToArray();
+            _ = await Assert.That(interceptors).HasSingleItem();
+            _ = await Assert.That(interceptors[0]).IsTypeOf<ScannedInterceptor>();
 
             var result = await mediator
                 .QueryAsync<ScannedInterceptorQuery, string>(new ScannedInterceptorQuery(), cancellationToken)

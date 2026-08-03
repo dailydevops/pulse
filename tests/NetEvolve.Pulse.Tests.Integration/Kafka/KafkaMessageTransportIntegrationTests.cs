@@ -194,7 +194,7 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
         cancellationToken.ThrowIfCancellationRequested();
     }
 
-    private KafkaMessageTransport CreateTransport(
+    private static KafkaMessageTransport CreateTransport(
         IProducer<string, string> producer,
         IAdminClient admin,
         ITopicNameResolver resolver,
