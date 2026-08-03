@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Caching;
+using NetEvolve.Pulse.Internals;
 
 /// <summary>
 /// An interceptor that transparently caches query responses in <see cref="IDistributedCache"/>.
@@ -29,6 +30,10 @@ using NetEvolve.Pulse.Extensibility.Caching;
 /// <para><strong>No Cache Registered:</strong></para>
 /// When <see cref="IDistributedCache"/> is not registered in the DI container, the interceptor
 /// falls through to the handler without error.
+/// <para><strong>Cache Key Tracking:</strong></para>
+/// After a cache write, the query's cache key is registered with <see cref="ICacheKeyRegistry"/>, when
+/// registered in the DI container, so that related commands can later invalidate it. When the registry
+/// is not registered, this is a silent no-op.
 /// <para><strong>Expiry:</strong></para>
 /// The effective expiry is determined by first checking <see cref="ICacheableQuery{TResponse}.Expiry"/>;
 /// when it is <see langword="null"/>, <see cref="QueryCachingOptions.DefaultExpiry"/> is used as a fallback.
@@ -134,6 +139,10 @@ internal sealed class DistributedCacheQueryInterceptor<TQuery, TResponse> : IQue
                 var serialized = _payloadSerializer.SerializeToBytes(response);
                 var entryOptions = GetCacheEntryOptions(cacheableQuery);
                 await cache.SetAsync(cacheKey, serialized, entryOptions, cancellationToken).ConfigureAwait(false);
+
+                // Track the cache key for later invalidation, when a registry is registered
+                var registry = _serviceProvider.GetService<ICacheKeyRegistry>();
+                registry?.Register(typeof(TQuery), cacheKey);
             }
 
             return response;

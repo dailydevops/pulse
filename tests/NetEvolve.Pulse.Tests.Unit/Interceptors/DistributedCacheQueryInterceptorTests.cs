@@ -8,6 +8,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Interceptors;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Serialization;
 using TUnit.Core;
 
@@ -515,12 +516,87 @@ public class DistributedCacheQueryInterceptorTests
         }
     }
 
+    [Test]
+    public async Task HandleAsync_CacheMiss_RegistersCacheKeyWithRegistry(CancellationToken cancellationToken)
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        var registry = new FakeCacheKeyRegistry();
+        _ = services.AddSingleton<ICacheKeyRegistry>(registry);
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(
+                provider,
+                DefaultOptions,
+                DefaultSerializer
+            );
+            var query = new CacheableQuery("registry-key");
+
+            var result = await interceptor
+                .HandleAsync(query, (_, _) => Task.FromResult("registry-value"), cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await Assert.That(result).IsEqualTo("registry-value");
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(registry.RegisteredCalls.Count).IsEqualTo(1);
+                _ = await Assert.That(registry.RegisteredCalls[0].QueryType).IsEqualTo(typeof(CacheableQuery));
+                _ = await Assert.That(registry.RegisteredCalls[0].CacheKey).IsEqualTo("registry-key");
+            }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_NoCacheKeyRegistryRegistered_StillCachesAndReturnsResult(
+        CancellationToken cancellationToken
+    )
+    {
+        var services = new ServiceCollection();
+        _ = services.AddDistributedMemoryCache();
+        // Do NOT register ICacheKeyRegistry
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var interceptor = new DistributedCacheQueryInterceptor<CacheableQuery, string>(
+                provider,
+                DefaultOptions,
+                DefaultSerializer
+            );
+            var query = new CacheableQuery("no-registry-key");
+
+            var result = await interceptor
+                .HandleAsync(query, (_, _) => Task.FromResult("no-registry-value"), cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await Assert.That(result).IsEqualTo("no-registry-value");
+
+            var cache = provider.GetRequiredService<IDistributedCache>();
+            var bytes = await cache.GetAsync("no-registry-key", cancellationToken).ConfigureAwait(false);
+            _ = await Assert.That(bytes).IsNotNull();
+            var deserialised = DefaultSerializer.Deserialize<string>(bytes!);
+            _ = await Assert.That(deserialised).IsEqualTo("no-registry-value");
+        }
+    }
+
     // ── Private test types ───────────────────────────────────────────────────
 
     private sealed class NonCacheableQuery : IQuery<string>
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
+    }
+
+    private sealed class FakeCacheKeyRegistry : ICacheKeyRegistry
+    {
+        public List<(Type QueryType, string CacheKey)> RegisteredCalls { get; } = [];
+
+        public void Register(Type queryType, string cacheKey) => RegisteredCalls.Add((queryType, cacheKey));
+
+        public IReadOnlyList<string> GetKeysForType(Type queryType) => [];
+
+        public void RemoveType(Type queryType) { }
     }
 
     [Test]
