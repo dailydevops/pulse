@@ -100,6 +100,33 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
+    public async Task UseRabbitMqTransport_Resolves_channel_pool_from_connection_adapter_and_options()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.UseRabbitMqTransport(options =>
+            {
+                options.ExchangeName = "test-exchange";
+                options.MaxChannelPoolSize = 3;
+            })
+        );
+
+        // Replace the connection-adapter registration with a fake so the pool factory can be
+        // exercised without a real RabbitMQ.Client IConnection.
+        var connectionAdapterDescriptor = services.Single(d => d.ServiceType == typeof(IRabbitMqConnectionAdapter));
+        _ = services.Remove(connectionAdapterDescriptor);
+        _ = services.AddSingleton<IRabbitMqConnectionAdapter>(new FakeConnectionAdapter());
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var pool = provider.GetRequiredService<IRabbitMqChannelPool>();
+
+            _ = await Assert.That(pool).IsNotNull();
+        }
+    }
+
+    [Test]
     public async Task UseRabbitMqTransport_When_configurator_null_throws()
     {
         IMediatorBuilder configurator = null!;
@@ -134,5 +161,15 @@ public sealed class RabbitMqExtensionsTests
             IEnumerable<OutboxMessage> messages,
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
+    }
+
+#pragma warning disable CA1812 // Avoid uninstantiated internal classes - instantiated via DI container
+    private sealed class FakeConnectionAdapter : IRabbitMqConnectionAdapter
+#pragma warning restore CA1812
+    {
+        public bool IsOpen => true;
+
+        public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by these tests.");
     }
 }
