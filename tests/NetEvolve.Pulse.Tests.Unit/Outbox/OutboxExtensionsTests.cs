@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -95,6 +96,7 @@ public sealed class OutboxExtensionsTests
     public async Task AddOutbox_WithInvalidTableName_ValidateOnStart_ThrowsOnServiceProviderOptionsResolution()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         var builder = new MediatorBuilder(services);
 
         _ = builder.AddOutbox(configureOptions: opts => opts.TableName = string.Empty);

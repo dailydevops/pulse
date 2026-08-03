@@ -50,6 +50,11 @@ public static class OutboxExtensions
         // Register options using the Options pattern for configurability
         // Always use Configure() to allow subsequent calls to modify options
         _ = services.AddOptions<OutboxOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IConfigureOptions<OutboxOptions>, OutboxOptionsConfiguration>()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
@@ -60,6 +65,14 @@ public static class OutboxExtensions
         );
 
         _ = services.AddOptions<OutboxProcessorOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<OutboxProcessorOptions>,
+                OutboxProcessorOptionsConfiguration
+            >()
+        );
+
         if (configureProcessorOptions is not null)
         {
             _ = services.Configure(configureProcessorOptions);

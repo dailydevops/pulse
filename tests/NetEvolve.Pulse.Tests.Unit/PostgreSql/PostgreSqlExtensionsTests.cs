@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -101,6 +102,7 @@ public sealed class PostgreSqlExtensionsTests
     public async Task AddPostgreSqlOutbox_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config
                 .AddOutbox()
@@ -179,6 +181,7 @@ public sealed class PostgreSqlExtensionsTests
     public async Task AddPostgreSqlOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config
                 .AddOutbox()

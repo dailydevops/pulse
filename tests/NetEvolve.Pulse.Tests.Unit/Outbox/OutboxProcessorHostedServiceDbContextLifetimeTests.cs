@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
@@ -25,6 +26,7 @@ public sealed class OutboxProcessorHostedServiceDbContextLifetimeTests
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddSingleton<IHostApplicationLifetime>(new FakeHostApplicationLifetime());
         _ = services.AddDbContext<TestDbContext>(o =>
             o.UseInMemoryDatabase(nameof(BuildServiceProvider_WithValidateScopesAndEntityFrameworkOutbox_DoesNotThrow))
@@ -52,6 +54,7 @@ public sealed class OutboxProcessorHostedServiceDbContextLifetimeTests
     {
         var services = new ServiceCollection();
         _ = services.AddLogging();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddSingleton<IHostApplicationLifetime>(new FakeHostApplicationLifetime());
         _ = services.AddDbContext<TestDbContext>(o =>
             o.UseInMemoryDatabase(nameof(ExecuteAsync_AcrossMultipleCycles_ResolvesFreshRepositoryPerCycle))

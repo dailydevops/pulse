@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
@@ -51,6 +52,7 @@ public sealed class DaprExtensionsTests
     public async Task UseDaprTransport_Configures_options()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseDaprTransport(o => o.PubSubName = "custom-pubsub"));
 
         var provider = services.BuildServiceProvider();
@@ -63,6 +65,7 @@ public sealed class DaprExtensionsTests
     public async Task UseDaprTransport_Without_configureOptions_uses_default_PubSubName()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseDaprTransport());
 
         var provider = services.BuildServiceProvider();

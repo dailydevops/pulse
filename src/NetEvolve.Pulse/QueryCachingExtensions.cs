@@ -36,6 +36,11 @@ public static class QueryCachingExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         _ = builder.Services.AddOptions<QueryCachingOptions>().ValidateOnStart();
+
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IConfigureOptions<QueryCachingOptions>, QueryCachingOptionsConfiguration>()
+        );
+
         if (configure is not null)
         {
             _ = builder.Services.Configure(configure);

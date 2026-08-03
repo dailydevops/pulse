@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -47,6 +48,7 @@ public sealed class QueryCachingExtensionsTests
     public async Task AddQueryCaching_WithConfigure_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         var builder = new MediatorBuilder(services);
 
         _ = builder.AddQueryCaching(opts => opts.ExpirationMode = CacheExpirationMode.Sliding);
