@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.RabbitMQ;
 using System.Text;
 using global::RabbitMQ.Client;
 using global::RabbitMQ.Client.Events;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -299,6 +300,7 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
 
         var services = new ServiceCollection();
         _ = services.AddSingleton(connection);
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseRabbitMqTransport(o => o.ExchangeName = ExchangeName));
 
         var provider = services.BuildServiceProvider();
