@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -194,6 +193,7 @@ public static class EndpointRouteBuilderExtensions
             (
                 [AsParameters] TQuery query,
                 IMediator mediator,
+                IPayloadSerializer payloadSerializer,
                 HttpRequest request,
                 CancellationToken cancellationToken
             ) =>
@@ -208,7 +208,7 @@ public static class EndpointRouteBuilderExtensions
                 {
                     return (IResult)
                         TypedResults.Stream(
-                            ExecuteStreamReadNdjson(items, cancellationToken),
+                            ExecuteStreamReadNdjson(items, payloadSerializer, cancellationToken),
                             contentType: NdjsonContentType
                         );
                 }
@@ -217,7 +217,7 @@ public static class EndpointRouteBuilderExtensions
                 return TypedResults.ServerSentEvents(items);
 #else
                 return TypedResults.Stream(
-                    ExecuteStreamReadServerSentEvents(items, cancellationToken),
+                    ExecuteStreamReadServerSentEvents(items, payloadSerializer, cancellationToken),
                     contentType: "text/event-stream"
                 );
 #endif
@@ -235,6 +235,7 @@ public static class EndpointRouteBuilderExtensions
 #if !NET10_0_OR_GREATER
     private static Func<Stream, Task> ExecuteStreamReadServerSentEvents<TResponse>(
         IAsyncEnumerable<TResponse> items,
+        IPayloadSerializer payloadSerializer,
         CancellationToken cancellationToken
     ) =>
         async outputStream =>
@@ -244,9 +245,8 @@ public static class EndpointRouteBuilderExtensions
                 await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
                     await outputStream.WriteAsync(SseDataPrefix, cancellationToken).ConfigureAwait(false);
-                    await JsonSerializer
-                        .SerializeAsync(outputStream, item, cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
+                    var bytes = payloadSerializer.SerializeToBytes(item);
+                    await outputStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
                     await outputStream.WriteAsync(SseSuffix, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
@@ -260,6 +260,7 @@ public static class EndpointRouteBuilderExtensions
 
     private static Func<Stream, Task> ExecuteStreamReadNdjson<TResponse>(
         IAsyncEnumerable<TResponse> items,
+        IPayloadSerializer payloadSerializer,
         CancellationToken cancellationToken
     ) =>
         async outputStream =>
@@ -268,9 +269,8 @@ public static class EndpointRouteBuilderExtensions
             {
                 await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
-                    await JsonSerializer
-                        .SerializeAsync(outputStream, item, cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
+                    var bytes = payloadSerializer.SerializeToBytes(item);
+                    await outputStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
                     await outputStream.WriteAsync(NdjsonNewLine, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
