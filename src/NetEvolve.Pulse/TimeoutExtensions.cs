@@ -60,9 +60,19 @@ public static class TimeoutExtensions
 
         _ = configurator.Services.AddOptions<TimeoutRequestInterceptorOptions>().ValidateOnStart();
 
-        _ = configurator.Services.Configure<TimeoutRequestInterceptorOptions>(opts =>
-            opts.GlobalTimeout = globalTimeout
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<TimeoutRequestInterceptorOptions>,
+                TimeoutRequestInterceptorOptionsConfiguration
+            >()
         );
+
+        if (globalTimeout is not null)
+        {
+            _ = configurator.Services.Configure<TimeoutRequestInterceptorOptions>(opts =>
+                opts.GlobalTimeout = globalTimeout
+            );
+        }
 
         configurator.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<

@@ -37,6 +37,14 @@ public static class DaprExtensions
         var services = configurator.Services;
 
         _ = services.AddOptions<DaprMessageTransportOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<DaprMessageTransportOptions>,
+                DaprMessageTransportOptionsConfiguration
+            >()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);

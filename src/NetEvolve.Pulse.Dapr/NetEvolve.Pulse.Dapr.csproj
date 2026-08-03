@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Dapr.Client" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
   </ItemGroup>
 
   <ItemGroup>

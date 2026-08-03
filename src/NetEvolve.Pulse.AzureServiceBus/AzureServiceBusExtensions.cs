@@ -33,6 +33,14 @@ public static class AzureServiceBusExtensions
         var services = configurator.Services;
 
         _ = services.AddOptions<AzureServiceBusTransportOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<AzureServiceBusTransportOptions>,
+                AzureServiceBusTransportOptionsConfiguration
+            >()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
