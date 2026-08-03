@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using global::RabbitMQ.Client;
@@ -16,38 +17,29 @@ using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
 /// <summary>
-/// Concurrency invariant tests for publish serialization on
-/// <see cref="RabbitMqMessageTransport"/>. RabbitMQ.Client's <see cref="IChannel"/> is
-/// NOT thread-safe for concurrent publish calls, so the transport must never allow two
-/// publishes to be in flight on the shared channel at the same time.
+/// Concurrency invariant tests for <see cref="RabbitMqMessageTransport"/> publishing
+/// through a channel pool. Unlike the previous single-shared-channel design, concurrent
+/// <c>SendAsync</c> calls are now expected to run on separate, independently rented
+/// channels rather than being serialized on one.
 /// </summary>
 [TestGroup("RabbitMQ")]
 public sealed class RabbitMqMessageTransportPublishConcurrencyTests
 {
     /// <summary>
-    /// INVARIANT (thread-safety): two concurrent <c>SendAsync</c> calls on the singleton
-    /// transport must be serialized onto the shared channel. The first publish is gated
-    /// open; if the transport does not serialize publishes, the second call enters
-    /// <c>BasicPublishAsync</c> while the first is still in flight and the fake channel
-    /// observes two concurrent publishes.
+    /// INVARIANT (pooling): two concurrent <c>SendAsync</c> calls rent distinct channels
+    /// from the pool (up to the pool's capacity) instead of contending for a single shared
+    /// channel, and each rented channel is returned back to the pool exactly once.
     /// </summary>
     [Test]
-    public async Task SendAsync_ConcurrentCalls_PublishesAreSerializedOnSharedChannel(
-        CancellationToken cancellationToken
-    )
+    public async Task SendAsync_ConcurrentCalls_RentSeparateChannelsFromPool(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new GatingChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
-        // Pre-warm the channel so both sends reuse the same instance.
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-        var channel = connectionAdapter.CreatedChannels[0];
-
-        // Gate the next publish so it stays in flight until we release it.
         var firstPublishEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseFirstPublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        channel.GateNextPublish(firstPublishEntered, releaseFirstPublish);
+        channelPool.GateNextRentedChannelPublish(firstPublishEntered, releaseFirstPublish);
 
         var send1 = Task.Run(
             async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
@@ -56,81 +48,28 @@ public sealed class RabbitMqMessageTransportPublishConcurrencyTests
 
         await firstPublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
 
-        // Second send while the first publish is still in flight on the same channel.
-        var send2 = Task.Run(
-            async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
-            cancellationToken
-        );
-
-        // On an unserialized transport, the second publish enters BasicPublishAsync almost
-        // immediately. Give it a generous window to do so before releasing the gate.
-#pragma warning disable VSTHRD003 // Observation task is signaled by the fake channel, not started here
-        _ = await Task.WhenAny(channel.SecondConcurrentPublishObserved, Task.Delay(500, cancellationToken))
-            .ConfigureAwait(false);
-#pragma warning restore VSTHRD003
+        // Second send while the first publish is still in flight on its own channel.
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
 
         releaseFirstPublish.SetResult();
-        await Task.WhenAll(send1, send2).WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        await send1.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(channel.MaxConcurrentPublishes).IsEqualTo(1);
-    }
-
-    /// <summary>
-    /// INVARIANT (thread-safety): a <c>SendAsync</c> racing a <c>SendBatchAsync</c> must
-    /// not publish on the shared channel while a batch publish is in flight.
-    /// </summary>
-    [Test]
-    public async Task SendAsync_RacingSendBatchAsync_PublishesAreSerializedOnSharedChannel(
-        CancellationToken cancellationToken
-    )
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-        var channel = connectionAdapter.CreatedChannels[0];
-
-        var batchPublishEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseBatchPublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        channel.GateNextPublish(batchPublishEntered, releaseBatchPublish);
-
-        var batchTask = Task.Run(
-            async () =>
-                await transport
-                    .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
-                    .ConfigureAwait(false),
-            cancellationToken
-        );
-
-        await batchPublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-
-        var sendTask = Task.Run(
-            async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
-            cancellationToken
-        );
-
-#pragma warning disable VSTHRD003 // Observation task is signaled by the fake channel, not started here
-        _ = await Task.WhenAny(channel.SecondConcurrentPublishObserved, Task.Delay(500, cancellationToken))
-            .ConfigureAwait(false);
-#pragma warning restore VSTHRD003
-
-        releaseBatchPublish.SetResult();
-        await Task.WhenAll(batchTask, sendTask)
-            .WaitAsync(TimeSpan.FromSeconds(5), cancellationToken)
-            .ConfigureAwait(false);
-
-        _ = await Assert.That(channel.MaxConcurrentPublishes).IsEqualTo(1);
+        using (Assert.Multiple())
+        {
+            // Two separate channels were rented, one per concurrent call.
+            _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(2);
+            _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(2);
+        }
     }
 
     private static RabbitMqMessageTransport CreateTransport(
-        IRabbitMqConnectionAdapter connectionAdapter,
+        IRabbitMqChannelPool channelPool,
         ITopicNameResolver topicNameResolver,
         string exchangeName = "events"
     )
     {
         var options = Options.Create(new RabbitMqTransportOptions { ExchangeName = exchangeName });
-        return new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options);
+        return new RabbitMqMessageTransport(channelPool, topicNameResolver, options);
     }
 
     private static OutboxMessage CreateOutboxMessage() =>
@@ -157,38 +96,53 @@ public sealed class RabbitMqMessageTransportPublishConcurrencyTests
         public DateTimeOffset? PublishedAt { get; set; }
     }
 
-    private sealed class FakeConnectionAdapter : IRabbitMqConnectionAdapter
+    [SuppressMessage(
+        "Reliability",
+        "CA2000:Dispose objects before losing scope",
+        Justification = "FakeChannelAdapter is a test double with no unmanaged resources; ownership is transferred to the caller via RentAsync."
+    )]
+    private sealed class GatingChannelPool : IRabbitMqChannelPool
     {
-        public bool IsOpen { get; set; } = true;
-
-        public List<FakeChannelAdapter> CreatedChannels { get; } = [];
-
-        public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
-        {
-            var channel = new FakeChannelAdapter();
-            CreatedChannels.Add(channel);
-            return Task.FromResult<IRabbitMqChannelAdapter>(channel);
-        }
-    }
-
-    private sealed class FakeChannelAdapter : IRabbitMqChannelAdapter
-    {
-        private readonly TaskCompletionSource _secondConcurrentPublishObserved = new(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-
-        private int _activePublishes;
-        private int _maxConcurrentPublishes;
+        private readonly object _gateLock = new();
+        private int _rentCallCount;
+        private int _returnCallCount;
         private (TaskCompletionSource entered, TaskCompletionSource release)? _publishGate;
 
+        public int RentCallCount => Volatile.Read(ref _rentCallCount);
+
+        public int ReturnCallCount => Volatile.Read(ref _returnCallCount);
+
+        public void GateNextRentedChannelPublish(TaskCompletionSource entered, TaskCompletionSource release)
+        {
+            lock (_gateLock)
+            {
+                _publishGate = (entered, release);
+            }
+        }
+
+        public ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken)
+        {
+            _ = Interlocked.Increment(ref _rentCallCount);
+
+            (TaskCompletionSource entered, TaskCompletionSource release)? gate;
+            lock (_gateLock)
+            {
+                gate = _publishGate;
+                _publishGate = null;
+            }
+
+            return ValueTask.FromResult<IRabbitMqChannelAdapter>(new FakeChannelAdapter(gate));
+        }
+
+        public void Return(IRabbitMqChannelAdapter channel) => Interlocked.Increment(ref _returnCallCount);
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class FakeChannelAdapter((TaskCompletionSource entered, TaskCompletionSource release)? publishGate)
+        : IRabbitMqChannelAdapter
+    {
         public bool IsOpen { get; set; } = true;
-
-        public int MaxConcurrentPublishes => Volatile.Read(ref _maxConcurrentPublishes);
-
-        public Task SecondConcurrentPublishObserved => _secondConcurrentPublishObserved.Task;
-
-        public void GateNextPublish(TaskCompletionSource entered, TaskCompletionSource release) =>
-            _publishGate = (entered, release);
 
         public async ValueTask BasicPublishAsync<TProperties>(
             string exchange,
@@ -200,34 +154,12 @@ public sealed class RabbitMqMessageTransportPublishConcurrencyTests
         )
             where TProperties : IReadOnlyBasicProperties, IAmqpHeader
         {
-            var current = Interlocked.Increment(ref _activePublishes);
-            try
+            if (publishGate is { } gate)
             {
-                int max;
-                do
-                {
-                    max = Volatile.Read(ref _maxConcurrentPublishes);
-                } while (
-                    current > max && Interlocked.CompareExchange(ref _maxConcurrentPublishes, current, max) != max
-                );
-
-                if (current > 1)
-                {
-                    _ = _secondConcurrentPublishObserved.TrySetResult();
-                }
-
-                if (_publishGate is { } gate)
-                {
-                    _publishGate = null;
-                    _ = gate.entered.TrySetResult();
+                _ = gate.entered.TrySetResult();
 #pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
-                    await gate.release.Task.ConfigureAwait(false);
+                await gate.release.Task.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
-                }
-            }
-            finally
-            {
-                _ = Interlocked.Decrement(ref _activePublishes);
             }
         }
 

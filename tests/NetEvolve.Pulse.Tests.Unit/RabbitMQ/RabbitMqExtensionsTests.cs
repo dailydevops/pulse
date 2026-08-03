@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -20,6 +21,31 @@ public sealed class RabbitMqExtensionsTests
         var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
         _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
         _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Registers_channel_pool_as_singleton()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config => config.UseRabbitMqTransport());
+
+        var descriptor = services.Single(d => d.ServiceType == typeof(IRabbitMqChannelPool));
+        _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_CalledTwice_Does_not_duplicate_channel_pool_registration()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+        {
+            _ = config.UseRabbitMqTransport();
+            _ = config.UseRabbitMqTransport();
+        });
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IRabbitMqChannelPool)).ToList();
+
+        _ = await Assert.That(descriptors.Count).IsEqualTo(1);
     }
 
     [Test]

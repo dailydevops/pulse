@@ -1,12 +1,9 @@
 namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using global::RabbitMQ.Client;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
@@ -18,239 +15,104 @@ using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
 /// <summary>
-/// Cross-cutting deep-audit tests (DEEP-E pass) for concurrency invariants on
-/// <see cref="RabbitMqMessageTransport.Dispose"/> in the presence of in-flight
-/// senders. These pin disposal-race semantics that the existing
-/// <c>Dispose_Is_idempotent</c> test (sequential double dispose) does not cover.
+/// Concurrency invariant tests for <see cref="RabbitMqMessageTransport.Dispose"/>. The
+/// transport no longer owns a channel directly (channels are rented from/returned to a
+/// pooled <see cref="IRabbitMqChannelPool"/> that is disposed independently via DI), so
+/// disposal itself only needs to flip a single-shot sentinel safely under concurrency.
 /// </summary>
 [TestGroup("RabbitMQ")]
 [SuppressMessage(
     "Reliability",
     "CA2000:Dispose objects before losing scope",
-    Justification = "Transport is explicitly disposed inside the test bodies as part of the assertion under test."
+    Justification = "Transport disposal is explicitly exercised (and asserted on) inside the test bodies as part of the assertion under test."
 )]
 public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
 {
     /// <summary>
     /// INVARIANT (concurrency / disposal): two threads calling <c>Dispose()</c> at the
-    /// same time must result in the underlying channel being disposed exactly once.
-    /// Currently the implementation uses a plain <c>bool _disposed</c> guard without
-    /// <c>Interlocked.Exchange</c>, so both threads can pass the early-exit check and
-    /// each call <c>_channel?.Dispose()</c>.
+    /// same time must not throw and must leave the transport in the disposed state.
     /// </summary>
     [Test]
-    public async Task Dispose_CalledConcurrently_ChannelDisposedExactlyOnce(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
-        try
-        {
-            // Force a channel to be created so Dispose has work to do.
-            await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-            var channel = connectionAdapter.CreatedChannels[0];
-
-            // Use a barrier so both threads enter Dispose() as close to simultaneously as
-            // possible. We run the test multiple times to make the race observable.
-            const int Iterations = 100;
-            var doubleDisposeSeen = false;
-
-            for (var i = 0; i < Iterations; i++)
-            {
-                channel.ResetDisposeCounter();
-
-                using var barrier = new Barrier(2);
-                void DisposeOnce()
-                {
-                    barrier.SignalAndWait(cancellationToken);
-                    transport.Dispose();
-                }
-
-                var t1 = Task.Run(DisposeOnce, cancellationToken);
-                var t2 = Task.Run(DisposeOnce, cancellationToken);
-                await Task.WhenAll(t1, t2).ConfigureAwait(false);
-
-                if (channel.DisposeCallCount > 1)
-                {
-                    doubleDisposeSeen = true;
-                    break;
-                }
-
-                // The transport is disposed by now. Recreate it for the next iteration.
-                if (i + 1 < Iterations)
-                {
-                    transport.Dispose();
-                    transport = CreateTransport(connectionAdapter, topicNameResolver);
-                    await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-                    channel = connectionAdapter.CreatedChannels[^1];
-                }
-            }
-
-            // The invariant we want: the channel adapter must only be disposed once,
-            // regardless of how many threads call Dispose. If this assertion fails, the
-            // implementation is using a non-atomic _disposed guard and needs
-            // Interlocked.Exchange to be race-safe.
-            _ = await Assert.That(doubleDisposeSeen).IsFalse();
-        }
-        finally
-        {
-            transport.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// INVARIANT (concurrency / disposal): when <c>Dispose()</c> races with an
-    /// in-flight <c>SendAsync</c>, the dispose path must not throw on the disposing
-    /// thread and the in-flight publish must observe the publish gate it was waiting
-    /// for. We do not assert on the publish's terminal exception (it is acceptable
-    /// for the publish to either complete or fault deterministically), only that
-    /// dispose itself stays well-defined.
-    /// </summary>
-    [Test]
-    public async Task Dispose_DuringInFlightSendAsync_DoesNotCorruptInFlightPublish(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
-        try
-        {
-            // Pre-warm the channel.
-            await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-            var channel = connectionAdapter.CreatedChannels[0];
-
-            // Make the next BasicPublishAsync block until we explicitly release it.
-            var publishStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releasePublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            channel.PublishGate = (start: publishStarted, release: releasePublish);
-
-            var sendTask = Task.Run(
-                async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
-                cancellationToken
-            );
-
-            // Wait until BasicPublishAsync has been entered, then call Dispose() from a
-            // different thread while the publish is still in flight.
-            await publishStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-
-            // Dispose during in-flight publish: must not throw on the disposing thread.
-            Exception? disposeException = null;
-            try
-            {
-                transport.Dispose();
-            }
-#pragma warning disable CA1031 // Test must capture any exception type that Dispose might surface.
-            catch (Exception ex)
-            {
-                disposeException = ex;
-            }
-#pragma warning restore CA1031
-
-            // Release the in-flight publish so the send task can complete.
-            releasePublish.SetResult();
-
-            // The send task should now finish; either successfully (channel ref already
-            // captured) or with a deterministic exception. We only require that it does
-            // not deadlock.
-            try
-            {
-                await sendTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-            }
-#pragma warning disable CA1031, RCS1075
-            catch
-            {
-                // A deterministic post-dispose exception is acceptable; the dispose
-                // thread's behaviour is the invariant under test.
-            }
-#pragma warning restore CA1031, RCS1075
-
-            using (Assert.Multiple())
-            {
-                _ = await Assert.That(disposeException).IsNull();
-                _ = await Assert.That(publishStarted.Task.IsCompletedSuccessfully).IsTrue();
-            }
-        }
-        finally
-        {
-            transport.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// INVARIANT (concurrency / disposal): when <c>Dispose()</c> races a sender that is
-    /// inside <c>EnsureChannelAsync</c> creating a new channel, the freshly created
-    /// channel must not leak (it must end up disposed) and the sender's semaphore
-    /// release must not throw <see cref="ObjectDisposedException"/>. Currently
-    /// <c>Dispose()</c> tears down the semaphore without acquiring it, so the in-flight
-    /// sender's <c>Release()</c> throws and the new channel is orphaned.
-    /// </summary>
-    [Test]
-    public async Task Dispose_DuringInFlightChannelCreation_DisposesNewChannelAndDoesNotThrowOnRelease(
+    public async Task Dispose_CalledConcurrently_DoesNotThrowAndTransportStaysDisposed(
         CancellationToken cancellationToken
     )
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new NoOpChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        var transport = CreateTransport(channelPool, topicNameResolver);
+
+        var t1 = Task.Run(transport.Dispose, cancellationToken);
+        var t2 = Task.Run(transport.Dispose, cancellationToken);
+        await Task.WhenAll(t1, t2).ConfigureAwait(false);
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken)
+        );
+
+        _ = await Assert.That(exception).IsNotNull();
+    }
+
+    /// <summary>
+    /// INVARIANT (concurrency / disposal): calling <c>Dispose()</c> while a
+    /// <c>SendAsync</c> call is in flight (renting/publishing/returning against the pool)
+    /// must not throw on the disposing thread, and the in-flight send must still observe
+    /// the publish gate it was waiting for.
+    /// </summary>
+    [Test]
+    public async Task Dispose_DuringInFlightSendAsync_DoesNotThrow(CancellationToken cancellationToken)
+    {
+        var channelPool = new NoOpChannelPool();
+        var topicNameResolver = new FakeTopicNameResolver();
+        var transport = CreateTransport(channelPool, topicNameResolver);
+
+        var publishStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePublish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        channelPool.PublishGate = (start: publishStarted, release: releasePublish);
+
+        var sendTask = Task.Run(
+            async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
+            cancellationToken
+        );
+
+        await publishStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+
+        Exception? disposeException = null;
         try
-        {
-            // Make the first channel creation block until we explicitly release it.
-            var creationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseCreation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            connectionAdapter.CreationGate = (start: creationStarted, release: releaseCreation);
-
-            var sendTask = Task.Run(
-                async () => await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false),
-                cancellationToken
-            );
-
-            // Wait until the sender is inside EnsureChannelAsync, holding the
-            // initialization lock and awaiting channel creation.
-            await creationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-
-            var disposeTask = Task.Run(transport.Dispose, cancellationToken);
-
-            // Give an unguarded Dispose implementation time to complete while the
-            // channel creation is still in flight, then let the creation finish.
-            _ = await Task.WhenAny(disposeTask, Task.Delay(500, cancellationToken)).ConfigureAwait(false);
-            releaseCreation.SetResult();
-
-            Exception? sendException = null;
-            try
-            {
-                await sendTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-            }
-#pragma warning disable CA1031 // Test must capture any exception type that SendAsync might surface.
-            catch (Exception ex)
-            {
-                sendException = ex;
-            }
-#pragma warning restore CA1031
-
-            await disposeTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-
-            var createdChannel = connectionAdapter.CreatedChannels[0];
-            using (Assert.Multiple())
-            {
-                // The channel created concurrently with Dispose must not leak.
-                _ = await Assert.That(createdChannel.DisposeCallCount).IsGreaterThan(0);
-                // The sender's semaphore release must not observe a disposed semaphore.
-                _ = await Assert.That(sendException is ObjectDisposedException).IsFalse();
-            }
-        }
-        finally
         {
             transport.Dispose();
         }
+#pragma warning disable CA1031 // Test must capture any exception type that Dispose might surface.
+        catch (Exception ex)
+        {
+            disposeException = ex;
+        }
+#pragma warning restore CA1031
+
+        releasePublish.SetResult();
+
+        try
+        {
+            await sendTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031, RCS1075
+        catch
+        {
+            // A deterministic post-dispose exception is acceptable; only the dispose
+            // thread's own behavior is under test here.
+        }
+#pragma warning restore CA1031, RCS1075
+
+        _ = await Assert.That(disposeException).IsNull();
     }
 
     private static RabbitMqMessageTransport CreateTransport(
-        IRabbitMqConnectionAdapter connectionAdapter,
+        IRabbitMqChannelPool channelPool,
         ITopicNameResolver topicNameResolver,
         string exchangeName = "events"
     )
     {
         var options = Options.Create(new RabbitMqTransportOptions { ExchangeName = exchangeName });
-        return new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options);
+        return new RabbitMqMessageTransport(channelPool, topicNameResolver, options);
     }
 
     private static OutboxMessage CreateOutboxMessage() =>
@@ -277,42 +139,22 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
         public DateTimeOffset? PublishedAt { get; set; }
     }
 
-    private sealed class FakeConnectionAdapter : IRabbitMqConnectionAdapter
+    private sealed class NoOpChannelPool : IRabbitMqChannelPool
     {
-        public bool IsOpen { get; set; } = true;
-
-        public List<FakeChannelAdapter> CreatedChannels { get; } = [];
-
-        public (TaskCompletionSource start, TaskCompletionSource release)? CreationGate { get; set; }
-
-        public async Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
-        {
-            if (CreationGate is { } gate)
-            {
-                CreationGate = null;
-                _ = gate.start.TrySetResult();
-#pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
-                await gate.release.Task.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
-            }
-
-            var channel = new FakeChannelAdapter();
-            CreatedChannels.Add(channel);
-            return channel;
-        }
-    }
-
-    private sealed class FakeChannelAdapter : IRabbitMqChannelAdapter
-    {
-        private int _disposeCallCount;
-
-        public bool IsOpen { get; set; } = true;
-
-        public int DisposeCallCount => Volatile.Read(ref _disposeCallCount);
-
         public (TaskCompletionSource start, TaskCompletionSource release)? PublishGate { get; set; }
 
-        public void ResetDisposeCounter() => Volatile.Write(ref _disposeCallCount, 0);
+        public ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult<IRabbitMqChannelAdapter>(new FakeChannelAdapter(PublishGate));
+
+        public void Return(IRabbitMqChannelAdapter channel) { }
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class FakeChannelAdapter((TaskCompletionSource start, TaskCompletionSource release)? publishGate)
+        : IRabbitMqChannelAdapter
+    {
+        public bool IsOpen { get; set; } = true;
 
         public async ValueTask BasicPublishAsync<TProperties>(
             string exchange,
@@ -322,9 +164,9 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
             ReadOnlyMemory<byte> body,
             CancellationToken cancellationToken = default
         )
-            where TProperties : IReadOnlyBasicProperties, IAmqpHeader
+            where TProperties : global::RabbitMQ.Client.IReadOnlyBasicProperties, global::RabbitMQ.Client.IAmqpHeader
         {
-            if (PublishGate is { } gate)
+            if (publishGate is { } gate)
             {
                 _ = gate.start.TrySetResult();
 #pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here
@@ -333,6 +175,6 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
             }
         }
 
-        public void Dispose() => Interlocked.Increment(ref _disposeCallCount);
+        public void Dispose() { }
     }
 }

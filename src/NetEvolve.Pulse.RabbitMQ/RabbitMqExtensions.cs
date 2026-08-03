@@ -2,6 +2,8 @@ namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
@@ -48,6 +50,15 @@ public static class RabbitMqExtensions
         {
             var connection = sp.GetRequiredService<IConnection>();
             return new RabbitMqConnectionAdapter(connection);
+        });
+
+        // Register the channel pool. TryAddSingleton avoids duplicate registrations when
+        // UseRabbitMqTransport is called more than once.
+        services.TryAddSingleton<IRabbitMqChannelPool>(sp =>
+        {
+            var connectionAdapter = sp.GetRequiredService<IRabbitMqConnectionAdapter>();
+            var poolOptions = sp.GetRequiredService<IOptions<RabbitMqTransportOptions>>();
+            return new RabbitMqChannelPool(connectionAdapter, poolOptions.Value.MaxChannelPoolSize);
         });
 
         var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));

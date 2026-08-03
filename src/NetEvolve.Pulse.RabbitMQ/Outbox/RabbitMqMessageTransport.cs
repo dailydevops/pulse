@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Outbox;
 
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Options;
@@ -13,15 +12,24 @@ using RabbitMQ.Client;
 /// </summary>
 /// <remarks>
 /// <para><strong>Connection Management:</strong></para>
-/// This transport uses an injected connection adapter and creates channels on demand.
-/// The connection lifetime is managed externally via dependency injection.
+/// This transport uses an injected <see cref="IRabbitMqChannelPool"/> to rent channels on
+/// demand. The connection lifetime is managed externally via dependency injection.
+/// <para><strong>Channel Pooling:</strong></para>
+/// RabbitMQ.Client's <see cref="IChannel"/> is not thread-safe for concurrent publish
+/// calls, so a single shared channel would need to serialize every publish. Instead, each
+/// <see cref="SendAsync"/> call rents its own channel from the pool for the duration of the
+/// publish and returns it afterwards, allowing concurrent sends to run on separate
+/// channels rather than blocking each other. <see cref="SendBatchAsync"/> rents a single
+/// channel for the whole batch and publishes all of its messages sequentially on it -
+/// this keeps the implementation simple (no per-message rent/return churn) while staying
+/// correct, since only the thread executing the batch ever touches that channel.
 /// <para><strong>Routing Key Resolution:</strong></para>
 /// Each message is published with a routing key resolved by <see cref="ITopicNameResolver"/>.
 /// By default, the simple class name of the event type is used (e.g., <c>"OrderCreated"</c>).
 /// <para><strong>Payload:</strong></para>
 /// The raw JSON payload from <see cref="OutboxMessage.Payload"/> is published as the message body.
 /// <para><strong>Health Checks:</strong></para>
-/// The <see cref="IsHealthyAsync"/> method verifies that the connection and channel are open.
+/// The <see cref="IsHealthyAsync"/> method delegates to the channel pool's own health check.
 /// </remarks>
 internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
 {
@@ -31,57 +39,32 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <summary>The topic name resolver used to determine the routing key from an outbox message.</summary>
     private readonly ITopicNameResolver _topicNameResolver;
 
-    /// <summary>The RabbitMQ connection adapter.</summary>
-    private readonly IRabbitMqConnectionAdapter _connectionAdapter;
-
-    /// <summary>Lazy-initialized RabbitMQ channel for publishing.</summary>
-    private IRabbitMqChannelAdapter? _channel;
-
-    /// <summary>Semaphore for thread-safe channel initialization.</summary>
-    [SuppressMessage(
-        "Usage",
-        "CA2213:Disposable fields should be disposed",
-        Justification = "The semaphore must outlive Dispose so in-flight senders can still release it; SemaphoreSlim holds no unmanaged resources unless its wait handle is accessed, which this type never does."
-    )]
-    private readonly SemaphoreSlim _initializationLock = new(1, 1);
-
-    /// <summary>
-    /// Semaphore serializing publish calls on the shared channel. RabbitMQ.Client's
-    /// <see cref="IChannel"/> is NOT thread-safe for concurrent publish calls, so every
-    /// publish (single send or batch item) must go through this gate.
-    /// </summary>
-    [SuppressMessage(
-        "Usage",
-        "CA2213:Disposable fields should be disposed",
-        Justification = "The semaphore must outlive Dispose so in-flight senders can still release it; SemaphoreSlim holds no unmanaged resources unless its wait handle is accessed, which this type never does."
-    )]
-    private readonly SemaphoreSlim _publishLock = new(1, 1);
+    /// <summary>The RabbitMQ channel pool channels are rented from and returned to.</summary>
+    private readonly IRabbitMqChannelPool _channelPool;
 
     /// <summary>
     /// Disposal sentinel handled via <see cref="Interlocked.Exchange(ref int, int)"/> so that
-    /// concurrent <see cref="Dispose"/> calls observe a single winning thread. Storing this as a
-    /// plain <c>bool</c> would leave a TOCTOU window between the early-exit check and the
-    /// teardown work, allowing the underlying channel adapter to be disposed twice.
+    /// concurrent <see cref="Dispose"/> calls observe a single winning thread.
     /// </summary>
     private int _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RabbitMqMessageTransport"/> class.
     /// </summary>
-    /// <param name="connectionAdapter">The RabbitMQ connection adapter.</param>
+    /// <param name="channelPool">The RabbitMQ channel pool used to rent channels for publishing.</param>
     /// <param name="topicNameResolver">The topic name resolver for determining routing keys from outbox messages.</param>
     /// <param name="options">The transport options.</param>
     internal RabbitMqMessageTransport(
-        IRabbitMqConnectionAdapter connectionAdapter,
+        IRabbitMqChannelPool channelPool,
         ITopicNameResolver topicNameResolver,
         IOptions<RabbitMqTransportOptions> options
     )
     {
-        ArgumentNullException.ThrowIfNull(connectionAdapter);
+        ArgumentNullException.ThrowIfNull(channelPool);
         ArgumentNullException.ThrowIfNull(topicNameResolver);
         ArgumentNullException.ThrowIfNull(options);
 
-        _connectionAdapter = connectionAdapter;
+        _channelPool = channelPool;
         _topicNameResolver = topicNameResolver;
         _options = options.Value;
     }
@@ -93,16 +76,23 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         ArgumentNullException.ThrowIfNull(message);
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
-        var channel = await EnsureChannelAsync(cancellationToken).ConfigureAwait(false);
-        await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
+        var channel = await _channelPool.RentAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _channelPool.Return(channel);
+        }
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// Overridden to publish all messages sequentially on the same channel. RabbitMQ.Client's
-    /// <see cref="IChannel"/> is NOT thread-safe for concurrent publish calls, so the default
-    /// parallel <c>Parallel.ForEachAsync</c> implementation provided by the interface must not
-    /// be used on this transport.
+    /// Overridden to rent a single channel for the whole batch and publish all messages
+    /// sequentially on it. RabbitMQ.Client's <see cref="IChannel"/> is NOT thread-safe for
+    /// concurrent publish calls, so the default parallel <c>Parallel.ForEachAsync</c>
+    /// implementation provided by the interface must not be used on a single channel.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the transport has already been disposed.</exception>
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
@@ -110,12 +100,18 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         ArgumentNullException.ThrowIfNull(messages);
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
-        var channel = await EnsureChannelAsync(cancellationToken).ConfigureAwait(false);
-
-        foreach (var message in messages)
+        var channel = await _channelPool.RentAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
+            foreach (var message in messages)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _channelPool.Return(channel);
         }
     }
 
@@ -147,24 +143,16 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             },
         };
 
-        await _publishLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await channel
-                .BasicPublishAsync(
-                    exchange: _options.ExchangeName,
-                    routingKey: routingKey,
-                    mandatory: false,
-                    basicProperties: properties,
-                    body: body,
-                    cancellationToken: cancellationToken
-                )
-                .ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _publishLock.Release();
-        }
+        await channel
+            .BasicPublishAsync(
+                exchange: _options.ExchangeName,
+                routingKey: routingKey,
+                mandatory: false,
+                basicProperties: properties,
+                body: body,
+                cancellationToken: cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -181,54 +169,11 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
 
         try
         {
-            if (_connectionAdapter?.IsOpen != true || _channel?.IsOpen != true)
-            {
-                return Task.FromResult(false);
-            }
-
-            // Perform a lightweight check by verifying channel is still open
-            // RabbitMQ client maintains the connection state internally
-            return Task.FromResult(_channel.IsOpen);
+            return _channelPool.IsHealthyAsync(cancellationToken);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
             return Task.FromResult(false);
-        }
-    }
-
-    /// <summary>
-    /// Ensures that a channel is available, creating it if necessary.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The initialized channel.</returns>
-    private async Task<IRabbitMqChannelAdapter> EnsureChannelAsync(CancellationToken cancellationToken)
-    {
-        if (_channel?.IsOpen == true)
-        {
-            return _channel;
-        }
-
-        await _initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-
-            if (_channel?.IsOpen == true)
-            {
-                return _channel;
-            }
-
-            // Dispose previously-acquired (now closed) channel to avoid leaking the
-            // underlying RabbitMQ.Client IChannel handle before replacing the reference.
-            _channel?.Dispose();
-
-            _channel = await _connectionAdapter.CreateChannelAsync(cancellationToken).ConfigureAwait(false);
-
-            return _channel;
-        }
-        finally
-        {
-            _ = _initializationLock.Release();
         }
     }
 
@@ -243,30 +188,10 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <remarks>
     /// Disposal is single-shot under concurrency: the first thread to flip <c>_disposed</c> via
     /// <see cref="Interlocked.Exchange(ref int, int)"/> performs the teardown; all subsequent
-    /// callers (including concurrent ones) are no-ops. This prevents double-disposal of the
-    /// underlying channel adapter when shutdown overlaps with another <c>Dispose()</c> call.
-    /// The teardown acquires <see cref="_initializationLock"/> so that a channel created by an
-    /// in-flight <see cref="EnsureChannelAsync"/> is disposed rather than leaked, and the
-    /// semaphore itself is intentionally never disposed because in-flight senders may still
-    /// need to release it; <see cref="SemaphoreSlim"/> holds no unmanaged resources unless
-    /// its wait handle is accessed, which this type never does.
+    /// callers (including concurrent ones) are no-ops. The transport itself no longer owns any
+    /// channel: the pool is registered and disposed as part of the DI container's lifetime, so
+    /// there is nothing further to release here beyond flipping the sentinel so that in-flight
+    /// and subsequent calls observe <see cref="ObjectDisposedException"/> / a false health check.
     /// </remarks>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
-            return;
-        }
-
-        _initializationLock.Wait();
-        try
-        {
-            _channel?.Dispose();
-            _channel = null;
-        }
-        finally
-        {
-            _ = _initializationLock.Release();
-        }
-    }
+    public void Dispose() => _ = Interlocked.Exchange(ref _disposed, 1);
 }

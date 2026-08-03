@@ -27,6 +27,7 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
 
     private IConnection? _connection;
     private IChannel? _adminChannel;
+    private RabbitMqChannelPool? _channelPool;
 
     private async Task<(IConnection Connection, IChannel AdminChannel)> GetConnectionAndChannelAsync(
         CancellationToken cancellationToken
@@ -58,6 +59,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        _channelPool?.Dispose();
+
         if (_adminChannel is not null)
         {
             await _adminChannel.CloseAsync().ConfigureAwait(false);
@@ -159,17 +162,21 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     }
 
     [Test]
-    public async Task IsHealthyAsync_Before_first_send_returns_false(CancellationToken cancellationToken)
+    public async Task IsHealthyAsync_Before_first_send_returns_true_when_connection_open(
+        CancellationToken cancellationToken
+    )
     {
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
         using var transport = CreateTransport(adapter);
 
-        // No sends yet — channel has not been created
+        // No sends yet — no channel has been rented from the pool. Health now reflects the
+        // underlying connection/pool state rather than the existence of a particular channel,
+        // so this must report healthy as long as the connection is open.
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(healthy).IsFalse();
+        _ = await Assert.That(healthy).IsTrue();
     }
 
     [Test]
@@ -330,12 +337,19 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         }
     }
 
-    private static RabbitMqMessageTransport CreateTransport(IRabbitMqConnectionAdapter adapter) =>
-        new(
-            adapter,
+    // The channel pool is created lazily and shared across the tests in this fixture (they
+    // all operate against the same underlying connection) and is disposed together with the
+    // connection in DisposeAsync.
+    private RabbitMqMessageTransport CreateTransport(IRabbitMqConnectionAdapter adapter)
+    {
+        _channelPool ??= new RabbitMqChannelPool(adapter, new RabbitMqTransportOptions().MaxChannelPoolSize);
+
+        return new RabbitMqMessageTransport(
+            _channelPool,
             new SimpleTopicNameResolver(),
             Options.Create(new RabbitMqTransportOptions { ExchangeName = ExchangeName })
         );
+    }
 
     private static OutboxMessage CreateOutboxMessage() =>
         new()
