@@ -102,9 +102,10 @@ public sealed class OutboxExtensionsTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            // AddOptions<OutboxOptions>().ValidateOnStart() eagerly validates at IHost startup;
-            // here we assert the equivalent failure surfaces the moment the options are resolved,
-            // since IValidateOptions<T> runs on every options creation, not only via the startup hook.
+            // The ValidateOnStart registration performed by AddOutbox eagerly validates options at
+            // IHost startup; here we assert the equivalent failure surfaces the moment the options
+            // are resolved, since the underlying validator runs on every options creation, not only
+            // via the startup hook.
             _ = Assert.Throws<OptionsValidationException>(() =>
                 _ = provider.GetRequiredService<IOptions<OutboxOptions>>().Value
             );
