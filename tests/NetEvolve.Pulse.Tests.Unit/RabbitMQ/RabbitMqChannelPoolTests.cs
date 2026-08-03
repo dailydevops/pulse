@@ -115,7 +115,12 @@ public sealed class RabbitMqChannelPoolTests
         var rentTasks = new List<Task<IRabbitMqChannelAdapter>>();
         for (var i = 0; i < MaxPoolSize; i++)
         {
+            // Each iteration converts a distinct ValueTask returned by RentAsync exactly once via
+            // AsTask(); the analyzer cannot see across loop iterations that no ValueTask instance
+            // is consumed twice.
+#pragma warning disable S5034 // Refactor this 'ValueTask' usage to consume it only once
             rentTasks.Add(pool.RentAsync(cancellationToken).AsTask());
+#pragma warning restore S5034
         }
 
         var rented = await Task.WhenAll(rentTasks)
