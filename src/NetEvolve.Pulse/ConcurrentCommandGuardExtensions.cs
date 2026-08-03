@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
@@ -101,7 +102,26 @@ public static class ConcurrentCommandGuardExtensions
 
         var services = configurator.Services;
 
-        services.TryAdd(ServiceDescriptor.Singleton(typeof(ConcurrentCommandGuardInterceptor<,>)));
+        // If the open-generic overload (AddConcurrentCommandGuard()) is already registered, it already
+        // resolves this closed TRequest/TResponse pair (singleton open-generic registrations are cached
+        // per closed type by the container) — adding a second, closed registration here would cause the
+        // command to be guarded by two independent interceptor instances instead of one shared instance.
+        var openGenericAlreadyRegistered = services.Any(d =>
+            d.ServiceType == typeof(IRequestInterceptor<,>)
+            && d.ImplementationType == typeof(ConcurrentCommandGuardInterceptor<,>)
+        );
+
+        if (openGenericAlreadyRegistered)
+        {
+            return configurator;
+        }
+
+        services.TryAdd(
+            ServiceDescriptor.Singleton(
+                typeof(ConcurrentCommandGuardInterceptor<,>),
+                typeof(ConcurrentCommandGuardInterceptor<,>)
+            )
+        );
         services.TryAddSingleton<IRequestInterceptor<TRequest, TResponse>>(sp =>
             sp.GetRequiredService<ConcurrentCommandGuardInterceptor<TRequest, TResponse>>()
         );

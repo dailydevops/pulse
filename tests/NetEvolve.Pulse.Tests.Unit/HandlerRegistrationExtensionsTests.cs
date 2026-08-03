@@ -457,7 +457,7 @@ public class HandlerRegistrationExtensionsTests
         _ = services.AddPulse(config => config.AddCommandInterceptor<TestCommand, string, TestCommandInterceptor>());
 
         var descriptor = services.FirstOrDefault(x =>
-            x.ServiceType == typeof(ICommandInterceptor<TestCommand, string>)
+            x.ServiceType == typeof(IRequestInterceptor<TestCommand, string>)
         );
 
         using (Assert.Multiple())
@@ -478,7 +478,7 @@ public class HandlerRegistrationExtensionsTests
         );
 
         var descriptor = services.FirstOrDefault(x =>
-            x.ServiceType == typeof(ICommandInterceptor<TestCommand, string>)
+            x.ServiceType == typeof(IRequestInterceptor<TestCommand, string>)
         );
 
         using (Assert.Multiple())
@@ -526,7 +526,7 @@ public class HandlerRegistrationExtensionsTests
 
         _ = services.AddPulse(config => config.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>());
 
-        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IQueryInterceptor<TestQuery, string>));
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IRequestInterceptor<TestQuery, string>));
 
         using (Assert.Multiple())
         {
@@ -545,7 +545,7 @@ public class HandlerRegistrationExtensionsTests
             config.AddQueryInterceptor<TestQuery, string, TestQueryInterceptor>(ServiceLifetime.Singleton)
         );
 
-        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IQueryInterceptor<TestQuery, string>));
+        var descriptor = services.FirstOrDefault(x => x.ServiceType == typeof(IRequestInterceptor<TestQuery, string>));
 
         using (Assert.Multiple())
         {

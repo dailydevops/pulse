@@ -75,4 +75,88 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
 
         _ = await Assert.That(repository).IsNotNull();
     }
+
+    [Test]
+    public async Task ExistsAsync_WithNullIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync(null!, cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task ExistsAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync(string.Empty, cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task ExistsAsync_WithWhitespaceIdempotencyKey_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync("   ", cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithNullIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
+
+        _ = await Assert
+            .That(async () =>
+                await repository.StoreAsync(null!, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
+
+        _ = await Assert
+            .That(async () =>
+                await repository
+                    .StoreAsync(string.Empty, DateTimeOffset.UtcNow, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithWhitespaceIdempotencyKey_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
+        var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
+
+        _ = await Assert
+            .That(async () =>
+                await repository.StoreAsync("   ", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
 }

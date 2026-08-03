@@ -319,7 +319,7 @@ public static class HandlerRegistrationExtensions
         ArgumentNullException.ThrowIfNull(configurator);
 
         configurator.Services.Add(
-            new ServiceDescriptor(typeof(ICommandInterceptor<TCommand, TResponse>), typeof(TInterceptor), lifetime)
+            new ServiceDescriptor(typeof(IRequestInterceptor<TCommand, TResponse>), typeof(TInterceptor), lifetime)
         );
 
         return configurator;
@@ -371,7 +371,7 @@ public static class HandlerRegistrationExtensions
         ArgumentNullException.ThrowIfNull(configurator);
 
         configurator.Services.Add(
-            new ServiceDescriptor(typeof(IQueryInterceptor<TQuery, TResponse>), typeof(TInterceptor), lifetime)
+            new ServiceDescriptor(typeof(IRequestInterceptor<TQuery, TResponse>), typeof(TInterceptor), lifetime)
         );
 
         return configurator;

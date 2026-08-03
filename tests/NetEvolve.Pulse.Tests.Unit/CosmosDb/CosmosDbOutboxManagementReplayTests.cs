@@ -59,6 +59,72 @@ public sealed class CosmosDbOutboxManagementReplayTests
         }
     }
 
+    [Test]
+    public async Task ReplayAllDeadLetterAsync_WhenPatchThrowsPreconditionFailed_SkipsDocument(
+        CancellationToken cancellationToken
+    )
+    {
+        var document = CreateDeadLetterDocument(Guid.NewGuid(), "\"etag\"");
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (itemType, _, _) => CreateIterator(itemType, [document]),
+            OnPatchItem = (_, _, _, _) =>
+                throw new global::Microsoft.Azure.Cosmos.CosmosException(
+                    "conflict",
+                    System.Net.HttpStatusCode.PreconditionFailed,
+                    0,
+                    "activity",
+                    0
+                ),
+        };
+
+        using var client = new FakeCosmosClient(container);
+
+        var management = new CosmosDbOutboxManagement(
+            client,
+            Options.Create(new CosmosDbOutboxOptions { DatabaseName = "TestDb" }),
+            TimeProvider.System
+        );
+
+        var replayed = await management.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(replayed).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ReplayAllDeadLetterAsync_WhenPatchThrowsNotFound_SkipsDocument(
+        CancellationToken cancellationToken
+    )
+    {
+        var document = CreateDeadLetterDocument(Guid.NewGuid(), "\"etag\"");
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (itemType, _, _) => CreateIterator(itemType, [document]),
+            OnPatchItem = (_, _, _, _) =>
+                throw new global::Microsoft.Azure.Cosmos.CosmosException(
+                    "gone",
+                    System.Net.HttpStatusCode.NotFound,
+                    0,
+                    "activity",
+                    0
+                ),
+        };
+
+        using var client = new FakeCosmosClient(container);
+
+        var management = new CosmosDbOutboxManagement(
+            client,
+            Options.Create(new CosmosDbOutboxOptions { DatabaseName = "TestDb" }),
+            TimeProvider.System
+        );
+
+        var replayed = await management.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(replayed).IsEqualTo(0);
+    }
+
     private static CosmosDbOutboxDocument CreateDeadLetterDocument(Guid id, string? etag) =>
         new CosmosDbOutboxDocument
         {
