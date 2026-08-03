@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse;
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Interceptors;
@@ -34,11 +35,15 @@ public static class QueryCachingExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        _ = builder.Services.AddOptions<QueryCachingOptions>();
+        _ = builder.Services.AddOptions<QueryCachingOptions>().ValidateOnStart();
         if (configure is not null)
         {
             _ = builder.Services.Configure(configure);
         }
+
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<QueryCachingOptions>, QueryCachingOptionsValidator>()
+        );
 
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(DistributedCacheQueryInterceptor<,>))

@@ -2,6 +2,8 @@ namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -34,11 +36,18 @@ public static class DaprExtensions
 
         var services = configurator.Services;
 
-        _ = services.AddOptions<DaprMessageTransportOptions>();
+        _ = services.AddOptions<DaprMessageTransportOptions>().ValidateOnStart();
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
         }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<DaprMessageTransportOptions>,
+                DaprMessageTransportOptionsValidator
+            >()
+        );
 
         var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));
         if (existing is not null)

@@ -65,7 +65,7 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
+    public async Task UseRabbitMqTransport_Without_configureOptions_registers_options()
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
@@ -76,9 +76,10 @@ public sealed class RabbitMqExtensionsTests
             var options =
                 provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
 
-            // Verify default options are accessible
-            _ = await Assert.That(options.Value).IsNotNull();
-            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(string.Empty);
+            // The default ExchangeName is empty and therefore invalid; validation runs whenever
+            // the options are resolved (independent of ValidateOnStart, which only forces eager
+            // validation at host startup).
+            _ = Assert.Throws<Microsoft.Extensions.Options.OptionsValidationException>(() => _ = options.Value);
         }
     }
 

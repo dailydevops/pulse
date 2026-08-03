@@ -69,7 +69,12 @@ public sealed class AzureServiceBusExtensionsTests
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
-            _ = Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<ServiceBusClient>());
+            // Validation now runs through IValidateOptions<AzureServiceBusTransportOptions>, which
+            // Microsoft.Extensions.Options surfaces as an OptionsValidationException whenever the
+            // options are resolved (not just at ValidateOnStart's eager startup check).
+            _ = Assert.Throws<Microsoft.Extensions.Options.OptionsValidationException>(() =>
+                provider.GetRequiredService<ServiceBusClient>()
+            );
         }
     }
 
