@@ -96,7 +96,8 @@ public static class AzureQueueStorageExtensions
         }
 
         _ = services.AddSingleton<IMessageTransport>(sp => new AzureQueueStorageMessageTransport(
-            sp.GetRequiredService<IOptions<AzureQueueStorageTransportOptions>>()
+            sp.GetRequiredService<IOptions<AzureQueueStorageTransportOptions>>(),
+            sp.GetRequiredService<IPayloadSerializer>()
         ));
 
         return configurator;

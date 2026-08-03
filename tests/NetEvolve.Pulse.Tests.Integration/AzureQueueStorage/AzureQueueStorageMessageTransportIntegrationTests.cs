@@ -10,6 +10,7 @@ using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.Serialization;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -23,6 +24,9 @@ using TUnit.Core;
 [NotInParallel]
 public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteContainerFixture containerFixture)
 {
+    private static IPayloadSerializer DefaultSerializer =>
+        new SystemTextJsonPayloadSerializer(Options.Create(JsonSerializerOptions.Default));
+
     [Test]
     public async Task SendAsync_Creates_queue_and_sends_base64_encoded_message(CancellationToken cancellationToken)
     {
@@ -35,7 +39,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 CreateQueueIfNotExists = true,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options);
+        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer);
         var message = CreateOutboxMessage();
 
         await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
@@ -66,7 +70,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 CreateQueueIfNotExists = false,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options);
+        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer);
 
         _ = await Assert
             .That(() => transport.SendAsync(CreateOutboxMessage(), cancellationToken))
@@ -86,7 +90,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 CreateQueueIfNotExists = true,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options);
+        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer);
         var messages = Enumerable.Range(0, messageCount).Select(_ => CreateOutboxMessage()).ToList();
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -118,7 +122,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 CreateQueueIfNotExists = false,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options, queueClient);
+        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer, queueClient);
         var message = CreateOutboxMessage();
 
         await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
@@ -146,7 +150,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 CreateQueueIfNotExists = true,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options);
+        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer);
 
         // Payload alone (well before JSON envelope overhead) already exceeds the 48 KB raw limit.
         var oversizedMessage = CreateOutboxMessage();
@@ -171,7 +175,7 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
                 CreateQueueIfNotExists = true,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options);
+        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer);
 
         const int concurrentSends = 10;
 
