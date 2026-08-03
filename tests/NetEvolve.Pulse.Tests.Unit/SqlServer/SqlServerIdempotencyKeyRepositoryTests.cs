@@ -75,4 +75,115 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
 
         _ = await Assert.That(repository).IsNotNull();
     }
+
+    // Defense-in-depth: pin that an attacker-controlled Schema value cannot reach the SQL
+    // builder. The constructor must fail fast when Schema contains characters that would
+    // break out of the [bracketed] identifier (e.g. ']' followed by injected SQL).
+    [Test]
+    public async Task Constructor_WithMaliciousSchema_ThrowsArgumentException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerIdempotencyKeyRepository(
+                    Options.Create(
+                        new IdempotencyKeyOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            Schema = "pulse].[evil] -- ",
+                        }
+                    )
+                )
+            )
+            .Throws<ArgumentException>();
+
+    [Test]
+    public async Task ExistsAsync_WithNullIdempotencyKey_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync(null!, cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task ExistsAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync(string.Empty, cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task ExistsAsync_WithWhitespaceIdempotencyKey_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync("   ", cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithNullIdempotencyKey_ThrowsArgumentNullException(CancellationToken cancellationToken)
+    {
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.StoreAsync(null!, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository
+                    .StoreAsync(string.Empty, DateTimeOffset.UtcNow, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithWhitespaceIdempotencyKey_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.StoreAsync("   ", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
 }

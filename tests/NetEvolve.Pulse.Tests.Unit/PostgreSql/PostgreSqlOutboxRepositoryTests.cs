@@ -163,4 +163,62 @@ public sealed class PostgreSqlOutboxRepositoryTests
             .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentNullException>();
     }
+
+    [Test]
+    public async Task MarkAsCompletedAsync_Batch_WithNullMessageIds_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new PostgreSqlOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        _ = await Assert
+            .That(async () => await repository.MarkAsCompletedAsync(null!, cancellationToken).ConfigureAwait(false))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task MarkAsCompletedAsync_Batch_WithEmptyMessageIds_CompletesWithoutConnecting(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new PostgreSqlOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        await repository.MarkAsCompletedAsync(Array.Empty<Guid>(), cancellationToken).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task MarkAsFailedAsync_Batch_WithNullMessageIds_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new PostgreSqlOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.MarkAsFailedAsync(null!, "error", cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task MarkAsFailedAsync_Batch_WithEmptyMessageIds_CompletesWithoutConnecting(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new PostgreSqlOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        await repository.MarkAsFailedAsync(Array.Empty<Guid>(), "error", cancellationToken).ConfigureAwait(false);
+    }
 }

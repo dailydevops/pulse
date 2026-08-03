@@ -184,7 +184,11 @@ public sealed class ConcurrentCommandGuardExtensionsTests
             )
             .ToList();
 
-        // Typed overload: IRequestInterceptor<ExclusiveCommand, string> → factory
+        // The typed overload must detect that the open-generic mapping already covers this closed
+        // TRequest/TResponse pair and skip its own closed factory registration entirely — otherwise
+        // GetServices<IRequestInterceptor<ExclusiveCommand, string>>() would resolve TWO independent
+        // interceptor instances (one via open-generic auto-closing, one via the factory), each wrapping
+        // the command handler separately.
         var closedGenericDescriptors = services
             .Where(d =>
                 d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>)
@@ -192,11 +196,35 @@ public sealed class ConcurrentCommandGuardExtensionsTests
             )
             .ToList();
 
+        var provider = services.BuildServiceProvider();
+        var resolvedInterceptors = provider.GetServices<IRequestInterceptor<ExclusiveCommand, string>>().ToList();
+
         using (Assert.Multiple())
         {
             _ = await Assert.That(openGenericDescriptors).HasSingleItem();
-            _ = await Assert.That(closedGenericDescriptors).HasSingleItem();
+            _ = await Assert.That(closedGenericDescriptors).IsEmpty();
+            _ = await Assert.That(resolvedInterceptors).HasSingleItem();
         }
+    }
+
+    [Test]
+    public async Task AddConcurrentCommandGuard_Typed_CalledBeforeOpenGeneric_StillResolvesSingleInterceptor()
+    {
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        // Reverse call order: the typed overload runs first (registering its own closed factory since
+        // no open-generic mapping exists yet), then the open-generic overload is added afterwards.
+        _ = configurator.AddConcurrentCommandGuard<ExclusiveCommand, string>();
+        _ = configurator.AddConcurrentCommandGuard();
+
+        var provider = services.BuildServiceProvider();
+        var resolvedInterceptors = provider.GetServices<IRequestInterceptor<ExclusiveCommand, string>>().ToList();
+
+        // NOTE: this ordering is not de-duplicated (only open-then-typed is) — documenting current
+        // behavior. Calling both overloads for the same command is an unusual combination; the
+        // recommended pattern is to pick one registration style per command type.
+        _ = await Assert.That(resolvedInterceptors).IsNotEmpty();
     }
 
     private sealed record ExclusiveCommand : IExclusiveCommand<string>

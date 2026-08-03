@@ -210,4 +210,94 @@ public sealed class SqlServerOutboxRepositoryTests
 
         _ = await Assert.That(repository).IsNotNull();
     }
+
+    [Test]
+    public async Task MarkAsCompletedAsync_WithNullMessageIds_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        _ = await Assert
+            .That(async () => await repository.MarkAsCompletedAsync(null!, cancellationToken).ConfigureAwait(false))
+            .Throws<ArgumentNullException>();
+    }
+
+    // INVARIANT: An empty message-id batch is a no-op that returns before a connection is
+    // opened, so this is genuinely exercisable without a live SQL Server instance.
+    [Test]
+    public async Task MarkAsCompletedAsync_WithEmptyMessageIds_ReturnsWithoutOpeningConnection(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        await repository.MarkAsCompletedAsync(Array.Empty<Guid>(), cancellationToken).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task MarkAsFailedAsync_WithNullMessageIds_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.MarkAsFailedAsync(null!, "boom", cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task MarkAsFailedAsync_WithEmptyMessageIds_ReturnsWithoutOpeningConnection(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        await repository.MarkAsFailedAsync(Array.Empty<Guid>(), "boom", cancellationToken).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task MarkAsDeadLetterAsync_WithNullMessageIds_ThrowsArgumentNullException(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await repository.MarkAsDeadLetterAsync(null!, "boom", cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task MarkAsDeadLetterAsync_WithEmptyMessageIds_ReturnsWithoutOpeningConnection(
+        CancellationToken cancellationToken
+    )
+    {
+        var repository = new SqlServerOutboxRepository(
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
+        );
+
+        await repository.MarkAsDeadLetterAsync(Array.Empty<Guid>(), "boom", cancellationToken).ConfigureAwait(false);
+    }
 }

@@ -55,6 +55,8 @@ internal sealed class FakeCosmosContainer : Container
 
     public Func<string, PartitionKey, object>? OnDeleteItem { get; set; }
 
+    public Func<ContainerResponse?>? OnReadContainer { get; set; }
+
     public int ReadItemCalls { get; private set; }
 
     public int PatchItemCalls { get; private set; }
@@ -264,7 +266,7 @@ internal sealed class FakeCosmosContainer : Container
     public override Task<ContainerResponse> ReadContainerAsync(
         ContainerRequestOptions? requestOptions = null,
         CancellationToken cancellationToken = default
-    ) => throw new NotImplementedException();
+    ) => OnReadContainer is null ? throw new NotImplementedException() : Task.FromResult(OnReadContainer()!);
 
     public override Task<ResponseMessage> ReadContainerStreamAsync(
         ContainerRequestOptions? requestOptions = null,

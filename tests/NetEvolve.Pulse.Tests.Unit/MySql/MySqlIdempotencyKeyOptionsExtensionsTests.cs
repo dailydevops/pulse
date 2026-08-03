@@ -5,24 +5,24 @@ using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
-using static NetEvolve.Pulse.Outbox.MySqlOutboxOptionsExtensions;
-using OutboxOptions = Pulse.Outbox.OutboxOptions;
+using static NetEvolve.Pulse.Idempotency.MySqlIdempotencyKeyOptionsExtensions;
+using IdempotencyKeyOptions = Pulse.Idempotency.IdempotencyKeyOptions;
 
 [TestGroup("MySql")]
-public sealed class MySqlOutboxOptionsExtensionsTests
+public sealed class MySqlIdempotencyKeyOptionsExtensionsTests
 {
     [Test]
     public async Task FullTableName_WithDefaultOptions_Returns_correct_backtick_quoted_name()
     {
-        var options = new OutboxOptions();
+        var options = new IdempotencyKeyOptions();
 
-        _ = await Assert.That(options.FullTableName).IsEqualTo("`OutboxMessage`");
+        _ = await Assert.That(options.FullTableName).IsEqualTo("`IdempotencyKey`");
     }
 
     [Test]
     public async Task FullTableName_WithCustomTableName_Returns_correct_backtick_quoted_name()
     {
-        var options = new OutboxOptions { TableName = "MyTable" };
+        var options = new IdempotencyKeyOptions { TableName = "MyTable" };
 
         _ = await Assert.That(options.FullTableName).IsEqualTo("`MyTable`");
     }
@@ -30,15 +30,15 @@ public sealed class MySqlOutboxOptionsExtensionsTests
     [Test]
     public async Task FullTableName_DoesNotUseSchema_IgnoresSchemaProperty()
     {
-        var options = new OutboxOptions { Schema = "myschema", TableName = "OutboxMessage" };
+        var options = new IdempotencyKeyOptions { Schema = "myschema", TableName = "IdempotencyKey" };
 
-        _ = await Assert.That(options.FullTableName).IsEqualTo("`OutboxMessage`");
+        _ = await Assert.That(options.FullTableName).IsEqualTo("`IdempotencyKey`");
     }
 
     [Test]
     public async Task FullTableName_WithInvalidTableName_ThrowsArgumentException()
     {
-        var options = new OutboxOptions { TableName = "with`backtick" };
+        var options = new IdempotencyKeyOptions { TableName = "with`backtick" };
 
         _ = await Assert.That(() => options.FullTableName).Throws<ArgumentException>();
     }

@@ -142,4 +142,20 @@ public sealed class SqlServerOutboxManagementTests
             .That(async () => await management.GetDeadLetterMessagesAsync(page: -1).ConfigureAwait(false))
             .Throws<ArgumentOutOfRangeException>();
     }
+
+    // Defense-in-depth: pin that an attacker-controlled Schema value cannot reach the SQL
+    // builder. The constructor must fail fast when Schema contains characters that would
+    // break out of the [bracketed] identifier (e.g. ']' followed by injected SQL).
+    [Test]
+    public async Task Constructor_WithMaliciousSchema_ThrowsArgumentException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerOutboxManagement(
+                    Options.Create(
+                        new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "pulse].[evil] -- " }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentException>();
 }

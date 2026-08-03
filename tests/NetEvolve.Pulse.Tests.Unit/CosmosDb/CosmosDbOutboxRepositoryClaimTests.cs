@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Tests.Unit.CosmosDb;
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
@@ -58,6 +59,79 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
         }
     }
 
+    [Test]
+    public async Task GetPendingAsync_WhenPatchThrowsPreconditionFailed_SkipsCandidate(
+        CancellationToken cancellationToken
+    )
+    {
+        var document = CreateDocument(Guid.NewGuid(), status: 0);
+        document.ETag = "\"etag\"";
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [document],
+                ]),
+            OnPatchItem = (_, _, _, _) =>
+                throw new CosmosException("conflict", HttpStatusCode.PreconditionFailed, 0, "activity", 0),
+        };
+
+        var repository = CreateRepository(container);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(claimed.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WhenPatchThrowsNotFound_SkipsCandidate(CancellationToken cancellationToken)
+    {
+        var document = CreateDocument(Guid.NewGuid(), status: 0);
+        document.ETag = "\"etag\"";
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [document],
+                ]),
+            OnPatchItem = (_, _, _, _) => throw new CosmosException("gone", HttpStatusCode.NotFound, 0, "activity", 0),
+        };
+
+        var repository = CreateRepository(container);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(claimed.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task GetFailedForRetryAsync_WithCandidates_ClaimsAndReturnsMessages(
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+        var document = CreateDocument(messageId, status: 3);
+        document.ETag = "\"etag\"";
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [document],
+                ]),
+            OnPatchItem = (_, _, _, _) =>
+                new FakeItemResponse<CosmosDbOutboxDocument>(CreateDocument(messageId, status: 1)),
+        };
+
+        var repository = CreateRepository(container);
+
+        var claimed = await repository.GetFailedForRetryAsync(5, 10, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(claimed.Count).IsEqualTo(1);
+    }
+
     private static CosmosDbOutboxDocument CreateDocument(Guid id, int status) =>
         new CosmosDbOutboxDocument
         {
@@ -68,4 +142,15 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
             UpdatedAt = DateTimeOffset.UtcNow,
             Status = status,
         };
+
+    private static CosmosDbOutboxRepository CreateRepository(FakeCosmosContainer container)
+    {
+        using var client = new FakeCosmosClient(container);
+
+        return new CosmosDbOutboxRepository(
+            client,
+            Options.Create(new CosmosDbOutboxOptions { DatabaseName = "TestDb" }),
+            TimeProvider.System
+        );
+    }
 }

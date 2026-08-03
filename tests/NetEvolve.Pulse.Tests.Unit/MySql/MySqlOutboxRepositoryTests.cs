@@ -63,6 +63,40 @@ public sealed class MySqlOutboxRepositoryTests
             .Throws<ArgumentNullException>();
 
     [Test]
+    public async Task Constructor_WithZeroProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException() =>
+        _ = await Assert
+            .That(() =>
+                new MySqlOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            ProcessingLeaseTimeout = TimeSpan.Zero,
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+
+    [Test]
+    public async Task Constructor_WithNegativeProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException() =>
+        _ = await Assert
+            .That(() =>
+                new MySqlOutboxRepository(
+                    Options.Create(
+                        new OutboxOptions
+                        {
+                            ConnectionString = ValidConnectionString,
+                            ProcessingLeaseTimeout = TimeSpan.FromSeconds(-1),
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+
+    [Test]
     public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         var repository = new MySqlOutboxRepository(

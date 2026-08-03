@@ -3,8 +3,10 @@ namespace NetEvolve.Pulse.Tests.Unit.CosmosDb;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
@@ -107,6 +109,31 @@ public sealed class CosmosDbOutboxRepositoryDeleteCompletedTests
             .Throws<OperationCanceledException>();
 
         _ = await Assert.That(deleteCalls).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DeleteCompletedAsync_WhenDeleteThrowsNotFound_SkipsWithoutCounting(
+        CancellationToken cancellationToken
+    )
+    {
+        var id = Guid.NewGuid().ToString();
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxRepository.IdProjection>([
+                    [new CosmosDbOutboxRepository.IdProjection { Id = id }],
+                ]),
+            OnDeleteItem = (_, _) => throw new CosmosException("gone", HttpStatusCode.NotFound, 0, "activity", 0),
+        };
+
+        var repository = CreateRepository(container);
+
+        var deletedCount = await repository
+            .DeleteCompletedAsync(TimeSpan.Zero, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(deletedCount).IsEqualTo(0);
     }
 
     private static CosmosDbOutboxDocument CreateDocument(string id) =>

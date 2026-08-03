@@ -3,8 +3,10 @@ namespace NetEvolve.Pulse.Tests.Integration.RabbitMQ;
 using System.Text;
 using global::RabbitMQ.Client;
 using global::RabbitMQ.Client.Events;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
+using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
@@ -170,6 +172,164 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         _ = await Assert.That(healthy).IsFalse();
     }
 
+    [Test]
+    public async Task IsHealthyAsync_After_dispose_returns_false(CancellationToken cancellationToken)
+    {
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        var transport = CreateTransport(adapter);
+
+        // Establish a channel before disposing, to prove disposal short-circuits the health check
+        // rather than merely reporting an unopened channel as unhealthy.
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        transport.Dispose();
+
+        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(healthy).IsFalse();
+    }
+
+    [Test]
+    public async Task Dispose_Called_twice_is_idempotent(CancellationToken cancellationToken)
+    {
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        var transport = CreateTransport(adapter);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        transport.Dispose();
+
+        // Second Dispose() call must be a safe no-op, not throw or double-dispose the channel.
+        transport.Dispose();
+    }
+
+    [Test]
+    public async Task SendAsync_Called_twice_reuses_open_channel(CancellationToken cancellationToken)
+    {
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var queueName = await adminChannel
+            .QueueDeclareAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        await adminChannel
+            .QueueBindAsync(
+                queueName.QueueName,
+                ExchangeName,
+                routingKey: string.Empty,
+                cancellationToken: cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter);
+
+        // First call creates the channel; the second call must hit the already-open fast path
+        // in EnsureChannelAsync instead of re-entering the initialization lock.
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        var receivedMessages = await ConsumeManyMessagesAsync(
+                adminChannel,
+                queueName.QueueName,
+                expectedCount: 2,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(receivedMessages.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task SendAsync_Called_concurrently_initializes_channel_exactly_once(
+        CancellationToken cancellationToken
+    )
+    {
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var queueName = await adminChannel
+            .QueueDeclareAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        await adminChannel
+            .QueueBindAsync(
+                queueName.QueueName,
+                ExchangeName,
+                routingKey: string.Empty,
+                cancellationToken: cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter);
+
+        const int concurrentSends = 10;
+
+        // Fire many sends concurrently against a transport with no channel yet, to exercise the
+        // double-checked locking re-check branch inside EnsureChannelAsync.
+        var tasks = Enumerable
+            .Range(0, concurrentSends)
+            .Select(_ => transport.SendAsync(CreateOutboxMessage(), cancellationToken));
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        var receivedMessages = await ConsumeManyMessagesAsync(
+                adminChannel,
+                queueName.QueueName,
+                expectedCount: concurrentSends,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(receivedMessages.Count).IsEqualTo(concurrentSends);
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Registers_transport_and_connection_adapter(
+        CancellationToken cancellationToken
+    )
+    {
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(connection);
+        _ = services.AddPulse(config => config.UseRabbitMqTransport(o => o.ExchangeName = ExchangeName));
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            // RabbitMqMessageTransport itself has an internal constructor and cannot be resolved by
+            // the container's default reflection-based activator; verify the surrounding registration
+            // (connection adapter factory + options) that UseRabbitMqTransport is responsible for instead.
+            var adapter = provider.GetRequiredService<IRabbitMqConnectionAdapter>();
+            _ = await Assert.That(adapter.IsOpen).IsTrue();
+
+            var options = provider.GetRequiredService<IOptions<RabbitMqTransportOptions>>();
+            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(ExchangeName);
+
+            var descriptor = services.Single(d => d.ServiceType == typeof(IMessageTransport));
+            _ = await Assert.That(descriptor.ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
+        }
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Replaces_existing_transport(CancellationToken cancellationToken)
+    {
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(connection);
+        _ = services.AddSingleton<IMessageTransport>(new DummyTransport());
+        _ = services.AddPulse(config => config.UseRabbitMqTransport(o => o.ExchangeName = ExchangeName));
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IMessageTransport)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+            _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
+        }
+    }
+
     private static RabbitMqMessageTransport CreateTransport(IRabbitMqConnectionAdapter adapter) =>
         new(
             adapter,
@@ -254,4 +414,19 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     }
 
     private sealed record IntegrationTestEvent;
+
+#pragma warning disable CA1812 // Avoid uninstantiated internal classes - instantiated via DI container
+    private sealed class DummyTransport : IMessageTransport
+#pragma warning restore CA1812
+    {
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task SendBatchAsync(
+            IEnumerable<OutboxMessage> messages,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+    }
 }
