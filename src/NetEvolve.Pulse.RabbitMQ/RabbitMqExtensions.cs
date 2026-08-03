@@ -2,6 +2,8 @@ namespace NetEvolve.Pulse;
 
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
@@ -37,17 +39,38 @@ public static class RabbitMqExtensions
 
         var services = configurator.Services;
 
-        _ = services.AddOptions<RabbitMqTransportOptions>();
+        _ = services.AddOptions<RabbitMqTransportOptions>().ValidateOnStart();
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<RabbitMqTransportOptions>,
+                RabbitMqTransportOptionsConfiguration
+            >()
+        );
+
         if (configureOptions is not null)
         {
             _ = services.Configure(configureOptions);
         }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<RabbitMqTransportOptions>, RabbitMqTransportOptionsValidator>()
+        );
 
         // Register the connection adapter
         _ = services.AddSingleton<IRabbitMqConnectionAdapter>(sp =>
         {
             var connection = sp.GetRequiredService<IConnection>();
             return new RabbitMqConnectionAdapter(connection);
+        });
+
+        // Register the channel pool. TryAddSingleton avoids duplicate registrations when
+        // UseRabbitMqTransport is called more than once.
+        services.TryAddSingleton<IRabbitMqChannelPool>(sp =>
+        {
+            var connectionAdapter = sp.GetRequiredService<IRabbitMqConnectionAdapter>();
+            var poolOptions = sp.GetRequiredService<IOptions<RabbitMqTransportOptions>>();
+            return new RabbitMqChannelPool(connectionAdapter, poolOptions.Value.MaxChannelPoolSize);
         });
 
         var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IMessageTransport));

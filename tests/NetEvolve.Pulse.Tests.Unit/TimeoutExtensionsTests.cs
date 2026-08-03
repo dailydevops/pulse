@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -100,6 +101,7 @@ public sealed class TimeoutExtensionsTests
     public async Task AddRequestTimeout_WithGlobalTimeout_ConfiguresOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         var configurator = new MediatorBuilder(services);
 
         _ = configurator.AddRequestTimeout(TimeSpan.FromSeconds(30));
@@ -117,6 +119,7 @@ public sealed class TimeoutExtensionsTests
     public async Task AddRequestTimeout_WithoutGlobalTimeout_LeavesGlobalTimeoutNull()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         var configurator = new MediatorBuilder(services);
 
         _ = configurator.AddRequestTimeout();

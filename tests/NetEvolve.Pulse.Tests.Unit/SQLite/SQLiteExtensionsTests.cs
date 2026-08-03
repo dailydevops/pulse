@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -106,6 +107,7 @@ public sealed class SQLiteExtensionsTests
     public async Task UseSQLiteOutbox_WithConfigureOptions_AppliesTableName()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddOutbox().UseSQLiteOutbox("Data Source=:memory:", options => options.TableName = "CustomTable")
         );
@@ -123,6 +125,7 @@ public sealed class SQLiteExtensionsTests
     public async Task UseSQLiteOutbox_WithConfigureAction_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config
                 .AddOutbox()
@@ -265,6 +268,7 @@ public sealed class SQLiteExtensionsTests
     public async Task AddSQLiteOutbox_WithConfigureOptions_AppliesTableName()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddSQLiteOutbox("Data Source=:memory:", options => options.TableName = "CustomTable")
         );
@@ -282,6 +286,7 @@ public sealed class SQLiteExtensionsTests
     public async Task AddSQLiteOutbox_WithConfigureAction_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddSQLiteOutbox(opts =>
             {
@@ -389,6 +394,7 @@ public sealed class SQLiteExtensionsTests
     public async Task AddSQLiteOutbox_WithFactory_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.AddSQLiteOutbox(_ => "Data Source=:memory:", options => options.TableName = "CustomTable")
         );

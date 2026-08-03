@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
+namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using System.Linq;
 using System.Text;
@@ -16,29 +16,29 @@ using TUnit.Core;
 public sealed class RabbitMqMessageTransportTests
 {
     [Test]
-    public async Task Constructor_When_connectionAdapter_null_throws()
+    public async Task Constructor_When_channelPool_null_throws()
     {
-        IRabbitMqConnectionAdapter connectionAdapter = null!;
+        IRabbitMqChannelPool channelPool = null!;
         var topicNameResolver = new FakeTopicNameResolver();
         var options = CreateOptions();
 
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options)
+            _ = new RabbitMqMessageTransport(channelPool, topicNameResolver, options)
         );
 
         _ = await Assert.That(exception).IsNotNull();
-        _ = await Assert.That(exception.ParamName).IsEqualTo("connectionAdapter");
+        _ = await Assert.That(exception.ParamName).IsEqualTo("channelPool");
     }
 
     [Test]
     public async Task Constructor_When_topicNameResolver_null_throws()
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         ITopicNameResolver topicNameResolver = null!;
         var options = CreateOptions();
 
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options)
+            _ = new RabbitMqMessageTransport(channelPool, topicNameResolver, options)
         );
 
         _ = await Assert.That(exception).IsNotNull();
@@ -48,12 +48,12 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task Constructor_When_options_null_throws()
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         IOptions<RabbitMqTransportOptions> options = null!;
 
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            _ = new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options)
+            _ = new RabbitMqMessageTransport(channelPool, topicNameResolver, options)
         );
 
         _ = await Assert.That(exception).IsNotNull();
@@ -63,9 +63,9 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_null_throws(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
             transport.SendAsync(null!, cancellationToken)
@@ -78,15 +78,15 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_Publishes_message_with_correct_properties(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver, exchangeName: "test-exchange");
+        using var transport = CreateTransport(channelPool, topicNameResolver, exchangeName: "test-exchange");
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
+        var channel = channelPool.RentedChannels.Single();
         _ = await Assert.That(channel.PublishCallCount).IsEqualTo(1);
 
         var publishCall = channel.PublishCalls.Single();
@@ -111,151 +111,111 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_Reuses_open_channel(CancellationToken cancellationToken)
+    public async Task SendAsync_Returns_channel_to_pool_after_publish(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
         var message1 = CreateOutboxMessage();
         var message2 = CreateOutboxMessage();
 
         await transport.SendAsync(message1, cancellationToken).ConfigureAwait(false);
         await transport.SendAsync(message2, cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
-        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(2);
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(2);
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(2);
     }
 
     [Test]
-    public async Task SendAsync_Creates_new_channel_when_previous_closed(CancellationToken cancellationToken)
+    public async Task SendAsync_Returns_channel_even_when_publish_throws(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-        var message1 = CreateOutboxMessage();
-        var message2 = CreateOutboxMessage();
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
-        await transport.SendAsync(message1, cancellationToken).ConfigureAwait(false);
-        var firstChannel = connectionAdapter.CreatedChannels.Single();
-        firstChannel.IsOpen = false; // Simulate channel closure
+        channelPool.NextRentedChannelThrowsOnPublish = true;
 
-        await transport.SendAsync(message2, cancellationToken).ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken)
+        );
 
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(2);
-        _ = await Assert.That(connectionAdapter.CreatedChannels.Count).IsEqualTo(2);
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
     }
 
-    // INVARIANT (resource lifecycle): when a previously-created channel has closed and a
-    // new channel must be acquired, the closed channel MUST be disposed. Overwriting the
-    // reference without disposal leaks unmanaged RabbitMQ.Client channel resources.
     [Test]
-    public async Task SendAsync_Disposes_closed_channel_before_creating_new_one(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-        var firstChannel = connectionAdapter.CreatedChannels.Single();
-        firstChannel.IsOpen = false; // Simulate channel closure
-
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-
-        // The first (closed) channel must have been disposed before the new one was created.
-        _ = await Assert.That(firstChannel.DisposeCalled).IsTrue();
-        _ = await Assert.That(connectionAdapter.CreatedChannels.Count).IsEqualTo(2);
-    }
-
-    // INVARIANT (thread-safety): SendBatchAsync MUST publish sequentially on the shared
-    // channel. RabbitMQ.Client IChannel is NOT thread-safe; concurrent BasicPublishAsync
-    // calls are unsupported and can corrupt the AMQP frame stream.
-    [Test]
-    public async Task SendBatchAsync_Publishes_messages_sequentially_on_shared_channel(
+    public async Task SendBatchAsync_Rents_single_channel_and_publishes_sequentially(
         CancellationToken cancellationToken
     )
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver, exchangeName: "batch-ex");
+        using var transport = CreateTransport(channelPool, topicNameResolver, exchangeName: "batch-ex");
 
         var messages = Enumerable.Range(0, 5).Select(_ => CreateOutboxMessage()).ToArray();
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
 
-        // Exactly one channel created and reused; all publishes routed through it.
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
+        // Exactly one channel rented for the whole batch and returned afterwards.
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
+        var channel = channelPool.RentedChannels.Single();
         _ = await Assert.That(channel.PublishCallCount).IsEqualTo(messages.Length);
         // All routed to the configured exchange.
         _ = await Assert.That(channel.PublishCalls.All(p => p.Exchange == "batch-ex")).IsTrue();
     }
 
     [Test]
+    public async Task SendBatchAsync_Returns_channel_even_when_publish_throws(CancellationToken cancellationToken)
+    {
+        var channelPool = new FakeChannelPool();
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(channelPool, topicNameResolver);
+
+        channelPool.NextRentedChannelThrowsOnPublish = true;
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            transport.SendBatchAsync([CreateOutboxMessage()], cancellationToken)
+        );
+
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task SendAsync_Uses_topic_name_resolver_for_routing_key(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver { ResolvedName = "custom-routing-key" };
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
         var outboxMessage = CreateOutboxMessage();
 
         await transport.SendAsync(outboxMessage, cancellationToken).ConfigureAwait(false);
 
-        var channel = connectionAdapter.CreatedChannels.Single();
+        var channel = channelPool.RentedChannels.Single();
         var publishCall = channel.PublishCalls.Single();
         _ = await Assert.That(publishCall.RoutingKey).IsEqualTo("custom-routing-key");
         _ = await Assert.That(topicNameResolver.ResolveCallCount).IsEqualTo(1);
     }
 
     [Test]
-    public async Task IsHealthyAsync_When_connection_not_open_returns_false(CancellationToken cancellationToken)
+    public async Task IsHealthyAsync_Delegates_to_channel_pool(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter { IsOpen = false };
+        var channelPool = new FakeChannelPool { Healthy = false };
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(healthy).IsFalse();
+        _ = await Assert.That(channelPool.IsHealthyCallCount).IsEqualTo(1);
     }
 
     [Test]
-    public async Task IsHealthyAsync_When_channel_not_created_returns_false(CancellationToken cancellationToken)
+    public async Task IsHealthyAsync_When_pool_reports_healthy_returns_true(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter { IsOpen = true };
+        var channelPool = new FakeChannelPool { Healthy = true };
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
-
-        _ = await Assert.That(healthy).IsFalse();
-    }
-
-    [Test]
-    public async Task IsHealthyAsync_When_channel_not_open_returns_false(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter { IsOpen = true };
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        // Create a channel
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-        var channel = connectionAdapter.CreatedChannels.Single();
-        channel.IsOpen = false;
-
-        var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
-
-        _ = await Assert.That(healthy).IsFalse();
-    }
-
-    [Test]
-    public async Task IsHealthyAsync_When_connection_and_channel_open_returns_true(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter { IsOpen = true };
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        // Create a channel
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -265,9 +225,9 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_exception_thrown_returns_false(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter { IsOpen = true, ThrowOnIsOpen = true };
+        var channelPool = new FakeChannelPool { ThrowOnIsHealthyAsync = true };
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -275,34 +235,18 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task Dispose_Disposes_channel_and_lock(CancellationToken cancellationToken)
+    public async Task Dispose_Is_idempotent()
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-        var channel = connectionAdapter.CreatedChannels.Single();
-
-        transport.Dispose();
-
-        _ = await Assert.That(channel.DisposeCalled).IsTrue();
-    }
-
-    [Test]
-    public async Task Dispose_Is_idempotent(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-        var channel = connectionAdapter.CreatedChannels.Single();
+        var transport = CreateTransport(channelPool, topicNameResolver);
 
         transport.Dispose();
         transport.Dispose();
 
-        _ = await Assert.That(channel.DisposeCallCount).IsEqualTo(1);
+        // Dispose does not touch the pool (owned/disposed separately by DI); it must
+        // simply be safe to call multiple times.
+        await Task.CompletedTask;
     }
 
     // ── Post-dispose contract (DEEP-G-01) ─────────────────────────────────────
@@ -310,9 +254,9 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_After_Dispose_Throws_ObjectDisposedException(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        var transport = CreateTransport(channelPool, topicNameResolver);
 
         transport.Dispose();
 
@@ -326,9 +270,9 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_After_Dispose_Throws_ObjectDisposedException(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        var transport = CreateTransport(channelPool, topicNameResolver);
 
         transport.Dispose();
 
@@ -344,9 +288,9 @@ public sealed class RabbitMqMessageTransportTests
     {
         // Health probes typically run during shutdown; disposed transports must report unhealthy
         // rather than throwing so the probe path stays observable.
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool { Healthy = true };
         var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        var transport = CreateTransport(channelPool, topicNameResolver);
 
         transport.Dispose();
 
@@ -360,9 +304,9 @@ public sealed class RabbitMqMessageTransportTests
     {
         // ArgumentNullException must take precedence over ObjectDisposedException because
         // the order of checks pins the public contract for callers passing bad arguments.
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        var transport = CreateTransport(channelPool, topicNameResolver);
 
         transport.Dispose();
 
@@ -377,9 +321,9 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_When_messages_null_throws(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
             transport.SendBatchAsync(null!, cancellationToken)
@@ -392,15 +336,15 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Publishes_all_messages_with_correct_properties(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver, exchangeName: "test-exchange");
+        using var transport = CreateTransport(channelPool, topicNameResolver, exchangeName: "test-exchange");
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
 
         await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
+        var channel = channelPool.RentedChannels.Single();
         _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
 
         foreach (var publishCall in channel.PublishCalls)
@@ -412,52 +356,18 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_Uses_single_channel_for_all_messages(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
-
-        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
-
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
-        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
-    }
-
-    [Test]
     public async Task SendBatchAsync_With_empty_collection_does_not_publish(CancellationToken cancellationToken)
     {
-        var connectionAdapter = new FakeConnectionAdapter();
+        var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
+        using var transport = CreateTransport(channelPool, topicNameResolver);
 
         await transport.SendBatchAsync([], cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
+        _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
+        var channel = channelPool.RentedChannels.Single();
         _ = await Assert.That(channel.PublishCallCount).IsEqualTo(0);
-    }
-
-    [Test]
-    public async Task SendBatchAsync_Reuses_existing_channel(CancellationToken cancellationToken)
-    {
-        var connectionAdapter = new FakeConnectionAdapter();
-        var topicNameResolver = new FakeTopicNameResolver();
-        using var transport = CreateTransport(connectionAdapter, topicNameResolver);
-
-        // First call creates a channel
-        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
-
-        // Second call reuses the same channel
-        await transport
-            .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
-            .ConfigureAwait(false);
-
-        _ = await Assert.That(connectionAdapter.CreateChannelCallCount).IsEqualTo(1);
-        var channel = connectionAdapter.CreatedChannels.Single();
-        _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
     }
 
     [Test]
@@ -476,14 +386,30 @@ public sealed class RabbitMqMessageTransportTests
         _ = await Assert.That(options.ExchangeName).IsEqualTo(string.Empty);
     }
 
+    [Test]
+    public async Task Options_Default_MaxChannelPoolSize_is_ten()
+    {
+        var options = new RabbitMqTransportOptions();
+
+        _ = await Assert.That(options.MaxChannelPoolSize).IsEqualTo(10);
+    }
+
+    [Test]
+    public async Task Options_MaxChannelPoolSize_can_be_configured()
+    {
+        var options = new RabbitMqTransportOptions { MaxChannelPoolSize = 25 };
+
+        _ = await Assert.That(options.MaxChannelPoolSize).IsEqualTo(25);
+    }
+
     private static RabbitMqMessageTransport CreateTransport(
-        IRabbitMqConnectionAdapter connectionAdapter,
+        IRabbitMqChannelPool channelPool,
         ITopicNameResolver topicNameResolver,
         string exchangeName = "events"
     )
     {
         var options = CreateOptions(exchangeName);
-        return new RabbitMqMessageTransport(connectionAdapter, topicNameResolver, options);
+        return new RabbitMqMessageTransport(channelPool, topicNameResolver, options);
     }
 
     private static IOptions<RabbitMqTransportOptions> CreateOptions(string exchangeName = "events") =>
@@ -523,36 +449,41 @@ public sealed class RabbitMqMessageTransportTests
         public DateTimeOffset? PublishedAt { get; set; }
     }
 
-    private sealed class FakeConnectionAdapter : IRabbitMqConnectionAdapter
+    private sealed class FakeChannelPool : IRabbitMqChannelPool
     {
-        private bool _isOpen = true;
+        public int RentCallCount { get; private set; }
 
-        public bool IsOpen
+        public int ReturnCallCount { get; private set; }
+
+        public int IsHealthyCallCount { get; private set; }
+
+        public bool Healthy { get; set; } = true;
+
+        public bool ThrowOnIsHealthyAsync { get; set; }
+
+        public bool NextRentedChannelThrowsOnPublish { get; set; }
+
+        public List<FakeChannelAdapter> RentedChannels { get; } = [];
+
+        public ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken)
         {
-            get
-            {
-                if (ThrowOnIsOpen)
-                {
-                    throw new InvalidOperationException("Connection check failed");
-                }
-
-                return _isOpen;
-            }
-            set => _isOpen = value;
+            RentCallCount++;
+            var channel = new FakeChannelAdapter { ThrowsOnPublish = NextRentedChannelThrowsOnPublish };
+            RentedChannels.Add(channel);
+            return ValueTask.FromResult<IRabbitMqChannelAdapter>(channel);
         }
 
-        public bool ThrowOnIsOpen { get; set; }
+        public void Return(IRabbitMqChannelAdapter channel) => ReturnCallCount++;
 
-        public int CreateChannelCallCount { get; private set; }
-
-        public List<FakeChannelAdapter> CreatedChannels { get; } = [];
-
-        public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
         {
-            CreateChannelCallCount++;
-            var channel = new FakeChannelAdapter();
-            CreatedChannels.Add(channel);
-            return Task.FromResult<IRabbitMqChannelAdapter>(channel);
+            IsHealthyCallCount++;
+            if (ThrowOnIsHealthyAsync)
+            {
+                throw new InvalidOperationException("Health check failed");
+            }
+
+            return Task.FromResult(Healthy);
         }
     }
 
@@ -560,13 +491,11 @@ public sealed class RabbitMqMessageTransportTests
     {
         public bool IsOpen { get; set; } = true;
 
+        public bool ThrowsOnPublish { get; set; }
+
         public int PublishCallCount { get; private set; }
 
         public List<PublishCall> PublishCalls { get; } = [];
-
-        public bool DisposeCalled { get; private set; }
-
-        public int DisposeCallCount { get; private set; }
 
         public ValueTask BasicPublishAsync<TProperties>(
             string exchange,
@@ -578,6 +507,11 @@ public sealed class RabbitMqMessageTransportTests
         )
             where TProperties : IReadOnlyBasicProperties, IAmqpHeader
         {
+            if (ThrowsOnPublish)
+            {
+                throw new InvalidOperationException("Publish failed");
+            }
+
             PublishCallCount++;
             PublishCalls.Add(
                 new PublishCall
@@ -611,11 +545,7 @@ public sealed class RabbitMqMessageTransportTests
             return result;
         }
 
-        public void Dispose()
-        {
-            DisposeCalled = true;
-            DisposeCallCount++;
-        }
+        public void Dispose() { }
     }
 
     private sealed record PublishCall

@@ -1,9 +1,11 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -23,9 +25,35 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
+    public async Task UseRabbitMqTransport_Registers_channel_pool_as_singleton()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config => config.UseRabbitMqTransport());
+
+        var descriptor = services.Single(d => d.ServiceType == typeof(IRabbitMqChannelPool));
+        _ = await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_CalledTwice_Does_not_duplicate_channel_pool_registration()
+    {
+        IServiceCollection services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+        {
+            _ = config.UseRabbitMqTransport();
+            _ = config.UseRabbitMqTransport();
+        });
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IRabbitMqChannelPool)).ToList();
+
+        _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task UseRabbitMqTransport_Configures_options()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseRabbitMqTransport(options => options.ExchangeName = "test-exchange"));
 
         var provider = services.BuildServiceProvider();
@@ -39,9 +67,10 @@ public sealed class RabbitMqExtensionsTests
     }
 
     [Test]
-    public async Task UseRabbitMqTransport_Without_configureOptions_registers_default_options()
+    public async Task UseRabbitMqTransport_Without_configureOptions_registers_options()
     {
         IServiceCollection services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.UseRabbitMqTransport());
 
         var provider = services.BuildServiceProvider();
@@ -50,9 +79,10 @@ public sealed class RabbitMqExtensionsTests
             var options =
                 provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqTransportOptions>>();
 
-            // Verify default options are accessible
-            _ = await Assert.That(options.Value).IsNotNull();
-            _ = await Assert.That(options.Value.ExchangeName).IsEqualTo(string.Empty);
+            // The default ExchangeName is empty and therefore invalid; validation runs whenever
+            // the options are resolved (independent of ValidateOnStart, which only forces eager
+            // validation at host startup).
+            _ = Assert.Throws<Microsoft.Extensions.Options.OptionsValidationException>(() => _ = options.Value);
         }
     }
 
@@ -69,6 +99,34 @@ public sealed class RabbitMqExtensionsTests
         {
             _ = await Assert.That(descriptors.Count).IsEqualTo(1);
             _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(RabbitMqMessageTransport));
+        }
+    }
+
+    [Test]
+    public async Task UseRabbitMqTransport_Resolves_channel_pool_from_connection_adapter_and_options()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        _ = services.AddPulse(config =>
+            config.UseRabbitMqTransport(options =>
+            {
+                options.ExchangeName = "test-exchange";
+                options.MaxChannelPoolSize = 3;
+            })
+        );
+
+        // Replace the connection-adapter registration with a fake so the pool factory can be
+        // exercised without a real RabbitMQ.Client IConnection.
+        var connectionAdapterDescriptor = services.Single(d => d.ServiceType == typeof(IRabbitMqConnectionAdapter));
+        _ = services.Remove(connectionAdapterDescriptor);
+        _ = services.AddSingleton<IRabbitMqConnectionAdapter>(new FakeConnectionAdapter());
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var pool = provider.GetRequiredService<IRabbitMqChannelPool>();
+
+            _ = await Assert.That(pool).IsNotNull();
         }
     }
 
@@ -107,5 +165,15 @@ public sealed class RabbitMqExtensionsTests
             IEnumerable<OutboxMessage> messages,
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
+    }
+
+#pragma warning disable CA1812 // Avoid uninstantiated internal classes - instantiated via DI container
+    private sealed class FakeConnectionAdapter : IRabbitMqConnectionAdapter
+#pragma warning restore CA1812
+    {
+        public bool IsOpen => true;
+
+        public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by these tests.");
     }
 }

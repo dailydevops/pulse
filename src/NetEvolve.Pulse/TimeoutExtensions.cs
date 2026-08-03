@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse;
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 
@@ -57,8 +58,27 @@ public static class TimeoutExtensions
     {
         ArgumentNullException.ThrowIfNull(configurator);
 
-        _ = configurator.Services.Configure<TimeoutRequestInterceptorOptions>(opts =>
-            opts.GlobalTimeout = globalTimeout
+        _ = configurator.Services.AddOptions<TimeoutRequestInterceptorOptions>().ValidateOnStart();
+
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IConfigureOptions<TimeoutRequestInterceptorOptions>,
+                TimeoutRequestInterceptorOptionsConfiguration
+            >()
+        );
+
+        if (globalTimeout is not null)
+        {
+            _ = configurator.Services.Configure<TimeoutRequestInterceptorOptions>(opts =>
+                opts.GlobalTimeout = globalTimeout
+            );
+        }
+
+        configurator.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IValidateOptions<TimeoutRequestInterceptorOptions>,
+                TimeoutRequestInterceptorOptionsValidator
+            >()
         );
 
         configurator.Services.TryAddEnumerable(

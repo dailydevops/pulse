@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -107,6 +108,7 @@ public sealed class EntityFrameworkExtensionsTests
     public async Task AddEntityFrameworkOutbox_WithConfigureOptions_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddDbContext<TestDbContext>(o =>
             o.UseInMemoryDatabase(nameof(AddEntityFrameworkOutbox_WithConfigureOptions_AppliesOptions))
         );
@@ -127,6 +129,7 @@ public sealed class EntityFrameworkExtensionsTests
     public async Task AddEntityFrameworkOutbox_WithTableNameOption_AppliesOptions()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddDbContext<TestDbContext>(o =>
             o.UseInMemoryDatabase(nameof(AddEntityFrameworkOutbox_WithTableNameOption_AppliesOptions))
         );
