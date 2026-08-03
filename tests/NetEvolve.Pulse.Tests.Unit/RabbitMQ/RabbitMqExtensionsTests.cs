@@ -106,6 +106,7 @@ public sealed class RabbitMqExtensionsTests
     public async Task UseRabbitMqTransport_Resolves_channel_pool_from_connection_adapter_and_options()
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config =>
             config.UseRabbitMqTransport(options =>
             {
