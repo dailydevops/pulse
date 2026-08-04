@@ -1,0 +1,90 @@
+namespace NetEvolve.Pulse.Tests.Integration.Internals.Audit;
+
+using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Audit;
+using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Audit;
+
+[SuppressMessage(
+    "Security",
+    "CA2100:Review SQL queries for security vulnerabilities",
+    Justification = "SQL is read from a script file with schema and table names substituted from validated AuditStoreOptions properties."
+)]
+public sealed partial class SqlServerAdoNetAuditInitializer : IServiceInitializer
+{
+    private static readonly string _scriptPath = Path.Combine(
+        AppContext.BaseDirectory,
+        "Scripts",
+        "SqlServer",
+        "AuditEntry.sql"
+    );
+
+    public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
+    {
+        ArgumentNullException.ThrowIfNull(serviceFixture);
+        _ = mediatorBuilder.AddSqlServerAuditStore(options =>
+            options.ConnectionString = serviceFixture.ConnectionString
+        );
+    }
+
+    public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    {
+        var options = serviceProvider.GetRequiredService<IOptions<AuditStoreOptions>>().Value;
+
+        var connectionString =
+            options.ConnectionString
+            ?? throw new InvalidOperationException("AuditStoreOptions.ConnectionString is not configured.");
+
+        var schema = string.IsNullOrWhiteSpace(options.Schema) ? AuditEntrySchema.DefaultSchema : options.Schema;
+
+        var tableName = string.IsNullOrWhiteSpace(options.TableName)
+            ? AuditEntrySchema.DefaultTableName
+            : options.TableName;
+
+        var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
+
+        // Remove SQLCMD-specific variable declarations (not valid T-SQL)
+        script = SearchSetVar().Replace(script, string.Empty);
+
+        // Substitute SQLCMD variables with actual values
+        script = script
+            .Replace("$(SchemaName)", schema, StringComparison.Ordinal)
+            .Replace("$(TableName)", tableName, StringComparison.Ordinal);
+
+        // Split on GO (on its own line) and execute each batch independently
+        var batches = SearchGoStatements().Split(script);
+
+        var connection = new SqlConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            foreach (var batch in batches)
+            {
+                var trimmed = batch.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var command = new SqlCommand(trimmed, connection);
+                await using (command.ConfigureAwait(false))
+                {
+                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+    public void Initialize(IServiceCollection services, IServiceFixture serviceFixture) { }
+
+    [GeneratedRegex(@"^:setvar\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
+    private static partial Regex SearchSetVar();
+
+    [GeneratedRegex(@"^\s*GO\s*$", RegexOptions.IgnoreCase | RegexOptions.Multiline, 10000)]
+    private static partial Regex SearchGoStatements();
+}

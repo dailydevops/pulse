@@ -3,8 +3,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Audit;
 using NetEvolve.Pulse.Configurations;
 using NetEvolve.Pulse.DeadLetter;
+using NetEvolve.Pulse.Extensibility.Audit;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Idempotency;
@@ -18,7 +20,7 @@ public static class ModelBuilderExtensions
     /// <summary>
     /// Applies all Pulse-related entity configurations to the model builder.
     /// </summary>
-    /// <typeparam name="TContext">The DbContext type. When it implements <see cref="IOutboxDbContext"/>, the outbox message configuration is applied automatically. When it implements <see cref="IIdempotencyStoreDbContext"/>, the idempotency key configuration is applied automatically. When it implements <see cref="ICommandDeadLetterDbContext"/>, the command dead letter entry configuration is applied automatically.</typeparam>
+    /// <typeparam name="TContext">The DbContext type. When it implements <see cref="IOutboxDbContext"/>, the outbox message configuration is applied automatically. When it implements <see cref="IIdempotencyStoreDbContext"/>, the idempotency key configuration is applied automatically. When it implements <see cref="ICommandDeadLetterDbContext"/>, the command dead letter entry configuration is applied automatically. When it implements <see cref="IAuditStoreDbContext"/>, the audit entry configuration is applied automatically.</typeparam>
     /// <param name="modelBuilder">The model builder to apply the configuration to.</param>
     /// <param name="context">The DbContext instance used to resolve provider-specific configuration.</param>
     /// <returns>The <paramref name="modelBuilder"/> for chaining.</returns>
@@ -47,6 +49,13 @@ public static class ModelBuilderExtensions
         if (context is ICommandDeadLetterDbContext)
         {
             var configuration = GetCommandDeadLetterConfiguration(context, providerName);
+
+            _ = modelBuilder.ApplyConfiguration(configuration);
+        }
+
+        if (context is IAuditStoreDbContext)
+        {
+            var configuration = GetAuditEntryConfiguration(context, providerName);
 
             _ = modelBuilder.ApplyConfiguration(configuration);
         }
@@ -173,6 +182,45 @@ public static class ModelBuilderExtensions
                 resolvedOptions
             ),
             ProviderName.InMemory => new InMemoryCommandDeadLetterEntryConfiguration(resolvedOptions),
+            _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
+        };
+    }
+
+    /// <summary>
+    /// Selects and instantiates the provider-appropriate <see cref="IEntityTypeConfiguration{TEntity}"/>
+    /// for <see cref="AuditRecord"/> based on the active EF Core provider.
+    /// </summary>
+    /// <typeparam name="TContext">The DbContext type, used to resolve registered <see cref="AuditStoreOptions"/>.</typeparam>
+    /// <param name="context">The DbContext instance used to resolve <see cref="IOptions{TOptions}"/> of <see cref="AuditStoreOptions"/>.</param>
+    /// <param name="providerName">The EF Core provider name read from <see cref="DatabaseFacade.ProviderName"/>.</param>
+    /// <returns>A provider-specific <see cref="IEntityTypeConfiguration{TEntity}"/> for <see cref="AuditRecord"/>.</returns>
+    /// <exception cref="NotSupportedException">Thrown when <paramref name="providerName"/> is not a supported EF Core provider.</exception>
+    private static IEntityTypeConfiguration<AuditRecord> GetAuditEntryConfiguration<TContext>(
+        TContext context,
+        string? providerName
+    )
+        where TContext : DbContext
+    {
+        IOptions<AuditStoreOptions>? resolvedOptions = null;
+        try
+        {
+            // EF Core's GetService throws InvalidOperationException when the service is not
+            // registered (instead of returning null), so we catch and fall back to defaults.
+            resolvedOptions = context.GetService<IOptions<AuditStoreOptions>>();
+        }
+        catch (InvalidOperationException)
+        {
+            // IOptions<AuditStoreOptions> not registered; use default options.
+        }
+
+        resolvedOptions ??= Options.Create(new AuditStoreOptions());
+        return providerName switch
+        {
+            ProviderName.Npgsql => new PostgreSqlAuditEntryConfiguration(resolvedOptions),
+            ProviderName.Sqlite => new SqliteAuditEntryConfiguration(resolvedOptions),
+            ProviderName.SqlServer => new SqlServerAuditEntryConfiguration(resolvedOptions),
+            ProviderName.PomeloMySql or ProviderName.OracleMySql => new MySqlAuditEntryConfiguration(resolvedOptions),
+            ProviderName.InMemory => new InMemoryAuditEntryConfiguration(resolvedOptions),
             _ => throw new NotSupportedException($"Unsupported EF Core provider: {providerName}"),
         };
     }
