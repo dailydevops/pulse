@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 public sealed class KafkaContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly KafkaContainer _container = new KafkaBuilder(
-        /*dockerimage*/"confluentinc/cp-kafka:7.9.8"
+        /*dockerimage*/"confluentinc/cp-kafka:8.3.0"
     )
         .WithLogger(NullLogger.Instance)
         // Disabled so that "topic missing" scenarios (AutoCreateTopics = false on the transport)
