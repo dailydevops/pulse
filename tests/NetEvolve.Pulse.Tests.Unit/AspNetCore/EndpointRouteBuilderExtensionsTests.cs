@@ -535,25 +535,25 @@ public sealed class EndpointRouteBuilderExtensionsTests
         return host;
     }
 
-    private sealed record TestCommand(string Value) : ICommand<string>
+    internal sealed record TestCommand(string Value) : ICommand<string>
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
-    private sealed record VoidTestCommand(string Value) : ICommand
+    internal sealed record VoidTestCommand(string Value) : ICommand
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
-    private sealed record TestQuery(string Id) : IQuery<string>
+    internal sealed record TestQuery(string Id) : IQuery<string>
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
     }
 
-    private sealed record TestStreamQuery : IStreamQuery<string>
+    internal sealed record TestStreamQuery : IStreamQuery<string>
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }

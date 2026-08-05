@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using NetEvolve.Pulse.Extensibility;
@@ -63,7 +65,7 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        return endpoints.MapMethods(
+        var routeBuilder = endpoints.MapMethods(
             pattern,
             [httpMethod.ToHttpMethodString()],
             async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
@@ -71,6 +73,10 @@ public static class EndpointRouteBuilderExtensions
                     await mediator.SendAsync<TCommand, TResponse>(command, cancellationToken).ConfigureAwait(false)
                 )
         );
+
+        ApplyOpenApiMetadata<TCommand, TResponse>(endpoints, routeBuilder);
+
+        return routeBuilder;
     }
 
     /// <summary>
@@ -109,7 +115,7 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        return endpoints.MapMethods(
+        var routeBuilder = endpoints.MapMethods(
             pattern,
             [httpMethod.ToHttpMethodString()],
             async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
@@ -118,6 +124,10 @@ public static class EndpointRouteBuilderExtensions
                 return TypedResults.NoContent();
             }
         );
+
+        ApplyOpenApiMetadata<TCommand>(endpoints, routeBuilder);
+
+        return routeBuilder;
     }
 
     /// <summary>
@@ -147,13 +157,17 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        return endpoints.MapGet(
+        var routeBuilder = endpoints.MapGet(
             pattern,
             async ([AsParameters] TQuery query, IMediator mediator, CancellationToken cancellationToken) =>
                 TypedResults.Ok(
                     await mediator.QueryAsync<TQuery, TResponse>(query, cancellationToken).ConfigureAwait(false)
                 )
         );
+
+        ApplyOpenApiMetadata<TQuery, TResponse>(endpoints, routeBuilder);
+
+        return routeBuilder;
     }
 
     /// <summary>
@@ -188,7 +202,7 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        return endpoints.MapGet(
+        var routeBuilder = endpoints.MapGet(
             pattern,
             (
                 [AsParameters] TQuery query,
@@ -223,6 +237,48 @@ public static class EndpointRouteBuilderExtensions
 #endif
             }
         );
+
+        ApplyStreamOpenApiMetadata<TQuery>(endpoints, routeBuilder);
+
+        return routeBuilder;
+    }
+
+    private static void ApplyOpenApiMetadata<TRequest, TResponse>(
+        IEndpointRouteBuilder endpoints,
+        RouteHandlerBuilder routeBuilder
+    )
+    {
+        var options = endpoints.ServiceProvider.GetService<IOptions<AspNetCoreOptions>>();
+        if (options?.Value.OpenApiMetadataEnabled == true)
+        {
+            _ = routeBuilder.WithPulseSummary<TRequest>();
+            _ = routeBuilder.WithPulseProduces<TResponse>();
+        }
+    }
+
+    private static void ApplyOpenApiMetadata<TRequest>(
+        IEndpointRouteBuilder endpoints,
+        RouteHandlerBuilder routeBuilder
+    )
+    {
+        var options = endpoints.ServiceProvider.GetService<IOptions<AspNetCoreOptions>>();
+        if (options?.Value.OpenApiMetadataEnabled == true)
+        {
+            _ = routeBuilder.WithPulseSummary<TRequest>();
+        }
+    }
+
+    private static void ApplyStreamOpenApiMetadata<TQuery>(
+        IEndpointRouteBuilder endpoints,
+        RouteHandlerBuilder routeBuilder
+    )
+    {
+        var options = endpoints.ServiceProvider.GetService<IOptions<AspNetCoreOptions>>();
+        if (options?.Value.OpenApiMetadataEnabled == true)
+        {
+            _ = routeBuilder.WithPulseSummary<TQuery>();
+            _ = routeBuilder.WithPulseStreamProduces();
+        }
     }
 
     private static bool AcceptsNdjson(StringValues acceptHeader) =>
