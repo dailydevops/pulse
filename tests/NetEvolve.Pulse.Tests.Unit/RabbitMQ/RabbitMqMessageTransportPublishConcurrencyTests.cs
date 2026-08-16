@@ -1,7 +1,6 @@
 namespace NetEvolve.Pulse.Tests.Unit.RabbitMQ;
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;

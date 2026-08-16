@@ -14,7 +14,6 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 

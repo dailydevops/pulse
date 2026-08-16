@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.DeadLetter;
 
-using System;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 
 /// <summary>

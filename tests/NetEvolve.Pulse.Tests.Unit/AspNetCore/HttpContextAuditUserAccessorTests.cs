@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Audit;
-using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Audit;
 using NetEvolve.Pulse.Internals;
 using TUnit.Assertions;

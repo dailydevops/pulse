@@ -8,7 +8,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using global::Dapr.Client;
-using Google.Protobuf;
 
 /// <summary>
 /// Minimal <see cref="DaprClient"/> test double that records <see cref="PublishByteEventAsync"/> and

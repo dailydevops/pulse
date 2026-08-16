@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;

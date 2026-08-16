@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using BsonDocument = global::MongoDB.Bson.BsonDocument;
-using IMongoClient = global::MongoDB.Driver.IMongoClient;
 using IMongoDatabase = global::MongoDB.Driver.IMongoDatabase;
 
 /// <summary>

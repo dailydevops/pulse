@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals.Services;

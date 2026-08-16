@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
-using System;
 using System.Linq;
 using System.Threading;
 using Microsoft.EntityFrameworkCore;
