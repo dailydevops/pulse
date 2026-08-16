@@ -73,6 +73,8 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
     )
         where TEvent : IEvent
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 

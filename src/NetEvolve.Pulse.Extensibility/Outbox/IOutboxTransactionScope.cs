@@ -47,10 +47,10 @@ public interface IOutboxTransactionScope
     /// </summary>
     /// <returns>
     /// The current transaction object (e.g., <c>DbContextTransaction</c>, <c>SqlTransaction</c>),
-    /// or <c>null</c> if no transaction is active.
+    /// or <see langword="null"/> if no transaction is active.
     /// </returns>
     /// <remarks>
-    /// The return type is <c>object</c> to support different transaction types without
+    /// The return type is <see cref="object"/> to support different transaction types without
     /// creating dependencies on specific database providers.
     /// </remarks>
     object? GetCurrentTransaction();

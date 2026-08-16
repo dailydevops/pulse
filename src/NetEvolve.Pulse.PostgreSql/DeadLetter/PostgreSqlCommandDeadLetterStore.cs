@@ -78,6 +78,8 @@ internal sealed class PostgreSqlCommandDeadLetterStore : ICommandDeadLetterStore
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);
         ArgumentException.ThrowIfNullOrWhiteSpace(payload);
         ArgumentNullException.ThrowIfNull(exception);
@@ -121,6 +123,8 @@ internal sealed class PostgreSqlCommandDeadLetterStore : ICommandDeadLetterStore
     /// <returns>An open <see cref="NpgsqlConnection"/>.</returns>
     private async Task<NpgsqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

@@ -300,7 +300,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// Extracts an open-generic <see cref="HandlerInfo"/> from a class annotated with
     /// <c>[PulseGenericHandler]</c>. The handler and service type names use the unbound generic
     /// syntax (e.g. <c>global::Ns.MyHandler&lt;,&gt;</c>) so that the emitter can produce
-    /// <c>typeof()</c>-based DI registrations. Returns <c>null</c> when the symbol is not an
+    /// <c>typeof()</c>-based DI registrations. Returns <see langword="null"/> when the symbol is not an
     /// open generic or cannot be resolved.
     /// </summary>
     private static HandlerInfo? ExtractPureGenericHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
@@ -328,7 +328,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <summary>
     /// Checks whether a class implements a known Pulse handler interface without carrying the
     /// <c>[PulseHandler]</c> attribute. Returns a <see cref="HandlerInfo"/> for diagnostic
-    /// reporting, or <c>null</c> when no issue is detected.
+    /// reporting, or <see langword="null"/> when no issue is detected.
     /// </summary>
     private static HandlerInfo? ExtractUnannotatedHandlerInfo(GeneratorSyntaxContext ctx, CancellationToken ct)
     {

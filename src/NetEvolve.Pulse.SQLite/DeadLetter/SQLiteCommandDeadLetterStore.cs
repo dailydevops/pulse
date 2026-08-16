@@ -80,6 +80,8 @@ internal sealed class SQLiteCommandDeadLetterStore : ICommandDeadLetterStore
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);
         ArgumentException.ThrowIfNullOrWhiteSpace(payload);
         ArgumentNullException.ThrowIfNull(exception);
@@ -115,6 +117,8 @@ internal sealed class SQLiteCommandDeadLetterStore : ICommandDeadLetterStore
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 

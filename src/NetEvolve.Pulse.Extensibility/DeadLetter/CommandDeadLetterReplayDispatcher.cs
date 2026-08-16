@@ -49,6 +49,7 @@ public static class CommandDeadLetterReplayDispatcher
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);

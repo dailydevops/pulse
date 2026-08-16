@@ -13,8 +13,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
-using PulseEndpoints = OutboxInspectorEndpoints;
+using PulseEndpoints = NetEvolve.Pulse.Outbox.OutboxInspectorEndpoints;
 
 [TestGroup("AspNetCore")]
 public sealed class OutboxInspectorEndpointsTests

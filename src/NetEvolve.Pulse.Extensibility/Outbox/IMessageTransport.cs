@@ -54,6 +54,7 @@ public interface IMessageTransport
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="messages"/> is null.</exception>
     Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(messages);
         return SendBatchInternalAsync(messages, cancellationToken);
     }
@@ -89,13 +90,13 @@ public interface IMessageTransport
     /// Checks if the transport is healthy and ready to send messages.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns><c>true</c> if the transport is healthy; otherwise, <c>false</c>.</returns>
+    /// <returns><see langword="true"/> if the transport is healthy; otherwise, <see langword="false"/>.</returns>
     /// <remarks>
     /// <para><strong>Used by the outbox processor:</strong></para>
     /// The processor checks transport health before each processing cycle. If unhealthy,
     /// the cycle is skipped and retried after the polling interval.
     /// <para><strong>Default Implementation:</strong></para>
-    /// Returns <c>true</c> by default. Override to implement actual health checks for message brokers,
+    /// Returns <see langword="true"/> by default. Override to implement actual health checks for message brokers,
     /// HTTP endpoints, or other external dependencies.
     /// <para><strong>External Integration:</strong></para>
     /// Can also be used with Microsoft.Extensions.Diagnostics.HealthChecks for application health monitoring.

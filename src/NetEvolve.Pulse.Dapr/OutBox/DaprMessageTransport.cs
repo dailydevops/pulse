@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.OutBox;
 
 using System.Text;
 using Dapr.Client;
@@ -60,6 +60,7 @@ internal sealed class DaprMessageTransport : IMessageTransport
     /// <inheritdoc />
     public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(message);
 
         var topicName = _topicNameResolver.Resolve(message);

@@ -125,6 +125,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -152,6 +154,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -174,6 +178,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -195,6 +201,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -248,6 +256,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <returns>An open <see cref="NpgsqlConnection"/>.</returns>
     private async Task<NpgsqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -263,6 +273,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new NpgsqlCommand(_getByIdSql, connection);
         await using (command.ConfigureAwait(false))
         {
@@ -291,6 +303,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new NpgsqlCommand(_updateStatusSql, connection);
         await using (command.ConfigureAwait(false))
         {

@@ -22,7 +22,7 @@ public sealed class CommandDeadLetterOptions
     /// Default: <c>"pulse"</c>.
     /// </summary>
     /// <remarks>
-    /// Set to <c>null</c> or empty string to use the default schema (e.g., "dbo" for SQL Server).
+    /// Set to <see langword="null"/> or empty string to use the default schema (e.g., "dbo" for SQL Server).
     /// Some database providers may not support schemas.
     /// </remarks>
     public string? Schema { get; set; } = CommandDeadLetterSchema.DefaultSchema;

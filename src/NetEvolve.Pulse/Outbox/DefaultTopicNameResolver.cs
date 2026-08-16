@@ -1,4 +1,6 @@
-namespace NetEvolve.Pulse.Extensibility.Outbox;
+namespace NetEvolve.Pulse.Outbox;
+
+using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Default implementation of <see cref="ITopicNameResolver"/> that returns the simple class name
