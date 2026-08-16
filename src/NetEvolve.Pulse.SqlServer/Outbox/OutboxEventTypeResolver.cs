@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Concurrent;
 
@@ -9,7 +9,7 @@ using System.Collections.Concurrent;
 /// </summary>
 internal static class OutboxEventTypeResolver
 {
-    private static readonly ConcurrentDictionary<string, Type> _cache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Type> Cache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Resolves <paramref name="typeName"/> to a <see cref="Type"/>, memoizing successful
@@ -19,7 +19,7 @@ internal static class OutboxEventTypeResolver
     /// <returns>The resolved <see cref="Type"/>, or <see langword="null"/> if it cannot be resolved.</returns>
     public static Type? Resolve(string typeName)
     {
-        if (_cache.TryGetValue(typeName, out var cached))
+        if (Cache.TryGetValue(typeName, out var cached))
         {
             return cached;
         }
@@ -30,6 +30,6 @@ internal static class OutboxEventTypeResolver
             return null;
         }
 
-        return _cache[typeName] = resolved;
+        return Cache[typeName] = resolved;
     }
 }

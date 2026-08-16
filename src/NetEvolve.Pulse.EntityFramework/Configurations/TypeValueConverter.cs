@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Configurations;
+﻿namespace NetEvolve.Pulse.Configurations;
 
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -22,7 +22,7 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
     /// distinct event type names is small and bounded, so the cache cannot grow unbounded.
     /// Failed resolutions are not cached and throw on every attempt.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, Type> _typeCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Type> TypeCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TypeValueConverter"/> class.
@@ -48,7 +48,7 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
     }
 
     private static Type ConvertFromString(string typeName) =>
-        _typeCache.GetOrAdd(
+        TypeCache.GetOrAdd(
             typeName,
             static name =>
                 Type.GetType(name) ?? throw new InvalidOperationException($"Cannot resolve event type '{name}'.")
