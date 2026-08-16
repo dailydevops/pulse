@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -96,10 +97,15 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         return (repository, options);
     }
 
-    private static async Task SetUpdatedAtInThePastAsync(OutboxOptions options, Guid messageId, TimeSpan age)
+    private static async Task SetUpdatedAtInThePastAsync(
+        OutboxOptions options,
+        Guid messageId,
+        TimeSpan age,
+        CancellationToken cancellationToken = default
+    )
     {
         await using var connection = new NpgsqlConnection(options.ConnectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        await connection.OpenAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
 #pragma warning disable CA2100 // Schema/TableName are test-controlled, not user input
         var command = new NpgsqlCommand(
@@ -115,7 +121,7 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         {
             _ = command.Parameters.AddWithValue("age_seconds", age.TotalSeconds);
             _ = command.Parameters.AddWithValue("id", messageId);
-            _ = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            _ = await command.ExecuteNonQueryAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -134,7 +140,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         _ = await Assert.That(claimed).Count().IsEqualTo(1);
 
         // Simulate a crashed worker: the message stays claimed (Processing) far beyond the lease.
-        await SetUpdatedAtInThePastAsync(options, message.Id, TimeSpan.FromMinutes(10)).ConfigureAwait(false);
+        await SetUpdatedAtInThePastAsync(options, message.Id, TimeSpan.FromMinutes(10), cancellationToken)
+            .ConfigureAwait(false);
 
         var reclaimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
@@ -157,7 +164,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         _ = await Assert.That(claimed).Count().IsEqualTo(1);
 
         // Only a minute has passed - well within the 5-minute lease.
-        await SetUpdatedAtInThePastAsync(options, message.Id, TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+        await SetUpdatedAtInThePastAsync(options, message.Id, TimeSpan.FromMinutes(1), cancellationToken)
+            .ConfigureAwait(false);
 
         var reclaimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 

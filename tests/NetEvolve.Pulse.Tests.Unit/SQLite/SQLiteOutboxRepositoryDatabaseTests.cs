@@ -475,7 +475,9 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task MarkAsBatchOverloads_AreImplementedBySQLiteRepository()
+    public async Task MarkAsBatchOverloads_AreImplementedBySQLiteRepository(
+        CancellationToken cancellationToken = default
+    )
     {
         var markCompleted = typeof(SQLiteOutboxRepository).GetMethod(
             nameof(IOutboxRepository.MarkAsCompletedAsync),

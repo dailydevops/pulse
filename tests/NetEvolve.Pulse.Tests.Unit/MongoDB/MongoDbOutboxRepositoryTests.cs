@@ -182,7 +182,7 @@ public sealed class MongoDbOutboxRepositoryTests
     }
 
     [Test]
-    public async Task IsHealthyAsync_WithUnreachableServer_ReturnsFalse()
+    public async Task IsHealthyAsync_WithUnreachableServer_ReturnsFalse(CancellationToken cancellationToken = default)
     {
         using var client = new global::MongoDB.Driver.MongoClient(
             "mongodb://localhost:1/?serverSelectionTimeoutMS=200&connectTimeoutMS=200&directConnection=true"
@@ -199,7 +199,9 @@ public sealed class MongoDbOutboxRepositoryTests
     }
 
     [Test]
-    public async Task IsHealthyAsync_WhenRunCommandThrowsMongoException_ReturnsFalse()
+    public async Task IsHealthyAsync_WhenRunCommandThrowsMongoException_ReturnsFalse(
+        CancellationToken cancellationToken = default
+    )
     {
         var database = FakeMongoDatabase.ThatThrows(new global::MongoDB.Driver.MongoException("connection lost"));
         using var client = FakeMongoClient.Create(database);
@@ -215,7 +217,9 @@ public sealed class MongoDbOutboxRepositoryTests
     }
 
     [Test]
-    public async Task IsHealthyAsync_WhenRunCommandThrowsTimeoutException_ReturnsFalse()
+    public async Task IsHealthyAsync_WhenRunCommandThrowsTimeoutException_ReturnsFalse(
+        CancellationToken cancellationToken = default
+    )
     {
         var database = FakeMongoDatabase.ThatThrows(new TimeoutException("server selection timed out"));
         using var client = FakeMongoClient.Create(database);
@@ -231,7 +235,7 @@ public sealed class MongoDbOutboxRepositoryTests
     }
 
     [Test]
-    public async Task IsHealthyAsync_WhenPingSucceeds_ReturnsTrue()
+    public async Task IsHealthyAsync_WhenPingSucceeds_ReturnsTrue(CancellationToken cancellationToken = default)
     {
         var database = FakeMongoDatabase.ThatSucceeds();
         using var client = FakeMongoClient.Create(database);

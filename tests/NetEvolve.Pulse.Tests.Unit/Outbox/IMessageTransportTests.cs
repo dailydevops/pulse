@@ -21,7 +21,9 @@ using TUnit.Core;
 public sealed class IMessageTransportTests
 {
     [Test]
-    public async Task SendBatchAsync_WithoutOverride_SendsEveryMessageIndividually()
+    public async Task SendBatchAsync_WithoutOverride_SendsEveryMessageIndividually(
+        CancellationToken cancellationToken = default
+    )
     {
         var transport = new SendAsyncOnlyTransport();
         var messages = new List<OutboxMessage>
@@ -33,7 +35,7 @@ public sealed class IMessageTransportTests
             CreateMessage(),
         };
 
-        await ((IMessageTransport)transport).SendBatchAsync(messages, CancellationToken.None).ConfigureAwait(false);
+        await ((IMessageTransport)transport).SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(transport.SentMessages.Count).IsEqualTo(messages.Count);
         foreach (var message in messages)
@@ -43,12 +45,14 @@ public sealed class IMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_WithoutOverride_SendsMessagesSequentiallyInOrder()
+    public async Task SendBatchAsync_WithoutOverride_SendsMessagesSequentiallyInOrder(
+        CancellationToken cancellationToken = default
+    )
     {
         using var transport = new SequenceRecordingTransport();
         var messages = new List<OutboxMessage> { CreateMessage(), CreateMessage(), CreateMessage(), CreateMessage() };
 
-        await ((IMessageTransport)transport).SendBatchAsync(messages, CancellationToken.None).ConfigureAwait(false);
+        await ((IMessageTransport)transport).SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(transport.OverlapDetected).IsFalse();
         _ = await Assert.That(transport.SendOrder.Count).IsEqualTo(messages.Count);
@@ -123,7 +127,7 @@ public sealed class IMessageTransportTests
 
             if (Interlocked.Increment(ref _totalSends) == 1)
             {
-                _ = await _subsequentSendStarted.WaitAsync(500, CancellationToken.None).ConfigureAwait(false);
+                _ = await _subsequentSendStarted.WaitAsync(500, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -148,6 +152,8 @@ public sealed class IMessageTransportTests
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var callNumber = Interlocked.Increment(ref _attemptedSends);
             return callNumber == failAtCallNumber
                 ? Task.FromException(new InvalidOperationException("Send failed."))
@@ -168,6 +174,8 @@ public sealed class IMessageTransportTests
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _sentMessages.Add(message);
             return Task.CompletedTask;
         }

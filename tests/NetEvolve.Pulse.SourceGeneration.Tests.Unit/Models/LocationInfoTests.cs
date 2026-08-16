@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit.Models;
 
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -15,15 +16,15 @@ using TUnit.Core;
 public class LocationInfoTests
 {
     [Test]
-    public async Task CreateFromThenCapturesFilePathAndSpansOfNode()
+    public async Task CreateFromThenCapturesFilePathAndSpansOfNode(CancellationToken cancellationToken = default)
     {
         const string source = """
             public class MyClass
             {
             }
             """;
-        var tree = CSharpSyntaxTree.ParseText(source, path: "TestFile.cs");
-        var root = await tree.GetRootAsync().ConfigureAwait(false);
+        var tree = CSharpSyntaxTree.ParseText(source, path: "TestFile.cs", cancellationToken: cancellationToken);
+        var root = await tree.GetRootAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var classDeclaration = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Single();
 
         var locationInfo = LocationInfo.CreateFrom(classDeclaration);
@@ -35,15 +36,15 @@ public class LocationInfoTests
     }
 
     [Test]
-    public async Task ToLocationThenReconstructsEquivalentLocation()
+    public async Task ToLocationThenReconstructsEquivalentLocation(CancellationToken cancellationToken = default)
     {
         const string source = """
             public class MyClass
             {
             }
             """;
-        var tree = CSharpSyntaxTree.ParseText(source, path: "TestFile.cs");
-        var root = await tree.GetRootAsync().ConfigureAwait(false);
+        var tree = CSharpSyntaxTree.ParseText(source, path: "TestFile.cs", cancellationToken: cancellationToken);
+        var root = await tree.GetRootAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var classDeclaration = root.DescendantNodes().OfType<ClassDeclarationSyntax>().Single();
         var originalLocation = classDeclaration.GetLocation();
 

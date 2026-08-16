@@ -20,7 +20,9 @@ using TUnit.Core;
 public sealed class IOutboxRepositoryTests
 {
     [Test]
-    public async Task MarkAsCompletedAsync_Batch_WithoutOverride_InvokesSingleItemSequentiallyInOrder()
+    public async Task MarkAsCompletedAsync_Batch_WithoutOverride_InvokesSingleItemSequentiallyInOrder(
+        CancellationToken cancellationToken = default
+    )
     {
         using var repository = new SingleItemOnlyRepository();
         var messageIds = CreateMessageIds();
@@ -34,7 +36,9 @@ public sealed class IOutboxRepositoryTests
     }
 
     [Test]
-    public async Task MarkAsFailedAsync_Batch_WithoutOverride_InvokesSingleItemSequentiallyInOrder()
+    public async Task MarkAsFailedAsync_Batch_WithoutOverride_InvokesSingleItemSequentiallyInOrder(
+        CancellationToken cancellationToken = default
+    )
     {
         using var repository = new SingleItemOnlyRepository();
         var messageIds = CreateMessageIds();
@@ -53,7 +57,9 @@ public sealed class IOutboxRepositoryTests
     }
 
     [Test]
-    public async Task MarkAsDeadLetterAsync_Batch_WithoutOverride_InvokesSingleItemSequentiallyInOrder()
+    public async Task MarkAsDeadLetterAsync_Batch_WithoutOverride_InvokesSingleItemSequentiallyInOrder(
+        CancellationToken cancellationToken = default
+    )
     {
         using var repository = new SingleItemOnlyRepository();
         var messageIds = CreateMessageIds();
@@ -102,19 +108,19 @@ public sealed class IOutboxRepositoryTests
         public List<string> ErrorMessages { get; } = [];
 
         public Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default) =>
-            RecordCallAsync(messageId, null);
+            RecordCallAsync(messageId, null, cancellationToken);
 
         public Task MarkAsFailedAsync(
             Guid messageId,
             string errorMessage,
             CancellationToken cancellationToken = default
-        ) => RecordCallAsync(messageId, errorMessage);
+        ) => RecordCallAsync(messageId, errorMessage, cancellationToken);
 
         public Task MarkAsDeadLetterAsync(
             Guid messageId,
             string errorMessage,
             CancellationToken cancellationToken = default
-        ) => RecordCallAsync(messageId, errorMessage);
+        ) => RecordCallAsync(messageId, errorMessage, cancellationToken);
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -135,7 +141,11 @@ public sealed class IOutboxRepositoryTests
 
         public void Dispose() => _subsequentCallStarted.Dispose();
 
-        private async Task RecordCallAsync(Guid messageId, string? errorMessage)
+        private async Task RecordCallAsync(
+            Guid messageId,
+            string? errorMessage,
+            CancellationToken cancellationToken = default
+        )
         {
             if (Interlocked.Increment(ref _activeCalls) > 1)
             {
@@ -153,7 +163,7 @@ public sealed class IOutboxRepositoryTests
 
             if (Interlocked.Increment(ref _totalCalls) == 1)
             {
-                _ = await _subsequentCallStarted.WaitAsync(500, CancellationToken.None).ConfigureAwait(false);
+                _ = await _subsequentCallStarted.WaitAsync(500, cancellationToken).ConfigureAwait(false);
             }
             else
             {
