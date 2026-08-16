@@ -86,7 +86,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
         _ = await Assert.That(result).IsSameReferenceAs(configurator);
 
         var descriptor = services.FirstOrDefault(d =>
-            d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>) && d.ImplementationFactory != null
+            d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>) && d.ImplementationFactory is not null
         );
 
         using (Assert.Multiple())
@@ -108,7 +108,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
         var descriptors = services
             .Where(d =>
                 d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>)
-                && d.ImplementationFactory != null
+                && d.ImplementationFactory is not null
             )
             .ToList();
 
@@ -138,7 +138,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
 
         var descriptor = services.FirstOrDefault(d =>
             d.ServiceType == typeof(IRequestInterceptor<ExclusiveVoidCommand, Extensibility.Void>)
-            && d.ImplementationFactory != null
+            && d.ImplementationFactory is not null
         );
 
         using (Assert.Multiple())
@@ -160,7 +160,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
         var descriptors = services
             .Where(d =>
                 d.ServiceType == typeof(IRequestInterceptor<ExclusiveVoidCommand, Extensibility.Void>)
-                && d.ImplementationFactory != null
+                && d.ImplementationFactory is not null
             )
             .ToList();
 
@@ -192,7 +192,7 @@ public sealed class ConcurrentCommandGuardExtensionsTests
         var closedGenericDescriptors = services
             .Where(d =>
                 d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>)
-                && d.ImplementationFactory != null
+                && d.ImplementationFactory is not null
             )
             .ToList();
 
