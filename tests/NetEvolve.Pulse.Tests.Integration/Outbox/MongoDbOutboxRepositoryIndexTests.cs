@@ -38,6 +38,8 @@ public sealed class MongoDbOutboxRepositoryIndexTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var databaseName = $"pulse{Guid.NewGuid():N}";
         var repository = new MongoDbOutboxRepository(
@@ -72,6 +74,8 @@ public sealed class MongoDbOutboxRepositoryIndexTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var databaseName = $"pulse{Guid.NewGuid():N}";
         var repository = new MongoDbOutboxRepository(

@@ -61,6 +61,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_QueryNotCacheable_AlwaysCallsHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -97,6 +99,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_CacheMiss_CallsHandlerAndStoresResult(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -140,6 +144,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_CacheHit_ReturnsCachedValueWithoutCallingHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -181,6 +187,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithExpiry_StoresEntryWithAbsoluteExpiration(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -208,6 +216,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithNullExpiry_StoresEntryWithoutExpiration(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -235,6 +245,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NoCacheRegistered_FallsThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         // Do NOT register IDistributedCache
         var provider = services.BuildServiceProvider();
@@ -272,6 +284,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_ExpiredCacheEntry_CallsHandlerAndRefreshesCache(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -324,6 +338,8 @@ public class DistributedCacheQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -355,6 +371,8 @@ public class DistributedCacheQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -385,6 +403,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_DefaultExpiry_UsedWhenQueryExpiryIsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -414,6 +434,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_DefaultExpiry_NotUsedWhenQueryExpiryIsProvided(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -444,6 +466,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NullResponse_SkipsCaching(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -472,6 +496,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NullDeserializedFromCache_FallsThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -519,6 +545,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_CacheMiss_RegistersCacheKeyWithRegistry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var registry = new FakeCacheKeyRegistry();
@@ -553,6 +581,8 @@ public class DistributedCacheQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         // Do NOT register ICacheKeyRegistry
@@ -602,6 +632,8 @@ public class DistributedCacheQueryInterceptorTests
     [Test]
     public async Task HandleAsync_ConcurrentCacheMisses_ExecutesHandlerOnlyOnce(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -627,6 +659,8 @@ public class DistributedCacheQueryInterceptorTests
 
             async Task<string> Handler(CacheableQuery request, CancellationToken token)
             {
+                token.ThrowIfCancellationRequested();
+
                 _ = Interlocked.Increment(ref executionCount);
                 _ = handlerEntered.Release();
 #pragma warning disable VSTHRD003 // TaskCompletionSource gate is signaled by the test, not started here

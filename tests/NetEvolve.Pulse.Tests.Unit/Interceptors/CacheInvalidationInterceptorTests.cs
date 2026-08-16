@@ -38,6 +38,8 @@ public sealed class CacheInvalidationInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         await using (provider.ConfigureAwait(false))
         {
@@ -73,6 +75,8 @@ public sealed class CacheInvalidationInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -106,6 +110,8 @@ public sealed class CacheInvalidationInterceptorTests
     [Test]
     public async Task HandleAsync_HandlerThrows_DoesNotEvictCache(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -142,6 +148,8 @@ public sealed class CacheInvalidationInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddDistributedMemoryCache();
         var provider = services.BuildServiceProvider();
@@ -183,6 +191,8 @@ public sealed class CacheInvalidationInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         // Do NOT register IDistributedCache
         await using (provider.ConfigureAwait(false))

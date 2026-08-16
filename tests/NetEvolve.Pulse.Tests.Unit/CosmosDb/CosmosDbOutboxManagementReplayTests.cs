@@ -19,6 +19,8 @@ public sealed class CosmosDbOutboxManagementReplayTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var firstDocument = CreateDeadLetterDocument(Guid.NewGuid(), "\"etag-1\"");
         var secondDocument = CreateDeadLetterDocument(Guid.NewGuid(), "\"etag-2\"");
         var capturedEtags = new List<string?>();
@@ -64,6 +66,8 @@ public sealed class CosmosDbOutboxManagementReplayTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var document = CreateDeadLetterDocument(Guid.NewGuid(), "\"etag\"");
 
         var container = new FakeCosmosContainer
@@ -97,6 +101,8 @@ public sealed class CosmosDbOutboxManagementReplayTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var document = CreateDeadLetterDocument(Guid.NewGuid(), "\"etag\"");
 
         var container = new FakeCosmosContainer

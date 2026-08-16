@@ -20,6 +20,8 @@ public class PulseHandlerGeneratorIncrementalTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string source = """
             using NetEvolve.Pulse.Extensibility;
             using NetEvolve.Pulse.Extensibility.Attributes;
@@ -69,6 +71,8 @@ public class PulseHandlerGeneratorIncrementalTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string source = """
             using NetEvolve.Pulse.Extensibility;
             using NetEvolve.Pulse.Extensibility.Attributes;

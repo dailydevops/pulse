@@ -35,6 +35,8 @@ public sealed class CosmosDbOutboxInitializer : IServiceInitializer
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cosmosClient = serviceProvider.GetRequiredService<CosmosClient>();
         var options = serviceProvider.GetRequiredService<IOptions<CosmosDbOutboxOptions>>().Value;
 

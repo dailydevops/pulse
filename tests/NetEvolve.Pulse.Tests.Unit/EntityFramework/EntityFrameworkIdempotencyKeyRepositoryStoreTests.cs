@@ -17,6 +17,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryStoreTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {
@@ -59,6 +61,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryStoreTests
     [Test]
     public async Task StoreAsync_WithDuplicateIdempotencyKey_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {

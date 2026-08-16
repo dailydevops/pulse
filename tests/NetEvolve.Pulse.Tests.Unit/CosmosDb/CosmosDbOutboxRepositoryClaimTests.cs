@@ -19,6 +19,8 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var document = CreateDocument(messageId, status: 0);
         document.ETag = "\"query-etag\"";
@@ -64,6 +66,8 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var document = CreateDocument(Guid.NewGuid(), status: 0);
         document.ETag = "\"etag\"";
 
@@ -87,6 +91,8 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
     [Test]
     public async Task GetPendingAsync_WhenPatchThrowsNotFound_SkipsCandidate(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var document = CreateDocument(Guid.NewGuid(), status: 0);
         document.ETag = "\"etag\"";
 
@@ -111,6 +117,8 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var document = CreateDocument(messageId, status: 3);
         document.ETag = "\"etag\"";

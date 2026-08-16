@@ -45,6 +45,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetStatistics_ReturnsOkWithMockedStatistics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new CommandDeadLetterStatistics(
             NewCount: 1,
             ReplayingCount: 2,
@@ -80,6 +82,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetPendingEntries_ReturnsOkWithMockedList(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
         var entries = new[]
         {
@@ -118,6 +122,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetPendingEntries_WithCountQueryParameter_PassesCountThrough(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<CommandDeadLetterEntry>());
@@ -139,6 +145,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task ReplayEntry_ReturnsNoContent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -164,6 +172,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task DismissEntry_ReturnsNoContent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -191,6 +201,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(new CommandDeadLetterStatistics(0, 0, 0, 0));
 
@@ -221,6 +233,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {

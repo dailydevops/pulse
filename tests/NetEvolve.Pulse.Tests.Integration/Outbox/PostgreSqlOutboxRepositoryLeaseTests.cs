@@ -50,6 +50,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = $"lease{Guid.NewGuid():N}";
         var schema = $"lease{Guid.NewGuid():N}";
 
@@ -104,6 +106,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         await using var connection = new NpgsqlConnection(options.ConnectionString);
         await connection.OpenAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -130,6 +134,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (repository, options) = await CreateRepositoryAsync(TimeSpan.FromMinutes(5), cancellationToken)
             .ConfigureAwait(false);
 
@@ -154,6 +160,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (repository, options) = await CreateRepositoryAsync(TimeSpan.FromMinutes(5), cancellationToken)
             .ConfigureAwait(false);
 
@@ -177,6 +185,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = $"lease{Guid.NewGuid():N}";
         var schema = $"lease{Guid.NewGuid():N}";
 

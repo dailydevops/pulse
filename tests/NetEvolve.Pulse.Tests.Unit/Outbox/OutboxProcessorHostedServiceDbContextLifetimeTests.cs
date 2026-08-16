@@ -56,6 +56,8 @@ public sealed class OutboxProcessorHostedServiceDbContextLifetimeTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());

@@ -14,6 +14,8 @@ public sealed class CosmosDbOutboxRepositoryQueryOptionsTests
     [Test]
     public async Task GetPendingAsync_PassesBoundedQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) => new FakeFeedIterator<CosmosDbOutboxDocument>([]),
@@ -34,6 +36,8 @@ public sealed class CosmosDbOutboxRepositoryQueryOptionsTests
     [Test]
     public async Task GetFailedForRetryAsync_PassesBoundedQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) => new FakeFeedIterator<CosmosDbOutboxDocument>([]),
@@ -54,6 +58,8 @@ public sealed class CosmosDbOutboxRepositoryQueryOptionsTests
     [Test]
     public async Task GetPendingCountAsync_PassesParallelQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) =>

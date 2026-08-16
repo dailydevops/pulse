@@ -41,6 +41,8 @@ internal sealed class FakeDaprClient : DaprClient
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         PublishByteEventAsyncCalled = true;
         PublishedPubsubName = pubsubName;
         PublishedTopicName = topicName;
@@ -57,6 +59,8 @@ internal sealed class FakeDaprClient : DaprClient
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         PublishEventAsyncCalled = true;
         return Task.CompletedTask;
     }

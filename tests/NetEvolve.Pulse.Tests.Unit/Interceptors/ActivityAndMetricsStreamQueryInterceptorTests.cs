@@ -14,6 +14,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -51,6 +53,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WhenStreamCompletes_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -88,6 +92,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -138,6 +144,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithEmptyStream_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -174,6 +182,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_YieldsAllItemsUnchanged(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsStreamQueryInterceptor<TestStreamQuery, int>(timeProvider);
         var query = new TestStreamQuery();
@@ -196,6 +206,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_SetsTimestamps(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -228,6 +240,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectQuery(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsStreamQueryInterceptor<TestStreamQuery, int>(timeProvider);
         var query = new TestStreamQuery();
@@ -257,6 +271,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithNullCausationId_DoesNotTagCausationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -291,6 +307,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithNonNullCausationId_TagsCausationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -341,6 +359,8 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         yield return 1;
         cancellationToken.ThrowIfCancellationRequested();
         throw exception;

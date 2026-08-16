@@ -30,6 +30,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     [Test]
     public async Task SendAsync_Creates_queue_and_sends_base64_encoded_message(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queueName = CreateUniqueQueueName();
         var options = Options.Create(
             new AzureQueueStorageTransportOptions
@@ -61,6 +63,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queueName = CreateUniqueQueueName();
         var options = Options.Create(
             new AzureQueueStorageTransportOptions
@@ -80,6 +84,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     [Test]
     public async Task SendBatchAsync_Sends_all_messages_sequentially(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const int messageCount = 3;
         var queueName = CreateUniqueQueueName();
         var options = Options.Create(
@@ -108,6 +114,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queueName = CreateUniqueQueueName();
         var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
         _ = await queueClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -141,6 +149,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     [Test]
     public async Task SendAsync_When_message_exceeds_size_limit_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queueName = CreateUniqueQueueName();
         var options = Options.Create(
             new AzureQueueStorageTransportOptions
@@ -166,6 +176,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queueName = CreateUniqueQueueName();
         var options = Options.Create(
             new AzureQueueStorageTransportOptions
@@ -199,6 +211,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
             config.UseAzureQueueStorageTransport(
@@ -248,6 +262,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queueName = CreateUniqueQueueName();
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>

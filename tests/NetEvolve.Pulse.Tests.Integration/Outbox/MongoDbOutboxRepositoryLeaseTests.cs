@@ -52,6 +52,8 @@ public sealed class MongoDbOutboxRepositoryLeaseTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var (repository, timeProvider, _) = CreateRepository(client);
 
@@ -75,6 +77,8 @@ public sealed class MongoDbOutboxRepositoryLeaseTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var (repository, timeProvider, _) = CreateRepository(client);
 
@@ -96,6 +100,8 @@ public sealed class MongoDbOutboxRepositoryLeaseTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var (repository, timeProvider, databaseName) = CreateRepository(client);
 

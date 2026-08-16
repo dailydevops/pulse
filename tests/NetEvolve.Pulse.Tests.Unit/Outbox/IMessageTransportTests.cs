@@ -25,6 +25,8 @@ public sealed class IMessageTransportTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var transport = new SendAsyncOnlyTransport();
         var messages = new List<OutboxMessage>
         {
@@ -49,6 +51,8 @@ public sealed class IMessageTransportTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var transport = new SequenceRecordingTransport();
         var messages = new List<OutboxMessage> { CreateMessage(), CreateMessage(), CreateMessage(), CreateMessage() };
 
@@ -115,6 +119,8 @@ public sealed class IMessageTransportTests
 
         public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (Interlocked.Increment(ref _activeSends) > 1)
             {
                 OverlapDetected = true;

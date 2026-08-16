@@ -23,6 +23,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
     [Test]
     public async Task SendAsync_Publishes_message_to_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var topic = CreateUniqueTopicName();
         using var producer = CreateProducer();
         using var admin = CreateAdminClient();
@@ -50,6 +52,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
     [Test]
     public async Task SendBatchAsync_Publishes_all_messages_to_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const int messageCount = 5;
         var topic = CreateUniqueTopicName();
         using var producer = CreateProducer();
@@ -68,6 +72,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
     [Test]
     public async Task SendAsync_Uses_custom_topic_name_resolver_to_route_message(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var topic = $"pulse-it-custom-{Guid.NewGuid():N}";
         using var producer = CreateProducer();
         using var admin = CreateAdminClient();
@@ -86,6 +92,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
     [Test]
     public async Task IsHealthyAsync_When_broker_reachable_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = CreateProducer();
         using var admin = CreateAdminClient();
         await using var transport = CreateTransport(
@@ -104,6 +112,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var topic = CreateUniqueTopicName();
         using var producer = CreateProducer(messageTimeoutMs: 5_000);
         using var admin = CreateAdminClient();
@@ -124,6 +134,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var topic = CreateUniqueTopicName();
         using var producer = CreateProducer();
         using var admin = CreateAdminClient();
@@ -147,6 +159,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var topic = CreateUniqueTopicName();
         using var producer = CreateProducer();
         using var admin = CreateAdminClient();
@@ -177,6 +191,8 @@ public sealed class KafkaMessageTransportIntegrationTests(KafkaContainerFixture 
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = CreateProducer();
         using var admin = CreateAdminClient();
 

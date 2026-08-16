@@ -33,6 +33,8 @@ public sealed class RabbitMqMessageTransportPublishConcurrencyTests
     [Test]
     public async Task SendAsync_ConcurrentCalls_RentSeparateChannelsFromPool(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new GatingChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -122,6 +124,8 @@ public sealed class RabbitMqMessageTransportPublishConcurrencyTests
 
         public ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _ = Interlocked.Increment(ref _rentCallCount);
 
             (TaskCompletionSource entered, TaskCompletionSource release)? gate;
@@ -154,6 +158,8 @@ public sealed class RabbitMqMessageTransportPublishConcurrencyTests
         )
             where TProperties : IReadOnlyBasicProperties, IAmqpHeader
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (publishGate is { } gate)
             {
                 _ = gate.entered.TrySetResult();

@@ -34,6 +34,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var msg = new TestEvent();
         var executedIds = new ConcurrentBag<int>();
@@ -65,6 +67,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var msg = new TestEvent();
         var executedIds = new ConcurrentBag<int>();
@@ -91,6 +95,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var msg = new TestEvent();
 
@@ -108,6 +114,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var msg = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>>();
@@ -124,6 +132,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var msg = new TestEvent();
         var executedIds = new List<int>();
@@ -156,6 +166,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var msg = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>>();
@@ -172,6 +184,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var msg = new TestEvent();
         var executedIds = new ConcurrentBag<int>();
@@ -206,6 +220,8 @@ public sealed class DispatcherInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var msg = new TestEvent();
         var executedIds = new ConcurrentBag<int>();
@@ -254,6 +270,8 @@ public sealed class DispatcherInvariantTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executedIds.Add(_id);
             return Task.CompletedTask;
         }
@@ -274,6 +292,8 @@ public sealed class DispatcherInvariantTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executedIds.Add(_id);
             throw _exceptionFactory();
         }
@@ -292,6 +312,8 @@ public sealed class DispatcherInvariantTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executedIds.Add(_id);
             return Task.CompletedTask;
         }
@@ -312,6 +334,8 @@ public sealed class DispatcherInvariantTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executedIds.Add(_id);
             throw _exceptionFactory();
         }
@@ -333,6 +357,8 @@ public sealed class DispatcherInvariantTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executedIds.Add(_id);
             return Task.CompletedTask;
         }
@@ -361,6 +387,8 @@ public sealed class DispatcherInvariantTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executedIds.Add(_id);
             throw _exceptionFactory();
         }

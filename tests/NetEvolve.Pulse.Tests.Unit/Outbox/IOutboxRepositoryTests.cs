@@ -24,6 +24,8 @@ public sealed class IOutboxRepositoryTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new SingleItemOnlyRepository();
         var messageIds = CreateMessageIds();
 
@@ -40,6 +42,8 @@ public sealed class IOutboxRepositoryTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new SingleItemOnlyRepository();
         var messageIds = CreateMessageIds();
 
@@ -61,6 +65,8 @@ public sealed class IOutboxRepositoryTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new SingleItemOnlyRepository();
         var messageIds = CreateMessageIds();
 
@@ -147,6 +153,8 @@ public sealed class IOutboxRepositoryTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (Interlocked.Increment(ref _activeCalls) > 1)
             {
                 OverlapDetected = true;

@@ -96,6 +96,8 @@ public sealed class DaprMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
             daprClient,
@@ -112,6 +114,8 @@ public sealed class DaprMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var daprClient = new FakeDaprClient();
         var transport = new DaprMessageTransport(
             daprClient,
@@ -144,6 +148,8 @@ public sealed class DaprMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_Delegates_to_DaprClient(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var daprClient = new DaprClientBuilder().Build();
         var transport = new DaprMessageTransport(
             daprClient,

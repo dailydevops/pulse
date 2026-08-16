@@ -107,6 +107,8 @@ internal sealed class FakeCosmosContainer : Container
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ReadItemCalls++;
 
         return OnReadItem is null
@@ -122,6 +124,8 @@ internal sealed class FakeCosmosContainer : Container
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         PatchItemCalls++;
 
         return OnPatchItem is null

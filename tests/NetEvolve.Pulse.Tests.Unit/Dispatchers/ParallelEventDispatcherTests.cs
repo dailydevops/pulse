@@ -11,6 +11,8 @@ public class ParallelEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithMultipleHandlers_InvokesAllHandlers(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
         var invokedHandlers = new List<int>();
@@ -42,6 +44,8 @@ public class ParallelEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithNoHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
         var handlers = Array.Empty<IEventHandler<TestEvent>>();
@@ -59,6 +63,8 @@ public class ParallelEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithSingleHandler_InvokesHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
         var invokedHandlers = new List<int>();
@@ -79,6 +85,8 @@ public class ParallelEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithCancellation_RespectsToken(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var testEvent = new TestEvent();
         var invokedHandlers = new List<int>();
@@ -119,6 +127,8 @@ public class ParallelEventDispatcherTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_invokedHandlers)
             {
                 _invokedHandlers.Add(_id);

@@ -80,6 +80,8 @@ public class PulseMediatorTests
     [Test]
     public async Task PublishAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -96,6 +98,8 @@ public class PulseMediatorTests
     [Test]
     public async Task PublishAsync_WithNoHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -112,6 +116,8 @@ public class PulseMediatorTests
     [Test]
     public async Task PublishAsync_WithHandlers_InvokesAllHandlers(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler1 = new TestEventHandler();
         var handler2 = new TestEventHandler();
         var services = new ServiceCollection();
@@ -140,6 +146,8 @@ public class PulseMediatorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler1 = new ThrowingEventHandler();
         var handler2 = new TestEventHandler();
         var services = new ServiceCollection();
@@ -168,6 +176,8 @@ public class PulseMediatorTests
     [Test]
     public async Task PublishAsync_SetsPublishedAtTimestamp(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection().AddLogging();
         var serviceProvider = services.BuildServiceProvider();
         var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
@@ -191,6 +201,8 @@ public class PulseMediatorTests
     [Test]
     public async Task QueryAsync_WithNullQuery_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -207,6 +219,8 @@ public class PulseMediatorTests
     [Test]
     public async Task QueryAsync_WithNoHandler_ThrowsInvalidOperationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -223,6 +237,8 @@ public class PulseMediatorTests
     [Test]
     public async Task QueryAsync_WithHandler_InvokesHandlerAndReturnsResult(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestQueryHandler("test-result");
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -246,6 +262,8 @@ public class PulseMediatorTests
     [Test]
     public async Task SendAsync_WithNullCommand_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -262,6 +280,8 @@ public class PulseMediatorTests
     [Test]
     public async Task SendAsync_WithNoHandler_ThrowsInvalidOperationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -278,6 +298,8 @@ public class PulseMediatorTests
     [Test]
     public async Task SendAsync_WithHandler_InvokesHandlerAndReturnsResult(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestCommandHandler("test-result");
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -301,6 +323,8 @@ public class PulseMediatorTests
     [Test]
     public async Task SendAsync_WithInterceptor_InvokesInterceptorBeforeHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestCommandHandler("test-result");
         var interceptor = new TestCommandInterceptor();
         var services = new ServiceCollection();
@@ -326,6 +350,8 @@ public class PulseMediatorTests
     [Test]
     public async Task QueryAsync_WithInterceptor_InvokesInterceptorBeforeHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestQueryHandler("test-result");
         var interceptor = new TestQueryInterceptor();
         var services = new ServiceCollection();
@@ -351,6 +377,8 @@ public class PulseMediatorTests
     [Test]
     public async Task PublishAsync_WithInterceptor_InvokesInterceptorBeforeHandlers(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestEventHandler();
         var interceptor = new TestEventInterceptor();
         var services = new ServiceCollection();
@@ -377,6 +405,8 @@ public class PulseMediatorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var collector = new ScopedDependencyCollector();
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -428,6 +458,8 @@ public class PulseMediatorTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _collector.Captured = _dependency;
             return Task.CompletedTask;
         }
@@ -449,6 +481,8 @@ public class PulseMediatorTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledEvents.Add(message);
             return Task.CompletedTask;
         }
@@ -475,6 +509,8 @@ public class PulseMediatorTests
 
         public Task<string> HandleAsync(TestCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledCommands.Add(command);
             return Task.FromResult(_result);
         }
@@ -495,6 +531,8 @@ public class PulseMediatorTests
 
         public Task<string> HandleAsync(TestQuery request, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledQueries.Add(request);
             return Task.FromResult(_result);
         }
@@ -510,6 +548,8 @@ public class PulseMediatorTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             InterceptedCommands.Add(request);
             return await handler(request, cancellationToken).ConfigureAwait(false);
         }
@@ -525,6 +565,8 @@ public class PulseMediatorTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             InterceptedQueries.Add(request);
             return await handler(request, cancellationToken).ConfigureAwait(false);
         }
@@ -540,6 +582,8 @@ public class PulseMediatorTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             InterceptedEvents.Add(message);
             await handler(message, cancellationToken).ConfigureAwait(false);
         }
@@ -564,6 +608,8 @@ public class PulseMediatorTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledQueries.Add(request);
             foreach (var item in _items)
             {
@@ -582,6 +628,8 @@ public class PulseMediatorTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             InterceptedQueries.Add(request);
             await foreach (
                 var item in handler(request, cancellationToken)
@@ -598,6 +646,8 @@ public class PulseMediatorTests
     [Test]
     public async Task StreamQueryAsync_WithNullQuery_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -616,6 +666,8 @@ public class PulseMediatorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         var serviceProvider = services.BuildServiceProvider();
@@ -640,6 +692,8 @@ public class PulseMediatorTests
     [Test]
     public async Task StreamQueryAsync_WithHandler_YieldsAllItems(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var expectedItems = new[] { "first", "second", "third" };
         var handler = new TestStreamQueryHandler(expectedItems);
         var services = new ServiceCollection();
@@ -673,6 +727,8 @@ public class PulseMediatorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var expectedItems = new[] { "alpha", "beta" };
         var handler = new TestStreamQueryHandler(expectedItems);
         var interceptor = new TestStreamQueryInterceptor();
@@ -709,6 +765,8 @@ public class PulseMediatorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var log = new List<string>();
         var handler = new TestCommandHandler("test-result");
         var services = new ServiceCollection();
@@ -757,6 +815,8 @@ public class PulseMediatorTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _log.Add($"{_name}:before");
             var result = await handler(request, cancellationToken).ConfigureAwait(false);
             _log.Add($"{_name}:after");

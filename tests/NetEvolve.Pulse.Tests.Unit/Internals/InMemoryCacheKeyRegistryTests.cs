@@ -87,6 +87,8 @@ public class InMemoryCacheKeyRegistryTests
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var registry = new InMemoryCacheKeyRegistry();
         var types = new[] { typeof(SampleQueryA), typeof(SampleQueryB), typeof(SampleQueryC) };
         const int keysPerType = 200;

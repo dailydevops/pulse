@@ -20,6 +20,8 @@ public sealed class EntityFrameworkAuditInitializer : IServiceInitializer
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using (var scope = serviceProvider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<TestAuditStoreDbContext>();
@@ -116,6 +118,8 @@ public sealed class EntityFrameworkAuditInitializer : IServiceInitializer
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var command = connection.CreateCommand();
             await using (command.ConfigureAwait(false))
             {

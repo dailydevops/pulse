@@ -17,6 +17,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
     [Test]
     public async Task MarkAsCompletedAsync_WithTtlDisabled_PatchesStatusWithoutTtl(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
@@ -44,6 +46,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
     [Test]
     public async Task MarkAsCompletedAsync_WithTtlEnabled_PatchesTtlField(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
@@ -68,6 +72,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
@@ -96,6 +102,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
     [Test]
     public async Task MarkAsFailedAsync_WithNextRetryAt_PatchesNextRetryAtField(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
@@ -121,6 +129,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
@@ -145,6 +155,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
     [Test]
     public async Task MarkAsDeadLetterAsync_WithTtlEnabled_PatchesStatusErrorAndTtl(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
@@ -172,6 +184,8 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
     [Test]
     public async Task MarkAsDeadLetterAsync_WithTtlDisabled_DoesNotPatchTtl(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 

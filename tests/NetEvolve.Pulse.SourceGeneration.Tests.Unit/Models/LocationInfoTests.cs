@@ -18,6 +18,8 @@ public class LocationInfoTests
     [Test]
     public async Task CreateFromThenCapturesFilePathAndSpansOfNode(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string source = """
             public class MyClass
             {
@@ -38,6 +40,8 @@ public class LocationInfoTests
     [Test]
     public async Task ToLocationThenReconstructsEquivalentLocation(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string source = """
             public class MyClass
             {

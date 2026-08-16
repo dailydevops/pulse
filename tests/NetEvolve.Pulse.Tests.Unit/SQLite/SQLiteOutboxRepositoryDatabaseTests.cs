@@ -100,6 +100,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task AddAsync_WithValidMessage_PersistsToDatabase(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
 
@@ -120,6 +122,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message1 = CreateMessage(typeof(TestSQLiteRepoEvent));
         var message2 = CreateMessage();
@@ -138,6 +142,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetPendingAsync_WithEmptyTable_ReturnsEmptyList(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
@@ -150,6 +156,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
         var repository = CreateRepository(timeProvider, TimeSpan.FromMinutes(5));
         var message = CreateMessage();
@@ -176,6 +184,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
         var repository = CreateRepository(timeProvider, TimeSpan.FromMinutes(5));
         var message = CreateMessage();
@@ -194,6 +204,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task MarkAsCompletedAsync_SetsStatusToCompleted(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -212,6 +224,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task MarkAsFailedAsync_SetsStatusToFailed(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -245,6 +259,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task MarkAsDeadLetterAsync_SetsStatusToDeadLetter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -263,6 +279,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetPendingCountAsync_WithPendingMessages_ReturnsCorrectCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -275,6 +293,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task DeleteCompletedAsync_DeletesOldCompletedMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -290,6 +310,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -307,6 +329,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task MarkAsFailedAsync_WithNextRetryAt_SetsNextRetryAt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -331,6 +355,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -354,6 +380,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetPendingAsync_WithDueNonUtcNextRetryAt_ReturnsMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         var message = CreateMessage();
         message.NextRetryAt = DateTimeOffset.UtcNow.AddMinutes(-30).ToOffset(TimeSpan.FromHours(2));
@@ -371,6 +399,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task AddAsync_UsesAmbientTransactionScope(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await using (connection.ConfigureAwait(false))
         {
@@ -403,6 +433,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dbPath = Path.Combine(Path.GetTempPath(), $"pulse_wal_{Guid.NewGuid():N}.db");
         var fileConnectionString = $"Data Source={dbPath};Pooling=False";
 
@@ -479,6 +511,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var markCompleted = typeof(SQLiteOutboxRepository).GetMethod(
             nameof(IOutboxRepository.MarkAsCompletedAsync),
             [typeof(IReadOnlyCollection<Guid>), typeof(CancellationToken)]
@@ -505,6 +539,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IOutboxRepository repository = CreateRepository();
         var messages = new[] { CreateMessage(), CreateMessage(), CreateMessage() };
         foreach (var message in messages)
@@ -526,6 +562,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task MarkAsFailedAsync_WithMultipleMessageIds_MarksAllAsFailed(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IOutboxRepository repository = CreateRepository();
         var messages = new[] { CreateMessage(), CreateMessage() };
         foreach (var message in messages)
@@ -566,6 +604,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IOutboxRepository repository = CreateRepository();
         var messages = new[] { CreateMessage(), CreateMessage() };
         foreach (var message in messages)
@@ -589,6 +629,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
     [Test]
     public async Task MarkAsCompletedAsync_WithEmptyMessageIds_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IOutboxRepository repository = CreateRepository();
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -604,6 +646,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statuses = new List<long>();
         foreach (var messageId in messageIds)
         {
@@ -623,6 +667,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(connectionString);
         await using (connection.ConfigureAwait(false))
         {
@@ -638,6 +684,8 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
 
     private static async Task<string?> GetJournalModeAsync(string connectionString, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(connectionString);
         await using (connection.ConfigureAwait(false))
         {

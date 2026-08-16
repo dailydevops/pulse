@@ -37,6 +37,8 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new NoOpChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         var transport = CreateTransport(channelPool, topicNameResolver);
@@ -61,6 +63,8 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
     [Test]
     public async Task Dispose_DuringInFlightSendAsync_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new NoOpChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         var transport = CreateTransport(channelPool, topicNameResolver);
@@ -166,6 +170,8 @@ public sealed class RabbitMqMessageTransportDisposeConcurrencyTests
         )
             where TProperties : global::RabbitMQ.Client.IReadOnlyBasicProperties, global::RabbitMQ.Client.IAmqpHeader
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (publishGate is { } gate)
             {
                 _ = gate.start.TrySetResult();

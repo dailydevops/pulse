@@ -22,6 +22,8 @@ public sealed class SqlServerOutboxLeaseTests(
     [Test]
     public async Task Should_GetPendingAsync_ReclaimExpiredProcessingLease(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -58,6 +60,8 @@ public sealed class SqlServerOutboxLeaseTests(
     [Test]
     public async Task Should_GetPendingAsync_NotReclaim_WhileProcessingLeaseActive(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 

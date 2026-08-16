@@ -25,6 +25,9 @@ public sealed class SQLiteAdoNetOutboxInitializer : IServiceInitializer
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<OutboxOptions>>().Value;
 
         var connectionString =

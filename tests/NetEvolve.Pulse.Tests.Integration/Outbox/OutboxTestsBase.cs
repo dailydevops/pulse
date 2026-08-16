@@ -38,6 +38,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_Persist_Expected_Messages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -239,6 +241,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_Mark_Single_Message_AsFailed_WithRetryScheduling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -336,6 +340,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_GetFailedForRetry_ExcludesScheduledMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -374,6 +380,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_DeleteCompleted_ReturnsCorrectCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -483,6 +491,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_DeleteCompleted_DoesNotDelete_NonCompletedMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 

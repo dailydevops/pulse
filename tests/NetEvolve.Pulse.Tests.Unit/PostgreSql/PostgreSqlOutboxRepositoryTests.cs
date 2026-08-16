@@ -154,6 +154,8 @@ public sealed class PostgreSqlOutboxRepositoryTests
     [Test]
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new PostgreSqlOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -169,6 +171,8 @@ public sealed class PostgreSqlOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new PostgreSqlOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -184,6 +188,8 @@ public sealed class PostgreSqlOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new PostgreSqlOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -197,6 +203,8 @@ public sealed class PostgreSqlOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new PostgreSqlOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -214,6 +222,8 @@ public sealed class PostgreSqlOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new PostgreSqlOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System

@@ -73,6 +73,8 @@ public sealed class EntityFrameworkOutboxRepositoryTests
     [Test]
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(AddAsync_WithNullMessage_ThrowsArgumentNullException))
             .Options;
@@ -90,6 +92,8 @@ public sealed class EntityFrameworkOutboxRepositoryTests
     [Test]
     public async Task IsHealthyAsync_WithInMemoryProvider_ReturnsTrue(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(IsHealthyAsync_WithInMemoryProvider_ReturnsTrue))
             .Options;

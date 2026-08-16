@@ -27,6 +27,9 @@ public sealed class SQLiteAdoNetCommandDeadLetterInitializer : IServiceInitializ
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<CommandDeadLetterOptions>>().Value;
 
         var connectionString =
