@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 public sealed class KafkaContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly KafkaContainer _container = new KafkaBuilder(
-        /*dockerimage*/"confluentinc/cp-kafka:8.3.0"
+        /*dockerimage*/"confluentinc/cp-kafka:8.3.1"
     )
         .WithLogger(NullLogger.Instance)
         // confluentinc/cp-kafka 8.x dropped ZooKeeper support (KRaft-only), so the consensus
