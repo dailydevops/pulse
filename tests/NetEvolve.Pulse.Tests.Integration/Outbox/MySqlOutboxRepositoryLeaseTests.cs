@@ -9,7 +9,7 @@ using MySql.Data.MySqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 using TUnit.Core;
 
 [TestGroup("MySql")]

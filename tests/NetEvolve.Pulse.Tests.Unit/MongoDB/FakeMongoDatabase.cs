@@ -9,33 +9,6 @@ using IMongoClient = global::MongoDB.Driver.IMongoClient;
 using IMongoDatabase = global::MongoDB.Driver.IMongoDatabase;
 
 /// <summary>
-/// Minimal <see cref="IMongoClient"/> test double that hands out a single, preconfigured
-/// <see cref="IMongoDatabase"/> for every <c>GetDatabase</c> call. All other members are
-/// intentionally unsupported, since the code under test never invokes them.
-/// </summary>
-internal class FakeMongoClient : DispatchProxy
-{
-    private IMongoDatabase _database = null!;
-
-    public static IMongoClient Create(IMongoDatabase database)
-    {
-        var proxy = Create<IMongoClient, FakeMongoClient>();
-        ((FakeMongoClient)proxy)._database = database;
-        return proxy;
-    }
-
-    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
-        targetMethod?.Name switch
-        {
-            nameof(IMongoClient.GetDatabase) => _database,
-            nameof(IDisposable.Dispose) => null,
-            _ => throw new NotSupportedException(
-                $"{targetMethod?.Name} is not supported by {nameof(FakeMongoClient)}."
-            ),
-        };
-}
-
-/// <summary>
 /// Minimal <see cref="IMongoDatabase"/> test double whose <c>RunCommandAsync</c> either completes
 /// successfully or fails with a preconfigured exception, so the caller's exception-handling branches
 /// can be exercised deterministically without a real MongoDB server.

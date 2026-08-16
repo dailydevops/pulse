@@ -10,7 +10,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 using Npgsql;
 using TUnit.Core;
 

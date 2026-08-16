@@ -86,7 +86,8 @@ public sealed class ConcurrentCommandGuardExtensionsTests
         _ = await Assert.That(result).IsSameReferenceAs(configurator);
 
         var descriptor = services.FirstOrDefault(d =>
-            d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>) && d.ImplementationFactory is not null
+            d.ServiceType == typeof(IRequestInterceptor<ExclusiveCommand, string>)
+            && d.ImplementationFactory is not null
         );
 
         using (Assert.Multiple())
