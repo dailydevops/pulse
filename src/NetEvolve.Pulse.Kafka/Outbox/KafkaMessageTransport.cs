@@ -76,8 +76,6 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
     )]
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         ArgumentNullException.ThrowIfNull(messages);
 
         var errors = new ConcurrentBag<Exception>();
@@ -145,12 +143,12 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
 
     private async Task EnsureTopicAsync(string topic, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         if (!_options.AutoCreateTopics || _ensuredTopics.ContainsKey(topic))
         {
             return;
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var configs = new Dictionary<string, string>();
 

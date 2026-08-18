@@ -16,8 +16,6 @@ internal sealed class NullMessageTransport : IMessageTransport
     /// <inheritdoc/>
     public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         ArgumentNullException.ThrowIfNull(message);
         return Task.CompletedTask;
     }

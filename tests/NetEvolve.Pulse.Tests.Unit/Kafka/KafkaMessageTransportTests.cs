@@ -725,11 +725,10 @@ public sealed class KafkaMessageTransportTests
 
         public void Flush(CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            FlushGate?.Wait(cancellationToken);
             FlushCallCount++;
             FlushCancellationTokens.Add(cancellationToken);
+
+            FlushGate?.Wait(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
         }
 
