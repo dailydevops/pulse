@@ -16,6 +16,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithPrioritizedHandlers_ExecutesInPriorityOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var executionOrder = new ConcurrentQueue<int>();
@@ -43,6 +45,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithNonPrioritizedHandlers_ExecutesLast(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var executionOrder = new ConcurrentQueue<int>();
@@ -72,6 +76,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithEqualPriority_PreservesRegistrationOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var executionOrder = new ConcurrentQueue<int>();
@@ -99,6 +105,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithCancellation_StopsExecution(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var executionOrder = new ConcurrentQueue<int>();
@@ -129,6 +137,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithSingleHandler_InvokesHandlerExactlyOnce(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var executionOrder = new ConcurrentQueue<int>();
@@ -144,6 +154,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithSingleHandlerThrowing_AggregatesException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>> { new ThrowingSingleHandler() };
@@ -164,6 +176,8 @@ public class PrioritizedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithEmptyHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var message = new TestEvent();
         var handlers = Enumerable.Empty<IEventHandler<TestEvent>>();
@@ -197,6 +211,8 @@ public class PrioritizedEventDispatcherTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Enqueue(_id);
             return Task.CompletedTask;
         }
@@ -215,6 +231,8 @@ public class PrioritizedEventDispatcherTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Enqueue(_id);
             return Task.CompletedTask;
         }
@@ -243,6 +261,8 @@ public class PrioritizedEventDispatcherTests
 
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Enqueue(_id);
             await _cts.CancelAsync().ConfigureAwait(false);
         }

@@ -50,6 +50,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task ExistsAsync_WithNullKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(new TrackingIdempotencyKeyRepository());
 
         _ = await Assert
@@ -60,6 +62,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task ExistsAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(new TrackingIdempotencyKeyRepository());
 
         _ = await Assert
@@ -70,6 +74,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task ExistsAsync_WithoutTtl_PassesNullCutoffToRepository(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new TrackingIdempotencyKeyRepository();
         var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = null });
 
@@ -81,6 +87,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task ExistsAsync_WithTtl_PassesCutoffToRepository(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider();
         var now = fakeTime.GetUtcNow();
         var ttl = TimeSpan.FromMinutes(10);
@@ -97,6 +105,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task StoreAsync_WithNullKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(new TrackingIdempotencyKeyRepository());
 
         _ = await Assert
@@ -107,6 +117,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task StoreAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(new TrackingIdempotencyKeyRepository());
 
         _ = await Assert
@@ -117,6 +129,8 @@ public sealed class IdempotencyStoreTests
     [Test]
     public async Task StoreAsync_PassesCurrentTimestampToRepository(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider();
         var expectedTimestamp = fakeTime.GetUtcNow();
 
@@ -139,6 +153,8 @@ public sealed class IdempotencyStoreTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CapturedValidFrom = validFrom;
             return Task.FromResult(false);
         }
@@ -149,6 +165,8 @@ public sealed class IdempotencyStoreTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CapturedCreatedAt = createdAt;
             return Task.CompletedTask;
         }

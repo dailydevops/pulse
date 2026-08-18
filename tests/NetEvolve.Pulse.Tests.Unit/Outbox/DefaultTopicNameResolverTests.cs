@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;

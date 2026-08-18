@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse.DeadLetter;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -95,6 +95,8 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         await commandDeadLetterManagement.ReplayAsync(id, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.NoContent();
@@ -106,6 +108,8 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         await commandDeadLetterManagement.DismissAsync(id, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.NoContent();

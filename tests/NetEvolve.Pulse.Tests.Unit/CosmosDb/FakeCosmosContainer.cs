@@ -11,28 +11,6 @@ using Microsoft.Azure.Cosmos;
 using Scripts = Microsoft.Azure.Cosmos.Scripts.Scripts;
 
 /// <summary>
-/// Minimal test double for <see cref="CosmosClient"/> that returns a preconfigured container.
-/// </summary>
-internal sealed class FakeCosmosClient : CosmosClient
-{
-    private readonly Container _container;
-
-    public FakeCosmosClient(Container container) => _container = container;
-
-    public override Container GetContainer(string databaseId, string containerId) => _container;
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Usage",
-        "CA2215:Dispose methods should call base class dispose",
-        Justification = "The mocking constructor does not initialize the disposable client state."
-    )]
-    protected override void Dispose(bool disposing)
-    {
-        // Intentionally empty: the mock constructor does not initialize the disposable client state.
-    }
-}
-
-/// <summary>
 /// Minimal test double for <see cref="Container"/> with delegate hooks for the operations
 /// exercised by the outbox repository and management implementations.
 /// All other members throw <see cref="NotImplementedException"/>.
@@ -107,6 +85,8 @@ internal sealed class FakeCosmosContainer : Container
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ReadItemCalls++;
 
         return OnReadItem is null
@@ -122,6 +102,8 @@ internal sealed class FakeCosmosContainer : Container
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         PatchItemCalls++;
 
         return OnPatchItem is null
@@ -353,74 +335,4 @@ internal sealed class FakeCosmosContainer : Container
         ItemRequestOptions? requestOptions = null,
         CancellationToken cancellationToken = default
     ) => throw new NotImplementedException();
-}
-
-/// <summary>
-/// Test double for <see cref="FeedIterator{T}"/> returning a fixed sequence of pages.
-/// </summary>
-internal sealed class FakeFeedIterator<T> : FeedIterator<T>
-{
-    private readonly Queue<IReadOnlyList<T>> _pages;
-
-    public FakeFeedIterator(IReadOnlyList<IReadOnlyList<T>> pages) => _pages = new Queue<IReadOnlyList<T>>(pages);
-
-    public override bool HasMoreResults => _pages.Count > 0;
-
-    public override Task<FeedResponse<T>> ReadNextAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<FeedResponse<T>>(new FakeFeedResponse<T>(_pages.Dequeue()));
-}
-
-/// <summary>
-/// Test double for <see cref="FeedResponse{T}"/> wrapping an in-memory page.
-/// </summary>
-internal sealed class FakeFeedResponse<T> : FeedResponse<T>
-{
-    private readonly IReadOnlyList<T> _items;
-
-    public FakeFeedResponse(IReadOnlyList<T> items) => _items = items;
-
-    public override string ContinuationToken => throw new NotImplementedException();
-
-    public override int Count => _items.Count;
-
-    public override string IndexMetrics => throw new NotImplementedException();
-
-    public override Headers Headers => new Headers();
-
-    public override IEnumerable<T> Resource => _items;
-
-    public override HttpStatusCode StatusCode => HttpStatusCode.OK;
-
-    public override CosmosDiagnostics Diagnostics => throw new NotImplementedException();
-
-    public override IEnumerator<T> GetEnumerator() => _items.GetEnumerator();
-}
-
-/// <summary>
-/// Test double for <see cref="ItemResponse{T}"/> exposing a resource and an ETag.
-/// </summary>
-internal sealed class FakeItemResponse<T> : ItemResponse<T>
-{
-    private readonly T _resource;
-    private readonly string? _etag;
-
-    public FakeItemResponse(T resource, string? etag = null)
-    {
-        _resource = resource;
-        _etag = etag;
-    }
-
-    public override T Resource => _resource;
-
-    public override string ETag => _etag!;
-
-    public override Headers Headers => new Headers();
-
-    public override HttpStatusCode StatusCode => HttpStatusCode.OK;
-
-    public override CosmosDiagnostics Diagnostics => throw new NotImplementedException();
-
-    public override double RequestCharge => 0;
-
-    public override string ActivityId => string.Empty;
 }

@@ -26,6 +26,8 @@ public sealed class HandlerRegistrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder().ConfigureServices(configureServices).Build();
 
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -36,6 +38,8 @@ public sealed class HandlerRegistrationTests
     [Test]
     public async Task AddRequestInterceptor_WrapsQueryHandling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -71,6 +75,8 @@ public sealed class HandlerRegistrationTests
     [Test]
     public async Task AddCommandInterceptor_WrapsCommandHandling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -106,6 +112,8 @@ public sealed class HandlerRegistrationTests
     [Test]
     public async Task AddQueryInterceptor_WrapsQueryHandling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -141,6 +149,8 @@ public sealed class HandlerRegistrationTests
     [Test]
     public async Task AddEventInterceptor_WrapsEventHandling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -172,6 +182,8 @@ public sealed class HandlerRegistrationTests
     [Test]
     public async Task AddStreamQueryInterceptor_WrapsStreamQueryHandling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -233,6 +245,8 @@ public sealed class HandlerRegistrationTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("RequestInterceptor:before");
             var result = await handler(request, cancellationToken).ConfigureAwait(false);
             tracker.Add("RequestInterceptor:after");
@@ -248,6 +262,8 @@ public sealed class HandlerRegistrationTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("QueryInterceptor:before");
             var result = await handler(request, cancellationToken).ConfigureAwait(false);
             tracker.Add("QueryInterceptor:after");
@@ -275,6 +291,8 @@ public sealed class HandlerRegistrationTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("CommandInterceptor:before");
             var result = await handler(request, cancellationToken).ConfigureAwait(false);
             tracker.Add("CommandInterceptor:after");
@@ -294,6 +312,8 @@ public sealed class HandlerRegistrationTests
     {
         public Task HandleAsync(MarkerEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("handled");
             return Task.CompletedTask;
         }
@@ -307,6 +327,8 @@ public sealed class HandlerRegistrationTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("EventInterceptor:before");
             await handler(message, cancellationToken).ConfigureAwait(false);
             tracker.Add("EventInterceptor:after");
@@ -326,6 +348,8 @@ public sealed class HandlerRegistrationTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return 1;
             await Task.Yield();
             yield return 2;
@@ -341,6 +365,8 @@ public sealed class HandlerRegistrationTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("StreamQueryInterceptor:before");
             await foreach (var item in handler(request, cancellationToken).WithCancellation(cancellationToken))
             {

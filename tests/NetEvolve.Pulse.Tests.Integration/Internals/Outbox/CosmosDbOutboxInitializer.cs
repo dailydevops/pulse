@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals;
+namespace NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Azure.Cosmos;
@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 public sealed class CosmosDbOutboxInitializer : IServiceInitializer
 {
@@ -34,6 +35,8 @@ public sealed class CosmosDbOutboxInitializer : IServiceInitializer
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var cosmosClient = serviceProvider.GetRequiredService<CosmosClient>();
         var options = serviceProvider.GetRequiredService<IOptions<CosmosDbOutboxOptions>>().Value;

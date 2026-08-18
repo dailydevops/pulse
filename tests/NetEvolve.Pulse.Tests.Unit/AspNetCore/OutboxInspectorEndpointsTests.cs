@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
 
 using System;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,8 +12,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
-using PulseEndpoints = OutboxInspectorEndpoints;
+using PulseEndpoints = NetEvolve.Pulse.Outbox.OutboxInspectorEndpoints;
 
 [TestGroup("AspNetCore")]
 public sealed class OutboxInspectorEndpointsTests
@@ -44,6 +44,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetStatistics_ReturnsOkWithMockedStatistics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new OutboxStatistics
         {
             Pending = 1,
@@ -82,6 +84,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterMessages_ReturnsOkWithMockedList(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var messages = new[]
         {
@@ -122,6 +126,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterCount_ReturnsOkWithMockedCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetDeadLetterCountAsync(Arg.Any<CancellationToken>()).Returns(42L);
 
@@ -144,6 +150,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterMessage_WhenFound_ReturnsOkWithMockedMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var message = new OutboxMessage
         {
@@ -179,6 +187,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterMessage_WhenNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
 
         var mock = Mock.Of<IOutboxManagement>();
@@ -199,6 +209,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task ReplayMessage_WhenSucceeds_ReturnsNoContent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
 
         var mock = Mock.Of<IOutboxManagement>();
@@ -223,6 +235,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task ReplayMessage_WhenNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
 
         var mock = Mock.Of<IOutboxManagement>();
@@ -247,6 +261,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task ReplayAllDeadLetter_ReturnsOkWithMockedCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.ReplayAllDeadLetterAsync(Arg.Any<CancellationToken>()).Returns(7);
 
@@ -276,6 +292,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task MapOutboxInspector_WithCustomBasePath_UsesConfiguredPrefix(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetDeadLetterCountAsync(Arg.Any<CancellationToken>()).Returns(3L);
 
@@ -310,6 +328,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {

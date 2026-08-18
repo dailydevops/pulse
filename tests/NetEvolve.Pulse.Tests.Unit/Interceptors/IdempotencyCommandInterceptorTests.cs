@@ -40,6 +40,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new IdempotencyCommandInterceptor<TestCommand, string>(provider);
         var command = new TestCommand();
@@ -54,6 +56,8 @@ public sealed class IdempotencyCommandInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -86,6 +90,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_NoStoreRegistered_PassesThroughWithoutError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new IdempotencyCommandInterceptor<TestCommand, string>(provider);
         var command = new TestCommand { IdempotencyKey = "key-1" };
@@ -113,6 +119,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_NewKey_ExecutesHandlerAndStoresKey(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -146,6 +154,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_ExistingKey_ThrowsIdempotencyConflictException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore(existingKey: "key-dup");
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -181,6 +191,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_ExistingKey_DoesNotCallHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore(existingKey: "key-exists");
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -202,6 +214,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_HandlerThrows_KeyRemainsReserved(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -231,6 +245,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_VoidCommand_IsRecognizedByInterceptor(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -262,6 +278,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_VoidCommand_CallsExistsAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -279,6 +297,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_VoidCommand_ReservesKeyBeforeExecution(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -302,6 +322,8 @@ public sealed class IdempotencyCommandInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new TrackingIdempotencyStore(existingKey: "void-key-conflict");
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -337,6 +359,8 @@ public sealed class IdempotencyCommandInterceptorTests
     [Test]
     public async Task HandleAsync_ConcurrentDuplicateKey_ExecutesHandlerAtMostOnce(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new RecordingIdempotencyStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<IIdempotencyStore>(store);
@@ -418,6 +442,8 @@ public sealed class IdempotencyCommandInterceptorTests
 
         public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 return Task.FromResult(_keys.Contains(idempotencyKey));
@@ -426,6 +452,8 @@ public sealed class IdempotencyCommandInterceptorTests
 
         public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 _ = _keys.Add(idempotencyKey);
@@ -447,12 +475,16 @@ public sealed class IdempotencyCommandInterceptorTests
 
         public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             ExistsCallCount++;
             return Task.FromResult(string.Equals(idempotencyKey, _existingKey, StringComparison.Ordinal));
         }
 
         public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             StoreCallCount++;
             StoredKey = idempotencyKey;
             return Task.CompletedTask;

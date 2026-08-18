@@ -77,6 +77,8 @@ internal sealed class MySqlAuditStore : IAuditStore
     /// <inheritdoc />
     public async Task RecordAsync(AuditRecord record, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(record);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -111,6 +113,8 @@ internal sealed class MySqlAuditStore : IAuditStore
     /// <returns>An open <see cref="MySqlConnection"/>.</returns>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

@@ -46,6 +46,8 @@ internal sealed class IdempotencyStore : IIdempotencyStore
     /// <inheritdoc />
     public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         DateTimeOffset? cutoff = _options.TimeToLive.HasValue
@@ -58,6 +60,8 @@ internal sealed class IdempotencyStore : IIdempotencyStore
     /// <inheritdoc />
     public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         return _repository.StoreAsync(idempotencyKey, _timeProvider.GetUtcNow(), cancellationToken);

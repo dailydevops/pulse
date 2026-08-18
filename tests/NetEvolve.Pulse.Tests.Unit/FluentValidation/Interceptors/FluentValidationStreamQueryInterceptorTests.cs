@@ -21,6 +21,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         var provider = services.BuildServiceProvider();
@@ -38,6 +39,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NoValidatorsRegistered_PassesThroughAllItems(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange — no IValidator<TestStreamQuery> registered
         var services = new ServiceCollection();
         var provider = services.BuildServiceProvider();
@@ -69,6 +71,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_ValidInput_YieldsAllItems(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestStreamQuery>, AlwaysValidValidator>();
@@ -109,6 +112,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestStreamQuery>, AlwaysInvalidValidator>();
@@ -154,6 +158,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_MultipleValidators_AggregatesAllFailures(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestStreamQuery>, AlwaysInvalidValidator>();
@@ -198,6 +203,7 @@ public sealed class FluentValidationStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestStreamQuery>, AlwaysValidValidator>();

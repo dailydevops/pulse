@@ -9,7 +9,7 @@ using MySql.Data.MySqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 using TUnit.Core;
 
 [TestGroup("MySql")]
@@ -36,6 +36,8 @@ public sealed class MySqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = $"pulse{Guid.NewGuid():N}";
         var tableName = $"OutboxMessage_{Guid.NewGuid():N}";
 
@@ -82,6 +84,8 @@ public sealed class MySqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var scriptPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Scripts", "MySql", "OutboxMessage.sql");
         var script = await System.IO.File.ReadAllTextAsync(scriptPath, cancellationToken).ConfigureAwait(false);
 
@@ -134,6 +138,8 @@ public sealed class MySqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (repository, timeProvider) = await CreateRepositoryAsync(cancellationToken).ConfigureAwait(false);
 
         var message = CreateMessage(timeProvider.GetUtcNow());
@@ -156,6 +162,8 @@ public sealed class MySqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (repository, timeProvider) = await CreateRepositoryAsync(cancellationToken).ConfigureAwait(false);
 
         var message = CreateMessage(timeProvider.GetUtcNow());

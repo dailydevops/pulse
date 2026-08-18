@@ -60,6 +60,8 @@ public class IMediatorSendOnlyTests
     [Test]
     public async Task IMediatorSendOnly_ServiceCanCall_SendAsyncAndPublishAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestCommandHandler("result");
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -100,6 +102,8 @@ public class IMediatorSendOnlyTests
 
         public Task<string> HandleAsync(TestCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledCommands.Add(command);
             return Task.FromResult(_result);
         }
@@ -125,6 +129,8 @@ public class IMediatorSendOnlyTests
 
         public async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _ = await _mediator
                 .SendAsync<TestCommand, string>(new TestCommand(), cancellationToken)
                 .ConfigureAwait(false);

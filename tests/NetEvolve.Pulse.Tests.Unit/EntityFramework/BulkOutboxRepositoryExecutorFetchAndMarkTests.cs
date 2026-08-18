@@ -21,6 +21,8 @@ public sealed class BulkOutboxRepositoryExecutorFetchAndMarkTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=FetchAndMarkClaimRace;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -121,6 +123,8 @@ public sealed class BulkOutboxRepositoryExecutorFetchAndMarkTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!CompetingClaimExecuted)
             {
                 CompetingClaimExecuted = true;

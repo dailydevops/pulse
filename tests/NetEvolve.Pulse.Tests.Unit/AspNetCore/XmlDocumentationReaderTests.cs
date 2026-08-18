@@ -3,7 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
 using System;
 using System.IO;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.AspNetCore.Internals;
+using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
 [TestGroup("AspNetCore")]

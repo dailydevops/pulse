@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Provides configuration options for the outbox inspector endpoints mapped via

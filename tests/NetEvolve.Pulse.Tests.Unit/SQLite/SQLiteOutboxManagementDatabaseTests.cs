@@ -88,6 +88,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
 
     private async Task InsertAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cmd = new SqliteCommand(
             """
             INSERT INTO "OutboxMessage"
@@ -124,6 +126,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetDeadLetterCountAsync_ReturnsExpectedCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
         await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
         await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
@@ -136,6 +140,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetDeadLetterMessagesAsync_ReturnsPagedOrdered(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
         var older = CreateMessage(OutboxMessageStatus.DeadLetter, createdAt: DateTimeOffset.UtcNow.AddMinutes(-5));
         var newer = CreateMessage(OutboxMessageStatus.DeadLetter, createdAt: DateTimeOffset.UtcNow);
@@ -156,6 +162,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetDeadLetterMessageAsync_ReturnsSingleMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
         var target = CreateMessage(OutboxMessageStatus.DeadLetter);
         await InsertAsync(target, cancellationToken).ConfigureAwait(false);
@@ -168,6 +176,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     [Test]
     public async Task ReplayMessageAsync_ResetsDeadLetterFields(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement(enableWal: true);
         var deadLetter = CreateMessage(
             OutboxMessageStatus.DeadLetter,
@@ -214,6 +224,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     [Test]
     public async Task ReplayAllDeadLetterAsync_ResetsAllMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
         await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
         await InsertAsync(CreateMessage(OutboxMessageStatus.DeadLetter), cancellationToken).ConfigureAwait(false);
@@ -237,6 +249,8 @@ public sealed class SQLiteOutboxManagementDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetStatisticsAsync_ReturnsAggregatedCounts(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
         await InsertAsync(CreateMessage(OutboxMessageStatus.Pending), cancellationToken).ConfigureAwait(false);
         await InsertAsync(CreateMessage(OutboxMessageStatus.Processing), cancellationToken).ConfigureAwait(false);

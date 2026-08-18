@@ -33,6 +33,8 @@ public sealed partial class PostgreSqlAdoNetAuditInitializer : IServiceInitializ
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<AuditStoreOptions>>().Value;
 
         var connectionString =

@@ -48,6 +48,8 @@ public sealed class CommandDeadLetterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new FakeCommandDeadLetterStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<ICommandDeadLetterStore>(store);
@@ -76,6 +78,8 @@ public sealed class CommandDeadLetterInterceptorTests
     [Test]
     public async Task HandleAsync_SuccessfulCommand_NeverCallsStoreAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new FakeCommandDeadLetterStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<ICommandDeadLetterStore>(store);
@@ -99,6 +103,8 @@ public sealed class CommandDeadLetterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(provider, DefaultSerializer);
         var command = new TestCommand { Value = "no-store" };
@@ -118,6 +124,8 @@ public sealed class CommandDeadLetterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = new FakeCommandDeadLetterStore();
         var services = new ServiceCollection();
         _ = services.AddSingleton<ICommandDeadLetterStore>(store);
@@ -140,6 +148,8 @@ public sealed class CommandDeadLetterInterceptorTests
     [Test]
     public async Task HandleAsync_FailingQuery_NoStoreRegistered_StillRethrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new CommandDeadLetterInterceptor<TestQuery, string>(provider, DefaultSerializer);
         var query = new TestQuery();
@@ -181,6 +191,8 @@ public sealed class CommandDeadLetterInterceptorTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             StoreCallCount++;
             LastCommandType = commandType;
             LastPayload = payload;

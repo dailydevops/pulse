@@ -82,6 +82,8 @@ internal sealed class SqlServerCommandDeadLetterStore : ICommandDeadLetterStore
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);
         ArgumentException.ThrowIfNullOrWhiteSpace(payload);
         ArgumentNullException.ThrowIfNull(exception);
@@ -124,6 +126,8 @@ internal sealed class SqlServerCommandDeadLetterStore : ICommandDeadLetterStore
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

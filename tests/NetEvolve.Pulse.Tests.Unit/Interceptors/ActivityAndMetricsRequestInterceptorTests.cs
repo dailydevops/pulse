@@ -13,6 +13,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithCommand_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -56,6 +58,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithQuery_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -89,6 +93,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithGenericRequest_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -122,6 +128,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -154,6 +162,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -196,6 +206,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_SetsTimestamps(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -225,6 +237,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectRequest(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsRequestInterceptor<TestCommand, string>(timeProvider);
         var command = new TestCommand();
@@ -249,6 +263,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithNullCausationId_DoesNotTagCausationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -278,6 +294,8 @@ public class ActivityAndMetricsRequestInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithNonNullCausationId_TagsCausationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),

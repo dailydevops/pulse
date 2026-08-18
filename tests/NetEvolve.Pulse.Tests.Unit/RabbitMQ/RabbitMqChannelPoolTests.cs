@@ -41,6 +41,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task RentAsync_When_pool_empty_creates_new_channel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         using var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -56,6 +58,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task Return_Of_open_channel_makes_it_available_for_next_rent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         using var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -76,6 +80,8 @@ public sealed class RabbitMqChannelPoolTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         using var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -108,6 +114,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task RentAsync_ConcurrentCalls_AreCappedAtMaxChannelPoolSize(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const int MaxPoolSize = 3;
         var connectionAdapter = new FakeConnectionAdapter();
         using var pool = new RabbitMqChannelPool(connectionAdapter, MaxPoolSize);
@@ -149,6 +157,8 @@ public sealed class RabbitMqChannelPoolTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         using var pool = new RabbitMqChannelPool(connectionAdapter, 1);
 
@@ -170,6 +180,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task IsHealthyAsync_Reflects_connection_state(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter { IsOpen = false };
         using var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -181,6 +193,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task IsHealthyAsync_When_exception_thrown_returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter { IsOpen = true, ThrowOnIsOpen = true };
         using var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -192,6 +206,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task IsHealthyAsync_After_dispose_returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter { IsOpen = true };
         var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -205,6 +221,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task Dispose_Disposes_all_idle_channels(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -225,6 +243,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task Dispose_Is_idempotent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -240,6 +260,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task RentAsync_After_dispose_throws_ObjectDisposedException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         var pool = new RabbitMqChannelPool(connectionAdapter, 10);
 
@@ -257,6 +279,8 @@ public sealed class RabbitMqChannelPoolTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter { ThrowOnCreateChannel = true };
         using var pool = new RabbitMqChannelPool(connectionAdapter, 1);
 
@@ -279,6 +303,8 @@ public sealed class RabbitMqChannelPoolTests
     [Test]
     public async Task Return_After_dispose_disposes_channel_without_throwing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionAdapter = new FakeConnectionAdapter();
         var pool = new RabbitMqChannelPool(connectionAdapter, 1);
 
@@ -317,6 +343,8 @@ public sealed class RabbitMqChannelPoolTests
 
         public Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CreateChannelCallCount++;
 
             if (ThrowOnCreateChannel)

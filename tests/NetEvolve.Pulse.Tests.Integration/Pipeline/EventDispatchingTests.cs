@@ -26,6 +26,8 @@ public sealed class EventDispatchingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureServices(configureServices)
             .ConfigureWebHost(webBuilder => _ = webBuilder.UseTestServer().Configure(applicationBuilder => { }))
@@ -71,6 +73,7 @@ public sealed class EventDispatchingTests
     {
         public async Task HandleAsync(SequentialTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // Deliberately slower than the following handlers. Under sequential dispatch this
             // handler must still fully complete before the next one starts.
             await Task.Delay(50, cancellationToken).ConfigureAwait(false);
@@ -82,6 +85,8 @@ public sealed class EventDispatchingTests
     {
         public Task HandleAsync(SequentialTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("B");
             return Task.CompletedTask;
         }
@@ -91,6 +96,8 @@ public sealed class EventDispatchingTests
     {
         public Task HandleAsync(SequentialTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("C");
             return Task.CompletedTask;
         }
@@ -99,6 +106,8 @@ public sealed class EventDispatchingTests
     [Test]
     public async Task SequentialDispatcher_Executes_Handlers_InRegistrationOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(
@@ -153,6 +162,8 @@ public sealed class EventDispatchingTests
     {
         public async Task HandleAsync(ParallelTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _ = gate.GateA.TrySetResult(true);
 #pragma warning disable VSTHRD003 // rendezvous on a TaskCompletionSource signaled by a sibling handler, not a foreign task
             _ = await Task.WhenAny(gate.GateB.Task, Task.Delay(10_000, cancellationToken)).ConfigureAwait(false);
@@ -166,6 +177,8 @@ public sealed class EventDispatchingTests
     {
         public async Task HandleAsync(ParallelTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _ = gate.GateB.TrySetResult(true);
 #pragma warning disable VSTHRD003 // rendezvous on a TaskCompletionSource signaled by a sibling handler, not a foreign task
             _ = await Task.WhenAny(gate.GateA.Task, Task.Delay(10_000, cancellationToken)).ConfigureAwait(false);
@@ -177,6 +190,8 @@ public sealed class EventDispatchingTests
     [Test]
     public async Task ParallelDispatcher_Executes_Handlers_Concurrently(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
         var gate = new RendezvousGate();
 
@@ -228,6 +243,7 @@ public sealed class EventDispatchingTests
 
         public async Task HandleAsync(PrioritizedTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // Intentionally slower than the handlers that follow. Because priority groups execute
             // sequentially, this handler must still fully complete before the mid-priority group starts.
             await Task.Delay(50, cancellationToken).ConfigureAwait(false);
@@ -242,6 +258,8 @@ public sealed class EventDispatchingTests
 
         public Task HandleAsync(PrioritizedTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("Mid");
             return Task.CompletedTask;
         }
@@ -255,6 +273,8 @@ public sealed class EventDispatchingTests
     {
         public Task HandleAsync(PrioritizedTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("Unprioritized");
             return Task.CompletedTask;
         }
@@ -263,6 +283,8 @@ public sealed class EventDispatchingTests
     [Test]
     public async Task PrioritizedDispatcher_Executes_Handlers_InPriorityOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(
@@ -335,6 +357,8 @@ public sealed class EventDispatchingTests
     {
         public async Task HandleAsync(RateLimitedTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Enter();
             try
             {
@@ -350,6 +374,8 @@ public sealed class EventDispatchingTests
     [Test]
     public async Task RateLimitedDispatcher_Never_Exceeds_ConfiguredMaxConcurrency(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const int maxConcurrency = 2;
         var tracker = new ConcurrencyTracker();
 
@@ -402,6 +428,8 @@ public sealed class EventDispatchingTests
     {
         public Task HandleAsync(FilteredTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record($"Value:{message.Value}");
             return Task.CompletedTask;
         }
@@ -410,6 +438,8 @@ public sealed class EventDispatchingTests
     [Test]
     public async Task EventFilter_Predicate_Skips_Handler_For_FilteredEvents(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(
@@ -453,6 +483,8 @@ public sealed class EventDispatchingTests
     {
         public Task HandleAsync(ScannedTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("Scanned");
             return Task.CompletedTask;
         }
@@ -461,6 +493,8 @@ public sealed class EventDispatchingTests
     [Test]
     public async Task AssemblyScanning_Discovers_And_Invokes_EventHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(
@@ -503,6 +537,8 @@ public sealed class EventDispatchingTests
     {
         public Task HandleAsync(KeyedTestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("Keyed");
             return Task.CompletedTask;
         }
@@ -522,6 +558,8 @@ public sealed class EventDispatchingTests
         )
             where TEvent : IEvent
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Record("MarkerDispatcherUsed");
             foreach (var handler in handlers)
             {
@@ -535,6 +573,8 @@ public sealed class EventDispatchingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(
@@ -562,6 +602,8 @@ public sealed class EventDispatchingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(
@@ -592,6 +634,8 @@ public sealed class EventDispatchingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new ExecutionTracker();
 
         await RunAsync(

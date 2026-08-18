@@ -3,7 +3,6 @@ namespace NetEvolve.Pulse.Tests.Integration.Pipeline;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +28,8 @@ public sealed class AssemblyScanningTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder().ConfigureServices(configureServices).Build();
 
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -39,6 +40,8 @@ public sealed class AssemblyScanningTests
     [Test]
     public async Task AddHandlersFromAssembly_Discovers_And_Invokes_Handler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -92,6 +95,8 @@ public sealed class AssemblyScanningTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -125,6 +130,8 @@ public sealed class AssemblyScanningTests
     [Test]
     public async Task AddHandlersFromExecutingAssembly_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await BuildHostAsync(
                 services => services.AddPulse(config => config.AddHandlersFromExecutingAssembly()),
                 cancellationToken
@@ -139,6 +146,8 @@ public sealed class AssemblyScanningTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -202,6 +211,8 @@ public sealed class AssemblyScanningTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tracker = new List<string>();
 
         using var host = await BuildHostAsync(
@@ -241,6 +252,8 @@ public sealed class AssemblyScanningTests
     [Test]
     public async Task AddInterceptorsFromExecutingAssembly_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await BuildHostAsync(
                 services => services.AddPulse(config => config.AddInterceptorsFromExecutingAssembly()),
                 cancellationToken
@@ -262,6 +275,8 @@ public sealed class AssemblyScanningTests
     {
         public Task HandleAsync(ScannedAssemblyEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("ScannedAssemblyHandler");
             return Task.CompletedTask;
         }
@@ -289,6 +304,8 @@ public sealed class AssemblyScanningTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             tracker.Add("ScannedInterceptor");
             return await handler(request, cancellationToken).ConfigureAwait(false);
         }

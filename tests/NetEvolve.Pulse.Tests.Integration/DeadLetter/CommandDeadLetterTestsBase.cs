@@ -33,6 +33,8 @@ public abstract class CommandDeadLetterTestsBase(
     {
         ArgumentNullException.ThrowIfNull(testableCode);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureAppConfiguration((hostContext, configBuilder) => { })
             .ConfigureServices(services =>

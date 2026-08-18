@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -15,8 +16,12 @@ using TUnit.Core;
 public class PulseHandlerGeneratorIncrementalTests
 {
     [Test]
-    public async Task WhenLinesInsertedAboveUnannotatedHandlerThenPulse003LocationFollowsDeclaration()
+    public async Task WhenLinesInsertedAboveUnannotatedHandlerThenPulse003LocationFollowsDeclaration(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string source = """
             using NetEvolve.Pulse.Extensibility;
             using NetEvolve.Pulse.Extensibility.Attributes;
@@ -36,14 +41,20 @@ public class PulseHandlerGeneratorIncrementalTests
 
         var editedTree = CSharpSyntaxTree.ParseText(
             "// line one" + Environment.NewLine + "// line two" + Environment.NewLine + source,
-            path: "TestFile.cs"
+            path: "TestFile.cs",
+            cancellationToken: cancellationToken
         );
         var editedCompilation = compilation.ReplaceSyntaxTree(tree, editedTree);
-        driver = driver.RunGeneratorsAndUpdateCompilation(editedCompilation, out _, out _);
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            editedCompilation,
+            out _,
+            out _,
+            cancellationToken: cancellationToken
+        );
         var diagnostics = driver.GetRunResult().Results.Single().Diagnostics;
 
         var diagnostic = diagnostics.Single(d => string.Equals(d.Id, "PULSE003", StringComparison.Ordinal));
-        var editedRoot = await editedTree.GetRootAsync().ConfigureAwait(false);
+        var editedRoot = await editedTree.GetRootAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var expectedPosition = editedRoot
             .DescendantNodes()
             .OfType<ClassDeclarationSyntax>()
@@ -56,8 +67,12 @@ public class PulseHandlerGeneratorIncrementalTests
     }
 
     [Test]
-    public async Task WhenLinesInsertedAboveInvalidExplicitMessageTypeThenPulse005LocationFollowsDeclaration()
+    public async Task WhenLinesInsertedAboveInvalidExplicitMessageTypeThenPulse005LocationFollowsDeclaration(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string source = """
             using NetEvolve.Pulse.Extensibility;
             using NetEvolve.Pulse.Extensibility.Attributes;
@@ -77,14 +92,15 @@ public class PulseHandlerGeneratorIncrementalTests
 
         var editedTree = CSharpSyntaxTree.ParseText(
             "// line one" + Environment.NewLine + "// line two" + Environment.NewLine + source,
-            path: "TestFile.cs"
+            path: "TestFile.cs",
+            cancellationToken: cancellationToken
         );
         var editedCompilation = compilation.ReplaceSyntaxTree(tree, editedTree);
-        driver = driver.RunGeneratorsAndUpdateCompilation(editedCompilation, out _, out _);
+        driver = driver.RunGeneratorsAndUpdateCompilation(editedCompilation, out _, out _, cancellationToken);
         var diagnostics = driver.GetRunResult().Results.Single().Diagnostics;
 
         var diagnostic = diagnostics.Single(d => string.Equals(d.Id, "PULSE005", StringComparison.Ordinal));
-        var editedRoot = await editedTree.GetRootAsync().ConfigureAwait(false);
+        var editedRoot = await editedTree.GetRootAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var expectedPosition = editedRoot
             .DescendantNodes()
             .OfType<ClassDeclarationSyntax>()

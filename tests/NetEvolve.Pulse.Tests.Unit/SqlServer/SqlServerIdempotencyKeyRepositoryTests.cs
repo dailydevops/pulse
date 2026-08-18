@@ -100,6 +100,8 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );
@@ -114,6 +116,8 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );
@@ -130,6 +134,8 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );
@@ -144,6 +150,8 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithNullIdempotencyKey_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );
@@ -158,6 +166,8 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );
@@ -176,6 +186,8 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );

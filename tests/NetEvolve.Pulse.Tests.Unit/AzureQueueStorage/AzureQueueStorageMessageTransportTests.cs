@@ -93,6 +93,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
 
@@ -104,6 +106,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendAsync_Sends_base64_encoded_message(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
         var message = CreateOutboxMessage();
@@ -128,6 +132,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendAsync_Passes_visibility_timeout_when_configured(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         var timeout = TimeSpan.FromMinutes(5);
         var options = Options.Create(
@@ -149,6 +155,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
 
@@ -164,6 +172,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
 
@@ -179,6 +189,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_is_small_does_not_throw(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
         var message = CreateOutboxMessage();
@@ -195,6 +207,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
 
@@ -204,6 +218,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendBatchAsync_When_messages_is_empty_does_nothing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
 
@@ -215,6 +231,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Sends_each_message_sequentially(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
         var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
@@ -229,6 +247,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
         var largePayload = new string('x', 50 * 1024);
@@ -286,6 +306,8 @@ public sealed class AzureQueueStorageMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             SentMessages.Add(messageText);
             LastVisibilityTimeout = visibilityTimeout;
             var receipt = QueuesModelFactory.SendReceipt(
@@ -308,6 +330,8 @@ public sealed class AzureQueueStorageMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             CreateIfNotExistsCallCount++;
             return Task.FromResult<Response>(new FakeAzureResponse());
         }

@@ -29,6 +29,8 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
     {
         ArgumentNullException.ThrowIfNull(testableCode);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureAppConfiguration((hostContext, configBuilder) => { })
             .ConfigureServices(services =>

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.AspNetCore.Internals;
+namespace NetEvolve.Pulse.Internals;
 
 using System;
 using System.Collections.Concurrent;

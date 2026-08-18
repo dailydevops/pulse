@@ -110,9 +110,9 @@ public sealed class OutboxProcessorOptions
     /// The dictionary key must match the <see cref="OutboxMessage.EventType"/> value of the messages
     /// to be overridden. Use the runtime <see cref="Type"/> of the event class directly.
     /// <para><strong>Override Precedence:</strong></para>
-    /// Any non-<c>null</c> property on the associated <see cref="OutboxEventTypeOptions"/> takes
+    /// Any non-<see langword="null"/> property on the associated <see cref="OutboxEventTypeOptions"/> takes
     /// precedence over the corresponding global default for messages of that event type.
-    /// Properties left as <c>null</c> fall back to the global default.
+    /// Properties left as <see langword="null"/> fall back to the global default.
     /// <para><strong>Stored but Unapplied Properties:</strong></para>
     /// </remarks>
     public ConcurrentDictionary<Type, OutboxEventTypeOptions> EventTypeOverrides { get; } =
