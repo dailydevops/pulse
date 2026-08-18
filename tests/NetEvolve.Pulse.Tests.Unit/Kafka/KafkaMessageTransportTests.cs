@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -723,6 +724,11 @@ public sealed class KafkaMessageTransportTests
             return 0;
         }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This fake must record that Flush was invoked before honoring cancellation, so tests can assert the real Confluent.Kafka Flush(ct) contract: the call happens and then observes cancellation, rather than the caller short-circuiting before Flush ever runs."
+        )]
         public void Flush(CancellationToken cancellationToken = default)
         {
             FlushCallCount++;

@@ -74,6 +74,11 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
         "CA1849:Call async methods when in an async method",
         Justification = "Intentional fire-and-forget batch pattern. Produce() enqueues messages with a delivery-report callback; awaiting ProduceAsync() per message would serialize delivery and defeat the purpose of batching. The method is async only to await EnsureTopicAsync() for topic auto-creation before the fire-and-forget send loop."
     )]
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "Cancellation is intentionally not observed until the final Flush(cancellationToken) call. Produce() is a synchronous, non-blocking librdkafka enqueue that should still run for a cancelled batch so Flush can drain and observe the cancellation, letting worker shutdown proceed promptly instead of leaving enqueued messages stranded."
+    )]
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -141,6 +146,11 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
             )
             .WaitAsync(cancellationToken);
 
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "The no-op short-circuit (topic auto-creation disabled, or topic already ensured) must run even for an already-cancelled token, so callers such as SendBatchAsync can defer cancellation observation to their own Flush call instead of failing here."
+    )]
     private async Task EnsureTopicAsync(string topic, CancellationToken cancellationToken)
     {
         if (!_options.AutoCreateTopics || _ensuredTopics.ContainsKey(topic))
