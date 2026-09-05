@@ -61,11 +61,11 @@
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.14.0" />
     <PackageVersion Include="Testcontainers.Redis" Version="4.14.0" />
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <PackageVersion Include="TUnit" Version="1.66.0" />
-    <PackageVersion Include="TUnit.AspNetCore" Version="1.66.0" />
-    <PackageVersion Include="TUnit.Mocks" Version="1.66.0" />
-    <PackageVersion Include="TUnit.Mocks.Http" Version="1.66.0" />
-    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.66.0" />
+    <PackageVersion Include="TUnit" Version="1.66.8" />
+    <PackageVersion Include="TUnit.AspNetCore" Version="1.66.8" />
+    <PackageVersion Include="TUnit.Mocks" Version="1.66.8" />
+    <PackageVersion Include="TUnit.Mocks.Http" Version="1.66.8" />
+    <PackageVersion Include="TUnit.Mocks.Logging" Version="1.66.8" />
     <PackageVersion Include="Verify.ParametersHashing" Version="1.0.0" />
     <PackageVersion Include="Verify.TUnit" Version="31.28.0" />
   </ItemGroup>
