@@ -7,7 +7,7 @@ using TUnit.Core.Interfaces;
 public sealed class MongoDbContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly MongoDbContainer _container = new MongoDbBuilder( /*dockerimage*/
-        "mongo:8.3.8"
+        "mongo:8.3.9"
     )
         .WithLogger(NullLogger.Instance)
         .Build();
