@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Tests.Aot;
 
 // NativeAOT smoke test for Pulse. Exit code 0 means every check passed.
@@ -79,8 +81,19 @@ await RunAsync(
     )
     .ConfigureAwait(false);
 
+// Scenario 3: the outbox providers persist ToOutboxEventTypeName() and rehydrate it with Type.GetType.
+// Their IL2057 suppressions rely on this round-trip working for event types used by the application.
+Check(ResolveOutboxEventType() == typeof(OrderCreatedEvent), "outbox event type name round-trip");
+
 Console.WriteLine(failures.Count == 0 ? "Pulse NativeAOT smoke test succeeded." : "Pulse NativeAOT smoke test failed.");
 return failures.Count == 0 ? 0 : 1;
+
+[UnconditionalSuppressMessage(
+    "Trimming",
+    "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
+    Justification = "Mirrors the outbox providers' event type lookup to verify it under NativeAOT."
+)]
+static Type? ResolveOutboxEventType() => Type.GetType(typeof(OrderCreatedEvent).ToOutboxEventTypeName());
 
 static async Task RunAsync(Action<IMediatorBuilder>? configure, Func<IMediator, InvocationRecorder, Task> scenario)
 {
