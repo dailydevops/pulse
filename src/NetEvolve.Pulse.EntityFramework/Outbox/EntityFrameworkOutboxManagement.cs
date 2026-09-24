@@ -5,7 +5,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Entity Framework Core implementation of <see cref="IOutboxManagement"/>.
-/// Provides dead-letter inspection, replay, and statistics queries using any EF Core database provider.
+/// Provides message and dead-letter inspection, replay, dismissal, and statistics queries using any EF Core database provider.
 /// </summary>
 /// <remarks>
 /// Read and write operations are dispatched to a provider-specific <see cref="IOutboxManagementExecutor"/>
@@ -87,6 +87,44 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
     /// <inheritdoc />
     public Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default) =>
         _executor.ReplayAllAsync(_timeProvider.GetUtcNow(), cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var query = _context.OutboxMessages.AsNoTracking();
+        if (status is { } filter)
+        {
+            query = query.Where(m => m.Status == filter);
+        }
+
+        return await query
+            .OrderByDescending(m => m.UpdatedAt)
+            .ThenByDescending(m => m.Id)
+            .Skip(page * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default) =>
+        _context.OutboxMessages.AsNoTracking().FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default) =>
+        _executor.DeleteDeadLetterByIdAsync(messageId, cancellationToken);
 
     /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)

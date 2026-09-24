@@ -414,6 +414,92 @@ BEGIN
 END
 GO
 
+-- usp_GetOutboxMessages: Returns a paginated, read-only list of messages, optionally filtered by status
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetOutboxMessages]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [$(SchemaName)].[usp_GetOutboxMessages];
+END
+GO
+
+CREATE PROCEDURE [$(SchemaName)].[usp_GetOutboxMessages]
+    @pageSize INT,
+    @page     INT,
+    @status   INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        [Id],
+        [EventType],
+        [Payload],
+        [CorrelationId],
+        [CausationId],
+        [CreatedAt],
+        [UpdatedAt],
+        [ProcessedAt],
+        [RetryCount],
+        [Error],
+        [Status]
+    FROM [$(SchemaName)].[$(TableName)]
+    WHERE (@status IS NULL OR [Status] = @status)
+    ORDER BY [UpdatedAt] DESC, [Id] DESC
+    OFFSET (@page * @pageSize) ROWS
+    FETCH NEXT @pageSize ROWS ONLY;
+END
+GO
+
+-- usp_GetOutboxMessage: Returns a single message by Id, regardless of its status
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetOutboxMessage]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [$(SchemaName)].[usp_GetOutboxMessage];
+END
+GO
+
+CREATE PROCEDURE [$(SchemaName)].[usp_GetOutboxMessage]
+    @messageId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        [Id],
+        [EventType],
+        [Payload],
+        [CorrelationId],
+        [CausationId],
+        [CreatedAt],
+        [UpdatedAt],
+        [ProcessedAt],
+        [RetryCount],
+        [Error],
+        [Status]
+    FROM [$(SchemaName)].[$(TableName)]
+    WHERE [Id] = @messageId;
+END
+GO
+
+-- usp_DismissOutboxMessage: Permanently deletes a single dead-letter message
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_DismissOutboxMessage]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [$(SchemaName)].[usp_DismissOutboxMessage];
+END
+GO
+
+CREATE PROCEDURE [$(SchemaName)].[usp_DismissOutboxMessage]
+    @messageId UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM [$(SchemaName)].[$(TableName)]
+    WHERE [Id] = @messageId
+      AND [Status] = 4; -- DeadLetter
+
+    SELECT @@ROWCOUNT AS [DeletedCount];
+END
+GO
+
 -- usp_GetOutboxStatistics: Returns message counts grouped by status
 IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_GetOutboxStatistics]') AND [type] = N'P')
 BEGIN

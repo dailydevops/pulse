@@ -52,6 +52,17 @@ internal sealed class BulkOutboxManagementExecutor<TContext>(TContext context) :
     }
 
     /// <inheritdoc />
+    public async Task<bool> DeleteDeadLetterByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await context
+            .OutboxMessages.Where(m => m.Id == id && m.Status == OutboxMessageStatus.DeadLetter)
+            .ExecuteDeleteAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return deleted > 0;
+    }
+
+    /// <inheritdoc />
     public Task<int> ReplayAllAsync(DateTimeOffset updatedAt, CancellationToken cancellationToken) =>
         context
             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.DeadLetter)

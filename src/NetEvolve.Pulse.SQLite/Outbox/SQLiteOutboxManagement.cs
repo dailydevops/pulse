@@ -7,7 +7,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// SQLite implementation of <see cref="IOutboxManagement"/> using ADO.NET.
-/// Provides dead-letter inspection, replay, and statistics queries.
+/// Provides message and dead-letter inspection, replay, dismissal, and statistics queries.
 /// </summary>
 [SuppressMessage(
     "Reliability",
@@ -40,6 +40,10 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     private readonly string _replayMessageSql;
     private readonly string _replayAllDeadLetterSql;
     private readonly string _getStatisticsSql;
+    private readonly string _getMessagesSql;
+    private readonly string _getMessagesByStatusSql;
+    private readonly string _getMessageSql;
+    private readonly string _dismissMessageSql;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SQLiteOutboxManagement"/> class.
@@ -147,6 +151,49 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
             )}"
             FROM {table};
             """;
+
+        var selectMessages = $"""
+            SELECT
+                "{OutboxMessageSchema.Columns.Id}",
+                "{OutboxMessageSchema.Columns.EventType}",
+                "{OutboxMessageSchema.Columns.Payload}",
+                "{OutboxMessageSchema.Columns.CorrelationId}",
+                "{OutboxMessageSchema.Columns.CausationId}",
+                "{OutboxMessageSchema.Columns.CreatedAt}",
+                "{OutboxMessageSchema.Columns.UpdatedAt}",
+                "{OutboxMessageSchema.Columns.ProcessedAt}",
+                "{OutboxMessageSchema.Columns.NextRetryAt}",
+                "{OutboxMessageSchema.Columns.RetryCount}",
+                "{OutboxMessageSchema.Columns.Error}",
+                "{OutboxMessageSchema.Columns.Status}"
+            FROM {table}
+            """;
+        var orderAndPage = $"""
+            ORDER BY "{OutboxMessageSchema.Columns.UpdatedAt}" DESC, "{OutboxMessageSchema.Columns.Id}" DESC
+            LIMIT @pageSize OFFSET @offset;
+            """;
+
+        _getMessagesSql = $"""
+            {selectMessages}
+            {orderAndPage}
+            """;
+
+        _getMessagesByStatusSql = $"""
+            {selectMessages}
+            WHERE "{OutboxMessageSchema.Columns.Status}" = @status
+            {orderAndPage}
+            """;
+
+        _getMessageSql = $"""
+            {selectMessages}
+            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId;
+            """;
+
+        _dismissMessageSql = $"""
+            DELETE FROM {table}
+            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId
+              AND "{OutboxMessageSchema.Columns.Status}" = 4;
+            """;
     }
 
     /// <inheritdoc />
@@ -248,6 +295,73 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
                 _ = command.Parameters.AddWithValue("@nowUtc", now);
 
                 return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(status is null ? _getMessagesSql : _getMessagesByStatusSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@pageSize", pageSize);
+                _ = command.Parameters.AddWithValue("@offset", page * pageSize);
+                if (status is { } filter)
+                {
+                    _ = command.Parameters.AddWithValue("@status", (int)filter);
+                }
+
+                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_getMessageSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+
+                var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return messages.Count > 0 ? messages[0] : null;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_dismissMessageSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId.ToString());
+
+                var deleted = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                return deleted > 0;
             }
         }
     }

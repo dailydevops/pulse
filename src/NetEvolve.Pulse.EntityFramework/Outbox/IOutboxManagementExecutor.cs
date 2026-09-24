@@ -37,6 +37,14 @@ internal interface IOutboxManagementExecutor
     Task<bool> ReplayByIdAsync(Guid id, DateTimeOffset updatedAt, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Permanently deletes the dead-letter message with the given identifier.
+    /// </summary>
+    /// <param name="id">The unique identifier of the dead-letter message to delete.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be cancelled.</param>
+    /// <returns><see langword="true"/> if a dead-letter message was found and deleted; otherwise <see langword="false"/>.</returns>
+    Task<bool> DeleteDeadLetterByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Resets all dead-letter messages back to <see cref="OutboxMessageStatus.Pending"/> state.
     /// </summary>
     /// <param name="updatedAt">The timestamp to write into <see cref="OutboxMessage.UpdatedAt"/> for each message.</param>
