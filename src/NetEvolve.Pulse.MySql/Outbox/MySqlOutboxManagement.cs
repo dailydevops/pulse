@@ -451,6 +451,11 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
     /// Executes <paramref name="command"/> and reads all rows into a list of <see cref="OutboxMessage"/> instances.
     /// Column ordinals are resolved once per result set to avoid repeated string lookups on every row.
     /// </summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
+        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
+    )]
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         MySqlCommand command,
         CancellationToken cancellationToken

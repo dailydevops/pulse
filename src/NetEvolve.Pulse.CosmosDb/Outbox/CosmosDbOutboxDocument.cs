@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using Newtonsoft.Json;
@@ -154,6 +155,11 @@ internal sealed class CosmosDbOutboxDocument
     /// </summary>
     /// <param name="eventTypeName">The persisted, assembly-qualified event type name.</param>
     /// <returns>The resolved event <see cref="Type"/>, or <see cref="object"/> when unresolvable.</returns>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
+        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
+    )]
     private static Type ResolveEventType(string eventTypeName)
     {
         if (_eventTypeCache.TryGetValue(eventTypeName, out var eventType))

@@ -716,6 +716,11 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <param name="command">The <see cref="SqliteCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
+        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
+    )]
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         SqliteCommand command,
         CancellationToken cancellationToken
