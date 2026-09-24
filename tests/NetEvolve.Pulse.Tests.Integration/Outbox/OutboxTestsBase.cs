@@ -1023,6 +1023,42 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_GetMessage_Return_NextRetryAt_For_Failed_Message(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var nextRetryAt = TestDateTime.AddHours(1);
+                    await outbox
+                        .MarkAsFailedAsync(pending[0].Id, "Test error", nextRetryAt, token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var message = await management.GetMessageAsync(pending[0].Id, token).ConfigureAwait(false);
+                    var listed = await management
+                        .GetMessagesAsync(status: OutboxMessageStatus.Failed, cancellationToken: token)
+                        .ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(message).IsNotNull();
+                        _ = await Assert.That(message!.Status).IsEqualTo(OutboxMessageStatus.Failed);
+                        _ = await Assert.That(message.NextRetryAt).IsEqualTo(nextRetryAt);
+                        _ = await Assert.That(listed.Count).IsEqualTo(1);
+                        _ = await Assert.That(listed[0].NextRetryAt).IsEqualTo(nextRetryAt);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_DismissMessage_Remove_DeadLetter(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
