@@ -105,6 +105,85 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(payload[0].Id).IsEqualTo(recordId);
     }
 
+    // GET {base}/entries/{id:guid}
+
+    [Test]
+    public async Task GetEntry_WithExistingId_ReturnsOkWithRecord(CancellationToken cancellationToken)
+    {
+        var recordId = Guid.NewGuid();
+        var record = new AuditRecord
+        {
+            Id = recordId,
+            CommandType = "TestCommand",
+            UserId = "alice",
+            Result = AuditResult.Failure,
+            ExceptionMessage = "boom",
+        };
+
+        var mock = Mock.Of<IAuditManagement>();
+        _ = mock.GetByIdAsync(recordId, Arg.Any<CancellationToken>()).Returns(record);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/audit/entries/{recordId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var payload = await response.Content.ReadFromJsonAsync<AuditRecord>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(payload).IsNotNull();
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(payload!.Id).IsEqualTo(recordId);
+            _ = await Assert.That(payload.CommandType).IsEqualTo("TestCommand");
+            _ = await Assert.That(payload.UserId).IsEqualTo("alice");
+            _ = await Assert.That(payload.Result).IsEqualTo(AuditResult.Failure);
+            _ = await Assert.That(payload.ExceptionMessage).IsEqualTo("boom");
+        }
+
+        mock.GetByIdAsync(recordId, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    [Test]
+    public async Task GetEntry_WithUnknownId_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var recordId = Guid.NewGuid();
+
+        var mock = Mock.Of<IAuditManagement>();
+        _ = mock.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((AuditRecord?)null);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/audit/entries/{recordId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        mock.GetByIdAsync(recordId, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    [Test]
+    public async Task GetEntry_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<IAuditManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/audit/entries/not-a-guid", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        mock.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).WasCalled(Times.Never);
+    }
+
     // GET {base}/entries — filter parameter binding
 
     [Test]
@@ -394,6 +473,8 @@ public sealed class AuditInspectorEndpointsTests
     [Arguments("POST", "/pulse/audit/entries")]
     [Arguments("PUT", "/pulse/audit/entries")]
     [Arguments("DELETE", "/pulse/audit/entries")]
+    [Arguments("DELETE", "/pulse/audit/entries/5b0f8f55-3f7c-4b8e-9d5c-0d7c2f0e9a11")]
+    [Arguments("PUT", "/pulse/audit/entries/5b0f8f55-3f7c-4b8e-9d5c-0d7c2f0e9a11")]
     public async Task MapAuditInspector_WithMutatingMethod_ReturnsMethodNotAllowed(
         string method,
         string path,
