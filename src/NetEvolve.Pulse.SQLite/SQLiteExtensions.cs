@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse;
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -180,7 +181,9 @@ public static class SQLiteExtensions
     /// );
     /// </code>
     /// </example>
-    public static IMediatorBuilder AddSQLiteOutboxTransactionScope<TUnitOfWork>(this IMediatorBuilder configurator)
+    public static IMediatorBuilder AddSQLiteOutboxTransactionScope<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TUnitOfWork
+    >(this IMediatorBuilder configurator)
         where TUnitOfWork : class, IOutboxTransactionScope
     {
         ArgumentNullException.ThrowIfNull(configurator);
