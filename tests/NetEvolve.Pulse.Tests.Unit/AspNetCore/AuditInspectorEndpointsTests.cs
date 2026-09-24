@@ -343,6 +343,50 @@ public sealed class AuditInspectorEndpointsTests
         mock.QueryAsync(Arg.Any<AuditFilter>(), Arg.Any<CancellationToken>()).WasCalled(Times.Never);
     }
 
+    // GET {base}/entries — out-of-range query values
+
+    [Test]
+    [Arguments("take=0")]
+    [Arguments("take=-1")]
+    [Arguments("skip=-1")]
+    [Arguments("from=2026-02-01T00:00:00Z&to=2026-01-01T00:00:00Z")]
+    public async Task GetEntries_WithOutOfRangeQueryValue_ReturnsBadRequest(
+        string query,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<IAuditManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/audit/entries?{query}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        mock.QueryAsync(Arg.Any<AuditFilter>(), Arg.Any<CancellationToken>()).WasCalled(Times.Never);
+    }
+
+    [Test]
+    public async Task GetEntries_WithEqualFromAndTo_ReturnsOk(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<IAuditManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(
+                new Uri("/pulse/audit/entries?from=2026-01-01T00:00:00Z&to=2026-01-01T00:00:00Z", UriKind.Relative),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
     // MapAuditInspector — read-only
 
     [Test]
