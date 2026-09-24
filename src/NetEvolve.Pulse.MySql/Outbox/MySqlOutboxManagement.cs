@@ -73,7 +73,7 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
                 `{OutboxMessageSchema.Columns.Status}`
             FROM {table}
             WHERE `{OutboxMessageSchema.Columns.Status}` = 4
-            ORDER BY `{OutboxMessageSchema.Columns.CreatedAt}` DESC
+            ORDER BY `{OutboxMessageSchema.Columns.UpdatedAt}` DESC
             LIMIT @pageSize OFFSET @offset
             """;
 
@@ -155,6 +155,10 @@ internal sealed class MySqlOutboxManagement : IOutboxManagement
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))

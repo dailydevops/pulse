@@ -64,6 +64,13 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
         var offset = page * pageSize;
         var query = new QueryDefinition(
             "SELECT * FROM c WHERE c.status = 4 ORDER BY c.updatedAt DESC OFFSET @offset LIMIT @limit"

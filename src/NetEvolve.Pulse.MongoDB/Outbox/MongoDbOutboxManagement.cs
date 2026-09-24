@@ -58,9 +58,13 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter);
-        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.CreatedAt);
+        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.UpdatedAt);
 
         var docs = await GetCollection()
             .Find(filter)

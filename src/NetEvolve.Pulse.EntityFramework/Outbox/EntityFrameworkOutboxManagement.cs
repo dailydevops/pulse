@@ -59,9 +59,6 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
-
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
-        ArgumentOutOfRangeException.ThrowIfNegative(page);
         if (page > int.MaxValue / pageSize)
         {
             throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
