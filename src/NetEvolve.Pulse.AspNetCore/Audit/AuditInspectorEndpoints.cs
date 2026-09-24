@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,7 +81,18 @@ public static class AuditInspectorEndpoints
         [AsParameters] AuditEntriesQuery query,
         IAuditManagement auditManagement,
         CancellationToken cancellationToken
-    ) => TypedResults.Ok(await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false));
+    )
+    {
+        var errors = query.Validate();
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        return TypedResults.Ok(
+            await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false)
+        );
+    }
 
     /// <summary>
     /// Query-string binding target for <c>GET {BasePath}/entries</c>.
@@ -113,6 +125,34 @@ public static class AuditInspectorEndpoints
         public int? Take { get; set; }
 
         public int? Skip { get; set; }
+
+        /// <summary>
+        /// Rejects values the persistence providers cannot handle consistently: SQL Server and
+        /// PostgreSQL fail on a negative (or, for SQL Server, zero) row count, while SQLite treats
+        /// <c>LIMIT -1</c> as unbounded.
+        /// </summary>
+        /// <returns>The validation errors keyed by query parameter name; empty when valid.</returns>
+        public Dictionary<string, string[]> Validate()
+        {
+            var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+            if (Take <= 0)
+            {
+                errors["take"] = ["The value must be greater than 0."];
+            }
+
+            if (Skip < 0)
+            {
+                errors["skip"] = ["The value must not be negative."];
+            }
+
+            if (From > To)
+            {
+                errors["from"] = ["The value must not be later than 'to'."];
+            }
+
+            return errors;
+        }
 
         public AuditFilter ToFilter()
         {
