@@ -70,6 +70,24 @@ public class RedisIdempotencyKeyOptionsValidatorTests
     }
 
     [Test]
+    public async Task Validate_WithTimeToLiveThatOverflowsPhysicalExpiry_Fails()
+    {
+        var result = _validator.Validate(null, new IdempotencyKeyOptions { TimeToLive = TimeSpan.MaxValue });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert
+                .That(
+                    result.Failures!.Any(f =>
+                        f.Contains(nameof(IdempotencyKeyOptions.TimeToLive), StringComparison.Ordinal)
+                    )
+                )
+                .IsTrue();
+        }
+    }
+
+    [Test]
     [Arguments(null)]
     [Arguments("")]
     [Arguments("   ")]
