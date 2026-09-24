@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
+using TUnit.Assertions.Enums;
 using TUnit.Core;
 using TUnit.Mocks;
 
@@ -39,7 +40,7 @@ public sealed class PulseStreamHubTests
 
         var items = await CollectAsync(hub.StreamAsync(query, cancellationToken)).ConfigureAwait(false);
 
-        _ = await Assert.That(items).IsEquivalentTo(["first", "second", "third"]);
+        _ = await Assert.That(items).IsEquivalentTo(["first", "second", "third"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -126,7 +127,7 @@ public sealed class PulseStreamHubTests
             }
         }
 
-        _ = await Assert.That(received).IsEquivalentTo(["item-0", "item-1"]);
+        _ = await Assert.That(received).IsEquivalentTo(["item-0", "item-1"], CollectionOrdering.Matching);
     }
 
     // INVARIANT: SignalR may also flow the unsubscribe signal through
@@ -155,6 +156,11 @@ public sealed class PulseStreamHubTests
                 if (++received == 3)
                 {
                     await cts.CancelAsync().ConfigureAwait(false);
+                }
+                else if (received > 100)
+                {
+                    // Guard: fail with an assertion instead of hanging if the token never reaches the handler.
+                    break;
                 }
             }
 
