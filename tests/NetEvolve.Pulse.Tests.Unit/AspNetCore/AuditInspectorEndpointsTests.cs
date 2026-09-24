@@ -427,6 +427,7 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     [Arguments("take=0")]
     [Arguments("take=-1")]
+    [Arguments("take=1001")]
     [Arguments("skip=-1")]
     [Arguments("from=2026-02-01T00:00:00Z&to=2026-01-01T00:00:00Z")]
     public async Task GetEntries_WithOutOfRangeQueryValue_ReturnsBadRequest(
@@ -464,6 +465,13 @@ public sealed class AuditInspectorEndpointsTests
             .ConfigureAwait(false);
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var expected = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        mock.QueryAsync(
+                Arg.Is<AuditFilter>(f => f != null && f.From == expected && f.To == expected),
+                Arg.Any<CancellationToken>()
+            )
+            .WasCalled(Times.Once);
     }
 
     // MapAuditInspector — read-only
