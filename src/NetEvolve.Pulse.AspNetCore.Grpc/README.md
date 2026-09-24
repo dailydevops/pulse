@@ -9,6 +9,7 @@ NetEvolve.Pulse.AspNetCore.Grpc exposes Pulse streaming queries (`IStreamQuery<T
 ## Features
 
 - **`PulseGrpcStreamService<TQuery, TResponse>`**: a base class that runs `IMediator.StreamQueryAsync` and writes every item, in order, to the `IServerStreamWriter<TResponse>`.
+- **Message mapping**: an overload of `StreamAsync` takes a `Func<TResponse, TMessage>`, so handlers yield domain types and the service maps them to Protobuf messages.
 - **Client cancellation**: `ServerCallContext.CancellationToken` is passed to the mediator and checked before every write. The stream stops even when the handler ignores the token, as soon as the handler yields its next item.
 - **Error propagation**: exceptions from the handler or interceptors propagate to ASP.NET Core gRPC, which translates them into a gRPC status.
 - **`MapStreamQueryGrpc<TService>()`**: registers the service on any `IEndpointRouteBuilder`.
@@ -43,7 +44,7 @@ builder.Services.AddPulse(c => c.AddStreamQueryHandler<OrdersStreamQuery, OrderR
 
 var app = builder.Build();
 
-app.MapStreamQueryGrpc<OrderStreamService>();
+app.MapStreamQueryGrpc<OrderStreamService>(); // anonymous; see Authorization below
 
 app.Run();
 ```
@@ -87,7 +88,43 @@ public class OrderStreamService(IMediator mediator)
 }
 ```
 
-The stream item type (`TResponse`) is written to the gRPC stream as it is. Let the query yield the Protobuf message, or map the items in your own handler.
+The stream item type (`TResponse`) is written to the gRPC stream as it is. To keep handlers free of generated Protobuf types, let the query yield a domain type and pass a mapping function to the `StreamAsync` overload:
+
+```csharp
+public sealed record OrdersStreamQuery(string CustomerId) : IStreamQuery<Order> { /* ... */ }
+
+[BindServiceMethod(typeof(OrderStreamService), nameof(BindService))]
+public class OrderStreamService(IMediator mediator)
+    : PulseGrpcStreamService<OrdersStreamQuery, Order>(mediator)
+{
+    public static void BindService(ServiceBinderBase binder, OrderStreamService service) =>
+        Orders.BindService(binder, null);
+
+    public virtual Task StreamOrders(
+        OrdersRequest request,
+        IServerStreamWriter<OrderReply> responseStream,
+        ServerCallContext context
+    ) => StreamAsync(
+        new OrdersStreamQuery(request.CustomerId),
+        responseStream,
+        context,
+        static order => new OrderReply { Id = order.Id, Total = order.Total }
+    );
+}
+```
+
+### Authorization
+
+`MapStreamQueryGrpc<TService>()` maps the service **without** authentication or authorization, so any caller can open the stream. Secure it like any other endpoint, either on the mapping or with `[Authorize]` on the service class:
+
+```csharp
+builder.Services.AddAuthorization();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapStreamQueryGrpc<OrderStreamService>().RequireAuthorization("ReadOrders");
+```
 
 ### Cancellation and errors
 

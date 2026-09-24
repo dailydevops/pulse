@@ -23,6 +23,8 @@ public static class PulseGrpcEndpointRouteBuilderExtensions
     /// <remarks>
     /// The method takes the service type instead of <c>&lt;TQuery, TResponse&gt;</c> because ASP.NET Core gRPC can only
     /// bind a concrete service type. Requires <c>services.AddGrpc()</c>.
+    /// The service is mapped without authorization; call <c>RequireAuthorization(...)</c> on the returned builder
+    /// or annotate the service with <c>[Authorize]</c> to secure it.
     /// </remarks>
     /// <example>
     /// <code>
