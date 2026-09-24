@@ -71,7 +71,7 @@ No configuration section is bound automatically. To use `appsettings.json`, bind
 |---|---|---|
 | `Schema` | `"pulse"` | First segment of the Redis key. `null` or empty yields an empty segment (`:IdempotencyKey:{key}`). |
 | `TableName` | `"IdempotencyKey"` | Second segment of the Redis key. Must not be `null`, empty, or whitespace. |
-| `TimeToLive` | `null` | Logical expiry. When `null`, keys never expire logically. When set, it must be greater than zero. |
+| `TimeToLive` | `null` | Logical expiry. When `null`, keys never expire logically. When set, it must be greater than zero and at most `TimeSpan.MaxValue` minus one hour (the physical expiry adds one hour). |
 
 The physical Redis expiry of each key is `TimeToLive` plus one hour, or 24 hours when `TimeToLive` is `null` (so with a `null` TTL, keys are still evicted by Redis after 24 hours).
 Invalid options cause an `OptionsValidationException` at startup or on first resolution of the options.
