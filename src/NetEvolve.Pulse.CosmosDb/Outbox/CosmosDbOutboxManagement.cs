@@ -58,6 +58,11 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Results are sorted by <c>updatedAt</c> only. A secondary <c>id</c> sort would require a composite index
+    /// that containers created for earlier versions do not have, so the relative order of messages sharing the
+    /// same <see cref="OutboxMessage.UpdatedAt"/> value is not guaranteed and may shift between pages.
+    /// </remarks>
     public async Task<IReadOnlyList<OutboxMessage>> GetDeadLetterMessagesAsync(
         int pageSize = 50,
         int page = 0,
@@ -233,6 +238,11 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Results are sorted by <c>updatedAt</c> only. A secondary <c>id</c> sort would require a composite index
+    /// that containers created for earlier versions do not have, so the relative order of messages sharing the
+    /// same <see cref="OutboxMessage.UpdatedAt"/> value is not guaranteed and may shift between pages.
+    /// </remarks>
     public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
         int pageSize = 50,
         int page = 0,

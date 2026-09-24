@@ -6,9 +6,10 @@ namespace NetEvolve.Pulse.Extensibility.Outbox;
 /// </summary>
 /// <remarks>
 /// <para><strong>Purpose:</strong></para>
-/// Provides a programmatic API for platform engineers to inspect dead-letter messages,
-/// replay failed deliveries, and query outbox health statistics — without requiring
-/// direct database access.
+/// Provides a programmatic API for platform engineers to inspect outbox messages in any status
+/// (<see cref="GetMessagesAsync"/>, <see cref="GetMessageAsync"/>), inspect dead-letter messages,
+/// replay failed deliveries, dismiss dead letters (<see cref="DismissMessageAsync"/>), and query
+/// outbox health statistics — without requiring direct database access.
 /// <para><strong>Dead-Letter Messages:</strong></para>
 /// Messages move to dead-letter state after exceeding the configured maximum retry count.
 /// Use <see cref="GetDeadLetterMessagesAsync"/> to inspect them and <see cref="ReplayMessageAsync"/>
@@ -22,9 +23,13 @@ public interface IOutboxManagement
     /// Returns a paginated list of dead-letter messages.
     /// </summary>
     /// <param name="pageSize">Maximum number of messages to return per page. Must be greater than zero.</param>
-    /// <param name="page">Zero-based page index.</param>
+    /// <param name="page">Zero-based page index. Must not be negative.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A read-only list of dead-letter messages ordered by <see cref="OutboxMessage.UpdatedAt"/> descending.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if <paramref name="pageSize"/> is not positive, <paramref name="page"/> is negative,
+    /// or the resulting offset (<paramref name="page"/> × <paramref name="pageSize"/>) exceeds <see cref="int.MaxValue"/>.
+    /// </exception>
     Task<IReadOnlyList<OutboxMessage>> GetDeadLetterMessagesAsync(
         int pageSize = 50,
         int page = 0,
