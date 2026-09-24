@@ -235,7 +235,7 @@ Pulse uses `IPayloadSerializer` (from `NetEvolve.Pulse.Extensibility`) for all i
 
 #### Default Behavior
 
-No configuration is required — the built-in `SystemTextJsonPayloadSerializer` uses `JsonSerializerOptions.Default`:
+No configuration is required — the built-in `SystemTextJsonPayloadSerializer` uses default `JsonSerializerOptions`:
 
 ```csharp
 services.AddPulse();
@@ -292,6 +292,48 @@ public sealed class NewtonsoftJsonPayloadSerializer : IPayloadSerializer
 ```
 
 The custom serializer will be used for all payload operations within Pulse. Ensure your implementation is thread-safe, as the same instance may be accessed concurrently from multiple pipeline stages.
+
+## NativeAOT and Trimming
+
+All Pulse runtime packages are built with `IsAotCompatible` enabled, so the trim and NativeAOT analyzers run on every build. The core mediator pipeline (`AddPulse`, handler registration through `NetEvolve.Pulse.SourceGeneration` or the generic `Add*Handler<,>` methods, `SendAsync`, `QueryAsync`, `StreamQueryAsync` and `PublishAsync`) is trim- and NativeAOT-safe. This is verified on every pull request by publishing and running the `tests/NetEvolve.Pulse.Tests.Aot` smoke application with NativeAOT for `net8.0`, `net9.0` and `net10.0`.
+
+### Payload Serialization Under NativeAOT
+
+`SystemTextJsonPayloadSerializer` resolves contracts through `JsonSerializerOptions.GetTypeInfo`. Reflection-based serialization is disabled by default in trimmed and NativeAOT applications, so register a source-generated `JsonSerializerContext` for your payload types (outbox events, cached query responses, audited and dead-lettered commands):
+
+```csharp
+[JsonSerializable(typeof(OrderCreatedEvent))]
+[JsonSerializable(typeof(OrderDto))]
+internal sealed partial class AppJsonContext : JsonSerializerContext;
+
+services.Configure<JsonSerializerOptions>(options => options.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
+services.AddPulse();
+```
+
+### APIs That Are Not Trim- or NativeAOT-Safe
+
+The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDynamicCode]` where noted), so the compiler warns when a trimmed or NativeAOT application calls them:
+
+| API | Package | Annotations | Reason |
+| --- | --- | --- | --- |
+| `AddHandlersFromAssembly`, `AddHandlersFromAssemblies`, `AddInterceptorsFromAssembly` and the other assembly scanning methods | `NetEvolve.Pulse` | RUC, RDC | Enumerate assembly types and close generic types at runtime. Use the source generator instead. |
+| `AddDataAnnotations` | `NetEvolve.Pulse` | RUC | `Validator.TryValidateObject` reflects over the properties and attributes of the validated types. |
+| `ICommandDeadLetterManagement.ReplayAsync` and `CommandDeadLetterReplayDispatcher.ReplayAsync` (all providers) | `NetEvolve.Pulse.Extensibility`, providers | RUC, RDC | Resolve the persisted command type by name and dispatch it through `MakeGenericMethod`. |
+| `MapCommand`, `MapQuery`, `MapStreamQuery` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory` over the application's request types. |
+| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses use the internal source-generated `PulseInspectorJsonSerializerContext` and the web defaults, independent of the application's `HttpJsonOptions`. |
+
+### Justified Suppressions
+
+Pulse suppresses a trim warning only where the reflected value is used safely:
+
+* The outbox repositories and management implementations (SQL Server, PostgreSQL, MySQL, SQLite, MongoDB, Cosmos DB and Entity Framework Core) resolve the persisted event type with `Type.GetType` (IL2057). The resolved type is only used for its identity; a type that cannot be resolved takes the existing unresolvable-type path.
+* The DataAnnotations interceptors (IL2026) are only registered through the annotated `AddDataAnnotations`.
+* `SystemTextJsonPayloadSerializer` adds the reflection resolver only while the `JsonSerializer.IsReflectionEnabledByDefault` feature switch is enabled, which is never the case in trimmed or NativeAOT applications.
+
+### Known Limitations
+
+* The DI container cannot close open-generic services over value types under NativeAOT. Open-generic interceptors, such as those registered by `AddActivityAndMetrics`, `AddLogging` or `AddQueryCaching`, therefore fail for requests with a value-type response, including `Void` for commands without a result. Use reference-type responses for requests that pass through open-generic interceptors, or register closed interceptor implementations.
+* Provider packages inherit the NativeAOT support of their dependencies. Entity Framework Core, the MongoDB and Cosmos DB drivers, MySql.Data and the Dapr client are not fully NativeAOT-compatible.
 
 ## Requirements
 
