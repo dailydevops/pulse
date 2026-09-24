@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Extensibility.DeadLetter;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 
@@ -41,6 +42,12 @@ public static class CommandDeadLetterReplayDispatcher
     /// <paramref name="commandType"/> cannot be resolved to a runtime <see cref="Type"/>, the resolved type
     /// does not implement <see cref="ICommand{TResponse}"/>, or the payload fails to deserialize.
     /// </exception>
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     public static async Task ReplayAsync(
         IMediatorSendOnly mediator,
         IPayloadSerializer payloadSerializer,
@@ -71,6 +78,9 @@ public static class CommandDeadLetterReplayDispatcher
         }
     }
 
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
     private static Type ResolveCommandType(string commandType)
     {
         if (_commandTypeCache.TryGetValue(commandType, out var cached))
@@ -85,6 +95,9 @@ public static class CommandDeadLetterReplayDispatcher
         return _commandTypeCache.GetOrAdd(commandType, resolved);
     }
 
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
     private static Type ResolveResponseType(Type resolvedType, string commandType)
     {
         foreach (var interfaceType in resolvedType.GetInterfaces())
@@ -98,6 +111,12 @@ public static class CommandDeadLetterReplayDispatcher
         throw new InvalidOperationException($"'{commandType}' does not implement ICommand<TResponse>.");
     }
 
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     private static object DeserializeCommand(
         IPayloadSerializer payloadSerializer,
         Type resolvedType,

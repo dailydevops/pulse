@@ -1,5 +1,7 @@
 namespace NetEvolve.Pulse.Extensibility.DeadLetter;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Defines the contract for managing commands stored in the dead letter store.
 /// </summary>
@@ -45,8 +47,17 @@ public interface ICommandDeadLetterManagement
     /// <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.Resolved"/> on success.
     /// Implementations should use the shared <see cref="CommandDeadLetterReplayDispatcher"/> to perform the
     /// type resolution and dispatch, rather than reimplementing the reflection dispatch.
+    /// <para><strong>NativeAOT and Trimming:</strong></para>
+    /// Replay is reflection-based and therefore annotated with <see cref="RequiresUnreferencedCodeAttribute"/> and
+    /// <see cref="RequiresDynamicCodeAttribute"/>. Implementations MUST carry the same annotations.
     /// </remarks>
     /// <exception cref="CommandDeadLetterEntryNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     Task ReplayAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>

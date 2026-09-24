@@ -174,6 +174,12 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
