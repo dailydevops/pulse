@@ -924,13 +924,21 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
-    public async Task Should_GetMessages_Respect_Paging(CancellationToken cancellationToken) =>
+    public async Task Should_GetMessages_Respect_Paging(CancellationToken cancellationToken)
+    {
+        // Distinct UpdatedAt values keep OFFSET paging deterministic on providers without an Id tie-breaker (Cosmos DB).
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
         await RunAndVerify(
                 async (services, token) =>
                 {
                     var mediator = services.GetRequiredService<IMediator>();
-                    await PublishEventsAsync(mediator, 5, x => new TestEvent { Id = $"Test{x:D3}" }, token)
-                        .ConfigureAwait(false);
+                    for (var i = 0; i < 5; i++)
+                    {
+                        await mediator.PublishAsync(new TestEvent { Id = $"Test{i:D3}" }, token).ConfigureAwait(false);
+                        timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    }
 
                     var management = services.GetRequiredService<IOutboxManagement>();
                     var page0 = await management
@@ -949,9 +957,12 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 },
                 cancellationToken,
                 configureServices: services =>
-                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
+    }
 
     [Test]
     public async Task Should_GetMessages_Throw_For_Invalid_Paging(CancellationToken cancellationToken) =>
@@ -1008,21 +1019,6 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
-    public async Task Should_GetMessage_Return_Null_When_NotFound(CancellationToken cancellationToken) =>
-        await RunAndVerify(
-                async (services, token) =>
-                {
-                    var management = services.GetRequiredService<IOutboxManagement>();
-
-                    var message = await management.GetMessageAsync(Guid.NewGuid(), token).ConfigureAwait(false);
-
-                    _ = await Assert.That(message).IsNull();
-                },
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-
-    [Test]
     public async Task Should_GetMessage_Return_NextRetryAt_For_Failed_Message(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
@@ -1055,6 +1051,21 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                 cancellationToken,
                 configureServices: services =>
                     services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_GetMessage_Return_Null_When_NotFound(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<IOutboxManagement>();
+
+                    var message = await management.GetMessageAsync(Guid.NewGuid(), token).ConfigureAwait(false);
+
+                    _ = await Assert.That(message).IsNull();
+                },
+                cancellationToken
             )
             .ConfigureAwait(false);
 
