@@ -44,6 +44,14 @@ internal class TestStreamService(IMediator mediator) : PulseGrpcStreamService<Te
         IServerStreamWriter<string> responseStream,
         ServerCallContext context
     ) => StreamAsync(request, responseStream, context);
+
+    // Not an RPC: exposes the mapping overload to unit tests.
+    public Task StreamMapped(
+        TestStreamQuery request,
+        IServerStreamWriter<string> responseStream,
+        ServerCallContext context,
+        Func<string, string> map
+    ) => StreamAsync(request, responseStream, context, map);
 }
 
 // Implements only WriteAsync(T); the token overload keeps its default implementation, like many custom writers.

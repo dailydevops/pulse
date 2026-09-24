@@ -199,6 +199,42 @@ public sealed class PulseGrpcStreamServiceTests
         _ = await Assert.That(exception!.StatusCode).IsEqualTo(StatusCode.Unavailable);
     }
 
+    [Test]
+    public async Task StreamAsync_WithMap_WritesMappedItemsInOrder()
+    {
+        var mediator = Mock.Of<IMediator>();
+        _ = mediator
+            .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())
+            .Returns(() => YieldAsync(["first", "second"]));
+        var writer = new CollectingStreamWriter();
+
+        await new TestStreamService(mediator.Object)
+            .StreamMapped(
+                new TestStreamQuery(),
+                writer,
+                new TestServerCallContext(CancellationToken.None),
+                item => item.ToUpperInvariant()
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(writer.Items).IsEquivalentTo(["FIRST", "SECOND"]);
+    }
+
+    [Test]
+    public async Task StreamAsync_WithNullMap_ThrowsArgumentNullException()
+    {
+        var service = new TestStreamService(Mock.Of<IMediator>().Object);
+
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            service.StreamMapped(
+                new TestStreamQuery(),
+                new CollectingStreamWriter(),
+                new TestServerCallContext(CancellationToken.None),
+                null!
+            )
+        );
+    }
+
 #pragma warning disable CS1998 // Async iterators without await are intentional to simulate handlers that ignore cancellation.
     private static async IAsyncEnumerable<string> YieldAsync(string[] items)
     {
