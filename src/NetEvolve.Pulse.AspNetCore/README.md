@@ -249,7 +249,7 @@ orders.MapCommand<DeleteOrderCommand>("/{id}", CommandHttpMethod.Delete);
 orders.MapQuery<GetOrderQuery, OrderDto>("/{id}");
 ```
 
-## Command Dead Letter Inspector
+### Command Dead Letter Inspector
 
 `MapCommandDeadLetterInspector` maps administrative endpoints over the registered `ICommandDeadLetterManagement` (provided by the SQL Server, PostgreSQL, SQLite, MySQL and Entity Framework Core dead letter stores):
 
@@ -263,7 +263,6 @@ orders.MapQuery<GetOrderQuery, OrderDto>("/{id}");
 
 `CommandDeadLetterInspectorOptions` configures `BasePath` (default `/pulse/commands`) and `RouteGroupName` (default `Pulse Command Dead Letter Inspector`).
 
-> [!IMPORTANT]
 > No authorization is applied. Secure the returned route group yourself:
 
 ```csharp
