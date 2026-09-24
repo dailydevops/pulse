@@ -128,6 +128,33 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
+    public async Task GetPendingAsync_With_negative_count_throws_ArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<ICommandDeadLetterStore>();
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    await store
+                        .StoreAsync(
+                            typeof(TestReplayCommand).AssemblyQualifiedName!,
+                            """{"Value":"n/a"}""",
+                            new InvalidOperationException("boom"),
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(async () => await management.GetPendingAsync(-1, token).ConfigureAwait(false))
+                        .Throws<ArgumentOutOfRangeException>();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task ReplayAsync_Dispatches_command_and_sets_Resolved(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>

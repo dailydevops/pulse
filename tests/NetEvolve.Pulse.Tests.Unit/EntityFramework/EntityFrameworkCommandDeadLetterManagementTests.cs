@@ -162,6 +162,39 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task GetPendingAsync_WithNonPositiveCount_ThrowsArgumentOutOfRangeException(
+        int count,
+        CancellationToken cancellationToken
+    )
+    {
+        var context = CreateContext(
+            $"{nameof(GetPendingAsync_WithNonPositiveCount_ThrowsArgumentOutOfRangeException)}{count}"
+        );
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await context
+                .CommandDeadLetterEntries.AddAsync(
+                    CreateEntry(CommandDeadLetterStatus.New, DateTimeOffset.UtcNow),
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                context,
+                new NoOpMediator(),
+                new PassthroughPayloadSerializer()
+            );
+
+            _ = await Assert
+                .That(async () => await management.GetPendingAsync(count, cancellationToken).ConfigureAwait(false))
+                .Throws<ArgumentOutOfRangeException>();
+        }
+    }
+
+    [Test]
     public async Task ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
     {
         var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException));

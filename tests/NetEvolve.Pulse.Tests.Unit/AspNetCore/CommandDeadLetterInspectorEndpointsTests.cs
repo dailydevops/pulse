@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -181,6 +182,72 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
 
         mock.DismissAsync(entryId, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    // GET {base}/entries — rejects invalid paging input
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task GetPendingEntries_WithNonPositiveCount_ReturnsBadRequest(
+        int count,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/commands/entries?count={count}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+    }
+
+    // POST {base}/entries/{id:guid}/replay — unknown entry
+
+    [Test]
+    public async Task ReplayEntry_WhenEntryNotFound_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.ReplayAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Throws<KeyNotFoundException>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri($"/pulse/commands/entries/{Guid.NewGuid()}/replay", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    // POST {base}/entries/{id:guid}/dismiss — unknown entry
+
+    [Test]
+    public async Task DismissEntry_WhenEntryNotFound_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.DismissAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Throws<KeyNotFoundException>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri($"/pulse/commands/entries/{Guid.NewGuid()}/dismiss", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
     }
 
     // MapCommandDeadLetterInspector — custom BasePath applied correctly
