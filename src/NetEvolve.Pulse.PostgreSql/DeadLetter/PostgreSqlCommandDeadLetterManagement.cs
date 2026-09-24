@@ -126,6 +126,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);

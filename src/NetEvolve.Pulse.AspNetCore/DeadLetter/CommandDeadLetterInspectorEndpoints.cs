@@ -37,9 +37,13 @@ public static class CommandDeadLetterInspectorEndpoints
     /// <item><description><c>GET {BasePath}/stats</c> — dead letter statistics.</description></item>
     /// <item><description><c>GET {BasePath}/entries?count=50&amp;skip=0</c> — pending dead-letter entries, oldest first.</description></item>
     /// <item><description><c>GET {BasePath}/entries/{{id:guid}}</c> — a single dead-letter entry, or <c>404</c> if not found.</description></item>
-    /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/replay</c> — replays a dead-letter entry.</description></item>
-    /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/dismiss</c> — dismisses a dead-letter entry.</description></item>
+    /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/replay</c> — replays a dead-letter entry, or <c>404</c> if not found.</description></item>
+    /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/dismiss</c> — dismisses a dead-letter entry, or <c>404</c> if not found.</description></item>
     /// </list>
+    /// <para>
+    /// <c>count</c> must be greater than zero and <c>skip</c> must not be negative; otherwise the endpoint
+    /// returns <c>400</c> with a validation problem response.
+    /// </para>
     /// <para><strong>Authorization:</strong></para>
     /// No authorization is applied by this method. Callers are responsible for securing the
     /// returned route group, for example via <c>RequireAuthorization()</c>.
@@ -90,11 +94,20 @@ public static class CommandDeadLetterInspectorEndpoints
         int skip = 0
     )
     {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        if (count <= 0)
+        {
+            errors[nameof(count)] = ["Must be greater than zero."];
+        }
+
         if (skip < 0)
         {
-            return TypedResults.ValidationProblem(
-                new Dictionary<string, string[]>(StringComparer.Ordinal) { [nameof(skip)] = ["Must not be negative."] }
-            );
+            errors[nameof(skip)] = ["Must not be negative."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
         }
 
         return TypedResults.Ok(
@@ -119,6 +132,13 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        // Check existence up front instead of catching KeyNotFoundException: replay runs the user's
+        // command handler, whose own KeyNotFoundException must not be reported as a missing entry.
+        if (await commandDeadLetterManagement.GetEntryAsync(id, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return TypedResults.NotFound();
+        }
+
         await commandDeadLetterManagement.ReplayAsync(id, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.NoContent();
@@ -130,7 +150,14 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
-        await commandDeadLetterManagement.DismissAsync(id, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await commandDeadLetterManagement.DismissAsync(id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (KeyNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
 
         return TypedResults.NoContent();
     }

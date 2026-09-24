@@ -130,6 +130,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);

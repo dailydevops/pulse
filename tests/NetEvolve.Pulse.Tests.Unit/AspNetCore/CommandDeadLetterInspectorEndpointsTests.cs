@@ -142,6 +142,16 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>())
+            .Returns(
+                new CommandDeadLetterEntry
+                {
+                    Id = entryId,
+                    CommandType = typeof(string).AssemblyQualifiedName!,
+                    Payload = "{}",
+                    Status = CommandDeadLetterStatus.New,
+                }
+            );
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -360,6 +370,44 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
             .ConfigureAwait(false);
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    // POST {base}/entries/{id:guid}/replay — handler failure is not reported as a missing entry
+
+    [Test]
+    public async Task ReplayEntry_WhenHandlerThrowsKeyNotFoundException_DoesNotReturnNotFound(
+        CancellationToken cancellationToken
+    )
+    {
+        var entryId = Guid.NewGuid();
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>())
+            .Returns(
+                new CommandDeadLetterEntry
+                {
+                    Id = entryId,
+                    CommandType = typeof(string).AssemblyQualifiedName!,
+                    Payload = "{}",
+                    Status = CommandDeadLetterStatus.New,
+                }
+            );
+        _ = mock.ReplayAsync(entryId, Arg.Any<CancellationToken>()).Throws<KeyNotFoundException>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        _ = await Assert
+            .That(async () =>
+                await client
+                    .PostAsync(
+                        new Uri($"/pulse/commands/entries/{entryId}/replay", UriKind.Relative),
+                        content: null,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            .Throws<KeyNotFoundException>();
     }
 
     // POST {base}/entries/{id:guid}/dismiss — unknown entry

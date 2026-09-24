@@ -17,7 +17,7 @@ public interface ICommandDeadLetterManagement
     /// <paramref name="skip"/> entries.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="skip"/> is negative.
+    /// <paramref name="count"/> is less than or equal to zero, or <paramref name="skip"/> is negative.
     /// </exception>
     Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,

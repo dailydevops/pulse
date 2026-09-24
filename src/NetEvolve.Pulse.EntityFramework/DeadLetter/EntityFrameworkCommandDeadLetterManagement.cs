@@ -54,6 +54,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
         return await _context
