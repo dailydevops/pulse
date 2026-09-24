@@ -154,6 +154,9 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
                         _ = await Assert.That(stored.Result).IsEqualTo(AuditResult.Failure);
                         _ = await Assert.That(stored.Payload).IsEqualTo(record.Payload);
                         _ = await Assert.That(stored.ExceptionMessage).IsEqualTo(record.ExceptionMessage);
+                        _ = await Assert
+                            .That(Math.Abs((stored.OccurredAt - record.OccurredAt).TotalMilliseconds))
+                            .IsLessThan(1);
                     }
                 },
                 cancellationToken
