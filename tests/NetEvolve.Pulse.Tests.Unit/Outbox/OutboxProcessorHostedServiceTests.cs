@@ -351,6 +351,43 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    public async Task ExecuteAsync_WithLastRetryFailing_DeadLettersWithoutFailedMarking(
+        CancellationToken cancellationToken
+    )
+    {
+        using var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 2 }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
+
+        var message = CreateMessage();
+        message.RetryCount = 1;
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(repository.DeadLetterMessageIds).IsEquivalentTo([message.Id]);
+            _ = await Assert.That(repository.FailedMessageIds).IsEmpty();
+            _ = await Assert.That(repository.CompletedMessageIds).IsEmpty();
+            _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+        }
+    }
+
+    [Test]
     public async Task ExecuteAsync_WithTransientFailure_RetriesAndSucceeds(CancellationToken cancellationToken)
     {
         using var repository = new InMemoryOutboxRepository();
