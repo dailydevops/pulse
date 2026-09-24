@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
     <Description>Provider-agnostic Entity Framework Core persistence for the Pulse outbox pattern. Provides IOutboxDbContext interface, OutboxMessageConfiguration for fluent mapping, EntityFrameworkOutboxRepository implementing IOutboxRepository, and EntityFrameworkEventOutbox participating in ambient DbContext transactions. Works with any EF Core database provider (SQL Server, PostgreSQL, SQLite, etc.) - users bring their own provider and generate migrations. Uses the canonical outbox schema ensuring interchangeability with plain ADO.NET providers. Designed for rapid development with full EF Core features including change tracking, LINQ queries, and migration support.</Description>
     <PackageTags>$(PackageTags);outbox;entity-framework;ef-core;transactional;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>
