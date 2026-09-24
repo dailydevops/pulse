@@ -139,18 +139,24 @@ public static class AuditInspectorEndpoints
         public int? Skip { get; set; }
 
         /// <summary>
-        /// Rejects values the persistence providers cannot handle consistently: SQL Server and
-        /// PostgreSQL fail on a negative (or, for SQL Server, zero) row count, while SQLite treats
-        /// <c>LIMIT -1</c> as unbounded.
+        /// The largest page size a single request may ask for, so one call cannot dump the whole audit table.
+        /// </summary>
+        private const int MaxTake = 1000;
+
+        /// <summary>
+        /// Rejects values the persistence providers cannot handle consistently: SQL Server rejects a
+        /// <c>FETCH</c>/<c>OFFSET</c> count of zero or less, PostgreSQL and MySQL reject a negative
+        /// <c>LIMIT</c>/<c>OFFSET</c>, and SQLite treats <c>LIMIT -1</c> as unbounded. Page sizes above
+        /// <see cref="MaxTake"/> are rejected as well.
         /// </summary>
         /// <returns>The validation errors keyed by query parameter name; empty when valid.</returns>
         public Dictionary<string, string[]> Validate()
         {
             var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
 
-            if (Take <= 0)
+            if (Take is <= 0 or > MaxTake)
             {
-                errors["take"] = ["The value must be greater than 0."];
+                errors["take"] = [$"The value must be between 1 and {MaxTake}."];
             }
 
             if (Skip < 0)

@@ -288,7 +288,7 @@ Query parameters for `GET {BasePath}/entries` (all optional, combined with AND):
 | `userId` | Exact user identifier |
 | `from` / `to` | Inclusive `OccurredAt` bounds (ISO 8601); `from` must not be later than `to` |
 | `result` | `Success` or `Failure` |
-| `take` | Page size, greater than `0` (default `50`) |
+| `take` | Page size, between `1` and `1000` (default `50`) |
 | `skip` | Number of records to skip, `0` or more (default `0`) |
 
 Malformed or out-of-range values return `400 Bad Request`.
