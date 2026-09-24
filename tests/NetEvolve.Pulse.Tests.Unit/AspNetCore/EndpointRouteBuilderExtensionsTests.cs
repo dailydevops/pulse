@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -11,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -230,6 +232,62 @@ public sealed class EndpointRouteBuilderExtensionsTests
             var builder = endpoints.MapStreamQuery<TestStreamQuery, string>("/stream");
 
             _ = await Assert.That(builder).IsNotNull();
+        }
+    }
+
+    // MapStreamQueryHub — null-argument guards
+
+    [Test]
+    public void MapStreamQueryHub_WithNullEndpoints_ThrowsArgumentNullException() =>
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            PulseEndpoints.MapStreamQueryHub<TestStreamQuery, string>(null!, "/hubs/stream")
+        );
+
+    [Test]
+    public async Task MapStreamQueryHub_WithNullPath_ThrowsArgumentNullException()
+    {
+        var builder = WebApplication.CreateBuilder();
+        _ = builder.Services.AddSignalR();
+        var endpoints = builder.Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<ArgumentNullException>(() => endpoints.MapStreamQueryHub<TestStreamQuery, string>(null!));
+        }
+    }
+
+    // MapStreamQueryHub — registration
+
+    [Test]
+    public async Task MapStreamQueryHub_WithSignalR_RegistersHubAndNegotiateEndpoints()
+    {
+        var builder = WebApplication.CreateBuilder();
+        _ = builder.Services.AddSignalR();
+        var endpoints = builder.Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            var conventionBuilder = endpoints.MapStreamQueryHub<TestStreamQuery, string>("/hubs/stream");
+
+            var patterns = ((IEndpointRouteBuilder)endpoints)
+                .DataSources.SelectMany(dataSource => dataSource.Endpoints)
+                .OfType<RouteEndpoint>()
+                .Select(endpoint => endpoint.RoutePattern.RawText)
+                .ToArray();
+
+            _ = await Assert.That(conventionBuilder).IsNotNull();
+            _ = await Assert.That(patterns).Contains("/hubs/stream");
+            _ = await Assert.That(patterns).Contains("/hubs/stream/negotiate");
+        }
+    }
+
+    [Test]
+    public async Task MapStreamQueryHub_WithoutSignalR_ThrowsInvalidOperationException()
+    {
+        var endpoints = WebApplication.CreateBuilder().Build();
+        await using (endpoints.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<InvalidOperationException>(() =>
+                endpoints.MapStreamQueryHub<TestStreamQuery, string>("/hubs/stream")
+            );
         }
     }
 
