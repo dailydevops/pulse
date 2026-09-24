@@ -1,8 +1,47 @@
-namespace NetEvolve.Pulse.Tests.Aot;
+namespace NetEvolve.Pulse.Xample.Aot;
 
 using System.Collections.Concurrent;
+using System.Globalization;
+using System.Runtime.CompilerServices;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Attributes;
+
+[PulseHandler]
+internal sealed class CountdownHandler(InvocationRecorder recorder) : IStreamQueryHandler<CountdownStreamQuery, string>
+{
+    public async IAsyncEnumerable<string> HandleAsync(
+        CountdownStreamQuery request,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
+    {
+        recorder.Invocations.Enqueue(nameof(CountdownHandler));
+        for (var i = request.From; i > 0; i--)
+        {
+            await Task.Yield();
+            yield return i.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+}
+
+/// <summary>
+/// Open-generic request interceptor that records every request passing through the interceptor pipeline.
+/// </summary>
+/// <typeparam name="TRequest">The request type.</typeparam>
+/// <typeparam name="TResponse">The response type.</typeparam>
+internal sealed class RecordingRequestInterceptor<TRequest, TResponse>(InvocationRecorder recorder)
+    : IRequestInterceptor<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+{
+    public Task<TResponse> HandleAsync(
+        TRequest request,
+        Func<TRequest, CancellationToken, Task<TResponse>> handler,
+        CancellationToken cancellationToken = default
+    )
+    {
+        recorder.Invocations.Enqueue($"RecordingRequestInterceptor<{typeof(TRequest).Name}>");
+        return handler(request, cancellationToken);
+    }
+}
 
 /// <summary>
 /// Collects the handler invocations so the smoke run can assert them.

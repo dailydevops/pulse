@@ -44,7 +44,7 @@ jobs:
       # netstandard2.0 source generator project and fail with NETSDK1207.
       - name: Publish NativeAOT smoke application
         run: >-
-          dotnet publish tests/NetEvolve.Pulse.Tests.Aot/NetEvolve.Pulse.Tests.Aot.csproj
+          dotnet publish samples/NetEvolve.Pulse.Xample.Aot/NetEvolve.Pulse.Xample.Aot.csproj
           --configuration Release
           --framework ${{ matrix.framework }}
           --runtime linux-x64
@@ -52,4 +52,4 @@ jobs:
           -warnaserror
 
       - name: Run NativeAOT smoke application
-        run: ./artifacts/aot/${{ matrix.framework }}/NetEvolve.Pulse.Tests.Aot
+        run: ./artifacts/aot/${{ matrix.framework }}/NetEvolve.Pulse.Xample.Aot
