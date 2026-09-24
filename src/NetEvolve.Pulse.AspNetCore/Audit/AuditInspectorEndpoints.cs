@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using NetEvolve.Pulse.AspNetCore.Internals;
 using NetEvolve.Pulse.Extensibility.Audit;
 
 /// <summary>
@@ -55,6 +56,12 @@ public static class AuditInspectorEndpoints
     /// }).RequireAuthorization();
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapAuditInspector(
         [NotNull] this IEndpointRouteBuilder endpoints,
         Action<AuditInspectorOptions>? configure = null
@@ -77,7 +84,11 @@ public static class AuditInspectorEndpoints
     private static async Task<IResult> GetStatisticsAsync(
         IAuditManagement auditManagement,
         CancellationToken cancellationToken
-    ) => TypedResults.Ok(await auditManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false));
+    ) =>
+        TypedResults.Json(
+            await auditManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false),
+            PulseInspectorJsonSerializerContext.Default.AuditStatistics
+        );
 
     private static async Task<IResult> GetEntriesAsync(
         [AsParameters] AuditEntriesQuery query,
@@ -91,8 +102,9 @@ public static class AuditInspectorEndpoints
             return TypedResults.ValidationProblem(errors);
         }
 
-        return TypedResults.Ok(
-            await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false)
+        return TypedResults.Json(
+            await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false),
+            PulseInspectorJsonSerializerContext.Default.IReadOnlyListAuditRecord
         );
     }
 
@@ -103,7 +115,9 @@ public static class AuditInspectorEndpoints
     )
     {
         var record = await auditManagement.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
-        return record is null ? TypedResults.NotFound() : TypedResults.Ok(record);
+        return record is null
+            ? TypedResults.NotFound()
+            : TypedResults.Json(record, PulseInspectorJsonSerializerContext.Default.AuditRecord);
     }
 
     /// <summary>

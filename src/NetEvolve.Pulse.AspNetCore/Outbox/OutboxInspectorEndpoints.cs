@@ -3,7 +3,6 @@ namespace NetEvolve.Pulse;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -68,6 +67,12 @@ public static class OutboxInspectorEndpoints
     /// }).RequireAuthorization();
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapOutboxInspector(
         [NotNull] this IEndpointRouteBuilder endpoints,
         Action<OutboxInspectorOptions>? configure = null
@@ -94,19 +99,14 @@ public static class OutboxInspectorEndpoints
         return group;
     }
 
-    /// <summary>
-    /// JSON options used to write <see cref="OutboxMessage"/> responses, since the type of
-    /// <see cref="OutboxMessage.EventType"/> is not serializable by <see cref="JsonSerializer"/> by default.
-    /// </summary>
-    private static readonly JsonSerializerOptions OutboxMessageSerializerOptions = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new TypeJsonConverter() },
-    };
-
     private static async Task<IResult> GetStatisticsAsync(
         IOutboxManagement outboxManagement,
         CancellationToken cancellationToken
-    ) => TypedResults.Ok(await outboxManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false));
+    ) =>
+        TypedResults.Json(
+            await outboxManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false),
+            PulseInspectorJsonSerializerContext.Default.OutboxStatistics
+        );
 
     private static async Task<IResult> GetMessagesAsync(
         IOutboxManagement outboxManagement,
@@ -132,7 +132,7 @@ public static class OutboxInspectorEndpoints
             .GetMessagesAsync(pageSize, page, status, cancellationToken)
             .ConfigureAwait(false);
 
-        return TypedResults.Json(messages, OutboxMessageSerializerOptions);
+        return TypedResults.Json(messages, PulseInspectorJsonSerializerContext.Default.IReadOnlyListOutboxMessage);
     }
 
     private static async Task<IResult> GetMessageAsync(
@@ -143,7 +143,9 @@ public static class OutboxInspectorEndpoints
     {
         var message = await outboxManagement.GetMessageAsync(id, cancellationToken).ConfigureAwait(false);
 
-        return message is null ? TypedResults.NotFound() : TypedResults.Json(message, OutboxMessageSerializerOptions);
+        return message is null
+            ? TypedResults.NotFound()
+            : TypedResults.Json(message, PulseInspectorJsonSerializerContext.Default.OutboxMessage);
     }
 
     private static async Task<IResult> GetDeadLetterMessagesAsync(
@@ -162,13 +164,17 @@ public static class OutboxInspectorEndpoints
             .GetDeadLetterMessagesAsync(pageSize, page, cancellationToken)
             .ConfigureAwait(false);
 
-        return TypedResults.Json(messages, OutboxMessageSerializerOptions);
+        return TypedResults.Json(messages, PulseInspectorJsonSerializerContext.Default.IReadOnlyListOutboxMessage);
     }
 
     private static async Task<IResult> GetDeadLetterCountAsync(
         IOutboxManagement outboxManagement,
         CancellationToken cancellationToken
-    ) => TypedResults.Ok(await outboxManagement.GetDeadLetterCountAsync(cancellationToken).ConfigureAwait(false));
+    ) =>
+        TypedResults.Json(
+            await outboxManagement.GetDeadLetterCountAsync(cancellationToken).ConfigureAwait(false),
+            PulseInspectorJsonSerializerContext.Default.Int64
+        );
 
     private static async Task<IResult> GetDeadLetterMessageAsync(
         Guid id,
@@ -178,7 +184,9 @@ public static class OutboxInspectorEndpoints
     {
         var message = await outboxManagement.GetDeadLetterMessageAsync(id, cancellationToken).ConfigureAwait(false);
 
-        return message is null ? TypedResults.NotFound() : TypedResults.Json(message, OutboxMessageSerializerOptions);
+        return message is null
+            ? TypedResults.NotFound()
+            : TypedResults.Json(message, PulseInspectorJsonSerializerContext.Default.OutboxMessage);
     }
 
     private static async Task<IResult> ReplayMessageAsync(
@@ -210,7 +218,10 @@ public static class OutboxInspectorEndpoints
     {
         var count = await outboxManagement.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
 
-        return TypedResults.Ok(new OutboxReplayAllResult(count));
+        return TypedResults.Json(
+            new OutboxReplayAllResult(count),
+            PulseInspectorJsonSerializerContext.Default.OutboxReplayAllResult
+        );
     }
 
     /// <summary>
@@ -246,5 +257,5 @@ public static class OutboxInspectorEndpoints
     /// Represents the result payload of the replay-all dead-letter operation.
     /// </summary>
     /// <param name="Count">The number of dead-letter messages that were reset for replay.</param>
-    private sealed record OutboxReplayAllResult(int Count);
+    internal sealed record OutboxReplayAllResult(int Count);
 }

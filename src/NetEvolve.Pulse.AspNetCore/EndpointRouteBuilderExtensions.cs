@@ -55,6 +55,12 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapCommand&lt;UpdateOrderCommand, OrderResult&gt;("/orders/{id}", CommandHttpMethod.Put);
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapCommand<TCommand, TResponse>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern,
@@ -105,6 +111,12 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}", CommandHttpMethod.Delete);
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapCommand<TCommand>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern,
@@ -148,6 +160,12 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapQuery&lt;GetOrderQuery, OrderDto&gt;("/orders/{id}");
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapQuery<TQuery, TResponse>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern
@@ -193,6 +211,12 @@ public static class EndpointRouteBuilderExtensions
     /// app.MapStreamQuery&lt;GetOrdersStreamQuery, OrderDto&gt;("/orders/stream");
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapStreamQuery<TQuery, TResponse>(
         [NotNull] this IEndpointRouteBuilder endpoints,
         [NotNull] string pattern
