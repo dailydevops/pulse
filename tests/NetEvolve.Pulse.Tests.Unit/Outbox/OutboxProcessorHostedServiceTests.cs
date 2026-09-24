@@ -351,7 +351,7 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
-    public async Task ExecuteAsync_WithLastRetryFailing_DeadLettersWithoutFailedMarking(
+    public async Task ExecuteAsync_WithRetryFetchedAsFailed_MovesToDeadLetterOnLastAttempt(
         CancellationToken cancellationToken
     )
     {
@@ -370,18 +370,19 @@ public sealed class OutboxProcessorHostedServiceTests
         );
 
         var message = CreateMessage();
-        message.RetryCount = 1;
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
+        // First attempt fails (RetryCount 0 -> 1, Status Failed). The retry is only reachable through
+        // GetFailedForRetryAsync (RetryCount < max) and must then dead-letter (RetryCount + 1 >= max).
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
         using var timeoutCts = CreateSignalTimeout(cancellationToken);
-        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
             _ = await Assert.That(repository.DeadLetterMessageIds).IsEquivalentTo([message.Id]);
-            _ = await Assert.That(repository.FailedMessageIds).IsEmpty();
+            _ = await Assert.That(repository.FailedMessageIds).IsEquivalentTo([message.Id]);
             _ = await Assert.That(repository.CompletedMessageIds).IsEmpty();
             _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
         }
@@ -1421,7 +1422,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
 
-        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await service.StopAsync(timeoutCts.Token).ConfigureAwait(false);
     }
 
@@ -1640,16 +1641,20 @@ public sealed class OutboxProcessorHostedServiceTests
                 }
                 catch (OperationCanceledException ex)
                 {
+                    int polls;
                     string statuses;
                     lock (_lock)
                     {
+                        polls = GetPendingCallCount;
                         statuses = string.Join(", ", _messages.Select(m => $"{m.Status}(retry {m.RetryCount})"));
                     }
 
-                    // Distinguishes "never polled" from "polled but stuck in Processing" on a CI failure.
-                    throw new TimeoutException(
-                        $"Observed {i} of {count} markings; polls: {GetPendingCallCount}; messages: [{statuses}].",
-                        ex
+                    // Distinguishes "never polled" from "polled but stuck in Processing" on a CI failure. Stays an
+                    // OperationCanceledException because the cause may be the wait bound or the test token itself.
+                    throw new OperationCanceledException(
+                        $"Wait cancelled after {i} of {count} markings; polls: {polls}; messages: [{statuses}].",
+                        ex,
+                        ex.CancellationToken
                     );
                 }
             }
