@@ -20,6 +20,8 @@ public sealed class EntityFrameworkOutboxInitializer : IServiceInitializer
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using (var scope = serviceProvider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<TestDbContext>();
@@ -122,6 +124,8 @@ public sealed class EntityFrameworkOutboxInitializer : IServiceInitializer
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var command = connection.CreateCommand();
             await using (command.ConfigureAwait(false))
             {

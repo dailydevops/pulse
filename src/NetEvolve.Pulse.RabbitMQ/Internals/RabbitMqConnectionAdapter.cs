@@ -25,6 +25,8 @@ internal sealed class RabbitMqConnectionAdapter : IRabbitMqConnectionAdapter
     /// <inheritdoc />
     public async Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         return new RabbitMqChannelAdapter(channel);
     }

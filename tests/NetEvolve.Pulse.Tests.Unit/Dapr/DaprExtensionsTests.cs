@@ -11,7 +11,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.OutBox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 

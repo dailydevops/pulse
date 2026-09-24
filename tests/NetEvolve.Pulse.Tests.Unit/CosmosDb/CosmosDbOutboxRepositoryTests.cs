@@ -142,6 +142,8 @@ public sealed class CosmosDbOutboxRepositoryTests
     [Test]
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new CosmosClient(EmulatorConnectionString);
 
         var repository = new CosmosDbOutboxRepository(

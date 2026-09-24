@@ -73,6 +73,8 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(filter);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -106,6 +108,8 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
     /// <inheritdoc />
     public async Task<AuditStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -230,6 +234,8 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

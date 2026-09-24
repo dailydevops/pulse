@@ -18,6 +18,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<TestCommand, string>();
 
 #pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here
@@ -30,6 +32,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_NoValidationAttributes_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<NoAttributesCommand, string>();
         var handlerCalled = false;
 
@@ -55,6 +59,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_ValidInput_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<TestCommand, string>();
         var handlerCalled = false;
 
@@ -80,6 +86,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_RequiredPropertyMissing_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<TestCommand, string>();
         var handlerCalled = false;
 
@@ -105,6 +113,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_RangeViolation_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<RangeCommand, string>();
         var handlerCalled = false;
 
@@ -130,6 +140,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
     [Test]
     public async Task HandleAsync_MaxLengthViolation_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<MaxLengthCommand, string>();
         var handlerCalled = false;
 
@@ -157,6 +169,8 @@ public sealed class DataAnnotationsRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsRequestInterceptor<MultiConstraintCommand, string>();
 
 #pragma warning disable S8969 // required to match the Func<..., Task<string?>> overload TUnit infers here

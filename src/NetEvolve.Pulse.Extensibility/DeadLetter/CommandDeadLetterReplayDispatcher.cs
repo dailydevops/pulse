@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Extensibility.DeadLetter;
+﻿namespace NetEvolve.Pulse.Extensibility.DeadLetter;
 
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -24,7 +24,7 @@ public static class CommandDeadLetterReplayDispatcher
     /// via <see cref="Type.GetType(string, bool)"/> parses the name and probes loaded assemblies on every
     /// call, which is unnecessary overhead when the same command type is replayed repeatedly.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, Type> _commandTypeCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Type> CommandTypeCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Resolves the command and response types from the persisted metadata, deserializes the payload,
@@ -49,6 +49,7 @@ public static class CommandDeadLetterReplayDispatcher
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);
@@ -73,7 +74,7 @@ public static class CommandDeadLetterReplayDispatcher
 
     private static Type ResolveCommandType(string commandType)
     {
-        if (_commandTypeCache.TryGetValue(commandType, out var cached))
+        if (CommandTypeCache.TryGetValue(commandType, out var cached))
         {
             return cached;
         }
@@ -82,7 +83,7 @@ public static class CommandDeadLetterReplayDispatcher
             Type.GetType(commandType, throwOnError: false)
             ?? throw new InvalidOperationException($"Cannot resolve command type '{commandType}'.");
 
-        return _commandTypeCache.GetOrAdd(commandType, resolved);
+        return CommandTypeCache.GetOrAdd(commandType, resolved);
     }
 
     private static Type ResolveResponseType(Type resolvedType, string commandType)

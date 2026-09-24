@@ -20,6 +20,8 @@ public sealed class TrackingOutboxRepositoryExecutorDeleteTests
     [Test]
     public async Task DeleteByQueryAsync_DoesNotMaterializePayloadColumn(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {
@@ -89,6 +91,8 @@ public sealed class TrackingOutboxRepositoryExecutorDeleteTests
     [Test]
     public async Task DeleteByQueryAsync_WithAlreadyTrackedEntity_DeletesAllMatches(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(DeleteByQueryAsync_WithAlreadyTrackedEntity_DeletesAllMatches))
             .Options;
@@ -170,6 +174,8 @@ public sealed class TrackingOutboxRepositoryExecutorDeleteTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Record(command);
             return ValueTask.FromResult(result);
         }

@@ -87,6 +87,8 @@ public sealed class SQLiteOutboxRepositoryTests
     [Test]
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SQLiteOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = "Data Source=:memory:", EnableWalMode = false }),
             TimeProvider.System

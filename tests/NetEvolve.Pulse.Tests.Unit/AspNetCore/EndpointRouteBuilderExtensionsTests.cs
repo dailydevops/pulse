@@ -238,6 +238,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_WithItems_WritesSSEFormatByDefault(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["first", "second"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
 
@@ -264,6 +266,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_WithItems_WritesNdjsonWhenAcceptHeaderRequests(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["alpha", "beta"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-ndjson"));
@@ -288,6 +292,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["alpha", "beta"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-ndjson"));
@@ -306,6 +312,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_WithMixedCaseNdjsonAccept_ReturnsNdjson(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("Application/X-NDJSON"));
@@ -327,6 +335,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_WithNdjsonAcceptQValue_ReturnsNdjson(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-ndjson", 0.9));
@@ -348,6 +358,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_EmptyStream_ReturnsOkWithEmptyBody(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync([], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
 
@@ -367,6 +379,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_WhenHandlerThrows_StreamTerminates(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateThrowingTestHostAsync(cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
 
@@ -386,6 +400,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateForeignCancellationTestHostAsync(cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-ndjson"));
@@ -405,6 +421,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQuery_WhenClientDisconnects_CompletesGracefully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var host = await CreateInfiniteTestHostAsync(cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -433,6 +451,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
 
     private static async Task<IHost> CreateTestHostAsync(IEnumerable<string> items, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -459,6 +479,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
 
     private static async Task<IHost> CreateThrowingTestHostAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -485,6 +507,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
 
     private static async Task<IHost> CreateForeignCancellationTestHostAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -511,6 +535,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
 
     private static async Task<IHost> CreateInfiniteTestHostAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -570,6 +596,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             foreach (var item in _items)
             {
                 yield return item;
@@ -584,6 +612,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.FromException(new InvalidOperationException("Handler failure.")).ConfigureAwait(false);
             yield break;
         }
@@ -596,6 +626,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             using var foreignCts = new CancellationTokenSource();
             await foreignCts.CancelAsync().ConfigureAwait(false);
             foreignCts.Token.ThrowIfCancellationRequested();
@@ -610,6 +642,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var counter = 0;
             while (!cancellationToken.IsCancellationRequested)
             {

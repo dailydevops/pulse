@@ -37,6 +37,8 @@ public sealed class MySqlAdoNetCommandDeadLetterInitializer : IServiceInitialize
     /// <inheritdoc />
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<CommandDeadLetterOptions>>().Value;
 
         var connectionString =

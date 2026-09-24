@@ -76,6 +76,8 @@ internal sealed class SQLiteAuditStore : IAuditStore
     /// <inheritdoc />
     public async Task RecordAsync(AuditRecord record, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(record);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -113,6 +115,8 @@ internal sealed class SQLiteAuditStore : IAuditStore
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 

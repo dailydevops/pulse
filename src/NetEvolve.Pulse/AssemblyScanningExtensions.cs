@@ -288,7 +288,7 @@ public static class AssemblyScanningExtensions
         /// <item><description>You want to avoid specifying a marker type from your entry project</description></item>
         /// </list>
         /// <para><strong>Null Safety:</strong></para>
-        /// If <see cref="Assembly.GetEntryAssembly()"/> returns <c>null</c> (rare, but possible in certain hosting scenarios),
+        /// If <see cref="Assembly.GetEntryAssembly()"/> returns <see langword="null"/> (rare, but possible in certain hosting scenarios),
         /// this method safely returns without throwing an exception.
         /// <para><strong>Discovery Rules:</strong></para>
         /// This method scans for all non-abstract classes that implement:

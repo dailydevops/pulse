@@ -30,6 +30,8 @@ public abstract class PulseTestsBase
     {
         ArgumentNullException.ThrowIfNull(testableCode);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureAppConfiguration((hostContext, configBuilder) => { })
             .ConfigureServices(services =>
@@ -77,6 +79,8 @@ public abstract class PulseTestsBase
     {
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(eventFactory);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         for (var i = 0; i < count; i++)
         {

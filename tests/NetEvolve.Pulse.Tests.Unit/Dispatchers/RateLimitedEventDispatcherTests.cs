@@ -40,6 +40,8 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithHandlers_InvokesAllHandlers(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
         var invokedHandlers = new ConcurrentBag<int>();
@@ -66,6 +68,8 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithSingleHandler_InvokesHandlerExactlyOnce(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
         var invokedHandlers = new ConcurrentBag<int>();
@@ -81,6 +85,8 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithSingleHandlerThrowing_AggregatesException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>> { new ThrowingTestEventHandler() };
@@ -101,6 +107,8 @@ public class RateLimitedEventDispatcherTests
     [Test]
     public async Task DispatchAsync_LimitsConcurrency(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher(maxConcurrency: 2);
         var message = new TestEvent();
         var maxConcurrent = 0;
@@ -165,6 +173,8 @@ public class RateLimitedEventDispatcherTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _invokedHandlers.Add(_id);
             return Task.CompletedTask;
         }
@@ -189,6 +199,8 @@ public class RateLimitedEventDispatcherTests
 
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _onStart();
             await Task.Delay(50, cancellationToken).ConfigureAwait(false);
             _onEnd();

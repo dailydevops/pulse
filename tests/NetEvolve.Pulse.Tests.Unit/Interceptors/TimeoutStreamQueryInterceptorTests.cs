@@ -17,6 +17,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithNullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
@@ -35,6 +37,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
@@ -57,6 +61,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
@@ -87,6 +93,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
@@ -118,6 +126,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(1) }
         );
@@ -142,6 +152,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(null);
@@ -164,6 +176,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(null);
@@ -186,6 +200,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(50) }
         );
@@ -215,6 +231,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_DisposesLinkedCts_EvenWhenHandlerThrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
@@ -252,6 +270,8 @@ public sealed class TimeoutStreamQueryInterceptorTests
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var item in items)
         {
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);

@@ -103,6 +103,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetPendingAsync_ReturnsOnlyNewStatusEntries_OrderedByOccurredAt));
         await using (context.ConfigureAwait(false))
         {
@@ -136,6 +138,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task GetPendingAsync_HonorsCountParameter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetPendingAsync_HonorsCountParameter));
         await using (context.ConfigureAwait(false))
         {
@@ -164,6 +168,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException));
         await using (context.ConfigureAwait(false))
         {
@@ -182,6 +188,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_ExecutesHandlerAndResolvesEntry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestReplayCommandHandler();
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -236,6 +244,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsKeyNotFoundException));
         await using (context.ConfigureAwait(false))
         {
@@ -256,6 +266,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task DismissAsync_SetsStatusToDismissed(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(DismissAsync_SetsStatusToDismissed));
         await using (context.ConfigureAwait(false))
         {
@@ -282,6 +294,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task GetStatisticsAsync_ReturnsCorrectCountsPerStatus(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetStatisticsAsync_ReturnsCorrectCountsPerStatus));
         await using (context.ConfigureAwait(false))
         {
@@ -322,6 +336,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task GetStatisticsAsync_EmptyDatabase_ReturnsAllZero(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetStatisticsAsync_EmptyDatabase_ReturnsAllZero));
         await using (context.ConfigureAwait(false))
         {
@@ -376,6 +392,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
         public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledCommands.Add(command);
             return Task.FromResult("handled");
         }

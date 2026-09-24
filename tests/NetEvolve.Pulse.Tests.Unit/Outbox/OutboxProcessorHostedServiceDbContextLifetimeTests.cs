@@ -1,13 +1,14 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
-using System;
 using System.Linq;
+using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Unit.EntityFramework;
 using TUnit.Core;
 
@@ -50,8 +51,12 @@ public sealed class OutboxProcessorHostedServiceDbContextLifetimeTests
     }
 
     [Test]
-    public async Task ExecuteAsync_AcrossMultipleCycles_ResolvesFreshRepositoryPerCycle()
+    public async Task ExecuteAsync_AcrossMultipleCycles_ResolvesFreshRepositoryPerCycle(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
@@ -68,7 +73,7 @@ public sealed class OutboxProcessorHostedServiceDbContextLifetimeTests
         var hostedServices = provider.GetServices<IHostedService>().ToList();
         var processor = hostedServices.OfType<OutboxProcessorHostedService>().Single();
 
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         await processor.StartAsync(cts.Token).ConfigureAwait(false);
         // Allow a couple of polling cycles to run; the important assertion is that starting and
         // stopping the singleton hosted service against a scoped-repository registration does not
@@ -76,7 +81,7 @@ public sealed class OutboxProcessorHostedServiceDbContextLifetimeTests
         // process lifetime while ValidateScopes is enabled at resolution time.
         await Task.Delay(150, cts.Token).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
-        await processor.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        await processor.StopAsync(cts.Token).ConfigureAwait(false);
     }
 
     private sealed class FakeHostApplicationLifetime : IHostApplicationLifetime

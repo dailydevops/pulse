@@ -74,6 +74,8 @@ internal sealed class SqlServerAuditStore : IAuditStore
     /// <inheritdoc />
     public async Task RecordAsync(AuditRecord record, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(record);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -107,6 +109,8 @@ internal sealed class SqlServerAuditStore : IAuditStore
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

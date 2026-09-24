@@ -88,6 +88,8 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(filter);
 
         var whereClause = new StringBuilder();
@@ -184,6 +186,8 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
     /// <inheritdoc />
     public async Task<AuditStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -226,6 +230,8 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
     /// <returns>An open <see cref="NpgsqlConnection"/>.</returns>
     private async Task<NpgsqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

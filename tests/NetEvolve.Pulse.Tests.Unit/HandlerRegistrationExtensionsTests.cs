@@ -872,6 +872,8 @@ public class HandlerRegistrationExtensionsTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return query.Value;
         }
     }

@@ -20,6 +20,8 @@ public sealed class CosmosDbOutboxRepositoryDeleteCompletedTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var expectedIds = Enumerable.Range(0, 25).Select(_ => Guid.NewGuid().ToString()).ToList();
         var deletedIds = new ConcurrentBag<string>();
 
@@ -56,6 +58,8 @@ public sealed class CosmosDbOutboxRepositoryDeleteCompletedTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var deleteCalls = 0;
 
         var container = new FakeCosmosContainer
@@ -116,6 +120,8 @@ public sealed class CosmosDbOutboxRepositoryDeleteCompletedTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = Guid.NewGuid().ToString();
 
         var container = new FakeCosmosContainer

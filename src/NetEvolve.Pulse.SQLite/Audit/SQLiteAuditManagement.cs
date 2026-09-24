@@ -76,6 +76,8 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(filter);
 
         var whereClause = new StringBuilder();
@@ -183,6 +185,8 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
     /// <inheritdoc />
     public async Task<AuditStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var successCount = 0;
         var failureCount = 0;
 
@@ -228,6 +232,8 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -256,6 +262,8 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var records = new List<AuditRecord>();
 
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

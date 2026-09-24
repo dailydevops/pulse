@@ -72,6 +72,8 @@ internal sealed class MySqlAuditManagement : IAuditManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(filter);
 
         var sql = new StringBuilder();
@@ -166,6 +168,8 @@ internal sealed class MySqlAuditManagement : IAuditManagement
     /// <inheritdoc />
     public async Task<AuditStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var successCount = 0;
         var failureCount = 0;
 
@@ -206,6 +210,8 @@ internal sealed class MySqlAuditManagement : IAuditManagement
     /// </summary>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -219,6 +225,8 @@ internal sealed class MySqlAuditManagement : IAuditManagement
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using (reader.ConfigureAwait(false))
         {

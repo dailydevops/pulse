@@ -143,6 +143,7 @@ public sealed class PollyExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddPulse(configurator =>

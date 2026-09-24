@@ -3,6 +3,7 @@
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 [ClassDataSource<PostgreSqlDatabaseServiceFixture, EntityFrameworkOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]

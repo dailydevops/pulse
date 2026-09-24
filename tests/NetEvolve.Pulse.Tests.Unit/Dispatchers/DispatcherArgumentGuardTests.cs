@@ -29,6 +29,8 @@ public sealed class DispatcherArgumentGuardTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var msg = new TestEvent();
 
@@ -46,6 +48,8 @@ public sealed class DispatcherArgumentGuardTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new ParallelEventDispatcher();
         var msg = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>>();
@@ -62,6 +66,8 @@ public sealed class DispatcherArgumentGuardTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher();
         var msg = new TestEvent();
 
@@ -79,6 +85,8 @@ public sealed class DispatcherArgumentGuardTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new RateLimitedEventDispatcher();
         var msg = new TestEvent();
         var handlers = new List<IEventHandler<TestEvent>>();
@@ -95,6 +103,8 @@ public sealed class DispatcherArgumentGuardTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new PrioritizedEventDispatcher();
         var msg = new TestEvent();
 

@@ -30,6 +30,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithNormalStream_LogsBeginAndEnd(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestStreamQuery { CorrelationId = "corr-123" };
@@ -57,6 +59,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_LogsBeginAndEndAtDebugLevel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var query = new TestStreamQuery();
@@ -81,6 +85,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_LogsBeginAndEndAtInformationLevel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var query = new TestStreamQuery();
@@ -105,6 +111,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithSlowStream_LogsWarning(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(
             logger,
@@ -130,6 +138,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithDisabledSlowThreshold_DoesNotLogWarning(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var query = new TestStreamQuery();
@@ -151,6 +161,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestStreamQuery();
@@ -183,6 +195,8 @@ public class LoggingStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestStreamQuery();
@@ -222,6 +236,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_LogsCorrelationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestStreamQuery { CorrelationId = "my-correlation-id" };
@@ -241,6 +257,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectQuery(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestStreamQuery();
@@ -269,6 +287,8 @@ public class LoggingStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithEmptyStream_LogsBeginAndEnd(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingStreamQueryInterceptor<TestStreamQuery, string>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestStreamQuery();
@@ -308,6 +328,8 @@ public class LoggingStreamQueryInterceptorTests
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var item in items)
         {
             await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);

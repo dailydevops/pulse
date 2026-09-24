@@ -71,6 +71,8 @@ public sealed class MySqlIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WithNullOrWhitespaceKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new MySqlIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );
@@ -85,6 +87,8 @@ public sealed class MySqlIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithNullOrWhitespaceKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new MySqlIdempotencyKeyRepository(
             Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
         );

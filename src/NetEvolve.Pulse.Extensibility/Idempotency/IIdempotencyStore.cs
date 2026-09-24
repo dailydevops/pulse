@@ -82,6 +82,8 @@ public interface IIdempotencyStore
     /// </remarks>
     async Task<bool> TryReserveAsync(string idempotencyKey, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (await ExistsAsync(idempotencyKey, cancellationToken).ConfigureAwait(false))
         {
             return false;

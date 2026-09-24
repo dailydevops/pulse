@@ -43,6 +43,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WhenKeyDoesNotExist_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ExistsAsync_WhenKeyDoesNotExist_ReturnsFalse));
         await using (context.ConfigureAwait(false))
         {
@@ -59,6 +61,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WhenKeyExists_ReturnsTrue(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ExistsAsync_WhenKeyExists_ReturnsTrue));
         await using (context.ConfigureAwait(false))
         {
@@ -75,6 +79,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WithNullKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ExistsAsync_WithNullKey_ThrowsArgumentException));
         await using (context.ConfigureAwait(false))
         {
@@ -89,6 +95,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ExistsAsync_WithEmptyKey_ThrowsArgumentException));
         await using (context.ConfigureAwait(false))
         {
@@ -107,6 +115,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ExistsAsync_WhenKeyExistsAndValidFromIsBeforeCreatedAt_ReturnsTrue));
         await using (context.ConfigureAwait(false))
         {
@@ -127,6 +137,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ExistsAsync_WhenKeyExistsButValidFromIsAfterCreatedAt_ReturnsFalse));
         await using (context.ConfigureAwait(false))
         {
@@ -147,6 +159,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithValidKey_StoresKey(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithValidKey_StoresKey));
         await using (context.ConfigureAwait(false))
         {
@@ -163,6 +177,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithNullKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithNullKey_ThrowsArgumentException));
         await using (context.ConfigureAwait(false))
         {
@@ -179,6 +195,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithEmptyKey_ThrowsArgumentException));
         await using (context.ConfigureAwait(false))
         {
@@ -197,6 +215,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WhenCalledTwiceWithSameKey_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WhenCalledTwiceWithSameKey_DoesNotThrow));
         await using (context.ConfigureAwait(false))
         {
@@ -217,6 +237,8 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_CrossScope_WhenKeyAlreadyExistsInDb_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(StoreAsync_CrossScope_WhenKeyAlreadyExistsInDb_DoesNotThrow);
         var now = DateTimeOffset.UtcNow;
         const string key = "cross-scope-key";

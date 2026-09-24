@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 using System;
 using System.Collections.Concurrent;
@@ -14,7 +14,7 @@ internal static class OutboxDocumentMapper
     /// parses the assembly-qualified name and probes loaded assemblies on every call. Only successful
     /// resolutions are cached; unresolvable names keep failing on each encounter.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, Type> _eventTypeCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Type> EventTypeCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Converts an <see cref="OutboxDocument"/> retrieved from MongoDB to an <see cref="OutboxMessage"/>.
@@ -72,9 +72,9 @@ internal static class OutboxDocumentMapper
     /// <returns>The resolved event <see cref="Type"/>.</returns>
     /// <exception cref="InvalidOperationException">The type name cannot be resolved.</exception>
     private static Type ResolveEventType(string eventTypeName) =>
-        _eventTypeCache.TryGetValue(eventTypeName, out var eventType)
+        EventTypeCache.TryGetValue(eventTypeName, out var eventType)
             ? eventType
-            : _eventTypeCache.GetOrAdd(
+            : EventTypeCache.GetOrAdd(
                 eventTypeName,
                 static name =>
                     Type.GetType(name) ?? throw new InvalidOperationException($"Cannot resolve event type '{name}'.")

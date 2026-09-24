@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.Audit;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using NetEvolve.Pulse.Tests.Integration.Internals.Audit;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 [ClassDataSource<MySqlDatabaseServiceFixture, EntityFrameworkAuditInitializer>(
     Shared = [SharedType.None, SharedType.None]

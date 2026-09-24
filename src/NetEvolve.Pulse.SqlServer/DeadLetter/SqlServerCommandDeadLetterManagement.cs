@@ -129,6 +129,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -155,6 +157,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -177,6 +181,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -193,6 +199,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -245,6 +253,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -264,6 +274,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqlCommand(_getByIdSql, connection);
         await using (command.ConfigureAwait(false))
         {
@@ -297,6 +309,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqlCommand(_updateStatusSql, connection);
         await using (command.ConfigureAwait(false))
         {

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Outbox;
@@ -34,6 +33,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_connection is not null && _adminChannel is not null)
         {
             return (_connection, _adminChannel);
@@ -78,6 +79,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task SendAsync_Publishes_message_to_exchange(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var queueName = await adminChannel
@@ -114,6 +117,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task SendBatchAsync_Publishes_all_messages_to_exchange(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const int messageCount = 5;
         var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
@@ -149,6 +154,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task IsHealthyAsync_When_connection_open_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
@@ -167,6 +174,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
@@ -183,6 +192,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task IsHealthyAsync_After_dispose_returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
@@ -201,6 +212,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task Dispose_Called_twice_is_idempotent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
@@ -216,6 +229,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task SendAsync_Called_twice_reuses_open_channel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var queueName = await adminChannel
@@ -254,6 +269,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var queueName = await adminChannel
@@ -296,6 +313,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var services = new ServiceCollection();
@@ -323,6 +342,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     [Test]
     public async Task UseRabbitMqTransport_Replaces_existing_transport(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
 
         var services = new ServiceCollection();
@@ -372,6 +393,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tcs = new TaskCompletionSource<BasicDeliverEventArgs?>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(15));
@@ -398,6 +421,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var received = new List<BasicDeliverEventArgs>();
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

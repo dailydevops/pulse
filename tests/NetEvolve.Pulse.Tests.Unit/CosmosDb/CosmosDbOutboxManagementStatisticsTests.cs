@@ -26,6 +26,7 @@ public sealed class CosmosDbOutboxManagementStatisticsTests
     [Test]
     public async Task GetStatisticsAsync_WithGroupedCounts_MapsEachStatus(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // The management class' StatusCount projection is private; construct pages via the
         // reflection-friendly Activator pattern already used in CosmosDbOutboxManagementQueryOptionsTests.
         var container = new FakeCosmosContainer
@@ -56,6 +57,8 @@ public sealed class CosmosDbOutboxManagementStatisticsTests
     [Test]
     public async Task GetStatisticsAsync_WithNoDocuments_ReturnsAllZeroes(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer { OnQueryIterator = (itemType, _, _) => CreateEmptyIterator(itemType) };
 
         using var client = new FakeCosmosClient(container);

@@ -21,7 +21,7 @@ internal sealed class CosmosDbOutboxDocument
     /// parses the assembly-qualified name and probes loaded assemblies on every call. Only successful
     /// resolutions are cached; unresolvable names keep failing on each encounter.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, Type> _eventTypeCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Type> EventTypeCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets or sets the Cosmos DB document identifier, mapped from <see cref="OutboxMessage.Id"/>.
@@ -156,7 +156,7 @@ internal sealed class CosmosDbOutboxDocument
     /// <returns>The resolved event <see cref="Type"/>, or <see cref="object"/> when unresolvable.</returns>
     private static Type ResolveEventType(string eventTypeName)
     {
-        if (_eventTypeCache.TryGetValue(eventTypeName, out var eventType))
+        if (EventTypeCache.TryGetValue(eventTypeName, out var eventType))
         {
             return eventType;
         }
@@ -167,7 +167,7 @@ internal sealed class CosmosDbOutboxDocument
             return typeof(object);
         }
 
-        return _eventTypeCache.GetOrAdd(eventTypeName, resolved);
+        return EventTypeCache.GetOrAdd(eventTypeName, resolved);
     }
 
     /// <summary>

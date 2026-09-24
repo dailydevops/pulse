@@ -16,6 +16,8 @@ public sealed class CosmosDbOutboxRepositoryHealthTests
     [Test]
     public async Task IsHealthyAsync_WhenReadContainerSucceeds_ReturnsTrue(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer { OnReadContainer = () => null };
         var repository = CreateRepository(container);
 
@@ -29,6 +31,8 @@ public sealed class CosmosDbOutboxRepositoryHealthTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnReadContainer = () =>

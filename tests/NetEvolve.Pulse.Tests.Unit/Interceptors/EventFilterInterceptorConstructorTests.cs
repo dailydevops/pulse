@@ -7,7 +7,6 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
 /// <summary>

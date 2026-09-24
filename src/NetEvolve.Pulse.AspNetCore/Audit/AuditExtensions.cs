@@ -1,9 +1,8 @@
-namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse.Audit;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using NetEvolve.Pulse.AspNetCore;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Audit;
 

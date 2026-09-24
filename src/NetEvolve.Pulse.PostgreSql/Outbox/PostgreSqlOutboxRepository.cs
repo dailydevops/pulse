@@ -160,6 +160,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var transaction = GetCurrentTransaction();
@@ -201,6 +203,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var leaseExpiredBefore = _timeProvider.GetUtcNow() - _processingLeaseTimeout;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -220,6 +224,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -241,6 +247,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -261,6 +269,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -284,6 +294,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messageIds);
 
         if (messageIds.Count == 0)
@@ -315,6 +327,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -338,6 +352,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -363,6 +379,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messageIds);
 
         if (messageIds.Count == 0)
@@ -394,6 +412,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -411,6 +431,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -435,6 +457,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <returns>An open <see cref="NpgsqlConnection"/>.</returns>
     private async Task<NpgsqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -492,6 +516,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using (reader.ConfigureAwait(false))
         {

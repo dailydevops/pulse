@@ -20,6 +20,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<TestStreamQuery, string>();
 
         _ = await Assert
@@ -40,6 +42,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NoValidationAttributes_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<NoAttributesStreamQuery, string>();
         var handlerCalled = false;
 
@@ -71,6 +75,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_ValidInput_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<TestStreamQuery, string>();
         var handlerCalled = false;
 
@@ -102,6 +108,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_RequiredPropertyMissing_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<TestStreamQuery, string>();
         var handlerCalled = false;
 
@@ -133,6 +141,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_RangeViolation_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<RangeStreamQuery, string>();
         var handlerCalled = false;
 
@@ -164,6 +174,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_MaxLengthViolation_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<MaxLengthStreamQuery, string>();
         var handlerCalled = false;
 
@@ -197,6 +209,8 @@ public sealed class DataAnnotationsStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsStreamQueryInterceptor<MultiConstraintStreamQuery, string>();
 
         var exception = await Assert

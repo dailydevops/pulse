@@ -145,6 +145,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -161,6 +163,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -191,6 +195,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -211,6 +217,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var newCount = 0;
         var replayingCount = 0;
         var resolvedCount = 0;
@@ -266,6 +274,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqliteCommand(_getByIdSql, connection);
         await using (command.ConfigureAwait(false))
         {
@@ -287,6 +297,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -315,6 +327,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entries = new List<CommandDeadLetterEntry>();
 
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

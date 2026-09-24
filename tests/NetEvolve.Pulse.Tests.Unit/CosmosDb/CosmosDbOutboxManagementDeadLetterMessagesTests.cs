@@ -15,6 +15,8 @@ public sealed class CosmosDbOutboxManagementDeadLetterMessagesTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_WithDocuments_MapsToOutboxMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var firstId = Guid.NewGuid();
         var secondId = Guid.NewGuid();
 
@@ -52,6 +54,8 @@ public sealed class CosmosDbOutboxManagementDeadLetterMessagesTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) => new FakeFeedIterator<CosmosDbOutboxDocument>([]),

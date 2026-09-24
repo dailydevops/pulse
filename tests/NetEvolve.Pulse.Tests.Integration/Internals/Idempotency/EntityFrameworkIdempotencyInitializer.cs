@@ -19,6 +19,8 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using (var scope = serviceProvider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<TestIdempotencyDbContext>();
@@ -115,6 +117,8 @@ public sealed class EntityFrameworkIdempotencyInitializer : IServiceInitializer
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var command = connection.CreateCommand();
             await using (command.ConfigureAwait(false))
             {

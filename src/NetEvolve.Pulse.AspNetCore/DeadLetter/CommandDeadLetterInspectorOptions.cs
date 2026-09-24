@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse.DeadLetter;
 
 /// <summary>
 /// Provides configuration options for the command dead letter inspector endpoints mapped via

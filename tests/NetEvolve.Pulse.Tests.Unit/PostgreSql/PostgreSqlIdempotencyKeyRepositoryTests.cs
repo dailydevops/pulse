@@ -79,6 +79,8 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WithNullIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
         var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
 
@@ -92,6 +94,8 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
     [Test]
     public async Task ExistsAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
         var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
 
@@ -107,6 +111,8 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
         var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
 
@@ -120,6 +126,8 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithNullIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
         var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
 
@@ -133,6 +141,8 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
     [Test]
     public async Task StoreAsync_WithEmptyIdempotencyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
         var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
 
@@ -150,6 +160,8 @@ public sealed class PostgreSqlIdempotencyKeyRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new IdempotencyKeyOptions { ConnectionString = ValidConnectionString };
         var repository = new PostgreSqlIdempotencyKeyRepository(Options.Create(options));
 

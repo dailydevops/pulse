@@ -156,6 +156,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
 
@@ -179,6 +181,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -196,6 +200,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -213,6 +219,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> ReplayMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -233,6 +241,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -251,6 +261,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -307,6 +319,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -335,6 +349,8 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = new List<OutboxMessage>();
 
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

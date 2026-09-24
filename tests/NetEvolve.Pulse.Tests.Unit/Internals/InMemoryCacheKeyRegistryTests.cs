@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.Internals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Internals;
@@ -82,8 +83,12 @@ public class InMemoryCacheKeyRegistryTests
     }
 
     [Test]
-    public async Task Register_ConcurrentCallsAcrossMultipleTypes_AllKeysRetrievableWithNoLostWrites()
+    public async Task Register_ConcurrentCallsAcrossMultipleTypes_AllKeysRetrievableWithNoLostWrites(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var registry = new InMemoryCacheKeyRegistry();
         var types = new[] { typeof(SampleQueryA), typeof(SampleQueryB), typeof(SampleQueryC) };
         const int keysPerType = 200;
@@ -95,7 +100,9 @@ public class InMemoryCacheKeyRegistryTests
             {
                 var capturedType = type;
                 var capturedKey = $"{type.Name}-{i}";
-                tasks.Add(Task.Run(() => registry.Register(capturedType, capturedKey)));
+                tasks.Add(
+                    Task.Run(() => registry.Register(capturedType, capturedKey), cancellationToken: cancellationToken)
+                );
             }
         }
 

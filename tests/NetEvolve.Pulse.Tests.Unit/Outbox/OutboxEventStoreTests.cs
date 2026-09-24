@@ -62,6 +62,8 @@ public sealed class OutboxEventStoreTests
     [Test]
     public async Task StoreAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out _);
 
         _ = await Assert
@@ -72,6 +74,8 @@ public sealed class OutboxEventStoreTests
     [Test]
     public async Task StoreAsync_WithValidEvent_AddsMessageToRepository(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent();
 
@@ -90,6 +94,8 @@ public sealed class OutboxEventStoreTests
     [Test]
     public async Task StoreAsync_SetsCreatedAtAndUpdatedAtFromTimeProvider(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent();
 
@@ -104,6 +110,8 @@ public sealed class OutboxEventStoreTests
     [Test]
     public async Task StoreAsync_WithCorrelationIdAtMaxLength_Succeeds(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent { CorrelationId = new string('c', OutboxMessageSchema.MaxLengths.CorrelationId) };
 
@@ -118,6 +126,8 @@ public sealed class OutboxEventStoreTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent { CorrelationId = new string('c', OutboxMessageSchema.MaxLengths.CorrelationId + 1) };
 
@@ -131,6 +141,8 @@ public sealed class OutboxEventStoreTests
     [Test]
     public async Task StoreAsync_WithCausationIdAtMaxLength_Succeeds(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent { CausationId = new string('c', OutboxMessageSchema.MaxLengths.CausationId) };
 
@@ -145,6 +157,8 @@ public sealed class OutboxEventStoreTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent { CausationId = new string('c', OutboxMessageSchema.MaxLengths.CausationId + 1) };
 
@@ -158,6 +172,8 @@ public sealed class OutboxEventStoreTests
     [Test]
     public async Task StoreAsync_StoresPayloadFromSerializer(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(out var repository);
         var evt = new TestEvent();
 
@@ -205,6 +221,8 @@ public sealed class OutboxEventStoreTests
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Added.Add(message);
             return Task.CompletedTask;
         }

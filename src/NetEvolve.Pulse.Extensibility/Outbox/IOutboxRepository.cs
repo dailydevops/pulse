@@ -64,6 +64,7 @@ public interface IOutboxRepository
     /// </remarks>
     async Task MarkAsCompletedAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(messageIds);
 
         foreach (var messageId in messageIds)
@@ -124,6 +125,7 @@ public interface IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(messageIds);
 
         foreach (var messageId in messageIds)
@@ -160,6 +162,7 @@ public interface IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(messageIds);
 
         foreach (var messageId in messageIds)

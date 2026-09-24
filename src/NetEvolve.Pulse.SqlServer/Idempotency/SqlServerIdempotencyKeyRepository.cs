@@ -72,6 +72,8 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -104,6 +106,8 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -139,6 +143,8 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

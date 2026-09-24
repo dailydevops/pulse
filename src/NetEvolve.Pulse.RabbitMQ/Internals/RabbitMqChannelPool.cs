@@ -49,6 +49,8 @@ internal sealed class RabbitMqChannelPool : IRabbitMqChannelPool, IDisposable
     /// <exception cref="ObjectDisposedException">Thrown when the pool has already been disposed.</exception>
     public async ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
         await _rentalGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -112,6 +114,8 @@ internal sealed class RabbitMqChannelPool : IRabbitMqChannelPool, IDisposable
     /// </remarks>
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (Volatile.Read(ref _disposed) != 0)
         {
             return Task.FromResult(false);

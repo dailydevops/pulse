@@ -15,6 +15,8 @@ public sealed class TimeoutRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithNullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -29,6 +31,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -45,6 +49,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(TimeSpan.FromMilliseconds(50));
@@ -73,6 +79,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -102,6 +110,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(1) }
         );
@@ -121,6 +131,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(null);
@@ -137,6 +149,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(null);
@@ -153,6 +167,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(50) }
         );
@@ -182,6 +198,7 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Per-request timeout (50ms) should take precedence over global (5s),
         // so the request should time out.
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
@@ -208,6 +225,8 @@ public sealed class TimeoutRequestInterceptorTests
     [Test]
     public async Task HandleAsync_DisposesLinkedCts_EvenWhenHandlerThrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));

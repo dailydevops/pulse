@@ -137,6 +137,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -153,6 +155,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entry = await GetByIdAsync(id, cancellationToken).ConfigureAwait(false) ?? throw NotFound(id);
 
         await SetStatusAsync(_markReplayingSql, id, cancellationToken).ConfigureAwait(false);
@@ -167,6 +171,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -187,6 +193,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var newCount = 0;
         var replayingCount = 0;
         var resolvedCount = 0;
@@ -237,6 +245,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     private async Task<CommandDeadLetterEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -257,6 +267,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     private async Task SetStatusAsync(string sql, Guid id, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -276,6 +288,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -289,6 +303,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using (reader.ConfigureAwait(false))
         {

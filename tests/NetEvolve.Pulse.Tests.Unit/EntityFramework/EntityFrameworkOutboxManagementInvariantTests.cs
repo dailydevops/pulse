@@ -49,6 +49,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task ReplayMessageAsync_Does_not_act_on_non_DeadLetter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(ReplayMessageAsync_Does_not_act_on_non_DeadLetter));
@@ -87,6 +89,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(ReplayMessageAsync_From_DeadLetter_Transitions_to_Pending_and_clears_error));
@@ -129,6 +133,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task ReplayAllDeadLetterAsync_Resets_only_DLQ_messages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(ReplayAllDeadLetterAsync_Resets_only_DLQ_messages));
@@ -185,6 +191,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task GetDeadLetterMessageAsync_Returns_null_for_non_DLQ_message(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(GetDeadLetterMessageAsync_Returns_null_for_non_DLQ_message));
@@ -206,6 +214,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task GetStatisticsAsync_Counts_each_status_correctly(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(GetStatisticsAsync_Counts_each_status_correctly));
@@ -245,6 +255,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_With_negative_page_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetDeadLetterMessagesAsync_With_negative_page_throws));
         await using (context.ConfigureAwait(false))
         {
@@ -261,6 +273,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_With_zero_pageSize_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetDeadLetterMessagesAsync_With_zero_pageSize_throws));
         await using (context.ConfigureAwait(false))
         {
@@ -276,6 +290,8 @@ public sealed class EntityFrameworkOutboxManagementInvariantTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_With_overflowing_page_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetDeadLetterMessagesAsync_With_overflowing_page_throws));
         await using (context.ConfigureAwait(false))
         {

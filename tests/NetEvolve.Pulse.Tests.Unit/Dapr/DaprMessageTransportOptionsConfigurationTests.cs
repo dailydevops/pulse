@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.OutBox;
 using TUnit.Core;
 
 [TestGroup("Dapr")]

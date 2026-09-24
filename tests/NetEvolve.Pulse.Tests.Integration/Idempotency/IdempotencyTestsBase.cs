@@ -36,6 +36,8 @@ public abstract class IdempotencyTestsBase(
     {
         ArgumentNullException.ThrowIfNull(testableCode);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureAppConfiguration((hostContext, configBuilder) => { })
             .ConfigureServices(services =>
@@ -201,6 +203,8 @@ public abstract class IdempotencyTestsBase(
     [Test]
     public async Task Should_Respect_TimeToLive_When_Key_Is_Within_Ttl(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider();
         fakeTime.AdjustTime(TestDateTime);
 
@@ -230,6 +234,8 @@ public abstract class IdempotencyTestsBase(
     [Test]
     public async Task Should_Treat_Key_As_Absent_When_Ttl_Has_Expired(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider();
         fakeTime.AdjustTime(TestDateTime);
 

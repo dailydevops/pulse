@@ -78,6 +78,8 @@ internal sealed partial class PulseMediator : IMediator
     public Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         // Set the publication timestamp for tracking purposes
@@ -109,6 +111,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TQuery : IQuery<TResponse>
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(query);
 
         // Resolve the appropriate handler for the query
@@ -130,6 +134,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TQuery : IStreamQuery<TResponse>
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(query);
 
         // Resolve the appropriate handler for the streaming query
@@ -150,6 +156,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TCommand : ICommand<TResponse>
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(command);
 
         // Resolve the appropriate handler for the command
@@ -177,6 +185,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TEvent : IEvent
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Resolve dispatcher: keyed by event type first, then global, then default
         var dispatcher = serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
 
@@ -227,6 +237,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TRequest : IRequest<TResponse>
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Retrieve all registered request interceptors, keeping registration order
         var interceptors = _serviceProvider.GetServices<IRequestInterceptor<TRequest, TResponse>>().ToArray();
 
@@ -270,6 +282,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TQuery : IStreamQuery<TResponse>
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Retrieve all registered stream query interceptors, keeping registration order
         var interceptors = _serviceProvider.GetServices<IStreamQueryInterceptor<TQuery, TResponse>>().ToArray();
 
@@ -311,6 +325,8 @@ internal sealed partial class PulseMediator : IMediator
     )
         where TEvent : IEvent
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             await handler.HandleAsync(message, cancellationToken).ConfigureAwait(false);

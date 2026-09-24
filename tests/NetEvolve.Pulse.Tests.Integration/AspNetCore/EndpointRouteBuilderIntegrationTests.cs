@@ -28,6 +28,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 app => app.MapCommand<EchoCommand, EchoResult>("/echo"),
                 cancellationToken
@@ -54,6 +56,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var counter = new PingCounter();
 
         using var host = await CreateHostAsync(
@@ -76,6 +80,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
     [Test]
     public async Task MapQuery_GetsQuery_ReturnsOkWithHandlerResult(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(app => app.MapQuery<GreetingQuery, string>("/greet"), cancellationToken)
             .ConfigureAwait(false);
 
@@ -97,6 +103,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 app => app.MapStreamQuery<NumbersStreamQuery, int>("/numbers"),
                 cancellationToken
@@ -143,6 +151,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
         Action<IServiceCollection>? configureServices = null
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -183,6 +193,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
     {
         public Task<EchoResult> HandleAsync(EchoCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var reversed = new string([.. command.Message.Reverse()]);
             return Task.FromResult(new EchoResult(command.Message, reversed));
         }
@@ -207,6 +219,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
     {
         public Task<Void> HandleAsync(PingCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             counter.Increment();
             return Task.FromResult<Void>(default);
         }
@@ -237,6 +251,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             foreach (var number in new[] { 1, 2, 3 })
             {
                 yield return number;

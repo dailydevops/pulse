@@ -63,6 +63,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_null_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -78,6 +80,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_Publishes_message_with_correct_properties(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver, exchangeName: "test-exchange");
@@ -113,6 +117,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_Returns_channel_to_pool_after_publish(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -129,6 +135,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_Returns_channel_even_when_publish_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -148,6 +156,8 @@ public sealed class RabbitMqMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver, exchangeName: "batch-ex");
@@ -167,6 +177,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Returns_channel_even_when_publish_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -184,6 +196,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_Uses_topic_name_resolver_for_routing_key(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver { ResolvedName = "custom-routing-key" };
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -200,6 +214,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_Delegates_to_channel_pool(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool { Healthy = false };
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -213,6 +229,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_pool_reports_healthy_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool { Healthy = true };
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -225,6 +243,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_exception_thrown_returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool { ThrowOnIsHealthyAsync = true };
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -254,6 +274,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_After_Dispose_Throws_ObjectDisposedException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         var transport = CreateTransport(channelPool, topicNameResolver);
@@ -270,6 +292,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_After_Dispose_Throws_ObjectDisposedException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         var transport = CreateTransport(channelPool, topicNameResolver);
@@ -286,6 +310,7 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_After_Dispose_Returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Health probes typically run during shutdown; disposed transports must report unhealthy
         // rather than throwing so the probe path stays observable.
         var channelPool = new FakeChannelPool { Healthy = true };
@@ -302,6 +327,7 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_null_throws_even_after_dispose(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // ArgumentNullException must take precedence over ObjectDisposedException because
         // the order of checks pins the public contract for callers passing bad arguments.
         var channelPool = new FakeChannelPool();
@@ -321,6 +347,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_When_messages_null_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -336,6 +364,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Publishes_all_messages_with_correct_properties(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver, exchangeName: "test-exchange");
@@ -358,6 +388,8 @@ public sealed class RabbitMqMessageTransportTests
     [Test]
     public async Task SendBatchAsync_With_empty_collection_does_not_publish(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channelPool = new FakeChannelPool();
         var topicNameResolver = new FakeTopicNameResolver();
         using var transport = CreateTransport(channelPool, topicNameResolver);
@@ -467,6 +499,8 @@ public sealed class RabbitMqMessageTransportTests
 
         public ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             RentCallCount++;
             var channel = new FakeChannelAdapter { ThrowsOnPublish = NextRentedChannelThrowsOnPublish };
             RentedChannels.Add(channel);
@@ -477,6 +511,8 @@ public sealed class RabbitMqMessageTransportTests
 
         public Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             IsHealthyCallCount++;
             if (ThrowOnIsHealthyAsync)
             {
@@ -511,6 +547,8 @@ public sealed class RabbitMqMessageTransportTests
             {
                 throw new InvalidOperationException("Publish failed");
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             PublishCallCount++;
             PublishCalls.Add(

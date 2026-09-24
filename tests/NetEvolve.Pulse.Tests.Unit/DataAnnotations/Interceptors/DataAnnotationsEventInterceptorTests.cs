@@ -17,6 +17,8 @@ public sealed class DataAnnotationsEventInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsEventInterceptor<TestEvent>();
         var testEvent = new TestEvent();
 
@@ -28,6 +30,8 @@ public sealed class DataAnnotationsEventInterceptorTests
     [Test]
     public async Task HandleAsync_NoValidationAttributes_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsEventInterceptor<TestEvent>();
         var testEvent = new TestEvent();
         var handlerCalled = false;
@@ -50,6 +54,8 @@ public sealed class DataAnnotationsEventInterceptorTests
     [Test]
     public async Task HandleAsync_ValidInput_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsEventInterceptor<ValidatedEvent>();
         var handlerCalled = false;
 
@@ -71,6 +77,8 @@ public sealed class DataAnnotationsEventInterceptorTests
     [Test]
     public async Task HandleAsync_RequiredPropertyMissing_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsEventInterceptor<ValidatedEvent>();
         var handlerCalled = false;
 
@@ -96,6 +104,8 @@ public sealed class DataAnnotationsEventInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new DataAnnotationsEventInterceptor<MultiConstraintEvent>();
 
         var exception = await Assert

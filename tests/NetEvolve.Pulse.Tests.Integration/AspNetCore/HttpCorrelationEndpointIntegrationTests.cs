@@ -32,6 +32,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(cancellationToken).ConfigureAwait(false);
         using var client = host.GetTestServer().CreateClient();
 
@@ -64,6 +66,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(cancellationToken).ConfigureAwait(false);
         using var client = host.GetTestServer().CreateClient();
 
@@ -86,6 +90,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
     [Test]
     public async Task Event_Published_From_Handler_ObservesSameCorrelationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var sink = new CorrelationSink();
 
         using var host = await CreateHostAsync(
@@ -114,6 +120,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 configureServices: null,
                 mapEndpoints: endpoints => endpoints.MapStreamQuery<CorrelationStreamQuery, string>("/stream-whoami"),
@@ -166,6 +174,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -213,6 +223,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
     {
         public async Task<Void> HandleAsync(PublishEventCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await mediator.PublishAsync(new CorrelationCapturedEvent(), cancellationToken).ConfigureAwait(false);
             return default;
         }
@@ -230,6 +242,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
     {
         public Task HandleAsync(CorrelationCapturedEvent @event, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             sink.ObservedCorrelationId = @event.CorrelationId;
             return Task.CompletedTask;
         }
@@ -248,6 +262,8 @@ public sealed class HttpCorrelationEndpointIntegrationTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return request.CorrelationId ?? string.Empty;
             await Task.Yield();
         }

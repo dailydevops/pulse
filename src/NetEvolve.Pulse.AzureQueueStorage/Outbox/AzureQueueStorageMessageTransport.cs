@@ -71,6 +71,8 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// <inheritdoc />
     public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var json = SerializeMessage(_payloadSerializer, message);
@@ -97,6 +99,8 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// <inheritdoc />
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messages);
 
         foreach (var message in messages)
@@ -125,6 +129,8 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     )]
     private async Task<QueueClient> GetQueueClientAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_queueClientOverride is not null)
         {
             return _queueClientOverride;

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse;
+namespace NetEvolve.Pulse.Outbox;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using NetEvolve.Pulse.AspNetCore.Internals;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Internals;
 
 /// <summary>
 /// Provides extension methods for <see cref="IEndpointRouteBuilder"/> to map read/administrative
@@ -101,6 +101,8 @@ public static class OutboxInspectorEndpoints
         int page = 0
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = await outboxManagement
             .GetDeadLetterMessagesAsync(pageSize, page, cancellationToken)
             .ConfigureAwait(false);
@@ -119,6 +121,8 @@ public static class OutboxInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var message = await outboxManagement.GetDeadLetterMessageAsync(id, cancellationToken).ConfigureAwait(false);
 
         return message is null ? TypedResults.NotFound() : TypedResults.Json(message, OutboxMessageSerializerOptions);
@@ -130,6 +134,8 @@ public static class OutboxInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var replayed = await outboxManagement.ReplayMessageAsync(id, cancellationToken).ConfigureAwait(false);
 
         return replayed ? TypedResults.NoContent() : TypedResults.NotFound();
@@ -140,6 +146,8 @@ public static class OutboxInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var count = await outboxManagement.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(new OutboxReplayAllResult(count));

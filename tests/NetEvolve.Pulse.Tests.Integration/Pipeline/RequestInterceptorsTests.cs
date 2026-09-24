@@ -25,6 +25,8 @@ public sealed class RequestInterceptorsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureServices(services => services.AddPulse(configureMediator))
             .ConfigureWebHost(webBuilder => _ = webBuilder.UseTestServer().Configure(applicationBuilder => { }))
@@ -39,6 +41,8 @@ public sealed class RequestInterceptorsTests
     [NotInParallel]
     public async Task ActivityAndMetrics_Command_RecordsActivityAndMetrics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var activityListener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -110,6 +114,8 @@ public sealed class RequestInterceptorsTests
     [NotInParallel]
     public async Task ActivityAndMetrics_Query_RecordsActivityAndMetrics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var activityListener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -161,6 +167,8 @@ public sealed class RequestInterceptorsTests
     [NotInParallel]
     public async Task ActivityAndMetrics_Event_RecordsActivityAndMetrics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var activityListener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -229,6 +237,8 @@ public sealed class RequestInterceptorsTests
     [NotInParallel]
     public async Task ActivityAndMetrics_StreamQuery_RecordsActivityAndMetrics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var activityListener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -289,6 +299,8 @@ public sealed class RequestInterceptorsTests
     [NotInParallel]
     public async Task ConcurrentCommandGuard_ConcurrentSends_SerializesExecution(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -322,6 +334,8 @@ public sealed class RequestInterceptorsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -354,6 +368,8 @@ public sealed class RequestInterceptorsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -384,6 +400,8 @@ public sealed class RequestInterceptorsTests
     [Test]
     public async Task DataAnnotations_InvalidCommand_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -416,6 +434,8 @@ public sealed class RequestInterceptorsTests
     [Test]
     public async Task DataAnnotations_ValidCommand_Succeeds(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -444,6 +464,8 @@ public sealed class RequestInterceptorsTests
     [Test]
     public async Task DataAnnotations_InvalidEvent_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder.AddDataAnnotations().AddEventHandler<ValidatedEvent, ValidatedEventHandler>(),
@@ -471,6 +493,8 @@ public sealed class RequestInterceptorsTests
     [Test]
     public async Task DataAnnotations_InvalidStreamQuery_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -507,6 +531,8 @@ public sealed class RequestInterceptorsTests
     [Test]
     public async Task DataAnnotations_ValidStreamQuery_YieldsItems(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -593,6 +619,8 @@ public sealed class RequestInterceptorsTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             foreach (var value in new[] { 1, 2, 3 })
             {
                 await Task.Yield();
@@ -616,6 +644,8 @@ public sealed class RequestInterceptorsTests
 
         public async Task<int> HandleAsync(GuardedCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var current = Interlocked.Increment(ref _currentConcurrent);
             var max = _maxConcurrent;
             while (current > max)
@@ -646,6 +676,8 @@ public sealed class RequestInterceptorsTests
 
         public async Task<Void> HandleAsync(GuardedVoidCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var current = Interlocked.Increment(ref _currentConcurrent);
             var max = _maxConcurrent;
             while (current > max)
@@ -692,6 +724,8 @@ public sealed class RequestInterceptorsTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return $"hello {request.Name}";
             await Task.Yield();
         }
@@ -716,6 +750,8 @@ public sealed class RequestInterceptorsTests
 
         public Task HandleAsync(ValidatedEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandlerInvoked = true;
             return Task.CompletedTask;
         }

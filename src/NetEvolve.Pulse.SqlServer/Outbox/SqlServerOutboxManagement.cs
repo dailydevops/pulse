@@ -84,6 +84,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
 
@@ -110,6 +112,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -130,6 +134,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -150,6 +156,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> ReplayMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -171,6 +179,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -193,6 +203,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -234,6 +246,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -251,6 +265,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using (reader.ConfigureAwait(false))
         {

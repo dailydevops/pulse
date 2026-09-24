@@ -19,6 +19,7 @@ public sealed class FluentValidationRequestInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         var provider = services.BuildServiceProvider();
@@ -38,6 +39,7 @@ public sealed class FluentValidationRequestInterceptorTests
     [Test]
     public async Task HandleAsync_NoValidatorsRegistered_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange — no IValidator<TestCommand> registered
         var services = new ServiceCollection();
         var provider = services.BuildServiceProvider();
@@ -71,6 +73,7 @@ public sealed class FluentValidationRequestInterceptorTests
     [Test]
     public async Task HandleAsync_ValidInput_PassesThroughToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestCommand>, AlwaysValidValidator>();
@@ -109,6 +112,7 @@ public sealed class FluentValidationRequestInterceptorTests
     [Test]
     public async Task HandleAsync_InvalidInput_ThrowsValidationException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestCommand>, AlwaysInvalidValidator>();
@@ -146,6 +150,7 @@ public sealed class FluentValidationRequestInterceptorTests
     [Test]
     public async Task HandleAsync_MultipleValidators_AggregatesAllFailures(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestCommand>, AlwaysInvalidValidator>();
@@ -182,6 +187,7 @@ public sealed class FluentValidationRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services.AddScoped<IValidator<TestCommand>, AlwaysValidValidator>();

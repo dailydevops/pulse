@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
@@ -32,6 +32,8 @@ public sealed partial class SqlServerAdoNetOutboxInitializer : IServiceInitializ
 
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<OutboxOptions>>().Value;
 
         var connectionString =

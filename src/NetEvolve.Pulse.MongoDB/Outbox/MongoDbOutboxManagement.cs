@@ -56,6 +56,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
 
@@ -79,6 +81,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = Builders<OutboxDocument>.Filter.And(
             Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter),
             Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId)
@@ -92,6 +96,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter);
 
         return await GetCollection()
@@ -102,6 +108,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> ReplayMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.And(
@@ -127,6 +135,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter);
@@ -149,6 +159,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var pipeline = new[]
         {
             new BsonDocument(

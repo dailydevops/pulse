@@ -14,6 +14,8 @@ public sealed class CosmosDbOutboxCountTests
     [Test]
     public async Task GetPendingCountAsync_WithMultiplePages_SumsAllPages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) =>
@@ -40,6 +42,8 @@ public sealed class CosmosDbOutboxCountTests
     [Test]
     public async Task GetDeadLetterCountAsync_WithMultiplePages_SumsAllPages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) =>

@@ -103,6 +103,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new AuditOptions();
         _ = options.ExcludedCommandTypes.Add(typeof(TestCommand));
         var (interceptor, store) = CreateInterceptor(options);
@@ -124,6 +126,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new AuditOptions();
         _ = options.ExcludedCommandTypes.Add(typeof(TestCommand));
         var (interceptor, store) = CreateInterceptor(options);
@@ -146,6 +150,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         var userAccessor = new FakeAuditUserAccessor { CurrentUser = "user-42" };
         var (interceptor, store) = CreateInterceptor(new AuditOptions(), timeProvider, userAccessor);
@@ -179,6 +185,8 @@ public sealed class AuditRequestInterceptorTests
     [Test]
     public async Task HandleAsync_FailingCommand_RecordsFailureAndRethrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (interceptor, store) = CreateInterceptor(new AuditOptions());
         var command = new TestCommand { Value = "fail" };
         var thrown = new InvalidOperationException("handler failed");
@@ -204,6 +212,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (interceptor, store) = CreateInterceptorForQuery(new AuditOptions { AuditQueries = false });
         var query = new TestQuery();
 
@@ -223,6 +233,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (interceptor, store) = CreateInterceptorForQuery(new AuditOptions { AuditQueries = false });
         var query = new TestQuery();
         var thrown = new InvalidOperationException("query handler failed");
@@ -243,6 +255,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (interceptor, store) = CreateInterceptorForQuery(new AuditOptions { AuditQueries = true });
         var query = new TestQuery();
 
@@ -263,6 +277,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new AuditRequestInterceptor<TestCommand, string>(
             provider,
@@ -285,6 +301,8 @@ public sealed class AuditRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new AuditRequestInterceptor<TestCommand, string>(
             provider,
@@ -308,6 +326,8 @@ public sealed class AuditRequestInterceptorTests
     [Test]
     public async Task HandleAsync_CapturePayloadEnabled_PopulatesPayload(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (interceptor, store) = CreateInterceptor(new AuditOptions { CapturePayload = true });
         var command = new TestCommand { Value = "captured-value" };
 
@@ -325,6 +345,8 @@ public sealed class AuditRequestInterceptorTests
     [Test]
     public async Task HandleAsync_CapturePayloadDisabled_LeavesPayloadNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (interceptor, store) = CreateInterceptor(new AuditOptions { CapturePayload = false });
         var command = new TestCommand { Value = "not-captured" };
 
@@ -405,6 +427,8 @@ public sealed class AuditRequestInterceptorTests
 
         public Task RecordAsync(AuditRecord record, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             RecordCallCount++;
             LastRecord = record;
             return Task.CompletedTask;

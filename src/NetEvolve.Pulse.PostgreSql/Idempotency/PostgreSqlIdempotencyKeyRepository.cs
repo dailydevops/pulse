@@ -71,6 +71,8 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -98,6 +100,8 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -130,6 +134,8 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
     /// <returns>An open <see cref="NpgsqlConnection"/>.</returns>
     private async Task<NpgsqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

@@ -13,6 +13,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_CreatesActivityWithCorrectTags(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -54,6 +56,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -84,6 +88,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WhenHandlerThrows_SetsActivityStatusToError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -126,6 +132,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_SetsTimestamps(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -153,6 +161,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectEvent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = TimeProvider.System;
         var interceptor = new ActivityAndMetricsEventInterceptor<TestEvent>(timeProvider);
         var testEvent = new TestEvent();
@@ -177,6 +187,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithDifferentEventTypes_CreatesCorrectActivities(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -210,6 +222,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithNullCausationId_DoesNotTagCausationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
@@ -237,6 +251,8 @@ public class ActivityAndMetricsEventInterceptorTests
     [NotInParallel]
     public async Task HandleAsync_WithNonNullCausationId_TagsCausationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),

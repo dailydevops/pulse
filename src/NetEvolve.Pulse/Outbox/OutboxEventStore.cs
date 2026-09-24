@@ -51,6 +51,8 @@ internal sealed class OutboxEventStore : IEventOutbox
     public Task StoreAsync<TEvent>(TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var messageType = message.GetType();

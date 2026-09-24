@@ -47,6 +47,8 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
     [Test]
     public async Task StoreAsync_WithNullCommandType_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithNullCommandType_ThrowsArgumentException));
         await using (context.ConfigureAwait(false))
         {
@@ -65,6 +67,8 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
     [Test]
     public async Task StoreAsync_WithNullPayload_ThrowsArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithNullPayload_ThrowsArgumentException));
         await using (context.ConfigureAwait(false))
         {
@@ -83,6 +87,8 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
     [Test]
     public async Task StoreAsync_WithNullException_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithNullException_ThrowsArgumentNullException));
         await using (context.ConfigureAwait(false))
         {
@@ -101,6 +107,8 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_WithValidArguments_StoresNewEntryWithAllFieldsPopulated));
         await using (context.ConfigureAwait(false))
         {
@@ -129,6 +137,8 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
     [Test]
     public async Task StoreAsync_CalledTwice_StoresTwoDistinctEntries(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(StoreAsync_CalledTwice_StoresTwoDistinctEntries));
         await using (context.ConfigureAwait(false))
         {

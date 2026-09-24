@@ -26,6 +26,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithCommand_LogsBeginAndEndAtDebugLevel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var command = new TestCommand { CorrelationId = "corr-123" };
@@ -46,6 +48,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithCommand_LogsBeginAndEndAtInformationLevel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var command = new TestCommand();
@@ -65,6 +69,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithQuery_LogsQueryInMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestQuery, int>>();
         var interceptor = CreateInterceptor(logger);
         var query = new TestQuery();
@@ -83,6 +89,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithGenericRequest_LogsRequestInMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestRequest, bool>>();
         var interceptor = CreateInterceptor(logger);
         var request = new TestRequest();
@@ -97,6 +105,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithSlowRequest_LogsWarning(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(
             logger,
@@ -126,6 +136,8 @@ public class LoggingRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var command = new TestCommand();
@@ -149,6 +161,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand();
@@ -173,6 +187,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_LogsCorrelationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand { CorrelationId = "my-correlation-id" };
@@ -187,6 +203,8 @@ public class LoggingRequestInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectRequest(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(logger);
         var command = new TestCommand();

@@ -18,6 +18,8 @@ public sealed class CosmosDbOutboxManagementGetDeadLetterMessageTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
 
         var container = new FakeCosmosContainer
@@ -42,6 +44,8 @@ public sealed class CosmosDbOutboxManagementGetDeadLetterMessageTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnReadItem = (id, _) =>
@@ -60,6 +64,8 @@ public sealed class CosmosDbOutboxManagementGetDeadLetterMessageTests
     [Test]
     public async Task GetDeadLetterMessageAsync_WhenNotFound_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnReadItem = (_, _) => throw new CosmosException("gone", HttpStatusCode.NotFound, 0, "activity", 0),

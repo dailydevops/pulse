@@ -65,6 +65,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_client_not_closed_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var client = new ServiceBusClient(FakeConnectionString);
         await using (client.ConfigureAwait(false))
         {
@@ -84,6 +86,7 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_client_is_closed_returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Note: DisposeAsync is a no-op (does not dispose injected dependencies).
         // Close the underlying client directly to test the health check.
         var client = new ServiceBusClient(FakeConnectionString);
@@ -106,6 +109,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_When_message_is_null_throws_ArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var client = new ServiceBusClient(FakeConnectionString);
         await using (client.ConfigureAwait(false))
         {
@@ -127,6 +132,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_Routes_message_to_resolver_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -148,6 +155,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_Maps_required_fields_onto_ServiceBusMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -182,6 +191,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_Maps_optional_ProcessedAt_when_set(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -206,6 +217,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_Maps_optional_Error_when_set(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -229,6 +242,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_Does_not_add_processedAt_property_when_null(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -254,6 +269,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendAsync_Reuses_cached_sender_for_same_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -280,6 +297,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Reuses_cached_sender_across_invocations(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -307,6 +326,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task DisposeAsync_Disposes_cached_senders(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -329,6 +350,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var client = new ServiceBusClient(FakeConnectionString);
         await using (client.ConfigureAwait(false))
         {
@@ -348,6 +371,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendBatchAsync_When_messages_is_empty_does_not_throw(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var client = new ServiceBusClient(FakeConnectionString);
         await using (client.ConfigureAwait(false))
         {
@@ -369,6 +394,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -391,6 +418,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendBatchAsync_BatchingDisabled_Groups_messages_by_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -420,6 +449,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendBatchAsync_BatchingEnabled_Sends_messages_as_batch(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -443,6 +474,8 @@ public sealed class AzureServiceBusMessageTransportTests
     [Test]
     public async Task SendBatchAsync_BatchingEnabled_Groups_messages_by_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -474,6 +507,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient { MaxMessagesPerBatch = 2 };
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -521,6 +556,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var oversized = CreateOutboxMessage();
         var fakeClient = new FakeServiceBusClient();
         _ = fakeClient.RejectedMessageIds.Add(oversized.Id.ToString("D", CultureInfo.InvariantCulture));
@@ -553,6 +590,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         fakeClient.FailuresByTopic["bad-topic"] = new ServiceBusException(
             "broker unavailable",
@@ -583,6 +622,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         fakeClient.FailuresByTopic["bad-topic"] = new ServiceBusException(
             "transient",
@@ -613,6 +654,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -768,6 +811,8 @@ public sealed class AzureServiceBusMessageTransportTests
 
         public override Task SendMessageAsync(ServiceBusMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (FailureToRaise is not null)
             {
                 return Task.FromException(FailureToRaise);
@@ -781,6 +826,8 @@ public sealed class AzureServiceBusMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (FailureToRaise is not null)
             {
                 return Task.FromException(FailureToRaise);
@@ -794,6 +841,8 @@ public sealed class AzureServiceBusMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (FailureToRaise is not null)
             {
                 return Task.FromException(FailureToRaise);
@@ -806,6 +855,8 @@ public sealed class AzureServiceBusMessageTransportTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var store = new List<ServiceBusMessage>();
             var batch = ServiceBusModelFactory.ServiceBusMessageBatch(
                 batchSizeBytes: 0,

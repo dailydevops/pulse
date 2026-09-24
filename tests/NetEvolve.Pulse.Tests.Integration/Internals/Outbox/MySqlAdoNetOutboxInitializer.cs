@@ -35,6 +35,8 @@ public sealed class MySqlAdoNetOutboxInitializer : IServiceInitializer
     /// <inheritdoc />
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<OutboxOptions>>().Value;
 
         var connectionString =

@@ -270,6 +270,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var transaction = GetCurrentTransaction();
@@ -308,6 +310,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var leaseExpiredBefore = now.ToUniversalTime() - _processingLeaseTimeout;
 
@@ -355,6 +359,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -397,6 +403,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -419,6 +427,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messageIds);
 
         var now = _timeProvider.GetUtcNow();
@@ -442,6 +452,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -467,6 +479,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -495,6 +509,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messageIds);
 
         var now = _timeProvider.GetUtcNow();
@@ -519,6 +535,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -543,6 +561,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messageIds);
 
         var now = _timeProvider.GetUtcNow();
@@ -563,6 +583,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -580,6 +602,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -611,6 +635,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (messageIds.Count == 0)
         {
             return;
@@ -656,6 +682,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -721,6 +749,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = new List<OutboxMessage>();
 
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

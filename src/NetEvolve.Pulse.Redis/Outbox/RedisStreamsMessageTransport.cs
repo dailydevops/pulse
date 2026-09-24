@@ -50,6 +50,8 @@ internal sealed class RedisStreamsMessageTransport : IMessageTransport, IDisposa
     /// <inheritdoc />
     public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var database = _multiplexer.GetDatabase(_options.Database);
@@ -99,6 +101,8 @@ internal sealed class RedisStreamsMessageTransport : IMessageTransport, IDisposa
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private async Task EnsureConsumerGroupAsync(IDatabase database, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!_options.CreateStreamIfNotExists || Volatile.Read(ref _consumerGroupEnsured))
         {
             return;

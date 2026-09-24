@@ -17,6 +17,8 @@ public sealed class EventFilterInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new EventFilterInterceptor<TestEvent>([]);
         var testEvent = new TestEvent();
 
@@ -28,6 +30,8 @@ public sealed class EventFilterInterceptorTests
     [Test]
     public async Task HandleAsync_NoFilters_InvokesHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new EventFilterInterceptor<TestEvent>([]);
         var testEvent = new TestEvent();
         var handlerCalled = false;
@@ -50,6 +54,8 @@ public sealed class EventFilterInterceptorTests
     [Test]
     public async Task HandleAsync_AllFiltersReturnTrue_InvokesHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filters = new List<IEventFilter<TestEvent>> { new AlwaysTrueFilter(), new AlwaysTrueFilter() };
         var interceptor = new EventFilterInterceptor<TestEvent>(filters);
         var testEvent = new TestEvent();
@@ -73,6 +79,8 @@ public sealed class EventFilterInterceptorTests
     [Test]
     public async Task HandleAsync_OneFilterReturnsFalse_SkipsHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filters = new List<IEventFilter<TestEvent>> { new AlwaysTrueFilter(), new AlwaysFalseFilter() };
         var interceptor = new EventFilterInterceptor<TestEvent>(filters);
         var testEvent = new TestEvent();
@@ -98,6 +106,8 @@ public sealed class EventFilterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var secondFilterEvaluated = false;
         var filters = new List<IEventFilter<TestEvent>>
         {
@@ -121,6 +131,8 @@ public sealed class EventFilterInterceptorTests
     [Test]
     public async Task HandleAsync_SingleTrueFilter_InvokesHandlerWithSameEvent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filters = new List<IEventFilter<TestEvent>> { new AlwaysTrueFilter() };
         var interceptor = new EventFilterInterceptor<TestEvent>(filters);
         var testEvent = new TestEvent();

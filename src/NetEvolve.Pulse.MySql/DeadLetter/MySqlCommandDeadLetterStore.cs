@@ -84,6 +84,8 @@ internal sealed class MySqlCommandDeadLetterStore : ICommandDeadLetterStore
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(commandType);
         ArgumentException.ThrowIfNullOrWhiteSpace(payload);
         ArgumentNullException.ThrowIfNull(exception);
@@ -116,6 +118,8 @@ internal sealed class MySqlCommandDeadLetterStore : ICommandDeadLetterStore
     /// <returns>An open <see cref="MySqlConnection"/>.</returns>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

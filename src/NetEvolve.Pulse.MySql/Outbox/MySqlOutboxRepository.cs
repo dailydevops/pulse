@@ -233,6 +233,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var transaction = GetCurrentTransaction();
@@ -300,6 +302,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -317,6 +321,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -340,6 +346,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -365,6 +373,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -393,6 +403,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -413,6 +425,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cutoffTicks = _timeProvider.GetUtcNow().Subtract(olderThan).UtcTicks;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -459,6 +473,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var nowTicks = _timeProvider.GetUtcNow().UtcTicks;
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -571,6 +587,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <returns>An open <see cref="MySqlConnection"/>.</returns>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -626,6 +644,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using (reader.ConfigureAwait(false))
         {

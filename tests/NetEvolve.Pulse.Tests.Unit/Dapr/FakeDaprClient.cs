@@ -8,7 +8,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using global::Dapr.Client;
-using Google.Protobuf;
 
 /// <summary>
 /// Minimal <see cref="DaprClient"/> test double that records <see cref="PublishByteEventAsync"/> and
@@ -41,6 +40,8 @@ internal sealed class FakeDaprClient : DaprClient
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         PublishByteEventAsyncCalled = true;
         PublishedPubsubName = pubsubName;
         PublishedTopicName = topicName;
@@ -57,6 +58,8 @@ internal sealed class FakeDaprClient : DaprClient
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         PublishEventAsyncCalled = true;
         return Task.CompletedTask;
     }

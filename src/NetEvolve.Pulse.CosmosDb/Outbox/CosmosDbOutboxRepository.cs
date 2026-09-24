@@ -72,6 +72,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var document = CosmosDbOutboxDocument.FromOutboxMessage(message);
@@ -85,6 +87,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var query = new QueryDefinition(
@@ -112,6 +116,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var query = new QueryDefinition(
@@ -136,6 +142,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
@@ -164,6 +172,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
@@ -189,6 +199,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
@@ -214,6 +226,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
@@ -239,6 +253,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.status = 0");
 
         using var iterator = _container.GetItemQueryIterator<long>(
@@ -268,6 +284,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cutoff = _timeProvider.GetUtcNow().Subtract(olderThan);
 
         var query = new QueryDefinition(
@@ -322,6 +340,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             _ = await _container.ReadContainerAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -351,6 +371,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var documents = new List<CosmosDbOutboxDocument>();
 
         using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(
@@ -380,6 +402,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var claimed = new List<OutboxMessage>(candidates.Count);
 

@@ -134,6 +134,8 @@ public sealed class MySqlOutboxRepositoryTests
     [Test]
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new MySqlOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
