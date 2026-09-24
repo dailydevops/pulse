@@ -243,6 +243,21 @@ public partial class SystemTextJsonPayloadSerializerTests
         _ = await Assert.That(() => serializer.Serialize(new UnregisteredData(1))).Throws<NotSupportedException>();
     }
 
+    [Test]
+    public async Task Serialize_WithOptionsWithoutResolver_DoesNotModifyConfiguredOptions()
+    {
+        var configured = new JsonSerializerOptions();
+        var serializer = new SystemTextJsonPayloadSerializer(Options.Create(configured));
+
+        _ = serializer.Serialize(new TestData { Id = 10, Name = "Shared" });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(configured.IsReadOnly).IsFalse();
+            _ = await Assert.That(configured.TypeInfoResolver).IsNull();
+        }
+    }
+
     private sealed class TestData
     {
         public int Id { get; set; }
