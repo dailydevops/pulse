@@ -51,20 +51,45 @@ public abstract class PulseGrpcStreamService<TQuery, TResponse>
     /// Thrown if <paramref name="query"/>, <paramref name="responseStream"/> or <paramref name="context"/> is <see langword="null"/>.
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when the call is cancelled, for example by the client.</exception>
+    protected Task StreamAsync(
+        [NotNull] TQuery query,
+        [NotNull] IServerStreamWriter<TResponse> responseStream,
+        [NotNull] ServerCallContext context
+    ) => StreamAsync(query, responseStream, context, static item => item);
+
+    /// <summary>
+    /// Executes <paramref name="query"/> through <see cref="IMediator.StreamQueryAsync{TQuery, TResponse}"/>, maps every
+    /// yielded item with <paramref name="map"/> and writes the results, in order, to <paramref name="responseStream"/>.
+    /// </summary>
+    /// <typeparam name="TMessage">The gRPC message type written to the response stream, typically a Protobuf message.</typeparam>
+    /// <param name="query">The streaming query to execute.</param>
+    /// <param name="responseStream">The gRPC response stream to write the mapped items to.</param>
+    /// <param name="context">
+    /// The server call context; its <see cref="ServerCallContext.CancellationToken"/> stops the stream.
+    /// </param>
+    /// <param name="map">Maps a query item to the gRPC message, keeping handlers free of generated gRPC types.</param>
+    /// <returns>A task that completes once all items have been written.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown if <paramref name="query"/>, <paramref name="responseStream"/>, <paramref name="context"/> or
+    /// <paramref name="map"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">Thrown when the call is cancelled, for example by the client.</exception>
     [SuppressMessage(
         "Usage",
         "S8949:Pass the cancellation token",
         Justification = "IAsyncStreamWriter.WriteAsync(T, CancellationToken) throws NotSupportedException for writers that only implement WriteAsync(T); the token is checked before each write instead."
     )]
-    protected async Task StreamAsync(
+    protected async Task StreamAsync<TMessage>(
         [NotNull] TQuery query,
-        [NotNull] IServerStreamWriter<TResponse> responseStream,
-        [NotNull] ServerCallContext context
+        [NotNull] IServerStreamWriter<TMessage> responseStream,
+        [NotNull] ServerCallContext context,
+        [NotNull] Func<TResponse, TMessage> map
     )
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(responseStream);
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(map);
 
         var cancellationToken = context.CancellationToken;
 
@@ -78,7 +103,7 @@ public abstract class PulseGrpcStreamService<TQuery, TResponse>
             // Handlers may ignore the token, so check it before every write.
             cancellationToken.ThrowIfCancellationRequested();
 
-            await responseStream.WriteAsync(item).ConfigureAwait(false);
+            await responseStream.WriteAsync(map(item)).ConfigureAwait(false);
         }
     }
 }

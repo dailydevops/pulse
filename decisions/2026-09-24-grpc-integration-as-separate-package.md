@@ -35,6 +35,7 @@ The repository uses central package management with `CentralPackageTransitivePin
 - Create `src/NetEvolve.Pulse.AspNetCore.Grpc` with the same target frameworks, root namespace (`NetEvolve.Pulse`) and packaging metadata as the sibling packages.
 - The package references `Grpc.AspNetCore.Server` rather than the `Grpc.AspNetCore` metapackage. The metapackage would also pull in `Google.Protobuf` and `Grpc.Tools`, which are the consumer's choice.
 - `Grpc.AspNetCore.Server` is pinned to 2.80.0 to match the `Grpc.*` version that `Dapr.Client` brings in.
+- `PulseGrpcStreamService.StreamAsync` has an identity overload and an overload with a `Func<TResponse, TMessage>` map from query items to gRPC messages, so concrete services define the Protobuf mapping.
 - `MapStreamQueryGrpc` takes the concrete service type (`MapStreamQueryGrpc<TService>()`) instead of the `<TQuery, TResponse>` signature proposed in the issue. `MapGrpcService<TService>()` can only bind a concrete service type that carries a `BindServiceMethodAttribute`.
 
 ## Consequences
@@ -50,13 +51,15 @@ The repository uses central package management with `CentralPackageTransitivePin
 - There is one more package to build, document and release.
 - C# allows only one base class, so a `PulseGrpcStreamService` subclass cannot also derive from a Grpc.Tools-generated `XxxBase` class. Consumers add a one-line static `BindService` bridge that forwards to the generated `Xxx.BindService(binder, null)` (see the package README).
 - ASP.NET Core gRPC only binds RPC methods that are `public virtual` and declared on the type named by `BindServiceMethodAttribute`. Service classes therefore cannot be `sealed`.
-- The base class writes `TResponse` items as they are. Mapping to Protobuf messages happens in the query or its handler, not in the base class.
+- Protobuf mapping is not forced into handlers: `StreamAsync` has an overload with a `Func<TResponse, TMessage>` map, so handlers can yield domain types. Without a map, `TResponse` items are written as they are.
 
 ## Alternatives Considered
 
 - **Add the types to `NetEvolve.Pulse.AspNetCore`** (the path named in the issue). Rejected: this forces a gRPC dependency on every ASP.NET Core consumer.
 - **Reference `Grpc.AspNetCore`** (the metapackage). Rejected: it also brings in `Google.Protobuf` and `Grpc.Tools`, which consumers should add themselves.
 - **Keep the `<TQuery, TResponse>` signature** from the issue. Rejected: it cannot work, because gRPC endpoint binding needs a concrete service type.
+
+- **Mapping via a third type parameter** (`PulseGrpcStreamService<TQuery, TResult, TMessage>` with `protected abstract TMessage Map(TResult)`). Rejected: it forces every service to implement `Map`, even when the query already yields the message type, and a service can expose only one mapping. A `StreamAsync` overload with a mapping function covers both cases and lets one service expose several RPCs with different messages.
 
 ## Related Decisions
 
