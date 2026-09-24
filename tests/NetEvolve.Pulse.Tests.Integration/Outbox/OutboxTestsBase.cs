@@ -608,6 +608,74 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_GetDeadLetterMessages_Order_By_UpdatedAt_Descending(CancellationToken cancellationToken)
+    {
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "First" }, token).ConfigureAwait(false);
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    await mediator.PublishAsync(new TestEvent { Id = "Second" }, token).ConfigureAwait(false);
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var firstCreated = pending.Single(m => m.Payload.Contains("First", StringComparison.Ordinal)).Id;
+                    var secondCreated = pending.Single(m => m.Payload.Contains("Second", StringComparison.Ordinal)).Id;
+
+                    // Dead-letter the newer message first, so the older one ends up with the latest UpdatedAt.
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    await outbox.MarkAsDeadLetterAsync(secondCreated, "Fatal error", token).ConfigureAwait(false);
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    await outbox.MarkAsDeadLetterAsync(firstCreated, "Fatal error", token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var result = await management
+                        .GetDeadLetterMessagesAsync(cancellationToken: token)
+                        .ConfigureAwait(false);
+
+                    _ = await Assert.That(result.Select(m => m.Id)).IsEquivalentTo([firstCreated, secondCreated]);
+                    _ = await Assert.That(result[0].Id).IsEqualTo(firstCreated);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_GetDeadLetterMessages_Throw_For_Invalid_Paging(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<IOutboxManagement>();
+
+                    using (Assert.Multiple())
+                    {
+                        foreach (var (pageSize, page) in InvalidPaging)
+                        {
+                            _ = await Assert
+                                .That(async () =>
+                                    await management
+                                        .GetDeadLetterMessagesAsync(pageSize, page, token)
+                                        .ConfigureAwait(false)
+                                )
+                                .Throws<ArgumentOutOfRangeException>();
+                        }
+                    }
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_GetDeadLetterMessage_Return_Message_ById(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
@@ -817,6 +885,12 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                     services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
+
+    /// <summary>
+    /// Paging arguments that every provider must reject: non-positive page sizes, negative pages,
+    /// and a page whose offset (<c>page * pageSize</c>) does not fit into <see cref="int"/>.
+    /// </summary>
+    private static readonly (int PageSize, int Page)[] InvalidPaging = [(0, 0), (-1, 0), (10, -1), (2, int.MaxValue)];
 
     private sealed class TestEvent : IEvent
     {
