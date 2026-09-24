@@ -93,7 +93,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         };
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
-        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(entries);
+        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(entries);
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -119,7 +119,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     public async Task GetPendingEntries_WithCountQueryParameter_PassesCountThrough(CancellationToken cancellationToken)
     {
         var mock = Mock.Of<ICommandDeadLetterManagement>();
-        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<CommandDeadLetterEntry>());
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -131,7 +131,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.GetPendingAsync(7, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+        mock.GetPendingAsync(7, 0, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
     }
 
     // POST {base}/entries/{id:guid}/replay
@@ -182,6 +182,140 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
 
         mock.DismissAsync(entryId, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    // GET {base}/entries — defaults when no query parameters are supplied
+
+    [Test]
+    public async Task GetPendingEntries_WithoutQueryParameters_UsesDefaults(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<CommandDeadLetterEntry>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/entries", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        mock.GetPendingAsync(50, 0, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    // GET {base}/entries — respects the count and skip query parameters
+
+    [Test]
+    public async Task GetPendingEntries_WithCountAndSkipQueryParameters_PassesBothThrough(
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<CommandDeadLetterEntry>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/entries?count=7&skip=3", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        mock.GetPendingAsync(7, 3, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    // GET {base}/entries — rejects a negative skip
+
+    [Test]
+    public async Task GetPendingEntries_WithNegativeSkip_ReturnsBadRequest(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/entries?skip=-1", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).WasNeverCalled();
+    }
+
+    // GET {base}/entries/{id:guid}
+
+    [Test]
+    public async Task GetEntry_WhenFound_ReturnsOkWithEntry(CancellationToken cancellationToken)
+    {
+        var entryId = Guid.NewGuid();
+        var entry = new CommandDeadLetterEntry
+        {
+            Id = entryId,
+            CommandType = typeof(string).AssemblyQualifiedName!,
+            Payload = "{}",
+            Status = CommandDeadLetterStatus.New,
+        };
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>()).Returns(entry);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/commands/entries/{entryId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var payload = await response
+            .Content.ReadFromJsonAsync<CommandDeadLetterEntry>(cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(payload).IsNotNull();
+        _ = await Assert.That(payload!.Id).IsEqualTo(entryId);
+    }
+
+    // GET {base}/entries/{id:guid} — unknown entry
+
+    [Test]
+    public async Task GetEntry_WhenNotFound_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((CommandDeadLetterEntry?)null);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/commands/entries/{Guid.NewGuid()}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    // GET {base}/entries/{id:guid} — route constraint rejects non-guid ids
+
+    [Test]
+    public async Task GetEntry_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/entries/not-a-guid", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        mock.GetEntryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).WasNeverCalled();
     }
 
     // GET {base}/entries — rejects invalid paging input
