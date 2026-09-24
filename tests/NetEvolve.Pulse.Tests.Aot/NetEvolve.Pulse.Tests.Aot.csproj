@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Report every trim/AOT warning per call site instead of a single IL2104 per assembly. -->
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+
+    <!--
+      Console smoke application, not a test project: the name contains ".Tests.", so opt out of the
+      NetEvolve.Defaults test project conventions (IsTestProject, IsPublishable=false) and treat it as a
+      sample project that is never packed.
+    -->
+    <IsTestableProject>false</IsTestableProject>
+    <IsXampleProject>true</IsXampleProject>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SourceGeneration\NetEvolve.Pulse.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

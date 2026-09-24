@@ -49,5 +49,6 @@
     <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj" />
     <Project Path="tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit/NetEvolve.Pulse.SourceGeneration.Tests.Unit.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.Tests.Aot/NetEvolve.Pulse.Tests.Aot.csproj" />
   </Folder>
 </Solution>
