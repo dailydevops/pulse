@@ -27,12 +27,18 @@ public static class RedisIdempotencyMediatorBuilderExtensions
     /// <para><strong>Registered Services:</strong></para>
     /// <list type="bullet">
     /// <item><description><see cref="IIdempotencyKeyRepository"/> as <c>RedisIdempotencyKeyRepository</c> (Scoped)</description></item>
-    /// <item><description><see cref="IdempotencyKeyOptions"/> bound from the <c>Pulse:Idempotency:Redis</c> configuration section</description></item>
+    /// <item><description><see cref="IdempotencyKeyOptions"/> with a validator that runs on start
+    /// (<see cref="IdempotencyKeyOptions.TableName"/> must not be empty, <see cref="IdempotencyKeyOptions.TimeToLive"/>
+    /// must be positive when set)</description></item>
     /// </list>
+    /// <para><strong>Key layout:</strong></para>
+    /// Keys are stored as <c>{Schema}:{TableName}:{idempotencyKey}</c> with a physical Redis expiry of
+    /// <see cref="IdempotencyKeyOptions.TimeToLive"/> plus one hour, or 24 hours when no TTL is configured.
     /// <para><strong>Note:</strong></para>
     /// Core idempotency services are registered automatically; calling
     /// <see cref="IdempotencyExtensions.AddIdempotency"/> before this method is optional but harmless.
-    /// Options are also bound from the <c>Pulse:Idempotency:Redis</c> configuration section automatically.
+    /// No configuration section is bound automatically; use <paramref name="configure"/> or bind
+    /// <see cref="IdempotencyKeyOptions"/> yourself.
     /// </remarks>
     /// <example>
     /// <code>
