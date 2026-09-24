@@ -2,8 +2,10 @@ namespace NetEvolve.Pulse.Tests.Unit.AzureQueueStorage;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -20,7 +22,7 @@ using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
 [TestGroup("AzureQueueStorage")]
-public sealed class AzureQueueStorageMessageTransportTests
+public sealed partial class AzureQueueStorageMessageTransportTests
 {
     private static IPayloadSerializer DefaultSerializer =>
         new SystemTextJsonPayloadSerializer(Options.Create(JsonSerializerOptions.Default));
@@ -123,6 +125,58 @@ public sealed class AzureQueueStorageMessageTransportTests
             .That(doc.RootElement.GetProperty("eventType").GetString())
             .IsEqualTo(message.EventType.ToOutboxEventTypeName());
         _ = await Assert.That(doc.RootElement.GetProperty("payload").GetString()).IsEqualTo(message.Payload);
+    }
+
+    [Test]
+    public async Task SendAsync_Writes_all_envelope_properties(CancellationToken cancellationToken)
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(fakeClient);
+        var message = CreateOutboxMessage();
+        message.CausationId = "cause-456";
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+        var root = doc.RootElement;
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(root.EnumerateObject().Count()).IsEqualTo(6);
+            _ = await Assert.That(root.GetProperty("id").GetGuid()).IsEqualTo(message.Id);
+            _ = await Assert
+                .That(root.GetProperty("eventType").GetString())
+                .IsEqualTo(message.EventType.ToOutboxEventTypeName());
+            _ = await Assert.That(root.GetProperty("payload").GetString()).IsEqualTo(message.Payload);
+            _ = await Assert.That(root.GetProperty("correlationId").GetString()).IsEqualTo("corr-123");
+            _ = await Assert.That(root.GetProperty("causationId").GetString()).IsEqualTo("cause-456");
+            _ = await Assert.That(root.GetProperty("createdAt").GetDateTimeOffset()).IsEqualTo(message.CreatedAt);
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_With_source_generated_payload_serializer_writes_envelope(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        var options = Options.Create(
+            new AzureQueueStorageTransportOptions { ConnectionString = "UseDevelopmentStorage=true" }
+        );
+        var serializer = new SystemTextJsonPayloadSerializer(
+            Options.Create(new JsonSerializerOptions { TypeInfoResolver = ApplicationJsonContext.Default })
+        );
+        using var transport = new AzureQueueStorageMessageTransport(options, serializer, fakeClient);
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+        _ = await Assert.That(doc.RootElement.GetProperty("id").GetGuid()).IsEqualTo(message.Id);
     }
 
     [Test]
@@ -265,6 +319,10 @@ public sealed class AzureQueueStorageMessageTransportTests
             UpdatedAt = DateTimeOffset.UtcNow,
             RetryCount = 0,
         };
+
+    // Simulates a trimmed or NativeAOT application that only knows its own source-generated contracts.
+    [JsonSerializable(typeof(string))]
+    private sealed partial class ApplicationJsonContext : JsonSerializerContext;
 
     // ── Fakes ─────────────────────────────────────────────────────────────────
 
