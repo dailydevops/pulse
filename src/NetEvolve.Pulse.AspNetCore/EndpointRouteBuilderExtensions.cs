@@ -262,13 +262,20 @@ public static class EndpointRouteBuilderExtensions
     /// Thrown if SignalR services have not been registered via <c>services.AddSignalR()</c>.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// SignalR services MUST be registered with <c>services.AddSignalR()</c> before calling this method.
+    /// </para>
+    /// <para>
+    /// The hub accepts anonymous connections unless authorization is applied, for example via
+    /// <c>.RequireAuthorization()</c> on the returned builder. The query payload is supplied by the client and
+    /// is untrusted; handlers or interceptors must validate it and scope it to the calling user.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
     /// builder.Services.AddSignalR();
     /// // ...
-    /// app.MapStreamQueryHub&lt;GetOrdersStreamQuery, OrderDto&gt;("/hubs/orders");
+    /// app.MapStreamQueryHub&lt;GetOrdersStreamQuery, OrderDto&gt;("/hubs/orders").RequireAuthorization();
     /// </code>
     /// </example>
     public static HubEndpointConventionBuilder MapStreamQueryHub<TQuery, TResponse>(

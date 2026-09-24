@@ -11,6 +11,7 @@ NetEvolve.Pulse.AspNetCore provides `IEndpointRouteBuilder` extension methods th
 - **`MapCommand<TCommand, TResponse>`**: Maps a command to an HTTP endpoint returning `200 OK` with the response. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapCommand<TCommand>`**: Maps a void command to an HTTP endpoint returning `204 No Content`. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapQuery<TQuery, TResponse>`**: Maps a query to a `GET` endpoint returning `200 OK` with the result.
+- **`MapStreamQueryHub<TQuery, TResponse>`**: Maps a `PulseStreamHub` that exposes a stream query as a native SignalR server-to-client stream (requires `AddSignalR()`).
 - **`CommandHttpMethod` enum**: Strongly-typed HTTP method selection — `Post`, `Put`, `Patch`, `Delete`. `GET` is excluded by design since commands are state-changing operations.
 - **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token.
 - **OpenAPI compatible**: Returns typed results (`TypedResults`) so `WithOpenApi()` produces correct response schemas.
@@ -169,11 +170,31 @@ subscription.dispose();
 ```csharp
 using var cts = new CancellationTokenSource();
 
-await foreach (var order in connection.StreamAsync<OrderDto>("StreamAsync", new GetOrdersStreamQuery("42"), cts.Token))
+try
 {
-    Console.WriteLine(order);
+    await foreach (var order in connection.StreamAsync<OrderDto>("StreamAsync", new GetOrdersStreamQuery("42"), cts.Token))
+    {
+        Console.WriteLine(order);
+        if (order.Status == "Shipped")
+        {
+            // Cancels the server-side stream.
+            cts.Cancel();
+        }
+    }
+}
+catch (OperationCanceledException)
+{
+    // Raised on the client after cancelling; the server ends the stream without an error.
 }
 ```
+
+The hub accepts anonymous connections unless you apply authorization. Secure it like any other endpoint:
+
+```csharp
+app.MapStreamQueryHub<GetOrdersStreamQuery, OrderDto>("/hubs/orders").RequireAuthorization();
+```
+
+The query payload comes from the client and is untrusted. Validate it in the handler or an interceptor and scope it to the calling user (for example, check that `CustomerId` belongs to the caller).
 
 ### CommandHttpMethod Enum
 
