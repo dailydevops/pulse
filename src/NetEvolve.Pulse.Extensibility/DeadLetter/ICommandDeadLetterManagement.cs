@@ -46,6 +46,7 @@ public interface ICommandDeadLetterManagement
     /// Implementations should use the shared <see cref="CommandDeadLetterReplayDispatcher"/> to perform the
     /// type resolution and dispatch, rather than reimplementing the reflection dispatch.
     /// </remarks>
+    /// <exception cref="KeyNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
     Task ReplayAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -57,6 +58,7 @@ public interface ICommandDeadLetterManagement
     /// <remarks>
     /// Implementations set <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.Dismissed"/>.
     /// </remarks>
+    /// <exception cref="KeyNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
     Task DismissAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
