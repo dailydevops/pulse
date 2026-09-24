@@ -9,7 +9,7 @@ NetEvolve.Pulse.AspNetCore.Grpc exposes Pulse streaming queries (`IStreamQuery<T
 ## Features
 
 - **`PulseGrpcStreamService<TQuery, TResponse>`**: a base class that runs `IMediator.StreamQueryAsync` and writes every item, in order, to the `IServerStreamWriter<TResponse>`.
-- **Client cancellation**: the stream stops as soon as `ServerCallContext.CancellationToken` is cancelled, even when the handler ignores the token.
+- **Client cancellation**: `ServerCallContext.CancellationToken` is passed to the mediator and checked before every write. The stream stops even when the handler ignores the token, as soon as the handler yields its next item.
 - **Error propagation**: exceptions from the handler or interceptors propagate to ASP.NET Core gRPC, which translates them into a gRPC status.
 - **`MapStreamQueryGrpc<TService>()`**: registers the service on any `IEndpointRouteBuilder`.
 

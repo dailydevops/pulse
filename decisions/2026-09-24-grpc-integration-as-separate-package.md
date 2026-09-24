@@ -49,6 +49,7 @@ The repository uses central package management with `CentralPackageTransitivePin
 
 - There is one more package to build, document and release.
 - C# allows only one base class, so a `PulseGrpcStreamService` subclass cannot also derive from a Grpc.Tools-generated `XxxBase` class. Consumers add a one-line static `BindService` bridge that forwards to the generated `Xxx.BindService(binder, null)` (see the package README).
+- ASP.NET Core gRPC only binds RPC methods that are `public virtual` and declared on the type named by `BindServiceMethodAttribute`. Service classes therefore cannot be `sealed`.
 - The base class writes `TResponse` items as they are. Mapping to Protobuf messages happens in the query or its handler, not in the base class.
 
 ## Alternatives Considered
