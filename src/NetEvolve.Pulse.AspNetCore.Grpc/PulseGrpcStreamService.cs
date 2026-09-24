@@ -14,7 +14,7 @@ using NetEvolve.Pulse.Extensibility;
 /// <remarks>
 /// Derived classes expose a public RPC method (named like the gRPC method) that maps the incoming request to
 /// <typeparamref name="TQuery"/> and calls <see cref="StreamAsync(TQuery, IServerStreamWriter{TResponse}, ServerCallContext)"/>.
-/// Register the derived service with <see cref="GrpcEndpointRouteBuilderExtensions.MapStreamQueryGrpc{TService}"/>.
+/// Register the derived service with <see cref="PulseGrpcEndpointRouteBuilderExtensions.MapStreamQueryGrpc{TService}"/>.
 /// </remarks>
 public abstract class PulseGrpcStreamService<TQuery, TResponse>
     where TQuery : IStreamQuery<TResponse>

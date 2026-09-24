@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Routing;
 /// <summary>
 /// Provides extension methods for mapping Pulse gRPC streaming services on an <see cref="IEndpointRouteBuilder"/>.
 /// </summary>
-public static class GrpcEndpointRouteBuilderExtensions
+public static class PulseGrpcEndpointRouteBuilderExtensions
 {
     /// <summary>
     /// Maps the gRPC service <typeparamref name="TService"/>, typically derived from
