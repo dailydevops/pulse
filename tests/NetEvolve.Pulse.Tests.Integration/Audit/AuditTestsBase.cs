@@ -277,6 +277,58 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
             .ConfigureAwait(false);
 
     [Test]
+    public async Task QueryAsync_Filters_by_From_and_To_with_non_utc_offset(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    var now = DateTimeOffset.UtcNow;
+                    await store.RecordAsync(CreateRecord(occurredAt: now), token).ConfigureAwait(false);
+
+                    var plusFive = TimeSpan.FromHours(5);
+                    var results = await management
+                        .QueryAsync(
+                            new AuditFilter
+                            {
+                                From = now.AddHours(-1).ToOffset(plusFive),
+                                To = now.AddHours(1).ToOffset(-plusFive),
+                            },
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    _ = await Assert.That(results).HasSingleItem();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task QueryAsync_Filters_non_utc_record_by_utc_bounds(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    var now = DateTimeOffset.UtcNow;
+                    await store
+                        .RecordAsync(CreateRecord(occurredAt: now.ToOffset(TimeSpan.FromHours(-5))), token)
+                        .ConfigureAwait(false);
+
+                    var results = await management
+                        .QueryAsync(new AuditFilter { From = now.AddHours(-1), To = now.AddHours(1) }, token)
+                        .ConfigureAwait(false);
+
+                    _ = await Assert.That(results).HasSingleItem();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task QueryAsync_Respects_Take_and_orders_by_OccurredAt_descending(
         CancellationToken cancellationToken
     ) =>
