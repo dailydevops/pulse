@@ -385,7 +385,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(payload[0].Payload).IsEqualTo("{\"value\":1}");
         _ = await Assert.That(payload[0].Status).IsEqualTo(OutboxMessageStatus.Pending);
 
-        mock.GetMessagesAsync(50, 0, null, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+        mock.GetMessagesAsync(50, 0, (OutboxMessageStatus?)null, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
     }
 
     [Test]
