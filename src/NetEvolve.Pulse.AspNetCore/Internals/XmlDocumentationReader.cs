@@ -111,7 +111,8 @@ internal static class XmlDocumentationReader
 
     /// <summary>
     /// Renders the text of a documentation element as a single line, replacing inline reference
-    /// elements (<c>see</c>, <c>seealso</c>, <c>paramref</c>, <c>typeparamref</c>) with their names.
+    /// elements (<c>see</c>, <c>seealso</c>, <c>paramref</c>, <c>typeparamref</c>) with their names
+    /// and separating block elements (<c>para</c>, <c>br</c>, list items) by a space.
     /// </summary>
     private static string RenderText(XElement element) =>
         string.Join(' ', RenderNodes(element).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
@@ -122,7 +123,10 @@ internal static class XmlDocumentationReader
         node switch
         {
             XText text => text.Value,
-            XElement element when !element.IsEmpty => RenderNodes(element),
+            XElement { Name.LocalName: "para" or "br" or "list" or "item" or "term" or "description" } element => " "
+                + RenderNodes(element)
+                + " ",
+            XElement element when element.Nodes().Any() => RenderNodes(element),
             XElement element when (string?)element.Attribute("cref") is { } cref => FormatCref(cref),
             XElement element when (string?)element.Attribute("langword") is { } langword => langword,
             XElement element when (string?)element.Attribute("name") is { } name => name,
