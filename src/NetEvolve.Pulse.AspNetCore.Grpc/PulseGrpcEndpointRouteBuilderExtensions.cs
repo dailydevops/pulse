@@ -33,7 +33,12 @@ public static class PulseGrpcEndpointRouteBuilderExtensions
     public static GrpcServiceEndpointConventionBuilder MapStreamQueryGrpc<
         [DynamicallyAccessedMembers(GrpcServiceMembers)] TService
     >([NotNull] this IEndpointRouteBuilder endpoints)
-        where TService : class => throw new NotImplementedException(typeof(TService).Name);
+        where TService : class
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        return endpoints.MapGrpcService<TService>();
+    }
 
     // Mirrors the annotation on Grpc.AspNetCore's MapGrpcService<TService>.
     private const DynamicallyAccessedMemberTypes GrpcServiceMembers =
