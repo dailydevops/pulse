@@ -2,7 +2,9 @@ namespace NetEvolve.Pulse.Tests.Unit.AspNetCore.Grpc;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -94,7 +96,11 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQueryGrpc_WhenClientCancels_StopsStream(CancellationToken cancellationToken)
     {
-        using var host = await CreateTestHostAsync(YieldForeverAsync(CancellationToken.None), cancellationToken)
+        var serverStreamEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var host = await CreateTestHostAsync(
+                YieldForeverAsync(serverStreamEnded, CancellationToken.None),
+                cancellationToken
+            )
             .ConfigureAwait(false);
         using var channel = CreateChannel(host);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -120,7 +126,34 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
         });
 
         _ = await Assert.That(exception!.StatusCode).IsEqualTo(StatusCode.Cancelled);
+        await serverStreamEnded.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
     }
+
+    [Test]
+    public async Task MapStreamQueryGrpc_TrimmingAnnotation_CoversMapGrpcServiceRequirements()
+    {
+        var required = GetDynamicallyAccessedMemberTypes(
+            typeof(GrpcEndpointRouteBuilderExtensions)
+                .GetMethods()
+                .Single(method =>
+                    method.Name == nameof(GrpcEndpointRouteBuilderExtensions.MapGrpcService)
+                    && method.IsGenericMethodDefinition
+                )
+        );
+        var declared = GetDynamicallyAccessedMemberTypes(
+            typeof(PulseGrpcEndpointRouteBuilderExtensions).GetMethod(
+                nameof(PulseGrpcEndpointRouteBuilderExtensions.MapStreamQueryGrpc)
+            )!
+        );
+
+        _ = await Assert.That(declared & required).IsEqualTo(required);
+    }
+
+    private static DynamicallyAccessedMemberTypes GetDynamicallyAccessedMemberTypes(MethodInfo method) =>
+        method
+            .GetGenericArguments()[0]
+            .GetCustomAttributes<DynamicallyAccessedMembersAttribute>()
+            .Aggregate(DynamicallyAccessedMemberTypes.None, (all, attribute) => all | attribute.MemberTypes);
 
     private static GrpcChannel CreateChannel(IHost host)
     {
@@ -173,14 +206,22 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
 #pragma warning restore CS1998
 
     private static async IAsyncEnumerable<string> YieldForeverAsync(
+        TaskCompletionSource ended,
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
-        var i = 0;
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            yield return $"item-{i++}";
-            await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            var i = 0;
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                yield return $"item-{i++}";
+                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _ = ended.TrySetResult();
         }
     }
 }
