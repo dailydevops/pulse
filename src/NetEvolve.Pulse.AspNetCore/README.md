@@ -16,6 +16,7 @@ NetEvolve.Pulse.AspNetCore provides `IEndpointRouteBuilder` extension methods th
 - **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token.
 - **OpenAPI compatible**: Returns typed results (`TypedResults`) so `WithOpenApi()` produces correct response schemas.
 - **DI-based**: `IMediator` is resolved from the request scope at runtime — no compile-time dependency on `NetEvolve.Pulse`.
+- **Outbox Inspector (`MapOutboxInspector`)**: Minimal API endpoints to inspect outbox messages and to replay or dismiss dead letters, backed by `IOutboxManagement`. See [Outbox Inspector](#outbox-inspector).
 
 ## Installation
 
@@ -299,6 +300,49 @@ Malformed or out-of-range values return `400 Bad Request`.
 app.MapAuditInspector(options => options.BasePath = "/admin/audit")
    .RequireAuthorization("AuditReaders");
 ```
+
+## Outbox Inspector
+
+`MapOutboxInspector` maps a route group of administrative endpoints backed by `IOutboxManagement`. Use them to find stuck messages, replay dead letters and dismiss failures without direct database access. `IOutboxManagement` is registered by the outbox persistence provider, for example the Entity Framework, SQL Server, PostgreSQL, MySQL, SQLite, MongoDB or Cosmos DB package.
+
+```csharp
+app.MapOutboxInspector();                                   // default base path "/pulse/outbox"
+
+app.MapOutboxInspector(options =>
+{
+    options.BasePath = "/admin/outbox";
+    options.RouteGroupName = "Admin Outbox Inspector";
+})
+.RequireAuthorization("OutboxAdmin");                       // secure the whole group
+```
+
+| Method | Route | Description | Responses |
+|---|---|---|---|
+| `GET` | `{BasePath}/stats` | Message counts per status | `200` |
+| `GET` | `{BasePath}/messages?pageSize=50&page=0&status=` | Messages in any status, newest update first; `status` is optional (`Pending`, `Processing`, `Completed`, `Failed`, `DeadLetter` or their numeric values). Read-only: messages are not locked or changed. | `200`, `400` |
+| `GET` | `{BasePath}/messages/{id:guid}` | A single message in any status | `200`, `404` |
+| `POST` | `{BasePath}/messages/{id:guid}/replay` | Alias of `dead-letters/{id}/replay`; only dead-letter messages can be replayed | `204`, `404` |
+| `GET` | `{BasePath}/dead-letters?pageSize=50&page=0` | Dead-letter messages, newest update first | `200`, `400` |
+| `GET` | `{BasePath}/dead-letters/count` | Number of dead-letter messages | `200` |
+| `GET` | `{BasePath}/dead-letters/{id:guid}` | A single dead-letter message | `200`, `404` |
+| `POST` | `{BasePath}/dead-letters/{id:guid}/replay` | Resets a dead-letter message to `Pending` | `204`, `404` |
+| `POST` | `{BasePath}/dead-letters/{id:guid}/dismiss` | Permanently deletes a dead-letter message | `204`, `404` |
+| `POST` | `{BasePath}/dead-letters/replay-all` | Resets all dead-letter messages to `Pending`; returns `{ "count": n }` | `200` |
+
+`pageSize` must be at least `1` and `page` must not be negative. Invalid values and undefined `status` values return `400 Bad Request` with a validation problem body. Identifiers that are not GUIDs do not match any route and return `404 Not Found`.
+
+### Options
+
+| Property | Default | Description |
+|---|---|---|
+| `BasePath` | `/pulse/outbox` | Route prefix of the endpoint group |
+| `RouteGroupName` | `Pulse Outbox Inspector` | Endpoint group name, for example for OpenAPI documents |
+
+### Authorization
+
+`MapOutboxInspector` applies **no authorization**. These endpoints expose message payloads and can replay or delete messages, so always secure the returned group, for example with `.RequireAuthorization()`, and never expose it publicly without protection.
+
+> **Note for SQL Server and PostgreSQL:** the message listing, message lookup and dismiss operations use new stored procedures and functions. Re-run `Scripts/OutboxMessage.sql` of the provider package after upgrading. The script is idempotent.
 
 ## Requirements
 
