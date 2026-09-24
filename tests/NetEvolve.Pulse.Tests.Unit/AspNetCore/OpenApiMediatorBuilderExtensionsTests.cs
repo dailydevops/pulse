@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -143,5 +144,103 @@ public sealed class OpenApiMediatorBuilderExtensionsTests
 
             _ = await Assert.That(summary).IsNull();
         }
+    }
+
+    [Test]
+    public async Task EnableOpenApiMetadata_MapVoidCommand_AutoAppliesSummaryWithoutAdditionalProduces()
+    {
+        var enabled = await MapAndGetEndpointAsync(
+            services => services.AddPulse(b => b.EnableOpenApiMetadata()),
+            app => app.MapCommand<EndpointRouteBuilderExtensionsTests.VoidTestCommand>("/commands/void"),
+            "/commands/void"
+        );
+        var disabled = await MapAndGetEndpointAsync(
+            services => services.AddPulse(_ => { }),
+            app => app.MapCommand<EndpointRouteBuilderExtensionsTests.VoidTestCommand>("/commands/void"),
+            "/commands/void"
+        );
+
+        var summary = enabled.Metadata.GetMetadata<IEndpointSummaryMetadata>();
+
+        _ = await Assert.That(summary?.Summary).IsEqualTo(nameof(EndpointRouteBuilderExtensionsTests.VoidTestCommand));
+        _ = await Assert
+            .That(enabled.Metadata.OfType<IProducesResponseTypeMetadata>().Count())
+            .IsEqualTo(disabled.Metadata.OfType<IProducesResponseTypeMetadata>().Count());
+    }
+
+    [Test]
+    public async Task WithoutEnableOpenApiMetadata_MapCommandWithResponse_DoesNotApplySummary()
+    {
+        var endpoint = await MapAndGetEndpointAsync(
+            services => services.AddPulse(_ => { }),
+            app => app.MapCommand<EndpointRouteBuilderExtensionsTests.TestCommand, string>("/commands"),
+            "/commands"
+        );
+
+        _ = await Assert.That(endpoint.Metadata.GetMetadata<IEndpointSummaryMetadata>()).IsNull();
+    }
+
+    [Test]
+    public async Task WithoutEnableOpenApiMetadata_MapQuery_DoesNotApplySummary()
+    {
+        var endpoint = await MapAndGetEndpointAsync(
+            services => services.AddPulse(_ => { }),
+            app => app.MapQuery<EndpointRouteBuilderExtensionsTests.TestQuery, string>("/queries/{id}"),
+            "/queries/{id}"
+        );
+
+        _ = await Assert.That(endpoint.Metadata.GetMetadata<IEndpointSummaryMetadata>()).IsNull();
+    }
+
+    [Test]
+    public async Task WithoutEnableOpenApiMetadata_MapStreamQuery_DoesNotApplySummaryOrStreamProduces()
+    {
+        var endpoint = await MapAndGetEndpointAsync(
+            services => services.AddPulse(_ => { }),
+            app => app.MapStreamQuery<EndpointRouteBuilderExtensionsTests.TestStreamQuery, string>("/queries/stream"),
+            "/queries/stream"
+        );
+
+        var contentTypes = endpoint
+            .Metadata.OfType<IProducesResponseTypeMetadata>()
+            .SelectMany(p => p.ContentTypes)
+            .ToList();
+
+        _ = await Assert.That(endpoint.Metadata.GetMetadata<IEndpointSummaryMetadata>()).IsNull();
+        _ = await Assert.That(contentTypes).DoesNotContain("text/event-stream");
+        _ = await Assert.That(contentTypes).DoesNotContain("application/x-ndjson");
+    }
+
+    [Test]
+    public async Task OpenApiMetadataExplicitlyDisabled_MapCommandWithResponse_DoesNotApplySummary()
+    {
+        var endpoint = await MapAndGetEndpointAsync(
+            services =>
+                services
+                    .AddPulse(_ => { })
+                    .Configure<AspNetCoreOptions>(options => options.OpenApiMetadataEnabled = false),
+            app => app.MapCommand<EndpointRouteBuilderExtensionsTests.TestCommand, string>("/commands"),
+            "/commands"
+        );
+
+        _ = await Assert.That(endpoint.Metadata.GetMetadata<IEndpointSummaryMetadata>()).IsNull();
+    }
+
+    private static async Task<Endpoint> MapAndGetEndpointAsync(
+        Action<IServiceCollection> configureServices,
+        Action<WebApplication> map,
+        string pattern
+    )
+    {
+        var builder = WebApplication.CreateBuilder();
+        configureServices(builder.Services);
+        await using var app = builder.Build();
+
+        map(app);
+
+        IEndpointRouteBuilder endpoints = app;
+        return endpoints
+            .DataSources.SelectMany(dataSource => dataSource.Endpoints)
+            .Single(e => ((RouteEndpoint)e).RoutePattern.RawText == pattern);
     }
 }
