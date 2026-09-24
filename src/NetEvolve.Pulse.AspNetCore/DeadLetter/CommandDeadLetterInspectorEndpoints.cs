@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,7 +35,8 @@ public static class CommandDeadLetterInspectorEndpoints
     /// <para><strong>Endpoints:</strong></para>
     /// <list type="bullet">
     /// <item><description><c>GET {BasePath}/stats</c> — dead letter statistics.</description></item>
-    /// <item><description><c>GET {BasePath}/entries?count=50</c> — pending dead-letter entries.</description></item>
+    /// <item><description><c>GET {BasePath}/entries?count=50&amp;skip=0</c> — pending dead-letter entries, oldest first.</description></item>
+    /// <item><description><c>GET {BasePath}/entries/{{id:guid}}</c> — a single dead-letter entry, or <c>404</c> if not found.</description></item>
     /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/replay</c> — replays a dead-letter entry.</description></item>
     /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/dismiss</c> — dismisses a dead-letter entry.</description></item>
     /// </list>
@@ -69,6 +71,7 @@ public static class CommandDeadLetterInspectorEndpoints
 
         _ = group.MapGet("/stats", GetStatisticsAsync);
         _ = group.MapGet("/entries", GetPendingEntriesAsync);
+        _ = group.MapGet("/entries/{id:guid}", GetEntryAsync);
         _ = group.MapPost("/entries/{id:guid}/replay", ReplayEntryAsync);
         _ = group.MapPost("/entries/{id:guid}/dismiss", DismissEntryAsync);
 
@@ -83,11 +86,32 @@ public static class CommandDeadLetterInspectorEndpoints
     private static async Task<IResult> GetPendingEntriesAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
         CancellationToken cancellationToken,
-        int count = 50
-    ) =>
-        TypedResults.Ok(
-            await commandDeadLetterManagement.GetPendingAsync(count, cancellationToken).ConfigureAwait(false)
+        int count = 50,
+        int skip = 0
+    )
+    {
+        if (skip < 0)
+        {
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal) { [nameof(skip)] = ["Must not be negative."] }
+            );
+        }
+
+        return TypedResults.Ok(
+            await commandDeadLetterManagement.GetPendingAsync(count, skip, cancellationToken).ConfigureAwait(false)
         );
+    }
+
+    private static async Task<IResult> GetEntryAsync(
+        Guid id,
+        ICommandDeadLetterManagement commandDeadLetterManagement,
+        CancellationToken cancellationToken
+    )
+    {
+        var entry = await commandDeadLetterManagement.GetEntryAsync(id, cancellationToken).ConfigureAwait(false);
+
+        return entry is null ? TypedResults.NotFound() : TypedResults.Ok(entry);
+    }
 
     private static async Task<IResult> ReplayEntryAsync(
         Guid id,

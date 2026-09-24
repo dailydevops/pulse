@@ -88,8 +88,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
                 `{CommandDeadLetterSchema.Columns.Status}`
             FROM {table}
             WHERE `{CommandDeadLetterSchema.Columns.Status}` = 0
-            ORDER BY `{CommandDeadLetterSchema.Columns.OccurredAt}` ASC
-            LIMIT @count
+            ORDER BY `{CommandDeadLetterSchema.Columns.OccurredAt}` ASC, `{CommandDeadLetterSchema.Columns.Id}` ASC
+            LIMIT @count OFFSET @skip
             """;
 
         _getByIdSql = $"""
@@ -134,9 +134,12 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -144,11 +147,16 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@count", count);
+                _ = command.Parameters.AddWithValue("@skip", skip);
 
                 return await ReadEntriesAsync(command, cancellationToken).ConfigureAwait(false);
             }
         }
     }
+
+    /// <inheritdoc />
+    public Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetByIdAsync(id, cancellationToken);
 
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)

@@ -86,7 +86,7 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
 
                     _ = await Assert.That(pending).HasSingleItem();
                     _ = await Assert.That(pending[0].Status).IsEqualTo(CommandDeadLetterStatus.New);
@@ -119,7 +119,7 @@ public abstract class CommandDeadLetterTestsBase(
                             .ConfigureAwait(false);
                     }
 
-                    var pending = await management.GetPendingAsync(2, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(2, 0, token).ConfigureAwait(false);
 
                     _ = await Assert.That(pending.Count).IsEqualTo(2);
                 },
@@ -246,7 +246,7 @@ public abstract class CommandDeadLetterTestsBase(
                         .ConfigureAwait(false);
 
                     _ = await Assert
-                        .That(async () => await management.GetPendingAsync(-1, token).ConfigureAwait(false))
+                        .That(async () => await management.GetPendingAsync(-1, 0, token).ConfigureAwait(false))
                         .Throws<ArgumentOutOfRangeException>();
                 },
                 cancellationToken
@@ -273,12 +273,12 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     var entryId = pending.Single().Id;
 
                     await management.ReplayAsync(entryId, token).ConfigureAwait(false);
 
-                    var stillPending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var stillPending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     _ = await Assert.That(stillPending).IsEmpty();
 
                     var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
@@ -322,12 +322,12 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     var entryId = pending.Single().Id;
 
                     await management.DismissAsync(entryId, token).ConfigureAwait(false);
 
-                    var stillPending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var stillPending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     _ = await Assert.That(stillPending).IsEmpty();
 
                     var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
@@ -378,7 +378,7 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     await management.DismissAsync(pending[0].Id, token).ConfigureAwait(false);
 
                     var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);

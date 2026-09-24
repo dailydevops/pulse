@@ -8,16 +8,30 @@ public interface ICommandDeadLetterManagement
     /// <summary>
     /// Retrieves the pending dead letter entries, i.e. entries with <see cref="CommandDeadLetterStatus.New"/> status.
     /// </summary>
-    /// <param name="count">The maximum number of entries to return. Default: <c>50</c>.</param>
+    /// <param name="count">The maximum number of entries to return. Must be greater than zero. Default: <c>50</c>.</param>
+    /// <param name="skip">The number of entries to skip before returning results. Must not be negative. Default: <c>0</c>.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A read-only list of at most <paramref name="count"/> entries with <see cref="CommandDeadLetterStatus.New"/> status,
-    /// ordered by <see cref="CommandDeadLetterEntry.OccurredAt"/> ascending (oldest first).
+    /// ordered by <see cref="CommandDeadLetterEntry.OccurredAt"/> ascending (oldest first), after skipping the first
+    /// <paramref name="skip"/> entries.
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="skip"/> is negative.
+    /// </exception>
     Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Retrieves the dead letter entry identified by <paramref name="id"/>, regardless of its status.
+    /// </summary>
+    /// <param name="id">The identifier of the dead letter entry to retrieve.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The matching <see cref="CommandDeadLetterEntry"/>, or <see langword="null"/> if no entry exists.</returns>
+    Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Replays the command stored in the dead letter entry identified by <paramref name="id"/>.

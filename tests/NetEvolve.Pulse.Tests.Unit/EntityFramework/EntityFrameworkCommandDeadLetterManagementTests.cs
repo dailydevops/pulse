@@ -155,7 +155,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                 new PassthroughPayloadSerializer()
             );
 
-            var pending = await management.GetPendingAsync(2, cancellationToken).ConfigureAwait(false);
+            var pending = await management.GetPendingAsync(2, 0, cancellationToken).ConfigureAwait(false);
 
             _ = await Assert.That(pending).HasCount(2);
         }
@@ -286,7 +286,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             );
 
             _ = await Assert
-                .That(async () => await management.GetPendingAsync(count, cancellationToken).ConfigureAwait(false))
+                .That(async () => await management.GetPendingAsync(count, 0, cancellationToken).ConfigureAwait(false))
                 .Throws<ArgumentOutOfRangeException>();
         }
     }

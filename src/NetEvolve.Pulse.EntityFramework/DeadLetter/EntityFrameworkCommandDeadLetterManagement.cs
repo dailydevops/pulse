@@ -50,13 +50,27 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
-    ) =>
-        await _context
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+
+        return await _context
             .CommandDeadLetterEntries.Where(e => e.Status == CommandDeadLetterStatus.New)
             .OrderBy(e => e.OccurredAt)
+            .ThenBy(e => e.Id)
+            .Skip(skip)
             .Take(count)
             .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _context
+            .CommandDeadLetterEntries.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
             .ConfigureAwait(false);
 
     /// <inheritdoc />

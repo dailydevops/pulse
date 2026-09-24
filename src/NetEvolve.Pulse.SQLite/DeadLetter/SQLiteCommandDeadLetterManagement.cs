@@ -96,8 +96,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
                 "{CommandDeadLetterSchema.Columns.Status}"
             FROM {table}
             WHERE "{CommandDeadLetterSchema.Columns.Status}" = 0
-            ORDER BY "{CommandDeadLetterSchema.Columns.OccurredAt}" ASC
-            LIMIT @count;
+            ORDER BY "{CommandDeadLetterSchema.Columns.OccurredAt}" ASC, "{CommandDeadLetterSchema.Columns.Id}" ASC
+            LIMIT @count OFFSET @skip;
             """;
 
         _getByIdSql = $"""
@@ -142,9 +142,12 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -152,9 +155,20 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@count", count);
+                _ = command.Parameters.AddWithValue("@skip", skip);
 
                 return await ReadEntriesAsync(command, cancellationToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            return await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false);
         }
     }
 
