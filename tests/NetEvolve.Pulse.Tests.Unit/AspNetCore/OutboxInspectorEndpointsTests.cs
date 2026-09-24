@@ -304,6 +304,35 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(payload).IsEqualTo(3L);
     }
 
+    // GET {base}/dead-letters — invalid paging is rejected before reaching IOutboxManagement
+
+    [Test]
+    [Arguments("pageSize=0")]
+    [Arguments("pageSize=-1")]
+    [Arguments("page=-1")]
+    [Arguments("pageSize=2&page=2147483647")]
+    public async Task GetDeadLetterMessages_WithInvalidPaging_ReturnsBadRequest(
+        string query,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<OutboxMessage>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/dead-letters?{query}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .WasCalled(Times.Never);
+    }
+
     private static async Task<IHost> CreateTestHostAsync(
         IOutboxManagement outboxManagement,
         Action<OutboxInspectorOptions>? configure,
