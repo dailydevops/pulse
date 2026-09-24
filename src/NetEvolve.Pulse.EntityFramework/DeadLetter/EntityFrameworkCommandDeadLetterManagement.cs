@@ -62,7 +62,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var entry = await GetEntryAsync(id, cancellationToken).ConfigureAwait(false);
+        var entry = await GetRequiredEntryAsync(id, cancellationToken).ConfigureAwait(false);
 
         entry.Status = CommandDeadLetterStatus.Replaying;
         _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -78,7 +78,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var entry = await GetEntryAsync(id, cancellationToken).ConfigureAwait(false);
+        var entry = await GetRequiredEntryAsync(id, cancellationToken).ConfigureAwait(false);
 
         entry.Status = CommandDeadLetterStatus.Dismissed;
         _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -108,7 +108,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The loaded <see cref="CommandDeadLetterEntry"/>.</returns>
     /// <exception cref="KeyNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
-    private async Task<CommandDeadLetterEntry> GetEntryAsync(Guid id, CancellationToken cancellationToken)
+    private async Task<CommandDeadLetterEntry> GetRequiredEntryAsync(Guid id, CancellationToken cancellationToken)
     {
         var entry = await _context
             .CommandDeadLetterEntries.FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
