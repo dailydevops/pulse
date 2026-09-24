@@ -301,6 +301,7 @@ BEGIN
         [UpdatedAt],
         [ProcessedAt],
         [RetryCount],
+        [NextRetryAt],
         [Error],
         [Status]
     FROM [$(SchemaName)].[$(TableName)]
@@ -334,6 +335,7 @@ BEGIN
         [UpdatedAt],
         [ProcessedAt],
         [RetryCount],
+        [NextRetryAt],
         [Error],
         [Status]
     FROM [$(SchemaName)].[$(TableName)]
@@ -439,6 +441,7 @@ BEGIN
         [UpdatedAt],
         [ProcessedAt],
         [RetryCount],
+        [NextRetryAt],
         [Error],
         [Status]
     FROM [$(SchemaName)].[$(TableName)]
@@ -472,6 +475,7 @@ BEGIN
         [UpdatedAt],
         [ProcessedAt],
         [RetryCount],
+        [NextRetryAt],
         [Error],
         [Status]
     FROM [$(SchemaName)].[$(TableName)]
