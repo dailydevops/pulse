@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Interceptors;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -31,6 +32,11 @@ internal sealed class DataAnnotationsStreamQueryInterceptor<TQuery, TResponse>
     where TQuery : IStreamQuery<TResponse>
 {
     /// <inheritdoc />
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "Only registered through DataAnnotationsExtensions.AddDataAnnotations, which carries RequiresUnreferencedCode and surfaces the requirement to the caller."
+    )]
     public IAsyncEnumerable<TResponse> HandleAsync(
         TQuery request,
         Func<TQuery, CancellationToken, IAsyncEnumerable<TResponse>> handler,
