@@ -157,7 +157,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
         // Wait deterministically for the first poll instead of a fixed delay, which is flaky
         // under CI load (the polling loop may not fire within a short margin).
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
@@ -186,7 +186,7 @@ public sealed class OutboxProcessorHostedServiceTests
 
         await service.StartAsync(cts.Token).ConfigureAwait(false);
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
@@ -218,7 +218,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -254,7 +254,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message3, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(3, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -313,7 +313,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -343,7 +343,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -374,7 +374,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -408,7 +408,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -439,7 +439,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message2, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -475,8 +475,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
         // Wait until at least 2 messages have been marked (failed or dead-letter) instead of
         // relying on a fixed delay, which is unreliable under CI thread-pool saturation.
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
 
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -518,7 +517,7 @@ public sealed class OutboxProcessorHostedServiceTests
         }
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -559,7 +558,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -649,7 +648,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message2, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -783,7 +782,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -835,7 +834,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -886,7 +885,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -936,7 +935,7 @@ public sealed class OutboxProcessorHostedServiceTests
         // Wait deterministically for a poll cycle (ProcessingDurationHistogram.Record runs right
         // after ProcessBatchAsync completes within that same cycle) instead of a fixed delay,
         // which was flaky under CI load.
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
 
         await cts.CancelAsync().ConfigureAwait(false);
@@ -992,7 +991,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
 
         // Wait deterministically for the processor to mark all 3 messages.
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(3, timeoutCts.Token).ConfigureAwait(false);
 
         // After all messages are marked, ProcessBatchAsync performs a post-batch
@@ -1103,7 +1102,7 @@ public sealed class OutboxProcessorHostedServiceTests
         var startTime = DateTimeOffset.UtcNow;
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1146,7 +1145,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1262,7 +1261,7 @@ public sealed class OutboxProcessorHostedServiceTests
         // Now signal that the application has fully started.
         lifetime.SignalStarted();
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1422,7 +1421,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await service.StopAsync(timeoutCts.Token).ConfigureAwait(false);
     }
 
@@ -1447,7 +1446,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1479,7 +1478,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForCompletionAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1519,7 +1518,7 @@ public sealed class OutboxProcessorHostedServiceTests
         await repository.AddAsync(message2, cancellationToken).ConfigureAwait(false);
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1565,7 +1564,7 @@ public sealed class OutboxProcessorHostedServiceTests
         // Restore database health and allow processing to resume.
         repository.IsHealthy = true;
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1579,6 +1578,23 @@ public sealed class OutboxProcessorHostedServiceTests
             .GetRequiredService<ILogger<OutboxProcessorHostedService>>();
 
     private static FakeHostApplicationLifetime CreateLifetime() => new();
+
+    /// <summary>
+    /// Creates the upper bound for waiting on a processor signal (marking or poll), linked to the test token.
+    /// </summary>
+    /// <remarks>
+    /// The waits are event driven and return as soon as the signal arrives, so this bound only matters when
+    /// the processor really hangs. It must not be tight: the bound also covers the thread-pool dispatch of the
+    /// processor's first <c>Parallel.ForEachAsync</c> work item, and the <c>OutboxMetrics</c> tests are scheduled
+    /// right at test-host start-up, where CI runners (several test hosts plus containers on a few cores) have
+    /// been observed to delay that dispatch beyond the previous 5 second bound.
+    /// </remarks>
+    private static CancellationTokenSource CreateSignalTimeout(CancellationToken cancellationToken)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+        return cts;
+    }
 
     /// <summary>
     /// Builds an <see cref="IServiceScopeFactory"/> whose scopes always resolve the given
@@ -1618,7 +1634,24 @@ public sealed class OutboxProcessorHostedServiceTests
         {
             for (var i = 0; i < count; i++)
             {
-                await _markingEvent.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await _markingEvent.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    string statuses;
+                    lock (_lock)
+                    {
+                        statuses = string.Join(", ", _messages.Select(m => $"{m.Status}(retry {m.RetryCount})"));
+                    }
+
+                    // Distinguishes "never polled" from "polled but stuck in Processing" on a CI failure.
+                    throw new TimeoutException(
+                        $"Observed {i} of {count} markings; polls: {GetPendingCallCount}; messages: [{statuses}].",
+                        ex
+                    );
+                }
             }
         }
 
