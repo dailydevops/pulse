@@ -35,6 +35,7 @@ public static class AuditInspectorEndpoints
     /// <list type="bullet">
     /// <item><description><c>GET {BasePath}/stats</c> — aggregate audit result counts.</description></item>
     /// <item><description><c>GET {BasePath}/entries</c> — paginated, filterable audit records.</description></item>
+    /// <item><description><c>GET {BasePath}/entries/{id}</c> — a single audit record, or <c>404</c> when not found.</description></item>
     /// </list>
     /// <para><strong>Read-only:</strong></para>
     /// This method maps strictly read-only endpoints. No replay, dismiss, or other mutating
@@ -68,6 +69,7 @@ public static class AuditInspectorEndpoints
 
         _ = group.MapGet("/stats", GetStatisticsAsync);
         _ = group.MapGet("/entries", GetEntriesAsync);
+        _ = group.MapGet("/entries/{id:guid}", GetEntryAsync);
 
         return group;
     }
@@ -92,6 +94,16 @@ public static class AuditInspectorEndpoints
         return TypedResults.Ok(
             await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false)
         );
+    }
+
+    private static async Task<IResult> GetEntryAsync(
+        Guid id,
+        IAuditManagement auditManagement,
+        CancellationToken cancellationToken
+    )
+    {
+        var record = await auditManagement.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
+        return record is null ? TypedResults.NotFound() : TypedResults.Ok(record);
     }
 
     /// <summary>

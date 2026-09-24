@@ -76,6 +76,10 @@ internal sealed class EntityFrameworkAuditManagement<TContext> : IAuditManagemen
     }
 
     /// <inheritdoc />
+    public Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _context.AuditEntries.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+    /// <inheritdoc />
     public async Task<AuditStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         var counts = await _context

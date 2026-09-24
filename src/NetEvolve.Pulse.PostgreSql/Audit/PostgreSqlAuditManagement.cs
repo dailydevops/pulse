@@ -45,6 +45,9 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
     /// <summary>Cached SQL for aggregating record counts per result.</summary>
     private readonly string _getStatisticsSql;
 
+    /// <summary>Cached SQL for retrieving a single record by its identifier.</summary>
+    private readonly string _getByIdSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlAuditManagement"/> class.
     /// </summary>
@@ -74,6 +77,12 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
             + $"\"{AuditEntrySchema.Columns.OccurredAt}\", \"{AuditEntrySchema.Columns.DurationMs}\", "
             + $"\"{AuditEntrySchema.Columns.Result}\", \"{AuditEntrySchema.Columns.Payload}\", "
             + $"\"{AuditEntrySchema.Columns.ExceptionMessage}\"";
+
+        _getByIdSql = $"""
+            SELECT {_columns}
+            FROM {_qualifiedTableName}
+            WHERE "{AuditEntrySchema.Columns.Id}" = @id
+            """;
 
         _getStatisticsSql = $"""
             SELECT "{AuditEntrySchema.Columns.Result}", COUNT(*)
@@ -176,6 +185,26 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
                     }
 
                     return records;
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getByIdSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("id", id);
+
+                var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using (reader.ConfigureAwait(false))
+                {
+                    return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? MapToRecord(reader) : null;
                 }
             }
         }
