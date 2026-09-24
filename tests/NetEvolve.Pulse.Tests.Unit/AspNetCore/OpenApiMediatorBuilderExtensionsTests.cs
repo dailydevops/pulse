@@ -212,12 +212,12 @@ public sealed class OpenApiMediatorBuilderExtensionsTests
     }
 
     [Test]
-    public async Task OpenApiMetadataExplicitlyDisabled_MapCommandWithResponse_DoesNotApplySummary()
+    public async Task OpenApiMetadataDisabledAfterEnable_MapCommandWithResponse_DoesNotApplySummary()
     {
         var endpoint = await MapAndGetEndpointAsync(
             services =>
                 services
-                    .AddPulse(_ => { })
+                    .AddPulse(b => b.EnableOpenApiMetadata())
                     .Configure<AspNetCoreOptions>(options => options.OpenApiMetadataEnabled = false),
             app => app.MapCommand<EndpointRouteBuilderExtensionsTests.TestCommand, string>("/commands"),
             "/commands"
