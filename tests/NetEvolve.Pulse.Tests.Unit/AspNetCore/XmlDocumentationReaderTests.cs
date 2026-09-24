@@ -292,6 +292,35 @@ public sealed class XmlDocumentationReaderTests
     }
 
     [Test]
+    public async Task LoadDocumentation_WithUnprefixedCrefCommentAndEmptyHref_RendersOnlyText()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.Misc">
+                  <summary>Visit <see href="https://example.org"/>docs<!-- hidden --> of <see cref="Plain.Type"/>.</summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!["T:Some.Namespace.Misc"]).IsEqualTo("Visit docs of Type.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task TryGetSummary_WithSameTypeTwice_ReturnsStableSummary()
     {
         _ = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var first);
