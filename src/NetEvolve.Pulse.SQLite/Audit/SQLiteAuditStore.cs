@@ -88,7 +88,8 @@ internal sealed class SQLiteAuditStore : IAuditStore
                 _ = command.Parameters.AddWithValue("@commandType", record.CommandType);
                 _ = command.Parameters.AddWithValue("@userId", (object?)record.UserId ?? DBNull.Value);
                 _ = command.Parameters.AddWithValue("@correlationId", (object?)record.CorrelationId ?? DBNull.Value);
-                _ = command.Parameters.AddWithValue("@occurredAt", record.OccurredAt);
+                // OccurredAt is TEXT and compared as a string, so every value must share the UTC offset.
+                _ = command.Parameters.AddWithValue("@occurredAt", record.OccurredAt.ToUniversalTime());
                 _ = command.Parameters.AddWithValue("@durationMs", record.DurationMs);
                 _ = command.Parameters.AddWithValue("@result", (int)record.Result);
                 _ = command.Parameters.AddWithValue("@payload", (object?)record.Payload ?? DBNull.Value);

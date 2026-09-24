@@ -177,12 +177,13 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
 
                 if (filter.From is not null)
                 {
-                    _ = command.Parameters.AddWithValue("@from", filter.From.Value);
+                    // OccurredAt is TEXT and compared as a string; normalize bounds to UTC like SQLiteAuditStore.
+                    _ = command.Parameters.AddWithValue("@from", filter.From.Value.ToUniversalTime());
                 }
 
                 if (filter.To is not null)
                 {
-                    _ = command.Parameters.AddWithValue("@to", filter.To.Value);
+                    _ = command.Parameters.AddWithValue("@to", filter.To.Value.ToUniversalTime());
                 }
 
                 if (filter.Result is not null)
