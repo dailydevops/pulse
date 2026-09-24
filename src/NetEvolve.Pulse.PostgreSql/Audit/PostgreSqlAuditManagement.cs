@@ -159,12 +159,12 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
 
                 if (filter.From is not null)
                 {
-                    _ = command.Parameters.AddWithValue("from", filter.From.Value);
+                    _ = command.Parameters.AddWithValue("from", filter.From.Value.ToUniversalTime());
                 }
 
                 if (filter.To is not null)
                 {
-                    _ = command.Parameters.AddWithValue("to", filter.To.Value);
+                    _ = command.Parameters.AddWithValue("to", filter.To.Value.ToUniversalTime());
                 }
 
                 if (filter.Result is not null)
