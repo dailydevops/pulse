@@ -18,7 +18,8 @@ internal sealed class TestStreamQuery : IStreamQuery<string>
 
 // Code-first binding: the same shape Grpc.Tools generates, without requiring a .proto file.
 [BindServiceMethod(typeof(TestStreamService), nameof(BindService))]
-internal sealed class TestStreamService(IMediator mediator) : PulseGrpcStreamService<TestStreamQuery, string>(mediator)
+// Not sealed: ASP.NET Core gRPC only binds RPC methods that are virtual and declared on the BindService type.
+internal class TestStreamService(IMediator mediator) : PulseGrpcStreamService<TestStreamQuery, string>(mediator)
 {
     public const string ServiceName = "pulse.test.StreamService";
 
@@ -38,7 +39,7 @@ internal sealed class TestStreamService(IMediator mediator) : PulseGrpcStreamSer
     public static void BindService(ServiceBinderBase binder, TestStreamService service) =>
         binder.AddMethod(StreamMethod, (ServerStreamingServerMethod<TestStreamQuery, string>)null!);
 
-    public Task Stream(
+    public virtual Task Stream(
         TestStreamQuery request,
         IServerStreamWriter<string> responseStream,
         ServerCallContext context
