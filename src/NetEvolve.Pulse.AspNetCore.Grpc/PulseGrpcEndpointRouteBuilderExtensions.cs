@@ -40,7 +40,9 @@ public static class PulseGrpcEndpointRouteBuilderExtensions
         return endpoints.MapGrpcService<TService>();
     }
 
-    // Mirrors the annotation on Grpc.AspNetCore's MapGrpcService<TService>.
+    // Must cover the annotation on Grpc.AspNetCore's MapGrpcService<TService> (IL2091 otherwise).
     private const DynamicallyAccessedMemberTypes GrpcServiceMembers =
-        DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods;
+        DynamicallyAccessedMemberTypes.PublicConstructors
+        | DynamicallyAccessedMemberTypes.PublicMethods
+        | DynamicallyAccessedMemberTypes.NonPublicMethods;
 }
