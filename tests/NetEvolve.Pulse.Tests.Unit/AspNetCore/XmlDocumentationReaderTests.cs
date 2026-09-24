@@ -235,6 +235,66 @@ public sealed class XmlDocumentationReaderTests
     }
 
     [Test]
+    public async Task LoadDocumentation_WithBlockElements_SeparatesThemBySpaces()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.Blocks">
+                  <summary>Intro<br/>line.<para>First.</para><para>Second.</para><list type="bullet"><item><description>One.</description></item><item><description>Two.</description></item></list></summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert
+                .That(members!["T:Some.Namespace.Blocks"])
+                .IsEqualTo("Intro line. First. Second. One. Two.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithEmptyLongFormReferenceElements_RendersTheirNames()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.LongForm">
+                  <summary>Uses <see cref="T:Some.Namespace.Target"></see> and <see langword="true"></see>.</summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!["T:Some.Namespace.LongForm"]).IsEqualTo("Uses Target and true.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task TryGetSummary_WithSameTypeTwice_ReturnsSameInstance()
     {
         _ = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var first);
