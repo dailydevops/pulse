@@ -191,6 +191,50 @@ public sealed class XmlDocumentationReaderTests
     }
 
     [Test]
+    public async Task TryGetSummary_WithMultilineSummaryContainingCref_ReturnsSingleLineWithReferencedName()
+    {
+        _ = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var summary);
+
+        _ = await Assert
+            .That(summary)
+            .IsEqualTo(
+                "Provides configuration options for the ASP.NET Core Minimal API integration of the Pulse mediator, such as the endpoints mapped via EndpointRouteBuilderExtensions."
+            );
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithInlineReferenceElements_RendersTheirNames()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.Refs">
+                  <summary>
+                  Uses <see cref="T:System.Collections.Generic.List`1"/>, <see cref="M:Some.Type.Run(System.String)"/>,
+                  <paramref name="value"/>, <typeparamref name="T"/> and <see langword="null"/>.
+                  </summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!["T:Some.Namespace.Refs"]).IsEqualTo("Uses List, Run, value, T and null.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task TryGetSummary_WithSameTypeTwice_ReturnsSameInstance()
     {
         _ = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var first);
