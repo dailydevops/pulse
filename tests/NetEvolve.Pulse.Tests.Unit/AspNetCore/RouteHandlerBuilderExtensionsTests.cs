@@ -19,7 +19,7 @@ public sealed class RouteHandlerBuilderExtensionsTests
     [Test]
     public async Task WithPulseSummary_WithNullBuilder_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => RouteHandlerBuilderExtensions.WithPulseSummary<TestDocumentedType>(null!))
+            .That(() => RouteHandlerBuilderExtensions.WithPulseSummary<UndocumentedType>(null!))
             .Throws<ArgumentNullException>();
 
     // WithPulseSummary<T> — behavior
@@ -28,10 +28,36 @@ public sealed class RouteHandlerBuilderExtensionsTests
     public async Task WithPulseSummary_WithoutXmlDocumentation_FallsBackToTypeName()
     {
         var summary = await MapAndGetMetadataAsync<IEndpointSummaryMetadata>(builder =>
-            builder.WithPulseSummary<TestDocumentedType>()
+            builder.WithPulseSummary<UndocumentedType>()
         );
 
-        _ = await Assert.That(summary?.Summary).IsEqualTo(nameof(TestDocumentedType));
+        _ = await Assert.That(summary?.Summary).IsEqualTo(nameof(UndocumentedType));
+    }
+
+    [Test]
+    public async Task WithPulseSummary_WithXmlDocumentation_AppliesDocumentedSummary()
+    {
+        var summary = await MapAndGetMetadataAsync<IEndpointSummaryMetadata>(builder =>
+            builder.WithPulseSummary<AspNetCoreOptions>()
+        );
+
+        _ = await Assert.That(summary?.Summary).StartsWith("Provides configuration options for the ASP.NET Core");
+        _ = await Assert.That(summary?.Summary).DoesNotContain('\n');
+    }
+
+    // Method chaining
+
+    [Test]
+    public async Task AllExtensions_ReturnTheSameBuilderInstance()
+    {
+        await using var app = CreateApp();
+        var builder = app.MapGet("/test", () => "ok");
+
+        _ = await Assert.That(builder.WithPulseSummary<UndocumentedType>()).IsSameReferenceAs(builder);
+        _ = await Assert.That(builder.WithPulseDescription("description")).IsSameReferenceAs(builder);
+        _ = await Assert.That(builder.WithPulseTag("tag")).IsSameReferenceAs(builder);
+        _ = await Assert.That(builder.WithPulseProduces<string>()).IsSameReferenceAs(builder);
+        _ = await Assert.That(builder.WithPulseStreamProduces()).IsSameReferenceAs(builder);
     }
 
     // WithPulseDescription — null-guards
@@ -169,6 +195,6 @@ public sealed class RouteHandlerBuilderExtensionsTests
     }
 
 #pragma warning disable S2094 // Empty type intentionally used only to exercise the typeof(T).Name fallback.
-    private sealed class TestDocumentedType;
+    private sealed class UndocumentedType;
 #pragma warning restore S2094
 }

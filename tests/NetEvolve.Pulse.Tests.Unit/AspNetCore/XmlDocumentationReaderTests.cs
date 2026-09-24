@@ -2,6 +2,8 @@ namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
 
 using System;
 using System.IO;
+using System.Reflection;
+using System.Reflection.Emit;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.AspNetCore.Internals;
 using TUnit.Core;
@@ -53,11 +55,96 @@ public sealed class XmlDocumentationReaderTests
     }
 
     [Test]
+    public async Task LoadDocumentation_WithMalformedXml_ReturnsNull()
+    {
+        var path = CreateTempFile("<doc><members><member name=\"T:Broken\">");
+
+        try
+        {
+            _ = await Assert.That(XmlDocumentationReader.LoadDocumentation(path)).IsNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithoutMembers_ReturnsNull()
+    {
+        var path = CreateTempFile("<?xml version=\"1.0\"?><doc><assembly><name>Empty</name></assembly></doc>");
+
+        try
+        {
+            _ = await Assert.That(XmlDocumentationReader.LoadDocumentation(path)).IsNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithOnlyIncompleteMembers_ReturnsNull()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member><summary>No name.</summary></member>
+                <member name="T:Some.Namespace.NoSummary"><remarks>No summary.</remarks></member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            _ = await Assert.That(XmlDocumentationReader.LoadDocumentation(path)).IsNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithMixedMembers_KeepsOnlyCompleteEntries()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member><summary>No name.</summary></member>
+                <member name="T:Some.Namespace.NoSummary"><remarks>No summary.</remarks></member>
+                <member name="T:Some.Namespace.Valid"><summary>Valid summary.</summary></member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!.Count).IsEqualTo(1);
+            _ = await Assert.That(members["T:Some.Namespace.Valid"]).IsEqualTo("Valid summary.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task TryGetSummary_WithNullType_ThrowsArgumentNullException() =>
         _ = await Assert.That(() => XmlDocumentationReader.TryGetSummary(null!, out _)).Throws<ArgumentNullException>();
 
     [Test]
-    public async Task TryGetSummary_WithTypeWhoseAssemblyHasNoXmlDocFile_ReturnsFalse()
+    public async Task TryGetSummary_WithUndocumentedType_ReturnsFalse()
     {
         var found = XmlDocumentationReader.TryGetSummary(typeof(XmlDocumentationReaderTests), out var summary);
 
@@ -65,12 +152,232 @@ public sealed class XmlDocumentationReaderTests
         _ = await Assert.That(summary).IsNull();
     }
 
-    private static string CreateTempXmlDocumentationFile(string memberName, string summary)
+    [Test]
+    public async Task TryGetSummary_WithTypeWhoseAssemblyHasNoXmlDocFile_ReturnsFalse()
+    {
+        var type = typeof(TestAttribute);
+        var xmlPath = Path.ChangeExtension(type.Assembly.Location, ".xml");
+
+        Skip.When(File.Exists(xmlPath), $"{type.Assembly.GetName().Name} now ships an XML documentation file.");
+
+        var found = XmlDocumentationReader.TryGetSummary(type, out var summary);
+
+        _ = await Assert.That(found).IsFalse();
+        _ = await Assert.That(summary).IsNull();
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithDynamicAssemblyType_ReturnsFalse()
+    {
+        var assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName($"Dynamic{Guid.NewGuid():N}"),
+            AssemblyBuilderAccess.Run
+        );
+        var type = assembly.DefineDynamicModule("Module").DefineType("DynamicType").CreateType();
+
+        var found = XmlDocumentationReader.TryGetSummary(type, out var summary);
+
+        _ = await Assert.That(found).IsFalse();
+        _ = await Assert.That(summary).IsNull();
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithDocumentedType_ReturnsSummary()
+    {
+        var found = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var summary);
+
+        _ = await Assert.That(found).IsTrue();
+        _ = await Assert.That(summary).StartsWith("Provides configuration options for the ASP.NET Core");
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithMultilineSummaryContainingCref_ReturnsSingleLineWithReferencedName()
+    {
+        var found = XmlDocumentationReader.TryGetSummary(typeof(DocumentedMultilineType), out var summary);
+
+        _ = await Assert.That(found).IsTrue();
+        _ = await Assert.That(summary).IsEqualTo("Documented multiline type referencing DocumentedNestedType.");
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithInlineReferenceElements_RendersTheirNames()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.Refs">
+                  <summary>
+                  Uses <see cref="T:System.Collections.Generic.List`1"/>, <see cref="M:Some.Type.Run(System.String)"/>,
+                  <paramref name="value"/>, <typeparamref name="T"/> and <see langword="null"/>.
+                  </summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!["T:Some.Namespace.Refs"]).IsEqualTo("Uses List, Run, value, T and null.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithBlockElements_SeparatesThemBySpaces()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.Blocks">
+                  <summary>Intro<br/>line.<para>First.</para><para>Second.</para><list type="bullet"><item><description>One.</description></item><item><description>Two.</description></item></list></summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert
+                .That(members!["T:Some.Namespace.Blocks"])
+                .IsEqualTo("Intro line. First. Second. One. Two.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithEmptyLongFormReferenceElements_RendersTheirNames()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.LongForm">
+                  <summary>Uses <see cref="T:Some.Namespace.Target"></see> and <see langword="true"></see>.</summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!["T:Some.Namespace.LongForm"]).IsEqualTo("Uses Target and true.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task LoadDocumentation_WithUnprefixedCrefCommentAndEmptyHref_RendersOnlyText()
+    {
+        var path = CreateTempFile(
+            """
+            <?xml version="1.0"?>
+            <doc>
+              <members>
+                <member name="T:Some.Namespace.Misc">
+                  <summary>Visit <see href="https://example.org"/>docs<!-- hidden --> of <see cref="Plain.Type"/>.</summary>
+                </member>
+              </members>
+            </doc>
+            """
+        );
+
+        try
+        {
+            var members = XmlDocumentationReader.LoadDocumentation(path);
+
+            _ = await Assert.That(members).IsNotNull();
+            _ = await Assert.That(members!["T:Some.Namespace.Misc"]).IsEqualTo("Visit docs of Type.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithSameTypeTwice_ReturnsStableSummary()
+    {
+        _ = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var first);
+        _ = XmlDocumentationReader.TryGetSummary(typeof(AspNetCoreOptions), out var second);
+
+        _ = await Assert.That(first).IsNotNull();
+        _ = await Assert.That(second).IsSameReferenceAs(first);
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithDocumentedNestedType_ReturnsSummary()
+    {
+        var found = XmlDocumentationReader.TryGetSummary(typeof(DocumentedNestedType), out var summary);
+
+        _ = await Assert.That(found).IsTrue();
+        _ = await Assert.That(summary).IsEqualTo("Documented nested type.");
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithDocumentedClosedGenericType_ReturnsSummary()
+    {
+        var found = XmlDocumentationReader.TryGetSummary(typeof(DocumentedGenericType<string>), out var summary);
+
+        _ = await Assert.That(found).IsTrue();
+        _ = await Assert.That(summary).IsEqualTo("Documented generic type.");
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithDocumentedOpenGenericType_ReturnsSummary()
+    {
+        var found = XmlDocumentationReader.TryGetSummary(typeof(DocumentedGenericType<>), out var summary);
+
+        _ = await Assert.That(found).IsTrue();
+        _ = await Assert.That(summary).IsEqualTo("Documented generic type.");
+    }
+
+    [Test]
+    public async Task TryGetSummary_WithGenericParameterType_ReturnsFalse()
+    {
+        var found = XmlDocumentationReader.TryGetSummary(
+            typeof(DocumentedGenericType<>).GetGenericArguments()[0],
+            out var summary
+        );
+
+        _ = await Assert.That(found).IsFalse();
+        _ = await Assert.That(summary).IsNull();
+    }
+
+    private static string CreateTempFile(string content)
     {
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
+        File.WriteAllText(path, content);
+        return path;
+    }
 
-        File.WriteAllText(
-            path,
+    private static string CreateTempXmlDocumentationFile(string memberName, string summary) =>
+        CreateTempFile(
             $"""
             <?xml version="1.0"?>
             <doc>
@@ -85,6 +392,18 @@ public sealed class XmlDocumentationReaderTests
             """
         );
 
-        return path;
-    }
+#pragma warning disable S2094, S2326 // Empty types intentionally used only to exercise the XML documentation lookup.
+    /// <summary>Documented nested type.</summary>
+    internal sealed class DocumentedNestedType;
+
+    /// <summary>
+    /// Documented multiline type referencing
+    /// <see cref="DocumentedNestedType"/>.
+    /// </summary>
+    internal sealed class DocumentedMultilineType;
+
+    /// <summary>Documented generic type.</summary>
+    /// <typeparam name="T">Unused type parameter.</typeparam>
+    internal sealed class DocumentedGenericType<T>;
+#pragma warning restore S2094, S2326
 }
