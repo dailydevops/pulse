@@ -52,7 +52,7 @@ app.Run();
 
 ### Implementing a streaming service
 
-ASP.NET Core gRPC binds a service through the `[BindServiceMethod]` attribute and then calls the public instance method that has the same name as the RPC. C# allows only one base class, so a `PulseGrpcStreamService` subclass cannot also derive from the `Orders.OrdersBase` class that Grpc.Tools generates. Add a small static bridge to the generated `BindService` method instead:
+ASP.NET Core gRPC binds a service through the `[BindServiceMethod]` attribute. It then calls the `public virtual` method with the same name as the RPC, declared on the type that the attribute names. The service class must therefore not be `sealed`. C# allows only one base class, so a `PulseGrpcStreamService` subclass cannot also derive from the `Orders.OrdersBase` class that Grpc.Tools generates. Add a small static bridge to the generated `BindService` method instead:
 
 ```protobuf
 service Orders {
@@ -72,14 +72,14 @@ public sealed record OrdersStreamQuery(string CustomerId) : IStreamQuery<OrderRe
 }
 
 [BindServiceMethod(typeof(OrderStreamService), nameof(BindService))]
-public sealed class OrderStreamService(IMediator mediator)
+public class OrderStreamService(IMediator mediator)
     : PulseGrpcStreamService<OrdersStreamQuery, OrderReply>(mediator)
 {
     // Reuses the generated method descriptors; the handler is resolved by name (StreamOrders).
     public static void BindService(ServiceBinderBase binder, OrderStreamService service) =>
         Orders.BindService(binder, null);
 
-    public Task StreamOrders(
+    public virtual Task StreamOrders(
         OrdersRequest request,
         IServerStreamWriter<OrderReply> responseStream,
         ServerCallContext context
