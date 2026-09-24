@@ -16,6 +16,8 @@ using NetEvolve.Pulse.Extensibility.DeadLetter;
 /// </summary>
 public static class CommandDeadLetterInspectorEndpoints
 {
+    private const int MaxCount = 1000;
+
     /// <summary>
     /// Maps the command dead letter inspector endpoints, backed by
     /// <see cref="ICommandDeadLetterManagement"/>, as a route group under
@@ -41,7 +43,7 @@ public static class CommandDeadLetterInspectorEndpoints
     /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/dismiss</c> — dismisses a dead-letter entry, or <c>404</c> if not found.</description></item>
     /// </list>
     /// <para>
-    /// <c>count</c> must be greater than zero and <c>skip</c> must not be negative; otherwise the endpoint
+    /// <c>count</c> must be between 1 and 1000 and <c>skip</c> must not be negative; otherwise the endpoint
     /// returns <c>400</c> with a validation problem response.
     /// </para>
     /// <para><strong>Authorization:</strong></para>
@@ -95,9 +97,9 @@ public static class CommandDeadLetterInspectorEndpoints
     )
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        if (count <= 0)
+        if (count is <= 0 or > MaxCount)
         {
-            errors[nameof(count)] = ["Must be greater than zero."];
+            errors[nameof(count)] = [$"Must be between 1 and {MaxCount}."];
         }
 
         if (skip < 0)
@@ -134,6 +136,8 @@ public static class CommandDeadLetterInspectorEndpoints
     {
         // Check existence up front instead of catching KeyNotFoundException: replay runs the user's
         // command handler, whose own KeyNotFoundException must not be reported as a missing entry.
+        // ponytail: an entry deleted between the check and ReplayAsync still surfaces as 500; a dedicated
+        // "entry missing" signal from ReplayAsync would close that race.
         if (await commandDeadLetterManagement.GetEntryAsync(id, cancellationToken).ConfigureAwait(false) is null)
         {
             return TypedResults.NotFound();
