@@ -133,6 +133,48 @@ public record GetOrderQuery(Guid Id) : IQuery<OrderDto>;
 public record OrderDto(Guid Id, string Sku, string Status);
 ```
 
+### SignalR Stream Queries
+
+`MapStreamQueryHub<TQuery, TResponse>` maps a `PulseStreamHub<TQuery, TResponse>` to a path. Clients call the `StreamAsync` hub method as a SignalR server-to-client stream. The hub runs `IMediator.StreamQueryAsync` and sends each item to the caller as a stream item. SignalR is part of the ASP.NET Core shared framework, so you don't need an extra package on the server. You must register SignalR with `AddSignalR()` first, otherwise `MapStreamQueryHub` throws `InvalidOperationException`:
+
+```csharp
+builder.Services.AddSignalR();
+// ...
+app.MapStreamQueryHub<GetOrdersStreamQuery, OrderDto>("/hubs/orders");
+```
+
+```csharp
+public record GetOrdersStreamQuery(string CustomerId) : IStreamQuery<OrderDto>;
+```
+
+`TQuery` must be deserializable by the configured hub protocol (JSON by default). Each query type needs its own hub path, because SignalR does not support generic hub methods.
+
+To cancel, the client unsubscribes from the stream. SignalR then cancels the hub method's `CancellationToken`, and the hub ends the stream without an error. A disconnect cancels the stream the same way.
+
+JavaScript client (`@microsoft/signalr`):
+
+```javascript
+const subscription = connection.stream("StreamAsync", { customerId: "42" }).subscribe({
+  next: (order) => console.log(order),
+  complete: () => console.log("done"),
+  error: (err) => console.error(err),
+});
+
+// Cancels the server-side stream.
+subscription.dispose();
+```
+
+.NET client (`Microsoft.AspNetCore.SignalR.Client`):
+
+```csharp
+using var cts = new CancellationTokenSource();
+
+await foreach (var order in connection.StreamAsync<OrderDto>("StreamAsync", new GetOrdersStreamQuery("42"), cts.Token))
+{
+    Console.WriteLine(order);
+}
+```
+
 ### CommandHttpMethod Enum
 
 The `CommandHttpMethod` enum controls the HTTP method registered for command endpoints. `GET` is intentionally excluded because commands are state-changing operations — use `MapQuery` for read-only operations instead:
