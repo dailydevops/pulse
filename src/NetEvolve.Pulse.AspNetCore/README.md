@@ -344,6 +344,13 @@ app.MapOutboxInspector(options =>
 
 > **Note for SQL Server and PostgreSQL:** the message listing, message lookup and dismiss operations use new stored procedures and functions. Re-run `Scripts/OutboxMessage.sql` of the provider package after upgrading. The script is idempotent.
 
+## NativeAOT and Trimming
+
+- `MapCommand`, `MapQuery`, `MapStreamQuery` and the inspector extensions (`MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector`) carry `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`, because they build request delegates with `RequestDelegateFactory`. Trimmed and NativeAOT applications get a warning when they call them.
+- The inspector endpoints write their responses with an internal source-generated `JsonSerializerContext` and the web defaults (camelCase). They ignore the application's `HttpJsonOptions`.
+
+See [NativeAOT and Trimming](https://github.com/dailydevops/pulse/blob/main/src/NetEvolve.Pulse/README.md#nativeaot-and-trimming) in the `NetEvolve.Pulse` README for the full list and the payload serialization setup.
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0

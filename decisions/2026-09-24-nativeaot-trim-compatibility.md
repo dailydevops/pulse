@@ -5,7 +5,7 @@ authors:
 applyTo:
   - "src/**/*.cs"
   - "src/**/*.csproj"
-  - "tests/NetEvolve.Pulse.Tests.Aot/**"
+  - "samples/NetEvolve.Pulse.Xample.Aot/**"
   - ".github/workflows/aot.yml"
 
 created: 2026-09-24
@@ -19,7 +19,7 @@ instructions: |
   MUST fix trim warnings at the root first: DynamicallyAccessedMembers on generic parameters and Type values, generic APIs instead of Type-based reflection, the configuration binding source generator instead of ConfigurationBinder reflection, and source-generated System.Text.Json contracts (JsonTypeInfo) for Pulse-owned DTOs.
   MUST annotate public entry points whose reflection is inherent and avoidable by the caller with RequiresUnreferencedCode and, where generic code is closed at runtime, RequiresDynamicCode, and list every such API in the "NativeAOT and Trimming" section of src/NetEvolve.Pulse/README.md.
   MAY use UnconditionalSuppressMessage only with a concrete justification that states why the reflection is safe or unreachable in trimmed applications; MUST NOT use SuppressMessage or #pragma for trim warnings.
-  MUST keep tests/NetEvolve.Pulse.Tests.Aot and .github/workflows/aot.yml passing: the smoke application is published with NativeAOT for every target framework with warnings as errors and executed.
+  MUST keep samples/NetEvolve.Pulse.Xample.Aot and .github/workflows/aot.yml passing: the smoke application is published with NativeAOT for every target framework with warnings as errors and executed.
 ---
 
 # Decision: NativeAOT and Trim Compatibility for Pulse Packages
@@ -57,7 +57,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
   - The feature-switch-guarded reflection resolver.
   - The handled empty `Assembly.Location`.
 * Do not emit `ILLink.Descriptors.xml` from the source generator. Roslyn source generators can only add C# sources, not MSBuild items or embedded resources, and the generated code already satisfies the trimmer. It emits generic `TryAdd*<TService, TImplementation>()` calls and `typeof(...)` literals, which satisfy the `DynamicallyAccessedMembers(PublicConstructors)` annotations of `Microsoft.Extensions.DependencyInjection`. `[DynamicDependency]` attributes would add nothing, so the generator output stays unchanged.
-* Add `tests/NetEvolve.Pulse.Tests.Aot`, a `PublishAot` console application that is neither packed nor treated as a test project. It exercises `AddPulse`, the generated registrations, open-generic handlers and interceptors, and Send, Query and Publish, and it reports failures through its exit code. `.github/workflows/aot.yml` publishes it for `linux-x64` per target framework with `-warnaserror` and runs the native binary.
+* Add `samples/NetEvolve.Pulse.Xample.Aot`, a `PublishAot` console application. It lives under `samples/` and uses the `.Xample` naming convention of `NetEvolve.Defaults`, so it is neither packed nor treated as a test project, in line with the [Folder Structure and Naming Conventions](./2025-07-10-folder-structure-and-naming-conventions.md). It exercises `AddPulse`, the generated registrations, open-generic handlers and interceptors, Send, Query, StreamQuery and Publish, the outbox event type round-trip and the registered payload serializer with an application `JsonSerializerContext`, and it reports failures through its exit code. `.github/workflows/aot.yml` publishes it for `linux-x64` per target framework with `-warnaserror` and runs the native binary. `PublishAot` is set in the project file instead of passing `-p:PublishAot=true` as issue #297 suggests, because the global property would also reach the netstandard2.0 source generator and fail with NETSDK1207.
 
 ## Consequences
 
@@ -65,7 +65,8 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * The core mediator pipeline is verified with NativeAOT on every pull request.
 * External implementers of `ICommandDeadLetterManagement` that enable the trim analyzer MUST add `RequiresUnreferencedCode` and `RequiresDynamicCode` to their `ReplayAsync` implementation (IL2046). There is no other source or binary impact.
 * The inspector endpoints no longer honor custom `HttpJsonOptions`. They always write the web defaults (camelCase).
-* Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. This limitation is documented. Lifting it requires closed interceptor registrations and is out of scope.
+* Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. This limitation is documented. Lifting it requires closed interceptor registrations and is tracked in #771.
+* Outbox event types must be compiled into the application that reads the outbox. An unresolvable event type fails the whole fetch in the ADO.NET outbox providers. This behavior predates this decision and is tracked in #772.
 * Provider packages remain limited by the NativeAOT support of their third-party dependencies.
 
 ## Alternatives Considered
@@ -77,5 +78,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * **`[DynamicDependency]` on the generated registration method**: rejected as redundant, see the source generator decision above.
 
 ## Related Decisions
+
+* [Folder Structure and Naming Conventions](./2025-07-10-folder-structure-and-naming-conventions.md) - The smoke application is an example application under `samples/`.
 
 * [Centralized Package Version Management](./2025-07-10-centralized-package-version-management.md) - No new package versions are required. The configuration binding generator ships with the existing `Microsoft.Extensions.Configuration.Binder` package.

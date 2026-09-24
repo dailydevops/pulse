@@ -157,7 +157,7 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 
 ## NativeAOT and Trimming
 
-The generated registration method only emits generic `TryAdd*<TService, TImplementation>()` calls and `typeof(...)` literals for open-generic handlers. Both satisfy the `[DynamicallyAccessedMembers(PublicConstructors)]` annotations of `Microsoft.Extensions.DependencyInjection`, so the trimmer keeps every registered handler and its constructor without an `ILLink.Descriptors.xml` file or `[DynamicDependency]` attributes. The `tests/NetEvolve.Pulse.Tests.Aot` smoke application verifies this with a NativeAOT publish on every pull request.
+The generated registration method only emits generic `TryAdd*<TService, TImplementation>()` calls and `typeof(...)` literals for open-generic handlers. Both satisfy the `[DynamicallyAccessedMembers(PublicConstructors)]` annotations of `Microsoft.Extensions.DependencyInjection`, so the trimmer keeps every registered handler and its constructor without an `ILLink.Descriptors.xml` file or `[DynamicDependency]` attributes. The `samples/NetEvolve.Pulse.Xample.Aot` smoke application verifies this with a NativeAOT publish on every pull request.
 
 Open-generic handlers registered with `[PulseGenericHandler]` are closed by the DI container at runtime. Under NativeAOT this only works for reference-type type arguments.
 
