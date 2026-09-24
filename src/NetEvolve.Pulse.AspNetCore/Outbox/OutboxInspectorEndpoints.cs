@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Threading;
@@ -101,6 +102,11 @@ public static class OutboxInspectorEndpoints
         int page = 0
     )
     {
+        if (ValidatePaging(pageSize, page) is { } errors)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
         var messages = await outboxManagement
             .GetDeadLetterMessagesAsync(pageSize, page, cancellationToken)
             .ConfigureAwait(false);
@@ -143,6 +149,35 @@ public static class OutboxInspectorEndpoints
         var count = await outboxManagement.ReplayAllDeadLetterAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(new OutboxReplayAllResult(count));
+    }
+
+    /// <summary>
+    /// Validates the <c>pageSize</c> and <c>page</c> query parameters, so invalid values are answered
+    /// with <c>400 Bad Request</c> instead of surfacing the provider's <see cref="ArgumentOutOfRangeException"/>
+    /// as <c>500 Internal Server Error</c>.
+    /// </summary>
+    /// <param name="pageSize">The requested page size; must be greater than zero.</param>
+    /// <param name="page">The requested zero-based page index; must not be negative.</param>
+    /// <returns>The validation errors keyed by parameter name, or <see langword="null"/> when both values are valid.</returns>
+    private static Dictionary<string, string[]>? ValidatePaging(int pageSize, int page)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+        if (pageSize <= 0)
+        {
+            errors[nameof(pageSize)] = ["The page size must be greater than zero."];
+        }
+
+        if (page < 0)
+        {
+            errors[nameof(page)] = ["The page must not be negative."];
+        }
+        else if (pageSize > 0 && page > int.MaxValue / pageSize)
+        {
+            errors[nameof(page)] = ["The requested page is too large for the given page size."];
+        }
+
+        return errors.Count == 0 ? null : errors;
     }
 
     /// <summary>
