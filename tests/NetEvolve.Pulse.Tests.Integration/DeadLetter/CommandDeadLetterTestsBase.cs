@@ -145,6 +145,9 @@ public abstract class CommandDeadLetterTestsBase(
                                 token
                             )
                             .ConfigureAwait(false);
+
+                        // Keep OccurredAt distinct so the order is decided by OccurredAt, not the Id tie-break.
+                        await Task.Delay(TimeSpan.FromMilliseconds(20), token).ConfigureAwait(false);
                     }
 
                     var all = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
@@ -152,6 +155,11 @@ public abstract class CommandDeadLetterTestsBase(
                     var secondPage = await management.GetPendingAsync(2, 2, token).ConfigureAwait(false);
 
                     _ = await Assert.That(all.Count).IsEqualTo(3);
+                    _ = await Assert.That(all[0].ExceptionMessage).IsEqualTo("failure-0");
+                    _ = await Assert.That(all[1].ExceptionMessage).IsEqualTo("failure-1");
+                    _ = await Assert.That(all[2].ExceptionMessage).IsEqualTo("failure-2");
+                    _ = await Assert.That(all[0].OccurredAt).IsLessThan(all[1].OccurredAt);
+                    _ = await Assert.That(all[1].OccurredAt).IsLessThan(all[2].OccurredAt);
                     _ = await Assert.That(firstPage.Count).IsEqualTo(2);
                     _ = await Assert.That(firstPage[0].Id).IsEqualTo(all[0].Id);
                     _ = await Assert.That(firstPage[1].Id).IsEqualTo(all[1].Id);

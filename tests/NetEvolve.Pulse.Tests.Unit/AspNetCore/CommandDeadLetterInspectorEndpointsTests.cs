@@ -348,6 +348,48 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
             .ConfigureAwait(false);
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).WasNeverCalled();
+    }
+
+    // GET {base}/entries — rejects a count above the upper bound
+
+    [Test]
+    public async Task GetPendingEntries_WithCountAboveMaximum_ReturnsBadRequest(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/entries?count=1001", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).WasNeverCalled();
+    }
+
+    // GET {base}/entries — accepts the maximum count
+
+    [Test]
+    public async Task GetPendingEntries_WithMaximumCount_PassesThrough(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<CommandDeadLetterEntry>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/entries?count=1000", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        mock.GetPendingAsync(1000, 0, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
     }
 
     // POST {base}/entries/{id:guid}/replay — unknown entry
@@ -356,7 +398,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     public async Task ReplayEntry_WhenEntryNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
         var mock = Mock.Of<ICommandDeadLetterManagement>();
-        _ = mock.ReplayAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Throws<KeyNotFoundException>();
+        _ = mock.GetEntryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((CommandDeadLetterEntry?)null);
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -370,6 +412,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
             .ConfigureAwait(false);
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        mock.ReplayAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).WasNeverCalled();
     }
 
     // POST {base}/entries/{id:guid}/replay — handler failure is not reported as a missing entry
