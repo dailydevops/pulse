@@ -252,4 +252,96 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         _ = await Assert.That((string)stored!).IsEqualTo("2025-01-01T10:00:00.0000000+00:00");
 #pragma warning restore S8969
     }
+
+    // INVARIANT: an entry that cannot be parsed (e.g. legacy value) is treated as present, so the
+    // store fails closed and never re-processes a request whose key exists.
+    [Test]
+    public async Task ExistsAsync_With_validFrom_and_unparsable_value_returns_true(CancellationToken cancellationToken)
+    {
+        var (mux, capture) = BuildFakes();
+        capture.Storage["pulse:IdempotencyKey:k1"] = "not-a-timestamp";
+        var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
+
+        _ = await Assert
+            .That(await repo.ExistsAsync("k1", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false))
+            .IsTrue();
+    }
+
+    // INVARIANT: the TTL window is inclusive - a key created exactly at validFrom is still present.
+    [Test]
+    public async Task ExistsAsync_With_validFrom_equal_to_creation_returns_true(CancellationToken cancellationToken)
+    {
+        var (mux, _) = BuildFakes();
+        var createdAt = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
+        await repo.StoreAsync("k1", createdAt, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert
+            .That(await repo.ExistsAsync("k1", createdAt, cancellationToken).ConfigureAwait(false))
+            .IsTrue();
+    }
+
+    [Test]
+    public async Task ExistsAsync_Reads_key_prefixed_with_schema_and_table(CancellationToken cancellationToken)
+    {
+        var (mux, capture) = BuildFakes();
+        capture.Storage["tenant1:idem:k1"] = "2025-01-01T10:00:00.0000000+00:00";
+        capture.Storage["k2"] = "2025-01-01T10:00:00.0000000+00:00";
+        var options = Options.Create(new IdempotencyKeyOptions { Schema = "tenant1", TableName = "idem" });
+        var repo = new RedisIdempotencyKeyRepository(mux, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(await repo.ExistsAsync("k1", null, cancellationToken).ConfigureAwait(false)).IsTrue();
+            _ = await Assert
+                .That(await repo.ExistsAsync("k2", null, cancellationToken).ConfigureAwait(false))
+                .IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task StoreAsync_Default_options_prefix_key_with_pulse_IdempotencyKey(
+        CancellationToken cancellationToken
+    )
+    {
+        var (mux, capture) = BuildFakes();
+        var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
+
+        await repo.StoreAsync("k1", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(capture.StringSetCalls).HasCount(1);
+#pragma warning disable S8969 // RedisKey's implicit string conversion is annotated nullable; the value is never null here
+        _ = await Assert.That((string)capture.StringSetCalls[0].Key!).IsEqualTo("pulse:IdempotencyKey:k1");
+#pragma warning restore S8969
+    }
+
+    // A stored key would make ExistsAsync return true, so throwing proves Redis was never read.
+    [Test]
+    public async Task ExistsAsync_With_cancelled_token_throws_without_calling_Redis()
+    {
+        var (mux, capture) = BuildFakes();
+        capture.Storage["pulse:IdempotencyKey:k1"] = "2025-01-01T10:00:00.0000000+00:00";
+        var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        _ = await Assert.That(() => repo.ExistsAsync("k1", null, cts.Token)).Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_With_cancelled_token_throws_without_calling_Redis()
+    {
+        var (mux, capture) = BuildFakes();
+        var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(() => repo.StoreAsync("k1", DateTimeOffset.UtcNow, cts.Token))
+                .Throws<OperationCanceledException>();
+            _ = await Assert.That(capture.StringSetCalls).IsEmpty();
+        }
+    }
 }
