@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -17,16 +16,12 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
-using NetEvolve.Pulse.Serialization;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
 [TestGroup("AzureQueueStorage")]
-public sealed partial class AzureQueueStorageMessageTransportTests
+public sealed class AzureQueueStorageMessageTransportTests
 {
-    private static IPayloadSerializer DefaultSerializer =>
-        new SystemTextJsonPayloadSerializer(Options.Create(JsonSerializerOptions.Default));
-
     // ── Constructor guards ────────────────────────────────────────────────────
 
     [Test]
@@ -34,22 +29,7 @@ public sealed partial class AzureQueueStorageMessageTransportTests
     {
         IOptions<AzureQueueStorageTransportOptions> options = null!;
 
-        _ = await Assert
-            .That(() => new AzureQueueStorageMessageTransport(options, DefaultSerializer))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_When_payloadSerializer_is_null_throws_ArgumentNullException()
-    {
-        var options = Options.Create(
-            new AzureQueueStorageTransportOptions { ConnectionString = "UseDevelopmentStorage=true" }
-        );
-        IPayloadSerializer payloadSerializer = null!;
-
-        _ = await Assert
-            .That(() => new AzureQueueStorageMessageTransport(options, payloadSerializer))
-            .Throws<ArgumentNullException>();
+        _ = await Assert.That(() => new AzureQueueStorageMessageTransport(options)).Throws<ArgumentNullException>();
     }
 
     [Test]
@@ -59,21 +39,7 @@ public sealed partial class AzureQueueStorageMessageTransportTests
         var fakeClient = new FakeQueueClient();
 
         _ = await Assert
-            .That(() => new AzureQueueStorageMessageTransport(options, DefaultSerializer, fakeClient))
-            .Throws<ArgumentNullException>();
-    }
-
-    [Test]
-    public async Task Constructor_With_queueClient_When_payloadSerializer_is_null_throws_ArgumentNullException()
-    {
-        var options = Options.Create(
-            new AzureQueueStorageTransportOptions { ConnectionString = "UseDevelopmentStorage=true" }
-        );
-        var fakeClient = new FakeQueueClient();
-        IPayloadSerializer payloadSerializer = null!;
-
-        _ = await Assert
-            .That(() => new AzureQueueStorageMessageTransport(options, payloadSerializer, fakeClient))
+            .That(() => new AzureQueueStorageMessageTransport(options, fakeClient))
             .Throws<ArgumentNullException>();
     }
 
@@ -86,7 +52,7 @@ public sealed partial class AzureQueueStorageMessageTransportTests
         QueueClient nullClient = null!;
 
         _ = await Assert
-            .That(() => new AzureQueueStorageMessageTransport(options, DefaultSerializer, nullClient))
+            .That(() => new AzureQueueStorageMessageTransport(options, nullClient))
             .Throws<ArgumentNullException>();
     }
 
@@ -157,29 +123,6 @@ public sealed partial class AzureQueueStorageMessageTransportTests
     }
 
     [Test]
-    public async Task SendAsync_With_source_generated_payload_serializer_writes_envelope(
-        CancellationToken cancellationToken
-    )
-    {
-        var fakeClient = new FakeQueueClient();
-        var options = Options.Create(
-            new AzureQueueStorageTransportOptions { ConnectionString = "UseDevelopmentStorage=true" }
-        );
-        var serializer = new SystemTextJsonPayloadSerializer(
-            Options.Create(new JsonSerializerOptions { TypeInfoResolver = ApplicationJsonContext.Default })
-        );
-        using var transport = new AzureQueueStorageMessageTransport(options, serializer, fakeClient);
-        var message = CreateOutboxMessage();
-
-        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
-
-        using var doc = JsonDocument.Parse(
-            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
-        );
-        _ = await Assert.That(doc.RootElement.GetProperty("id").GetGuid()).IsEqualTo(message.Id);
-    }
-
-    [Test]
     public async Task SendAsync_Passes_visibility_timeout_when_configured(CancellationToken cancellationToken)
     {
         var fakeClient = new FakeQueueClient();
@@ -191,7 +134,7 @@ public sealed partial class AzureQueueStorageMessageTransportTests
                 MessageVisibilityTimeout = timeout,
             }
         );
-        using var transport = new AzureQueueStorageMessageTransport(options, DefaultSerializer, fakeClient);
+        using var transport = new AzureQueueStorageMessageTransport(options, fakeClient);
 
         await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
 
@@ -305,7 +248,7 @@ public sealed partial class AzureQueueStorageMessageTransportTests
         var options = Options.Create(
             new AzureQueueStorageTransportOptions { ConnectionString = "UseDevelopmentStorage=true" }
         );
-        return new AzureQueueStorageMessageTransport(options, DefaultSerializer, fakeClient);
+        return new AzureQueueStorageMessageTransport(options, fakeClient);
     }
 
     private static OutboxMessage CreateOutboxMessage(string? payload = null) =>
@@ -319,10 +262,6 @@ public sealed partial class AzureQueueStorageMessageTransportTests
             UpdatedAt = DateTimeOffset.UtcNow,
             RetryCount = 0,
         };
-
-    // Simulates a trimmed or NativeAOT application that only knows its own source-generated contracts.
-    [JsonSerializable(typeof(string))]
-    private sealed partial class ApplicationJsonContext : JsonSerializerContext;
 
     // ── Fakes ─────────────────────────────────────────────────────────────────
 

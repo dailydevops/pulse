@@ -32,17 +32,9 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// Initializes a new instance of the <see cref="AzureQueueStorageMessageTransport"/> class.
     /// </summary>
     /// <param name="options">The configured transport options.</param>
-    /// <param name="payloadSerializer">
-    /// The registered payload serializer. The envelope itself is written with a source-generated contract, so it
-    /// stays trim- and NativeAOT-safe regardless of the payload serializer configuration.
-    /// </param>
-    internal AzureQueueStorageMessageTransport(
-        IOptions<AzureQueueStorageTransportOptions> options,
-        IPayloadSerializer payloadSerializer
-    )
+    internal AzureQueueStorageMessageTransport(IOptions<AzureQueueStorageTransportOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
         _options = options.Value;
     }
 
@@ -51,19 +43,13 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// with a pre-built queue client. Used for testing.
     /// </summary>
     /// <param name="options">The configured transport options.</param>
-    /// <param name="payloadSerializer">
-    /// The registered payload serializer. The envelope itself is written with a source-generated contract, so it
-    /// stays trim- and NativeAOT-safe regardless of the payload serializer configuration.
-    /// </param>
     /// <param name="queueClient">A pre-built queue client to use instead of creating one from options.</param>
     internal AzureQueueStorageMessageTransport(
         IOptions<AzureQueueStorageTransportOptions> options,
-        IPayloadSerializer payloadSerializer,
         QueueClient queueClient
     )
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
         ArgumentNullException.ThrowIfNull(queueClient);
         _options = options.Value;
         _queueClientOverride = queueClient;
