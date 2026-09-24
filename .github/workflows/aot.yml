@@ -1,0 +1,55 @@
+name: NativeAOT
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: github.run_id != 1
+    name: NativeAOT publish (${{ matrix.framework }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [ net8.0, net9.0, net10.0 ]
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # global.json only configures the test runner and pins no SDK version, so the SDK is selected
+      # explicitly. The .NET 10 SDK publishes NativeAOT binaries for net8.0, net9.0 and net10.0.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install NativeAOT prerequisites
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang zlib1g-dev
+
+      # PublishAot is set in the project file. Passing it as a global property would also apply it to the
+      # netstandard2.0 source generator project and fail with NETSDK1207.
+      - name: Publish NativeAOT smoke application
+        run: >-
+          dotnet publish tests/NetEvolve.Pulse.Tests.Aot/NetEvolve.Pulse.Tests.Aot.csproj
+          --configuration Release
+          --framework ${{ matrix.framework }}
+          --runtime linux-x64
+          --output artifacts/aot/${{ matrix.framework }}
+          -warnaserror
+
+      - name: Run NativeAOT smoke application
+        run: ./artifacts/aot/${{ matrix.framework }}/NetEvolve.Pulse.Tests.Aot
