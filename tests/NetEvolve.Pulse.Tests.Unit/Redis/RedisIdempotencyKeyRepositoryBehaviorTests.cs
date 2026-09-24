@@ -28,6 +28,7 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
     internal class FakeDatabase : DispatchProxy
     {
         public List<StringSetCall> StringSetCalls { get; } = new();
+        public List<RedisKey> StringGetCalls { get; } = new();
         public Dictionary<string, RedisValue> Storage { get; } = new(StringComparer.Ordinal);
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -63,6 +64,7 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
                 {
                     if (args is { Length: >= 1 } && args[0] is RedisKey key)
                     {
+                        StringGetCalls.Add(key);
 #pragma warning disable S8969 // RedisKey's implicit string conversion is annotated nullable; the value is never null here
                         return Task.FromResult(Storage.TryGetValue((string)key!, out var v) ? v : RedisValue.Null);
 #pragma warning restore S8969
@@ -315,7 +317,6 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
 #pragma warning restore S8969
     }
 
-    // A stored key would make ExistsAsync return true, so throwing proves Redis was never read.
     [Test]
     public async Task ExistsAsync_With_cancelled_token_throws_without_calling_Redis()
     {
@@ -325,7 +326,11 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync().ConfigureAwait(false);
 
-        _ = await Assert.That(() => repo.ExistsAsync("k1", null, cts.Token)).Throws<OperationCanceledException>();
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(() => repo.ExistsAsync("k1", null, cts.Token)).Throws<OperationCanceledException>();
+            _ = await Assert.That(capture.StringGetCalls).IsEmpty();
+        }
     }
 
     [Test]
