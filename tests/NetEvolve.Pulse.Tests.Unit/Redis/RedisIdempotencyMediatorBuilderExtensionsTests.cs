@@ -113,6 +113,26 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
     }
 
     [Test]
+    public async Task AddRedisIdempotencyStore_CalledTwice_RegistersOptionsValidatorOnce()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+        {
+            _ = config.AddRedisIdempotencyStore();
+            _ = config.AddRedisIdempotencyStore();
+        });
+
+        var descriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(IValidateOptions<IdempotencyKeyOptions>)
+                && d.ImplementationType == typeof(RedisIdempotencyKeyOptionsValidator)
+            )
+            .ToList();
+
+        _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task AddRedisIdempotencyStore_WithExistingRepository_ReplacesWithRedisRepository()
     {
         var services = new ServiceCollection();

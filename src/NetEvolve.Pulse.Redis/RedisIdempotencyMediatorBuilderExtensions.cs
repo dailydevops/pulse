@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse;
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
@@ -67,6 +68,10 @@ public static class RedisIdempotencyMediatorBuilderExtensions
         {
             _ = services.Configure(configure);
         }
+
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<IdempotencyKeyOptions>, RedisIdempotencyKeyOptionsValidator>()
+        );
 
         // AddIdempotency() uses TryAdd* internally, so this call is safe even when AddIdempotency() was already invoked.
         _ = configurator.AddIdempotency();
