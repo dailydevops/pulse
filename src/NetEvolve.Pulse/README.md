@@ -326,8 +326,9 @@ The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDyna
 
 Pulse suppresses a trim warning only where the reflected value is used safely:
 
-* The outbox repositories and management implementations (SQL Server, PostgreSQL, MySQL, SQLite, MongoDB, Cosmos DB and Entity Framework Core) resolve the persisted event type with `Type.GetType` (IL2057). The resolved type is only used for its identity; a type that cannot be resolved takes the existing unresolvable-type path.
+* The outbox repositories and management implementations (SQL Server, PostgreSQL, MySQL, SQLite, MongoDB, Cosmos DB and Entity Framework Core) resolve the persisted event type with `Type.GetType` (IL2057). The resolved type is only used for its identity. A type that cannot be resolved keeps the existing behavior: the SQL Server, PostgreSQL, MySQL, SQLite, MongoDB and Entity Framework Core implementations throw an `InvalidOperationException` (for the ADO.NET providers this fails the whole fetch), and Cosmos DB falls back to `object`. The NativeAOT smoke application verifies the name round-trip for application event types.
 * The DataAnnotations interceptors (IL2026) are only registered through the annotated `AddDataAnnotations`.
+* `XmlDocumentationReader` in `NetEvolve.Pulse.AspNetCore` reads `Assembly.Location` (IL3000) and already returns no summary when the location is empty in single-file applications.
 * `SystemTextJsonPayloadSerializer` adds the reflection resolver only while the `JsonSerializer.IsReflectionEnabledByDefault` feature switch is enabled, which is never the case in trimmed or NativeAOT applications.
 
 ### Known Limitations
