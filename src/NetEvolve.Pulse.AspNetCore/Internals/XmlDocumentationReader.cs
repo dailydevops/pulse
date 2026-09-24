@@ -52,7 +52,14 @@ internal static class XmlDocumentationReader
                     return null;
                 }
 
-                var memberId = "T:" + t.FullName;
+                // XML doc ids use '.' for nested types and the open generic definition (e.g. `1).
+                var fullName = (t.IsConstructedGenericType ? t.GetGenericTypeDefinition() : t).FullName;
+                if (fullName is null)
+                {
+                    return null;
+                }
+
+                var memberId = "T:" + fullName.Replace('+', '.');
                 return members.TryGetValue(memberId, out var value) ? value : null;
             }
         );
