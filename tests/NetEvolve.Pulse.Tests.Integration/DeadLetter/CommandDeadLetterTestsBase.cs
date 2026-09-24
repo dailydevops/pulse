@@ -171,9 +171,7 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task GetPendingAsync_With_negative_skip_throws_ArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task GetPendingAsync_With_negative_skip_throws(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
@@ -235,9 +233,7 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task GetPendingAsync_With_negative_count_throws_ArgumentOutOfRangeException(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task GetPendingAsync_With_negative_count_throws(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
