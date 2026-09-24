@@ -98,7 +98,8 @@ public static class ServiceCollectionExtensions
         // Register default parallel event dispatcher if not configured
         services.TryAddSingleton<IEventDispatcher, ParallelEventDispatcher>();
 
-        // Register default payload serializer if not configured
+        // Register default payload serializer if not configured; it depends on IOptions<JsonSerializerOptions>
+        _ = services.AddOptions();
         services.TryAddSingleton<IPayloadSerializer, SystemTextJsonPayloadSerializer>();
 
         if (builder is not null)
