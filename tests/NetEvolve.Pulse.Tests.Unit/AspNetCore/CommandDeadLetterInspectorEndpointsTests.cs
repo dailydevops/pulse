@@ -553,10 +553,50 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(customPathResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
+    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+
+    [Test]
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+        CancellationToken cancellationToken
+    )
+    {
+        var statistics = new CommandDeadLetterStatistics(
+            NewCount: 1,
+            ReplayingCount: 2,
+            ResolvedCount: 3,
+            DismissedCount: 4
+        );
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(statistics);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/commands/stats", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"newCount\":1");
+        _ = await Assert.That(json).Contains("\"dismissedCount\":4");
+    }
+
     private static async Task<IHost> CreateTestHostAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
         Action<CommandDeadLetterInspectorOptions>? configure,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Action<IServiceCollection>? configureServices = null
     )
     {
         var host = new HostBuilder()
@@ -567,6 +607,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
                 {
                     _ = services.AddRouting();
                     _ = services.AddSingleton(commandDeadLetterManagement);
+                    configureServices?.Invoke(services);
                 });
                 _ = webBuilder.Configure(app =>
                 {

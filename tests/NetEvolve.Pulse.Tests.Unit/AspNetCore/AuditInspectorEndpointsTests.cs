@@ -565,10 +565,45 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(payload!.SuccessCount).IsEqualTo(1);
     }
 
+    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+
+    [Test]
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+        CancellationToken cancellationToken
+    )
+    {
+        var statistics = new AuditStatistics(3, 2);
+
+        var mock = Mock.Of<IAuditManagement>();
+        _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(statistics);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/audit/stats", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"successCount\":3");
+        _ = await Assert.That(json).Contains("\"failureCount\":2");
+    }
+
     private static async Task<IHost> CreateTestHostAsync(
         IAuditManagement auditManagement,
         Action<AuditInspectorOptions>? configure,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Action<IServiceCollection>? configureServices = null
     )
     {
         var host = new HostBuilder()
@@ -579,6 +614,7 @@ public sealed class AuditInspectorEndpointsTests
                 {
                     _ = services.AddRouting();
                     _ = services.AddSingleton(auditManagement);
+                    configureServices?.Invoke(services);
                 });
                 _ = webBuilder.Configure(app =>
                 {
