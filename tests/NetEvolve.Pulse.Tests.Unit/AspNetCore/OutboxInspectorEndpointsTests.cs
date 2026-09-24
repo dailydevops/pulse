@@ -339,6 +339,271 @@ public sealed class OutboxInspectorEndpointsTests
             .WasCalled(Times.Never);
     }
 
+    // GET {base}/messages
+
+    [Test]
+    public async Task GetMessages_WithoutQuery_UsesDefaultsAndReturnsMessages(CancellationToken cancellationToken)
+    {
+        var messageId = Guid.NewGuid();
+        var messages = new[]
+        {
+            new OutboxMessage
+            {
+                Id = messageId,
+                EventType = typeof(string),
+                Payload = "{\"value\":1}",
+                Status = OutboxMessageStatus.Pending,
+            },
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(messages);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/outbox/messages", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var payload = await response
+            .Content.ReadFromJsonAsync<OutboxMessageResponse[]>(cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(payload).IsNotNull();
+        _ = await Assert.That(payload!.Length).IsEqualTo(1);
+        _ = await Assert.That(payload[0].Id).IsEqualTo(messageId);
+        _ = await Assert.That(payload[0].EventType).IsEqualTo(typeof(string).ToOutboxEventTypeName());
+        _ = await Assert.That(payload[0].Payload).IsEqualTo("{\"value\":1}");
+        _ = await Assert.That(payload[0].Status).IsEqualTo(OutboxMessageStatus.Pending);
+
+        mock.GetMessagesAsync(50, 0, null, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    [Test]
+    [Arguments("status=DeadLetter")]
+    [Arguments("status=4")]
+    public async Task GetMessages_WithQuery_PassesPagingAndStatusThrough(
+        string statusQuery,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Array.Empty<OutboxMessage>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(
+                new Uri($"/pulse/outbox/messages?pageSize=10&page=2&{statusQuery}", UriKind.Relative),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        mock.GetMessagesAsync(10, 2, OutboxMessageStatus.DeadLetter, Arg.Any<CancellationToken>())
+            .WasCalled(Times.Once);
+    }
+
+    [Test]
+    [Arguments("pageSize=0")]
+    [Arguments("pageSize=-1")]
+    [Arguments("page=-1")]
+    [Arguments("pageSize=2&page=2147483647")]
+    [Arguments("status=99")]
+    [Arguments("status=Unknown")]
+    public async Task GetMessages_WithInvalidQuery_ReturnsBadRequest(string query, CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages?{query}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .WasCalled(Times.Never);
+    }
+
+    // GET {base}/messages/{id:guid}
+
+    [Test]
+    public async Task GetMessage_WhenFound_ReturnsOkWithMessage(CancellationToken cancellationToken)
+    {
+        var messageId = Guid.NewGuid();
+        var message = new OutboxMessage
+        {
+            Id = messageId,
+            EventType = typeof(string),
+            Payload = "{}",
+            Status = OutboxMessageStatus.Processing,
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(message);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages/{messageId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var payload = await response
+            .Content.ReadFromJsonAsync<OutboxMessageResponse>(cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(payload).IsNotNull();
+        _ = await Assert.That(payload!.Id).IsEqualTo(messageId);
+        _ = await Assert.That(payload.EventType).IsEqualTo(typeof(string).ToOutboxEventTypeName());
+        _ = await Assert.That(payload.Status).IsEqualTo(OutboxMessageStatus.Processing);
+    }
+
+    [Test]
+    public async Task GetMessage_WhenNotFound_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((OutboxMessage?)null);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages/{Guid.NewGuid()}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GetMessage_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/outbox/messages/not-a-guid", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        mock.GetMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).WasCalled(Times.Never);
+    }
+
+    // POST {base}/messages/{id:guid}/replay — alias of the dead-letter replay
+
+    [Test]
+    [Arguments(true, HttpStatusCode.NoContent)]
+    [Arguments(false, HttpStatusCode.NotFound)]
+    public async Task ReplayMessageViaMessagesRoute_ReturnsExpectedStatus(
+        bool replayed,
+        HttpStatusCode expected,
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.ReplayMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(replayed);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri($"/pulse/outbox/messages/{messageId}/replay", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(expected);
+
+        mock.ReplayMessageAsync(messageId, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    // POST {base}/dead-letters/{id:guid}/dismiss
+
+    [Test]
+    [Arguments(true, HttpStatusCode.NoContent)]
+    [Arguments(false, HttpStatusCode.NotFound)]
+    public async Task DismissMessage_ReturnsExpectedStatus(
+        bool dismissed,
+        HttpStatusCode expected,
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.DismissMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(dismissed);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri($"/pulse/outbox/dead-letters/{messageId}/dismiss", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(expected);
+
+        mock.DismissMessageAsync(messageId, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    [Test]
+    public async Task DismissMessage_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri("/pulse/outbox/dead-letters/not-a-guid/dismiss", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        mock.DismissMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).WasCalled(Times.Never);
+    }
+
     // OutboxInspectorOptions — defaults
 
     [Test]
