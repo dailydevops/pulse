@@ -249,6 +249,27 @@ orders.MapCommand<DeleteOrderCommand>("/{id}", CommandHttpMethod.Delete);
 orders.MapQuery<GetOrderQuery, OrderDto>("/{id}");
 ```
 
+### Command Dead Letter Inspector
+
+`MapCommandDeadLetterInspector` maps administrative endpoints over the registered `ICommandDeadLetterManagement` (provided by the SQL Server, PostgreSQL, SQLite, MySQL and Entity Framework Core dead letter stores):
+
+| Method | Route | Result |
+|--------|-------|--------|
+| `GET` | `{BasePath}/stats` | `200` with counts per status |
+| `GET` | `{BasePath}/entries?count=50&skip=0` | `200` with pending entries, oldest first; `400` if `count` is not between 1 and 1000 or `skip < 0` |
+| `GET` | `{BasePath}/entries/{id:guid}` | `200` with the entry, `404` if not found |
+| `POST` | `{BasePath}/entries/{id:guid}/replay` | `204` after replaying the command, `404` if not found |
+| `POST` | `{BasePath}/entries/{id:guid}/dismiss` | `204` after dismissing the entry, `404` if not found |
+
+`CommandDeadLetterInspectorOptions` configures `BasePath` (default `/pulse/commands`) and `RouteGroupName` (default `Pulse Command Dead Letter Inspector`).
+
+> No authorization is applied. Secure the returned route group yourself:
+
+```csharp
+app.MapCommandDeadLetterInspector(options => options.BasePath = "/admin/commands")
+   .RequireAuthorization("Operations");
+```
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0

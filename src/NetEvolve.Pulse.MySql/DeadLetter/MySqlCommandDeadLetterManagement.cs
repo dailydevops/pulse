@@ -88,8 +88,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
                 `{CommandDeadLetterSchema.Columns.Status}`
             FROM {table}
             WHERE `{CommandDeadLetterSchema.Columns.Status}` = 0
-            ORDER BY `{CommandDeadLetterSchema.Columns.OccurredAt}` ASC
-            LIMIT @count
+            ORDER BY `{CommandDeadLetterSchema.Columns.OccurredAt}` ASC, `{CommandDeadLetterSchema.Columns.Id}` ASC
+            LIMIT @count OFFSET @skip
             """;
 
         _getByIdSql = $"""
@@ -134,9 +134,13 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -144,6 +148,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@count", count);
+                _ = command.Parameters.AddWithValue("@skip", skip);
 
                 return await ReadEntriesAsync(command, cancellationToken).ConfigureAwait(false);
             }
@@ -151,9 +156,15 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     }
 
     /// <inheritdoc />
+    public Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetByIdAsync(id, cancellationToken);
+
+    /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var entry = await GetByIdAsync(id, cancellationToken).ConfigureAwait(false) ?? throw NotFound(id);
+        var entry =
+            await GetByIdAsync(id, cancellationToken).ConfigureAwait(false)
+            ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
         await SetStatusAsync(_markReplayingSql, id, cancellationToken).ConfigureAwait(false);
 
@@ -178,7 +189,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
                 var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (affected == 0)
                 {
-                    throw NotFound(id);
+                    throw new CommandDeadLetterEntryNotFoundException(id);
                 }
             }
         }
@@ -335,9 +346,4 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             return entries;
         }
     }
-
-    /// <summary>
-    /// Creates the exception thrown when a dead letter entry cannot be found by its identifier.
-    /// </summary>
-    private static KeyNotFoundException NotFound(Guid id) => new($"CommandDeadLetterEntry '{id}' was not found.");
 }

@@ -86,7 +86,7 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
 
                     _ = await Assert.That(pending).HasSingleItem();
                     _ = await Assert.That(pending[0].Status).IsEqualTo(CommandDeadLetterStatus.New);
@@ -119,9 +119,139 @@ public abstract class CommandDeadLetterTestsBase(
                             .ConfigureAwait(false);
                     }
 
-                    var pending = await management.GetPendingAsync(2, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(2, 0, token).ConfigureAwait(false);
 
                     _ = await Assert.That(pending.Count).IsEqualTo(2);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetPendingAsync_With_skip_pages_in_OccurredAt_order(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<ICommandDeadLetterStore>();
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    for (var i = 0; i < 3; i++)
+                    {
+                        await store
+                            .StoreAsync(
+                                typeof(TestReplayCommand).AssemblyQualifiedName!,
+                                """{"Value":"n/a"}""",
+                                new InvalidOperationException($"failure-{i}"),
+                                token
+                            )
+                            .ConfigureAwait(false);
+
+                        // Keep OccurredAt distinct so the order is decided by OccurredAt, not the Id tie-break.
+                        await Task.Delay(TimeSpan.FromMilliseconds(20), token).ConfigureAwait(false);
+                    }
+
+                    var all = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    var firstPage = await management.GetPendingAsync(2, 0, token).ConfigureAwait(false);
+                    var secondPage = await management.GetPendingAsync(2, 2, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(all.Count).IsEqualTo(3);
+                    _ = await Assert.That(all[0].ExceptionMessage).IsEqualTo("failure-0");
+                    _ = await Assert.That(all[1].ExceptionMessage).IsEqualTo("failure-1");
+                    _ = await Assert.That(all[2].ExceptionMessage).IsEqualTo("failure-2");
+                    _ = await Assert.That(all[0].OccurredAt).IsLessThan(all[1].OccurredAt);
+                    _ = await Assert.That(all[1].OccurredAt).IsLessThan(all[2].OccurredAt);
+                    _ = await Assert.That(firstPage.Count).IsEqualTo(2);
+                    _ = await Assert.That(firstPage[0].Id).IsEqualTo(all[0].Id);
+                    _ = await Assert.That(firstPage[1].Id).IsEqualTo(all[1].Id);
+                    _ = await Assert.That(secondPage).HasSingleItem();
+                    _ = await Assert.That(secondPage[0].Id).IsEqualTo(all[2].Id);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetPendingAsync_With_negative_skip_throws(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    _ = await Assert
+                        .That(async () => await management.GetPendingAsync(10, -1, token).ConfigureAwait(false))
+                        .Throws<ArgumentOutOfRangeException>();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetEntryAsync_Returns_stored_entry(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<ICommandDeadLetterStore>();
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    await store
+                        .StoreAsync(
+                            typeof(TestReplayCommand).AssemblyQualifiedName!,
+                            """{"Value":"n/a"}""",
+                            new InvalidOperationException("boom"),
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    var entryId = pending.Single().Id;
+
+                    var entry = await management.GetEntryAsync(entryId, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(entry).IsNotNull();
+                    _ = await Assert.That(entry!.Id).IsEqualTo(entryId);
+                    _ = await Assert.That(entry.Status).IsEqualTo(CommandDeadLetterStatus.New);
+                    _ = await Assert.That(entry.ExceptionMessage).IsEqualTo("boom");
+                    _ = await Assert.That(entry.CommandType).IsEqualTo(typeof(TestReplayCommand).AssemblyQualifiedName);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetEntryAsync_When_id_not_found_returns_null(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    var entry = await management.GetEntryAsync(Guid.NewGuid(), token).ConfigureAwait(false);
+
+                    _ = await Assert.That(entry).IsNull();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetPendingAsync_With_negative_count_throws(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<ICommandDeadLetterStore>();
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    await store
+                        .StoreAsync(
+                            typeof(TestReplayCommand).AssemblyQualifiedName!,
+                            """{"Value":"n/a"}""",
+                            new InvalidOperationException("boom"),
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(async () => await management.GetPendingAsync(-1, 0, token).ConfigureAwait(false))
+                        .Throws<ArgumentOutOfRangeException>();
                 },
                 cancellationToken
             )
@@ -147,12 +277,12 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     var entryId = pending.Single().Id;
 
                     await management.ReplayAsync(entryId, token).ConfigureAwait(false);
 
-                    var stillPending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var stillPending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     _ = await Assert.That(stillPending).IsEmpty();
 
                     var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
@@ -165,15 +295,17 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task ReplayAsync_When_id_not_found_throws_KeyNotFoundException(CancellationToken cancellationToken) =>
+    public async Task ReplayAsync_When_id_not_found_throws_EntryNotFound(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
                     var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = Guid.NewGuid();
 
-                    _ = await Assert
-                        .That(() => management.ReplayAsync(Guid.NewGuid(), token))
-                        .Throws<KeyNotFoundException>();
+                    var exception = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<CommandDeadLetterEntryNotFoundException>();
+                    _ = await Assert.That(exception!.EntryId).IsEqualTo(entryId);
                 },
                 cancellationToken
             )
@@ -196,12 +328,12 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     var entryId = pending.Single().Id;
 
                     await management.DismissAsync(entryId, token).ConfigureAwait(false);
 
-                    var stillPending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var stillPending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     _ = await Assert.That(stillPending).IsEmpty();
 
                     var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
@@ -212,15 +344,17 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task DismissAsync_When_id_not_found_throws_KeyNotFoundException(CancellationToken cancellationToken) =>
+    public async Task DismissAsync_When_id_not_found_throws_EntryNotFound(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
                     var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = Guid.NewGuid();
 
-                    _ = await Assert
-                        .That(() => management.DismissAsync(Guid.NewGuid(), token))
-                        .Throws<KeyNotFoundException>();
+                    var exception = await Assert
+                        .That(() => management.DismissAsync(entryId, token))
+                        .Throws<CommandDeadLetterEntryNotFoundException>();
+                    _ = await Assert.That(exception!.EntryId).IsEqualTo(entryId);
                 },
                 cancellationToken
             )
@@ -252,7 +386,7 @@ public abstract class CommandDeadLetterTestsBase(
                         )
                         .ConfigureAwait(false);
 
-                    var pending = await management.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
                     await management.DismissAsync(pending[0].Id, token).ConfigureAwait(false);
 
                     var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);

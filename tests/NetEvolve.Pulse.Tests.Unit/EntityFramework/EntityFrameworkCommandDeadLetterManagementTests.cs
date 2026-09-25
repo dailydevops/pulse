@@ -155,16 +155,146 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                 new PassthroughPayloadSerializer()
             );
 
-            var pending = await management.GetPendingAsync(2, cancellationToken).ConfigureAwait(false);
+            var pending = await management.GetPendingAsync(2, 0, cancellationToken).ConfigureAwait(false);
 
             _ = await Assert.That(pending).HasCount(2);
         }
     }
 
     [Test]
-    public async Task ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
+    public async Task GetPendingAsync_WithSkip_SkipsOldestEntries(CancellationToken cancellationToken)
     {
-        var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException));
+        var context = CreateContext(nameof(GetPendingAsync_WithSkip_SkipsOldestEntries));
+        await using (context.ConfigureAwait(false))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var oldest = CreateEntry(CommandDeadLetterStatus.New, now.AddMinutes(-30));
+            var middle = CreateEntry(CommandDeadLetterStatus.New, now.AddMinutes(-20));
+            var newest = CreateEntry(CommandDeadLetterStatus.New, now.AddMinutes(-10));
+
+            await context
+                .CommandDeadLetterEntries.AddRangeAsync([newest, oldest, middle], cancellationToken)
+                .ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                context,
+                new NoOpMediator(),
+                new PassthroughPayloadSerializer()
+            );
+
+            var pending = await management.GetPendingAsync(1, 1, cancellationToken).ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(pending).HasSingleItem();
+                _ = await Assert.That(pending[0].Id).IsEqualTo(middle.Id);
+            }
+        }
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WithNegativeSkip_ThrowsArgumentOutOfRangeException(
+        CancellationToken cancellationToken
+    )
+    {
+        var context = CreateContext(nameof(GetPendingAsync_WithNegativeSkip_ThrowsArgumentOutOfRangeException));
+        await using (context.ConfigureAwait(false))
+        {
+            var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                context,
+                new NoOpMediator(),
+                new PassthroughPayloadSerializer()
+            );
+
+            _ = await Assert
+                .That(async () => await management.GetPendingAsync(10, -1, cancellationToken).ConfigureAwait(false))
+                .Throws<ArgumentOutOfRangeException>();
+        }
+    }
+
+    [Test]
+    public async Task GetEntryAsync_WithExistingId_ReturnsEntry(CancellationToken cancellationToken)
+    {
+        var context = CreateContext(nameof(GetEntryAsync_WithExistingId_ReturnsEntry));
+        await using (context.ConfigureAwait(false))
+        {
+            var entry = CreateEntry(CommandDeadLetterStatus.Dismissed, DateTimeOffset.UtcNow);
+            _ = await context.CommandDeadLetterEntries.AddAsync(entry, cancellationToken).ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                context,
+                new NoOpMediator(),
+                new PassthroughPayloadSerializer()
+            );
+
+            var result = await management.GetEntryAsync(entry.Id, cancellationToken).ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(result).IsNotNull();
+                _ = await Assert.That(result!.Id).IsEqualTo(entry.Id);
+                _ = await Assert.That(result.Status).IsEqualTo(CommandDeadLetterStatus.Dismissed);
+            }
+        }
+    }
+
+    [Test]
+    public async Task GetEntryAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
+    {
+        var context = CreateContext(nameof(GetEntryAsync_WithUnknownId_ReturnsNull));
+        await using (context.ConfigureAwait(false))
+        {
+            var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                context,
+                new NoOpMediator(),
+                new PassthroughPayloadSerializer()
+            );
+
+            var result = await management.GetEntryAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
+
+            _ = await Assert.That(result).IsNull();
+        }
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task GetPendingAsync_WithNonPositiveCount_ThrowsArgumentOutOfRangeException(
+        int count,
+        CancellationToken cancellationToken
+    )
+    {
+        var context = CreateContext(
+            $"{nameof(GetPendingAsync_WithNonPositiveCount_ThrowsArgumentOutOfRangeException)}{count}"
+        );
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await context
+                .CommandDeadLetterEntries.AddAsync(
+                    CreateEntry(CommandDeadLetterStatus.New, DateTimeOffset.UtcNow),
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                context,
+                new NoOpMediator(),
+                new PassthroughPayloadSerializer()
+            );
+
+            _ = await Assert
+                .That(async () => await management.GetPendingAsync(count, 0, cancellationToken).ConfigureAwait(false))
+                .Throws<ArgumentOutOfRangeException>();
+        }
+    }
+
+    [Test]
+    public async Task ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
+    {
+        var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException));
         await using (context.ConfigureAwait(false))
         {
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
@@ -175,7 +305,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
             _ = await Assert
                 .That(async () => await management.ReplayAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false))
-                .Throws<KeyNotFoundException>();
+                .Throws<CommandDeadLetterEntryNotFoundException>();
         }
     }
 
@@ -234,9 +364,9 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
-    public async Task DismissAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
+    public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
-        var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsKeyNotFoundException));
+        var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
         await using (context.ConfigureAwait(false))
         {
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
@@ -249,7 +379,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                 .That(async () =>
                     await management.DismissAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false)
                 )
-                .Throws<KeyNotFoundException>();
+                .Throws<CommandDeadLetterEntryNotFoundException>();
         }
     }
 

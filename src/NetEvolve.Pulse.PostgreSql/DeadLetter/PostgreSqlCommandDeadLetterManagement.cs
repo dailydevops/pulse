@@ -96,8 +96,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             SELECT {columns}
             FROM {qualifiedTableName}
             WHERE "{CommandDeadLetterSchema.Columns.Status}" = @status
-            ORDER BY "{CommandDeadLetterSchema.Columns.OccurredAt}" ASC
-            LIMIT @count
+            ORDER BY "{CommandDeadLetterSchema.Columns.OccurredAt}" ASC, "{CommandDeadLetterSchema.Columns.Id}" ASC
+            LIMIT @count OFFSET @skip
             """;
 
         _getByIdSql = $"""
@@ -122,9 +122,13 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -133,6 +137,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             {
                 _ = command.Parameters.AddWithValue("status", (short)CommandDeadLetterStatus.New);
                 _ = command.Parameters.AddWithValue("count", count);
+                _ = command.Parameters.AddWithValue("skip", skip);
 
                 var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 await using (reader.ConfigureAwait(false))
@@ -150,6 +155,16 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     }
 
     /// <inheritdoc />
+    public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            return await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -157,7 +172,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         {
             var entry =
                 await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
-                ?? throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
             await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
@@ -186,7 +201,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
                 var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (affected == 0)
                 {
-                    throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                    throw new CommandDeadLetterEntryNotFoundException(id);
                 }
             }
         }
