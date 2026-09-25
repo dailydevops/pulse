@@ -162,7 +162,9 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var entry = await GetByIdAsync(id, cancellationToken).ConfigureAwait(false) ?? throw NotFound(id);
+        var entry =
+            await GetByIdAsync(id, cancellationToken).ConfigureAwait(false)
+            ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
         await SetStatusAsync(_markReplayingSql, id, cancellationToken).ConfigureAwait(false);
 
@@ -187,7 +189,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
                 var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (affected == 0)
                 {
-                    throw NotFound(id);
+                    throw new CommandDeadLetterEntryNotFoundException(id);
                 }
             }
         }
@@ -344,9 +346,4 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             return entries;
         }
     }
-
-    /// <summary>
-    /// Creates the exception thrown when a dead letter entry cannot be found by its identifier.
-    /// </summary>
-    private static KeyNotFoundException NotFound(Guid id) => new($"CommandDeadLetterEntry '{id}' was not found.");
 }

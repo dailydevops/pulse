@@ -181,7 +181,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         {
             var entry =
                 await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
-                ?? throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
             var replayingCommand = new SqliteCommand(_setReplayingSql, connection);
             await using (replayingCommand.ConfigureAwait(false))
@@ -217,7 +217,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
                 var updated = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (updated == 0)
                 {
-                    throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                    throw new CommandDeadLetterEntryNotFoundException(id);
                 }
             }
         }

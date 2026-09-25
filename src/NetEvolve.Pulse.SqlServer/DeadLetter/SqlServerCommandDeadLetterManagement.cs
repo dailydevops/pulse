@@ -175,7 +175,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         {
             var entry =
                 await GetEntryByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
-                ?? throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
             _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
@@ -200,7 +200,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
 
             if (affected == 0)
             {
-                throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                throw new CommandDeadLetterEntryNotFoundException(id);
             }
         }
     }

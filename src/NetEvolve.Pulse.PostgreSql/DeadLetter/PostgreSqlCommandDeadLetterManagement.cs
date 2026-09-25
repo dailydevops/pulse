@@ -172,7 +172,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         {
             var entry =
                 await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
-                ?? throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
             await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
@@ -201,7 +201,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
                 var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (affected == 0)
                 {
-                    throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                    throw new CommandDeadLetterEntryNotFoundException(id);
                 }
             }
         }

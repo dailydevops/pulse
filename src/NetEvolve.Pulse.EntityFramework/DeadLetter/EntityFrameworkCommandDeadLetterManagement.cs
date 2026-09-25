@@ -122,13 +122,13 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     /// <param name="id">The identifier of the dead letter entry to load.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The loaded <see cref="CommandDeadLetterEntry"/>.</returns>
-    /// <exception cref="KeyNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
+    /// <exception cref="CommandDeadLetterEntryNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
     private async Task<CommandDeadLetterEntry> GetRequiredEntryAsync(Guid id, CancellationToken cancellationToken)
     {
         var entry = await _context
             .CommandDeadLetterEntries.FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
             .ConfigureAwait(false);
 
-        return entry ?? throw new KeyNotFoundException($"No command dead letter entry with id '{id}' was found.");
+        return entry ?? throw new CommandDeadLetterEntryNotFoundException(id);
     }
 }

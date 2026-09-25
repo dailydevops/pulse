@@ -134,16 +134,16 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
-        // Check existence up front instead of catching KeyNotFoundException: replay runs the user's
-        // command handler, whose own KeyNotFoundException must not be reported as a missing entry.
-        // ponytail: an entry deleted between the check and ReplayAsync still surfaces as 500; a dedicated
-        // "entry missing" signal from ReplayAsync would close that race.
-        if (await commandDeadLetterManagement.GetEntryAsync(id, cancellationToken).ConfigureAwait(false) is null)
+        // Catch only the dedicated exception: replay runs the user's command handler, whose own
+        // KeyNotFoundException must not be reported as a missing entry.
+        try
+        {
+            await commandDeadLetterManagement.ReplayAsync(id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (CommandDeadLetterEntryNotFoundException)
         {
             return TypedResults.NotFound();
         }
-
-        await commandDeadLetterManagement.ReplayAsync(id, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.NoContent();
     }
@@ -158,7 +158,7 @@ public static class CommandDeadLetterInspectorEndpoints
         {
             await commandDeadLetterManagement.DismissAsync(id, cancellationToken).ConfigureAwait(false);
         }
-        catch (KeyNotFoundException)
+        catch (CommandDeadLetterEntryNotFoundException)
         {
             return TypedResults.NotFound();
         }
