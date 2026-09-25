@@ -8,7 +8,7 @@ namespace NetEvolve.Pulse.Extensibility.DeadLetter;
 /// <para><strong>When Is This Thrown:</strong></para>
 /// <see cref="ICommandDeadLetterManagement.ReplayAsync"/> and <see cref="ICommandDeadLetterManagement.DismissAsync"/>
 /// throw this exception when the entry identified by <see cref="EntryId"/> does not exist. A replay looks the entry up
-/// before dispatching the stored command, so this exception is never thrown by the replayed command handler itself.
+/// first, so this exception is thrown before the stored command is dispatched.
 /// <para><strong>Handling Recommendations:</strong></para>
 /// Catch this type instead of <see cref="KeyNotFoundException"/> to distinguish a missing entry from a
 /// <see cref="KeyNotFoundException"/> raised by the replayed command handler, for example to map only the

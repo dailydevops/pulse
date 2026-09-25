@@ -408,6 +408,41 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         mock.GetEntryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).WasNeverCalled();
     }
 
+    // POST {base}/entries/{id:guid}/replay — entry removed between lookup and replay
+
+    [Test]
+    public async Task ReplayEntry_WhenEntryRemovedBeforeReplay_ReturnsNotFound(CancellationToken cancellationToken)
+    {
+        var entryId = Guid.NewGuid();
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>())
+            .Returns(
+                new CommandDeadLetterEntry
+                {
+                    Id = entryId,
+                    CommandType = typeof(string).AssemblyQualifiedName!,
+                    Payload = "{}",
+                    Status = CommandDeadLetterStatus.New,
+                }
+            );
+        _ = mock.ReplayAsync(entryId, Arg.Any<CancellationToken>())
+            .Throws(new CommandDeadLetterEntryNotFoundException(entryId));
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri($"/pulse/commands/entries/{entryId}/replay", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+    }
+
     // POST {base}/entries/{id:guid}/replay — handler failure is not reported as a missing entry
 
     [Test]
