@@ -295,15 +295,17 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task ReplayAsync_When_id_not_found_throws_KeyNotFoundException(CancellationToken cancellationToken) =>
+    public async Task ReplayAsync_When_id_not_found_throws_EntryNotFound(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
                     var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = Guid.NewGuid();
 
-                    _ = await Assert
-                        .That(() => management.ReplayAsync(Guid.NewGuid(), token))
-                        .Throws<KeyNotFoundException>();
+                    var exception = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<CommandDeadLetterEntryNotFoundException>();
+                    _ = await Assert.That(exception!.EntryId).IsEqualTo(entryId);
                 },
                 cancellationToken
             )
@@ -342,15 +344,17 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task DismissAsync_When_id_not_found_throws_KeyNotFoundException(CancellationToken cancellationToken) =>
+    public async Task DismissAsync_When_id_not_found_throws_EntryNotFound(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
                     var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = Guid.NewGuid();
 
-                    _ = await Assert
-                        .That(() => management.DismissAsync(Guid.NewGuid(), token))
-                        .Throws<KeyNotFoundException>();
+                    var exception = await Assert
+                        .That(() => management.DismissAsync(entryId, token))
+                        .Throws<CommandDeadLetterEntryNotFoundException>();
+                    _ = await Assert.That(exception!.EntryId).IsEqualTo(entryId);
                 },
                 cancellationToken
             )

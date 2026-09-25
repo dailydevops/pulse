@@ -292,9 +292,9 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
-    public async Task ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
+    public async Task ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
-        var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsKeyNotFoundException));
+        var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException));
         await using (context.ConfigureAwait(false))
         {
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
@@ -305,7 +305,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
             _ = await Assert
                 .That(async () => await management.ReplayAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false))
-                .Throws<KeyNotFoundException>();
+                .Throws<CommandDeadLetterEntryNotFoundException>();
         }
     }
 
@@ -364,9 +364,9 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
-    public async Task DismissAsync_WithUnknownId_ThrowsKeyNotFoundException(CancellationToken cancellationToken)
+    public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
-        var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsKeyNotFoundException));
+        var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
         await using (context.ConfigureAwait(false))
         {
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
@@ -379,7 +379,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                 .That(async () =>
                     await management.DismissAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false)
                 )
-                .Throws<KeyNotFoundException>();
+                .Throws<CommandDeadLetterEntryNotFoundException>();
         }
     }
 
