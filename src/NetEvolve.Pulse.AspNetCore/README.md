@@ -11,6 +11,7 @@ NetEvolve.Pulse.AspNetCore provides `IEndpointRouteBuilder` extension methods th
 - **`MapCommand<TCommand, TResponse>`**: Maps a command to an HTTP endpoint returning `200 OK` with the response. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapCommand<TCommand>`**: Maps a void command to an HTTP endpoint returning `204 No Content`. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapQuery<TQuery, TResponse>`**: Maps a query to a `GET` endpoint returning `200 OK` with the result.
+- **`MapStreamQueryHub<TQuery, TResponse>`**: Maps a `PulseStreamHub` that exposes a stream query as a native SignalR server-to-client stream (requires `AddSignalR()`).
 - **`CommandHttpMethod` enum**: Strongly-typed HTTP method selection — `Post`, `Put`, `Patch`, `Delete`. `GET` is excluded by design since commands are state-changing operations.
 - **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token.
 - **OpenAPI compatible**: Returns typed results (`TypedResults`) so `WithOpenApi()` produces correct response schemas.
@@ -132,6 +133,68 @@ app.MapQuery<GetOrderQuery, OrderDto>("/orders/{id}");
 public record GetOrderQuery(Guid Id) : IQuery<OrderDto>;
 public record OrderDto(Guid Id, string Sku, string Status);
 ```
+
+### SignalR Stream Queries
+
+`MapStreamQueryHub<TQuery, TResponse>` maps a `PulseStreamHub<TQuery, TResponse>` to a path. Clients call the `StreamAsync` hub method as a SignalR server-to-client stream. The hub runs `IMediator.StreamQueryAsync` and sends each item to the caller as a stream item. SignalR is part of the ASP.NET Core shared framework, so you don't need an extra package on the server. You must register SignalR with `AddSignalR()` first, otherwise `MapStreamQueryHub` throws `InvalidOperationException`:
+
+```csharp
+builder.Services.AddSignalR();
+// ...
+app.MapStreamQueryHub<GetOrdersStreamQuery, OrderDto>("/hubs/orders");
+```
+
+```csharp
+public record GetOrdersStreamQuery(string CustomerId) : IStreamQuery<OrderDto>;
+```
+
+`TQuery` must be deserializable by the configured hub protocol (JSON by default). Each query type needs its own hub path, because SignalR does not support generic hub methods.
+
+To cancel, the client unsubscribes from the stream. SignalR then cancels the hub method's `CancellationToken`, and the hub ends the stream without an error. A disconnect cancels the stream the same way.
+
+JavaScript client (`@microsoft/signalr`):
+
+```javascript
+const subscription = connection.stream("StreamAsync", { customerId: "42" }).subscribe({
+  next: (order) => console.log(order),
+  complete: () => console.log("done"),
+  error: (err) => console.error(err),
+});
+
+// Cancels the server-side stream.
+subscription.dispose();
+```
+
+.NET client (`Microsoft.AspNetCore.SignalR.Client`):
+
+```csharp
+using var cts = new CancellationTokenSource();
+
+try
+{
+    await foreach (var order in connection.StreamAsync<OrderDto>("StreamAsync", new GetOrdersStreamQuery("42"), cts.Token))
+    {
+        Console.WriteLine(order);
+        if (order.Status == "Shipped")
+        {
+            // Cancels the server-side stream.
+            cts.Cancel();
+        }
+    }
+}
+catch (OperationCanceledException)
+{
+    // Raised on the client after cancelling; the server ends the stream without an error.
+}
+```
+
+The hub accepts anonymous connections unless you apply authorization. Secure it like any other endpoint:
+
+```csharp
+app.MapStreamQueryHub<GetOrdersStreamQuery, OrderDto>("/hubs/orders").RequireAuthorization();
+```
+
+The query payload comes from the client and is untrusted. Validate it in the handler or an interceptor and scope it to the calling user (for example, check that `CustomerId` belongs to the caller).
 
 ### CommandHttpMethod Enum
 

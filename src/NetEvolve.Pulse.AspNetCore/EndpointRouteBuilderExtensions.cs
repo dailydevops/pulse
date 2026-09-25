@@ -243,6 +243,53 @@ public static class EndpointRouteBuilderExtensions
         return routeBuilder;
     }
 
+    /// <summary>
+    /// Maps a <see cref="PulseStreamHub{TQuery, TResponse}"/> for the specified streaming query to
+    /// <paramref name="path"/>. Clients invoke the <c>StreamAsync</c> hub method as a SignalR
+    /// server-to-client stream and receive every item yielded by the query.
+    /// </summary>
+    /// <typeparam name="TQuery">
+    /// The query type. Must implement <see cref="IStreamQuery{TResponse}"/>.
+    /// </typeparam>
+    /// <typeparam name="TResponse">The type of each item yielded by the streaming query.</typeparam>
+    /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the hub to.</param>
+    /// <param name="path">The request path of the hub, for example <c>/hubs/orders</c>.</param>
+    /// <returns>A <see cref="HubEndpointConventionBuilder"/> to further configure the hub endpoints.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown if <paramref name="endpoints"/> or <paramref name="path"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if SignalR services have not been registered via <c>services.AddSignalR()</c>.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// SignalR services MUST be registered with <c>services.AddSignalR()</c> before calling this method.
+    /// </para>
+    /// <para>
+    /// The hub accepts anonymous connections unless authorization is applied, for example via
+    /// <c>.RequireAuthorization()</c> on the returned builder. The query payload is supplied by the client and
+    /// is untrusted; handlers or interceptors must validate it and scope it to the calling user.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// builder.Services.AddSignalR();
+    /// // ...
+    /// app.MapStreamQueryHub&lt;GetOrdersStreamQuery, OrderDto&gt;("/hubs/orders").RequireAuthorization();
+    /// </code>
+    /// </example>
+    public static HubEndpointConventionBuilder MapStreamQueryHub<TQuery, TResponse>(
+        [NotNull] this IEndpointRouteBuilder endpoints,
+        [NotNull] string path
+    )
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        ArgumentNullException.ThrowIfNull(path);
+
+        return endpoints.MapHub<PulseStreamHub<TQuery, TResponse>>(path);
+    }
+
     private static void ApplyOpenApiMetadata<TRequest, TResponse>(
         IEndpointRouteBuilder endpoints,
         RouteHandlerBuilder routeBuilder
