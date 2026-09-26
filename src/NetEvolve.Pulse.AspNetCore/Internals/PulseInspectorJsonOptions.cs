@@ -2,12 +2,8 @@ namespace NetEvolve.Pulse.AspNetCore.Internals;
 
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Options;
-using NetEvolve.Pulse.Extensibility.Audit;
-using NetEvolve.Pulse.Extensibility.DeadLetter;
-using NetEvolve.Pulse.Extensibility.Outbox;
 using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 /// <summary>
@@ -16,10 +12,10 @@ using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 /// </summary>
 /// <remarks>
 /// The application's <see cref="JsonSerializerOptions"/> are copied once per instance and extended with
-/// <see cref="TypeJsonConverter"/>, string enum converters for the Pulse enums and
-/// <see cref="PulseInspectorJsonSerializerContext"/> appended to <see cref="JsonSerializerOptions.TypeInfoResolverChain"/>.
-/// Naming policy, converters and other settings of the application therefore apply, application converters take
-/// precedence over the appended ones, and the Pulse-owned models stay serializable without reflection.
+/// <see cref="TypeJsonConverter"/> and with <see cref="PulseInspectorJsonSerializerContext"/> appended to
+/// <see cref="JsonSerializerOptions.TypeInfoResolverChain"/>.
+/// Naming policy, enum handling, converters and other settings of the application therefore apply, application
+/// converters take precedence over the appended one, and the Pulse-owned models stay serializable without reflection.
 /// The configured instance is never mutated.
 /// </remarks>
 internal static class PulseInspectorJsonOptions
@@ -40,9 +36,6 @@ internal static class PulseInspectorJsonOptions
         // Copy instead of mutating, the configured instance is shared and may already be read-only.
         var options = new JsonSerializerOptions(configured);
         options.Converters.Add(new TypeJsonConverter());
-        options.Converters.Add(new JsonStringEnumConverter<OutboxMessageStatus>());
-        options.Converters.Add(new JsonStringEnumConverter<AuditResult>());
-        options.Converters.Add(new JsonStringEnumConverter<CommandDeadLetterStatus>());
         options.TypeInfoResolverChain.Add(PulseInspectorJsonSerializerContext.Default);
         return options;
     }

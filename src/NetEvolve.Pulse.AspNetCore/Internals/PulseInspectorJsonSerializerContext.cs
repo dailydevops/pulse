@@ -14,9 +14,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <remarks>
 /// The context is not used on its own. <see cref="PulseInspectorJsonOptions"/> appends it to a copy of the
 /// application's <c>HttpJsonOptions</c> as fallback resolver, so the contracts stay trim- and NativeAOT-safe while the
-/// application's naming policy and converters apply. <see cref="TypeJsonConverter"/> and the string enum converters
-/// are added there, because the converters of <see cref="JsonSourceGenerationOptionsAttribute"/> only apply to the
-/// context's own options.
+/// application's naming policy and converters apply. <see cref="TypeJsonConverter"/> is added there,
+/// because the converters of <see cref="JsonSourceGenerationOptionsAttribute"/> only apply to the context's own options.
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(OutboxStatistics))]

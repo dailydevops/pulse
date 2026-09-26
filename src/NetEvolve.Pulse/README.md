@@ -324,7 +324,7 @@ The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDyna
 | `AddDataAnnotations` | `NetEvolve.Pulse` | RUC | `Validator.TryValidateObject` reflects over the properties and attributes of the validated types. |
 | `ICommandDeadLetterManagement.ReplayAsync` and `CommandDeadLetterReplayDispatcher.ReplayAsync` (all providers) | `NetEvolve.Pulse.Extensibility`, providers | RUC, RDC | Resolve the persisted command type by name and dispatch it through `MakeGenericMethod`. |
 | `MapCommand`, `MapQuery`, `MapStreamQuery` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory` over the application's request types. |
-| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses use the application's `HttpJsonOptions` with the internal source-generated `PulseInspectorJsonSerializerContext` appended as fallback resolver, so they need no reflection. Enums are written as strings unless the application registers its own converter. |
+| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses use the application's `HttpJsonOptions` with the internal source-generated `PulseInspectorJsonSerializerContext` appended as fallback resolver, so they need no reflection. Enums are written as numbers unless the application registers a converter such as `JsonStringEnumConverter<TEnum>`. |
 
 ### Justified Suppressions
 
