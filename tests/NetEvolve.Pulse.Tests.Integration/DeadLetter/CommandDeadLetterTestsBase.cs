@@ -518,9 +518,7 @@ public abstract class CommandDeadLetterTestsBase(
     }
 
     [Test]
-    public async Task ReplayAsync_When_handler_throws_and_reset_fails_rethrows_handler_exception(
-        CancellationToken cancellationToken
-    ) =>
+    public async Task ReplayAsync_When_reset_fails_rethrows_handler_exception(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
                 {
@@ -538,7 +536,7 @@ public abstract class CommandDeadLetterTestsBase(
                         sp => new TableDroppingReplayCommandHandler(token =>
                             DropDeadLetterTableAsync(
                                 sp,
-                                nameof(ReplayAsync_When_handler_throws_and_reset_fails_rethrows_handler_exception),
+                                nameof(ReplayAsync_When_reset_fails_rethrows_handler_exception),
                                 token
                             )
                         )
