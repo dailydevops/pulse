@@ -137,6 +137,10 @@ app.MapStreamQueryGrpc<OrderStreamService>().RequireAuthorization("ReadOrders");
 - `Grpc.AspNetCore.Server` (added as a dependency)
 - `services.AddGrpc()` must be called before mapping services
 
+## NativeAOT and Trimming
+
+The package is built with `IsAotCompatible` and has no trim or AOT warnings. gRPC for ASP.NET Core is [fully supported under NativeAOT](https://learn.microsoft.com/aspnet/core/grpc/native-aot). `MapStreamQueryGrpc<TService>` forwards the `DynamicallyAccessedMembers` requirement of `MapGrpcService<TService>`, so the trimmer keeps the service's constructors and RPC methods.
+
 ## Contributing
 
 Contributions are welcome! Please read the [Contributing Guidelines](https://github.com/dailydevops/pulse/blob/main/CONTRIBUTING.md) before submitting a pull request.

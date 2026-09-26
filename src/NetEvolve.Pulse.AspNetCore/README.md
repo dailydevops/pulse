@@ -348,6 +348,7 @@ app.MapOutboxInspector(options =>
 
 - `MapCommand`, `MapQuery`, `MapStreamQuery` and the inspector extensions (`MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector`) carry `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`, because they build request delegates with `RequestDelegateFactory`. Trimmed and NativeAOT applications get a warning when they call them.
 - The inspector endpoints write their responses with an internal source-generated `JsonSerializerContext` and the web defaults (camelCase). They ignore the application's `HttpJsonOptions`.
+- `MapStreamQueryHub` and `PulseStreamHub<TQuery, TResponse>` build without trim or AOT warnings, but SignalR itself is not supported under NativeAOT on .NET 8 and only partially supported on .NET 9 and later. Under NativeAOT, register a source-generated `JsonSerializerContext` for `TQuery` and `TResponse` with the JSON hub protocol, for example `services.AddSignalR().AddJsonProtocol(o => o.PayloadSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default))`, and observe the [SignalR NativeAOT restrictions](https://learn.microsoft.com/aspnet/core/release-notes/aspnetcore-9.0#signalr).
 
 See [NativeAOT and Trimming](https://github.com/dailydevops/pulse/blob/main/src/NetEvolve.Pulse/README.md#nativeaot-and-trimming) in the `NetEvolve.Pulse` README for the full list and the payload serialization setup.
 

@@ -322,7 +322,7 @@ The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDyna
 | `AddDataAnnotations` | `NetEvolve.Pulse` | RUC | `Validator.TryValidateObject` reflects over the properties and attributes of the validated types. |
 | `ICommandDeadLetterManagement.ReplayAsync` and `CommandDeadLetterReplayDispatcher.ReplayAsync` (all providers) | `NetEvolve.Pulse.Extensibility`, providers | RUC, RDC | Resolve the persisted command type by name and dispatch it through `MakeGenericMethod`. |
 | `MapCommand`, `MapQuery`, `MapStreamQuery` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory` over the application's request types. |
-| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses use the internal source-generated `PulseInspectorJsonSerializerContext` and the web defaults, independent of the application's `HttpJsonOptions`. |
+| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses, including the message listing and the single outbox message, audit record and dead letter entry lookups, use the internal source-generated `PulseInspectorJsonSerializerContext` and the web defaults, independent of the application's `HttpJsonOptions`. |
 
 ### Justified Suppressions
 
@@ -337,6 +337,8 @@ Pulse suppresses a trim warning only where the reflected value is used safely:
 
 * The DI container cannot close open-generic services over value types under NativeAOT. Open-generic interceptors, such as those registered by `AddActivityAndMetrics`, `AddLogging` or `AddQueryCaching`, therefore fail for requests with a value-type response, including `Void` for commands without a result. Use reference-type responses for requests that pass through open-generic interceptors, or register closed interceptor implementations. Tracked in [#771](https://github.com/dailydevops/pulse/issues/771).
 * An outbox row with an unresolvable event type fails the whole fetch in the SQL Server, PostgreSQL, MySQL and SQLite providers. Tracked in [#772](https://github.com/dailydevops/pulse/issues/772).
+* `MapStreamQueryHub` and `PulseStreamHub<TQuery, TResponse>` build without trim or AOT warnings, but SignalR itself is not supported under NativeAOT on .NET 8 and only partially supported on .NET 9 and later. Under NativeAOT, register a source-generated `JsonSerializerContext` for `TQuery` and `TResponse` with the JSON hub protocol, for example `services.AddSignalR().AddJsonProtocol(o => o.PayloadSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default))`, and observe the [SignalR NativeAOT restrictions](https://learn.microsoft.com/aspnet/core/release-notes/aspnetcore-9.0#signalr).
+* `NetEvolve.Pulse.AspNetCore.Grpc` is trim- and NativeAOT-compatible, like gRPC for ASP.NET Core itself. `MapStreamQueryGrpc` carries the `DynamicallyAccessedMembers` requirement of `MapGrpcService`.
 * Provider packages inherit the NativeAOT support of their dependencies. Entity Framework Core, the MongoDB and Cosmos DB drivers, MySql.Data and the Dapr client are not fully NativeAOT-compatible.
 
 ## Requirements

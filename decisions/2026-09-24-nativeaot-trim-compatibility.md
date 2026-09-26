@@ -10,7 +10,7 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-26
 
 state: proposed
 
@@ -48,7 +48,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * Fix at the root where feasible:
   - Enable `EnableConfigurationBindingGenerator` in the packages that bind options from `IConfiguration`.
   - Resolve payload contracts in `SystemTextJsonPayloadSerializer` through `JsonSerializerOptions.GetTypeInfo`. Add the reflection resolver only while the `JsonSerializer.IsReflectionEnabledByDefault` feature switch is enabled. Trimmed and NativeAOT applications register their own source-generated context in `TypeInfoResolverChain`, because user payload types are out of scope.
-  - Add an internal `PulseInspectorJsonSerializerContext` for the Pulse-owned DTOs written by the inspector endpoints (`OutboxMessage`, `OutboxStatistics`, `AuditRecord`, `AuditStatistics`, `CommandDeadLetterEntry`, `CommandDeadLetterStatistics` and the replay-all result). The inspector responses use `TypedResults.Json` with these contracts and the web defaults, independent of the application's `HttpJsonOptions`.
+  - Add an internal `PulseInspectorJsonSerializerContext` for the Pulse-owned DTOs written by the inspector endpoints (`OutboxMessage` and its list for the message and dead letter listings, `OutboxStatistics`, `AuditRecord` and its list, `AuditStatistics`, `CommandDeadLetterEntry` and its list, `CommandDeadLetterStatistics`, the dead letter count and the replay-all result). The inspector responses use `TypedResults.Json` with these contracts and the web defaults, independent of the application's `HttpJsonOptions`.
   - Add `DynamicallyAccessedMembers(PublicConstructors)` to generic registration type parameters.
 * Annotate inherently reflection-based public entry points that callers can avoid with `RequiresUnreferencedCode` and `RequiresDynamicCode`. This covers assembly scanning, `AddDataAnnotations`, dead-letter replay (`ICommandDeadLetterManagement.ReplayAsync`, all implementations and `CommandDeadLetterReplayDispatcher.ReplayAsync`) and the ASP.NET Core `Map*` endpoint extensions.
 * Suppress with `UnconditionalSuppressMessage` and a concrete justification only where the value is used safely:
@@ -67,6 +67,8 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * The inspector endpoints no longer honor custom `HttpJsonOptions`. They always write the web defaults (camelCase).
 * Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. This limitation is documented. Lifting it requires closed interceptor registrations and is tracked in #771.
 * Outbox event types must be compiled into the application that reads the outbox. An unresolvable event type fails the whole fetch in the ADO.NET outbox providers. This behavior predates this decision and is tracked in #772.
+* `NetEvolve.Pulse.AspNetCore.Grpc` is covered like every other runtime package. gRPC for ASP.NET Core is fully NativeAOT-compatible, and `MapStreamQueryGrpc` forwards the `DynamicallyAccessedMembers` requirement of `MapGrpcService`.
+* `MapStreamQueryHub` is not annotated, because `MapHub` carries no `RequiresUnreferencedCode` or `RequiresDynamicCode` and the hub type is statically known. SignalR is not NativeAOT-supported on .NET 8 and only partially on .NET 9 and later; applications must register source-generated contracts for `TQuery` and `TResponse` with the JSON hub protocol. This is documented as a limitation.
 * Provider packages remain limited by the NativeAOT support of their third-party dependencies.
 
 ## Alternatives Considered
