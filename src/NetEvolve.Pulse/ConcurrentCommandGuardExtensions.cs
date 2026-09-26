@@ -73,10 +73,12 @@ public static class ConcurrentCommandGuardExtensions
     /// <list type="number">
     /// <item>
     /// <description>
-    /// The open-generic <see cref="ConcurrentCommandGuardInterceptor{TRequest,TResponse}"/> is registered
+    /// The closed <see cref="ConcurrentCommandGuardInterceptor{TRequest,TResponse}"/> is registered
     /// as a singleton mapped to itself via
-    /// <see cref="ServiceCollectionDescriptorExtensions.TryAdd(IServiceCollection, ServiceDescriptor)"/>,
+    /// <see cref="ServiceCollectionDescriptorExtensions.TryAddSingleton{TService}(IServiceCollection)"/>,
     /// ensuring at most one concrete instance per closed command type for the application lifetime.
+    /// The registration is closed because the DI container cannot close open-generic services over value
+    /// types such as <see cref="Extensibility.Void"/> under NativeAOT.
     /// </description>
     /// </item>
     /// <item>
@@ -116,12 +118,9 @@ public static class ConcurrentCommandGuardExtensions
             return configurator;
         }
 
-        services.TryAdd(
-            ServiceDescriptor.Singleton(
-                typeof(ConcurrentCommandGuardInterceptor<,>),
-                typeof(ConcurrentCommandGuardInterceptor<,>)
-            )
-        );
+        // Closed registration: the DI container cannot close open-generic services over value types such as Void
+        // under NativeAOT.
+        services.TryAddSingleton<ConcurrentCommandGuardInterceptor<TRequest, TResponse>>();
         services.TryAddSingleton<IRequestInterceptor<TRequest, TResponse>>(sp =>
             sp.GetRequiredService<ConcurrentCommandGuardInterceptor<TRequest, TResponse>>()
         );
