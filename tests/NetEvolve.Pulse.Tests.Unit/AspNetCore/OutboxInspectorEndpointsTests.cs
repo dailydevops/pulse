@@ -831,8 +831,10 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(json).Contains("\"deadLetter\":5");
     }
 
-    // Concurrent requests — the message endpoints must not share mutable serializer state, which
-    // previously made the first concurrent responses of a process fail with a read-only JsonSerializerOptions
+    // Concurrent requests — smoke test for the message endpoints under parallel load. It does NOT reliably
+    // reproduce the pre-#770 read-only JsonSerializerOptions race (see #792/#800). The actual guard is that the
+    // endpoints serialize via PulseInspectorJsonSerializerContext JsonTypeInfo overloads instead of shared
+    // JsonSerializerOptions passed to TypedResults.Json.
 
     [Test]
     public async Task MessageEndpoints_WithConcurrentRequests_AllReturnOk(CancellationToken cancellationToken)
