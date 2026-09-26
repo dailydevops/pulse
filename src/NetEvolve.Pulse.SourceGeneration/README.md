@@ -161,6 +161,17 @@ The generated registration method only emits generic `TryAdd*<TService, TImpleme
 
 Open-generic handlers registered with `[PulseGenericHandler]` are closed by the DI container at runtime. Under NativeAOT this only works for reference-type type arguments.
 
+### Interceptors for Value-Type Requests
+
+The DI container also cannot close the open-generic interceptors of `NetEvolve.Pulse` over value types under NativeAOT. When the project references `NetEvolve.Pulse`, the generated method therefore ends with one `NativeAotInterceptorExtensions` call per registered command, query or stream query handler whose request or response type is a value type, including `Void`:
+
+```csharp
+global::NetEvolve.Pulse.NativeAotInterceptorExtensions.AddNativeAotCommandInterceptors<global::MyProject.AddNumbersCommand, int>(services);
+global::NetEvolve.Pulse.NativeAotInterceptorExtensions.AddNativeAotCommandInterceptors<global::MyProject.PingCommand, global::NetEvolve.Pulse.Extensibility.Void>(services);
+```
+
+Under NativeAOT, each call registers closed variants of the built-in interceptors that are registered at that time, so call the generated method after `AddPulse(...)`. Exclusive commands, queries and stream queries use the matching `AddNativeAotExclusiveCommandInterceptors`, `AddNativeAotQueryInterceptors` and `AddNativeAotStreamQueryInterceptors` methods. Projects that only reference `NetEvolve.Pulse.Extensibility`, and handlers with reference-type requests and responses, generate no calls. See "Value-Type Requests Under NativeAOT" in the `NetEvolve.Pulse` README for the covered interceptors.
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0
