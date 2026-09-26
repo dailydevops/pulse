@@ -507,6 +507,27 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
+    public async Task ReplayAsync_WhenHandlerThrowsAndResetFails_RethrowsHandlerException(
+        CancellationToken cancellationToken
+    )
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerThrowsAndResetFails_RethrowsHandlerException);
+
+        _ = await ReplayWithHandlerAsync(
+                databaseName,
+                _ => new RowDeletingFailingReplayCommandHandler(databaseName),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>()
+                        .WithMessage("replay failed", StringComparison.Ordinal),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
         var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
@@ -678,6 +699,24 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class RowDeletingFailingReplayCommandHandler(string databaseName)
+        : ICommandHandler<TestReplayCommand, string>
+    {
+        public async Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            var context = CreateContext(databaseName);
+            await using (context.ConfigureAwait(false))
+            {
+                context.CommandDeadLetterEntries.RemoveRange(
+                    await context.CommandDeadLetterEntries.ToListAsync(cancellationToken).ConfigureAwait(false)
+                );
+                _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            throw new InvalidOperationException("replay failed");
+        }
     }
 
     private sealed class DirtyingFailingReplayCommandHandler(

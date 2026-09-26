@@ -1,15 +1,24 @@
 namespace NetEvolve.Pulse.Tests.Integration.DeadLetter;
 
+using System.Data.Common;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MySql.Data.MySqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.DeadLetter;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.DeadLetter;
+using Npgsql;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -504,6 +513,95 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
     }
 
+    [Test]
+    public async Task ReplayAsync_When_handler_throws_and_reset_fails_rethrows_handler_exception(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<InvalidOperationException>()
+                        .WithMessage("replay failed", StringComparison.Ordinal);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddScoped<ICommandHandler<TestReplayCommand, Void>>(
+                        sp => new TableDroppingReplayCommandHandler(token =>
+                            DropDeadLetterTableAsync(
+                                sp,
+                                nameof(ReplayAsync_When_handler_throws_and_reset_fails_rethrows_handler_exception),
+                                token
+                            )
+                        )
+                    )
+            )
+            .ConfigureAwait(false);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Security",
+        "CA2100:Review SQL queries for security vulnerabilities",
+        Justification = "The table name is the test method name."
+    )]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Security",
+        "S2077:Formatting SQL queries is security-sensitive",
+        Justification = "The table name is the test method name."
+    )]
+    private async Task DropDeadLetterTableAsync(IServiceProvider services, string tableName, CancellationToken token)
+    {
+        var contextFactory = services.GetService<
+            IDbContextFactory<EntityFrameworkCommandDeadLetterInitializer.TestCommandDeadLetterDbContext>
+        >();
+        if (contextFactory is not null)
+        {
+            var context = await contextFactory.CreateDbContextAsync(token).ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                var entityType = context.Model.FindEntityType(typeof(CommandDeadLetterEntry))!;
+                var table = context
+                    .GetService<ISqlGenerationHelper>()
+                    .DelimitIdentifier(entityType.GetTableName()!, entityType.GetSchema());
+                var dropSql = $"DROP TABLE {table}";
+                _ = await context.Database.ExecuteSqlRawAsync(dropSql, token).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        var schema = TestHelper.TargetFramework;
+        DbConnection connection = DatabaseServiceFixture.ServiceType switch
+        {
+            ServiceType.SQLite => new SqliteConnection(DatabaseServiceFixture.ConnectionString),
+            ServiceType.SqlServer => new SqlConnection(DatabaseServiceFixture.ConnectionString),
+            ServiceType.PostgreSQL => new NpgsqlConnection(DatabaseServiceFixture.ConnectionString),
+            ServiceType.MySql => new MySqlConnection(DatabaseServiceFixture.ConnectionString),
+            _ => throw new NotSupportedException(
+                $"Database type {DatabaseServiceFixture.ServiceType} is not supported."
+            ),
+        };
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(token).ConfigureAwait(false);
+            var command = connection.CreateCommand();
+            await using (command.ConfigureAwait(false))
+            {
+                command.CommandText = DatabaseServiceFixture.ServiceType switch
+                {
+                    ServiceType.SqlServer => $"DROP TABLE [{schema}].[{tableName}]",
+                    ServiceType.PostgreSQL => $"DROP TABLE \"{schema}\".\"{tableName}\"",
+                    ServiceType.MySql => $"DROP TABLE `{tableName}`",
+                    _ => $"DROP TABLE \"{tableName}\"",
+                };
+                _ = await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+            }
+        }
+    }
+
     private static async Task<Guid> StoreReplayableEntryAsync(IServiceProvider services, CancellationToken token)
     {
         var store = services.GetRequiredService<ICommandDeadLetterStore>();
@@ -539,6 +637,16 @@ public abstract class CommandDeadLetterTestsBase(
     {
         public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class TableDroppingReplayCommandHandler(Func<CancellationToken, Task> dropTable)
+        : ICommandHandler<TestReplayCommand, Void>
+    {
+        public async Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            await dropTable(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("replay failed");
+        }
     }
 
     private sealed class CancellingReplayCommandHandler(CancellationTokenSource replayCancellation)
