@@ -30,6 +30,9 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     /// <summary>The PostgreSQL connection string used to open new connections for each operation.</summary>
     private readonly string _connectionString;
 
+    /// <summary>The time provider used for the <c>UpdatedAt</c> timestamp written by replay operations.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>Cached SQL for calling the get_dead_letter_outbox_messages function.</summary>
     private readonly string _getDeadLetterMessagesSql;
 
@@ -61,12 +64,15 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     /// Initializes a new instance of the <see cref="PostgreSqlOutboxManagement"/> class.
     /// </summary>
     /// <param name="options">The outbox configuration options.</param>
-    public PostgreSqlOutboxManagement(IOptions<OutboxOptions> options)
+    /// <param name="timeProvider">The time provider for timestamps.</param>
+    public PostgreSqlOutboxManagement(IOptions<OutboxOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = options.Value.ConnectionString;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? OutboxMessageSchema.DefaultSchema
@@ -75,8 +81,8 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         _getDeadLetterMessagesSql = $"SELECT * FROM \"{schema}\".get_dead_letter_outbox_messages(@page_size, @page)";
         _getDeadLetterMessageSql = $"SELECT * FROM \"{schema}\".get_dead_letter_outbox_message(@message_id)";
         _getDeadLetterCountSql = $"SELECT \"{schema}\".get_dead_letter_outbox_message_count()";
-        _replayMessageSql = $"SELECT \"{schema}\".replay_outbox_message(@message_id)";
-        _replayAllDeadLetterSql = $"SELECT \"{schema}\".replay_all_dead_letter_outbox_messages()";
+        _replayMessageSql = $"SELECT \"{schema}\".replay_outbox_message(@message_id, @updated_at)";
+        _replayAllDeadLetterSql = $"SELECT \"{schema}\".replay_all_dead_letter_outbox_messages(@updated_at)";
         _getStatisticsSql = $"SELECT * FROM \"{schema}\".get_outbox_statistics()";
         _getMessagesSql = $"SELECT * FROM \"{schema}\".get_outbox_messages(@page_size, @page, @message_status)";
         _getMessageSql = $"SELECT * FROM \"{schema}\".get_outbox_message(@message_id)";
@@ -160,6 +166,7 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("message_id", messageId);
+                _ = command.Parameters.AddWithValue("updated_at", _timeProvider.GetUtcNow().ToUniversalTime());
 
                 var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
                 var updated = result is int count
@@ -179,6 +186,8 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
             var command = new NpgsqlCommand(_replayAllDeadLetterSql, connection);
             await using (command.ConfigureAwait(false))
             {
+                _ = command.Parameters.AddWithValue("updated_at", _timeProvider.GetUtcNow().ToUniversalTime());
+
                 var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
                 return result is int count
                     ? count
