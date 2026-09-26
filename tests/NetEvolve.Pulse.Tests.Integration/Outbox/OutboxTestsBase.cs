@@ -1056,6 +1056,123 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_Persist_UpdatedAt_From_TimeProvider_On_Repository_Transitions(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test002" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var management = services.GetRequiredService<IOutboxManagement>();
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    var claimed = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var ids = claimed.Select(m => m.Id).ToArray();
+                    _ = await Assert.That(claimed.All(m => m.UpdatedAt == timeProvider.GetUtcNow())).IsTrue();
+                    await AssertUpdatedAtAsync(management, ids, timeProvider.GetUtcNow(), token).ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    await outbox.MarkAsFailedAsync(ids[0], "Single error", token).ConfigureAwait(false);
+                    await outbox
+                        .MarkAsFailedAsync(ids[1], "Scheduled error", TestDateTime, token)
+                        .ConfigureAwait(false);
+                    await AssertUpdatedAtAsync(management, ids, timeProvider.GetUtcNow(), token).ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    var retried = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+                    _ = await Assert.That(retried.Count).IsEqualTo(2);
+                    _ = await Assert.That(retried.All(m => m.UpdatedAt == timeProvider.GetUtcNow())).IsTrue();
+                    await AssertUpdatedAtAsync(management, ids, timeProvider.GetUtcNow(), token).ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    await outbox.MarkAsFailedAsync(ids, "Batch error", token).ConfigureAwait(false);
+                    await AssertUpdatedAtAsync(management, ids, timeProvider.GetUtcNow(), token).ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    _ = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    await outbox.MarkAsDeadLetterAsync(ids[0], "Fatal error", token).ConfigureAwait(false);
+                    await outbox.MarkAsCompletedAsync(ids[1], token).ConfigureAwait(false);
+                    await AssertUpdatedAtAsync(management, ids, timeProvider.GetUtcNow(), token).ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_Persist_UpdatedAt_From_TimeProvider_On_Replay(CancellationToken cancellationToken)
+    {
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+                    await mediator.PublishAsync(new TestEvent { Id = "Test002" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var management = services.GetRequiredService<IOutboxManagement>();
+
+                    var ids = (await outbox.GetPendingAsync(50, token).ConfigureAwait(false))
+                        .Select(m => m.Id)
+                        .ToArray();
+                    await outbox.MarkAsDeadLetterAsync(ids, "Fatal error", token).ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    _ = await Assert
+                        .That(await management.ReplayMessageAsync(ids[0], token).ConfigureAwait(false))
+                        .IsTrue();
+                    await AssertUpdatedAtAsync(management, [ids[0]], timeProvider.GetUtcNow(), token)
+                        .ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+                    _ = await Assert
+                        .That(await management.ReplayAllDeadLetterAsync(token).ConfigureAwait(false))
+                        .IsEqualTo(1);
+                    await AssertUpdatedAtAsync(management, [ids[1]], timeProvider.GetUtcNow(), token)
+                        .ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static async Task AssertUpdatedAtAsync(
+        IOutboxManagement management,
+        Guid[] messageIds,
+        DateTimeOffset expected,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var messageId in messageIds)
+        {
+            var message = await management.GetMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
+
+            _ = await Assert.That(message).IsNotNull();
+            _ = await Assert.That(message!.UpdatedAt).IsEqualTo(expected);
+        }
+    }
+
+    [Test]
     public async Task Should_GetMessage_Return_Null_When_NotFound(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>

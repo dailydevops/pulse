@@ -134,6 +134,75 @@ public class PostgreSqlAdoNetOutboxTests(
             )
             .ConfigureAwait(false);
 
+    [Test]
+    public async Task Should_Mark_Single_Message_AsFailed_With_NonUtc_NextRetryAt(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new BatchTestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var nextRetryAt = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.FromHours(2));
+
+                    await outbox
+                        .MarkAsFailedAsync(pending[0].Id, "Test error", nextRetryAt, token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var message = await management.GetMessageAsync(pending[0].Id, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(message).IsNotNull();
+                    _ = await Assert.That(message!.NextRetryAt).IsEqualTo(nextRetryAt);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Add_Message_With_NonUtc_Timestamps(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var timestamp = new DateTimeOffset(2025, 1, 1, 14, 0, 0, TimeSpan.FromHours(2));
+                    var message = new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        EventType = typeof(BatchTestEvent),
+                        Payload = "{}",
+                        CreatedAt = timestamp,
+                        UpdatedAt = timestamp,
+                        ProcessedAt = timestamp,
+                        NextRetryAt = timestamp,
+                        Status = OutboxMessageStatus.Failed,
+                    };
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    await outbox.AddAsync(message, token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var persisted = await management.GetMessageAsync(message.Id, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(persisted).IsNotNull();
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(persisted!.CreatedAt).IsEqualTo(timestamp);
+                        _ = await Assert.That(persisted.UpdatedAt).IsEqualTo(timestamp);
+                        _ = await Assert.That(persisted.ProcessedAt).IsEqualTo(timestamp);
+                        _ = await Assert.That(persisted.NextRetryAt).IsEqualTo(timestamp);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
     private sealed class BatchTestEvent : IEvent
     {
         public string? CausationId { get; set; }
