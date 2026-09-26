@@ -7,9 +7,9 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-26
 
-state: proposed
+state: accepted
 
 instructions: |
   SignalR hubs that expose Pulse stream queries MUST use native SignalR server-to-client streaming:
