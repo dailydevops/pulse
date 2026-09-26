@@ -610,6 +610,30 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
+    public async Task ReplayAsync_WhenHandlerClearsChangeTrackerAndThrows_ResetsEntryToNew(
+        CancellationToken cancellationToken
+    )
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerClearsChangeTrackerAndThrows_ResetsEntryToNew);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                context => new ClearingFailingReplayCommandHandler(context),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>(),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert
+            .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+            .IsEqualTo(CommandDeadLetterStatus.New);
+    }
+
+    [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
         var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
@@ -799,6 +823,16 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         {
             modifiedEntry.Status = CommandDeadLetterStatus.Dismissed;
             _ = context.CommandDeadLetterEntries.Remove(deletedEntry);
+            throw new InvalidOperationException("replay failed");
+        }
+    }
+
+    private sealed class ClearingFailingReplayCommandHandler(TestCommandDeadLetterDbContext context)
+        : ICommandHandler<TestReplayCommand, string>
+    {
+        public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            context.ChangeTracker.Clear();
             throw new InvalidOperationException("replay failed");
         }
     }
