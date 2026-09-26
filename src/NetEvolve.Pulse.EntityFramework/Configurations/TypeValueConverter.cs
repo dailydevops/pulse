@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Configurations;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -47,6 +48,11 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
         return name;
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
+        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
+    )]
     private static Type ConvertFromString(string typeName) =>
         _typeCache.GetOrAdd(
             typeName,

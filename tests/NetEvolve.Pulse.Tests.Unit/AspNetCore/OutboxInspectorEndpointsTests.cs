@@ -790,10 +790,52 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(body).IsEqualTo("""{"count":7}""");
     }
 
+    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+
+    [Test]
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+        CancellationToken cancellationToken
+    )
+    {
+        var statistics = new OutboxStatistics
+        {
+            Pending = 1,
+            Processing = 2,
+            Completed = 3,
+            Failed = 4,
+            DeadLetter = 5,
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(statistics);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/outbox/stats", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"pending\":1");
+        _ = await Assert.That(json).Contains("\"deadLetter\":5");
+    }
+
     private static async Task<IHost> CreateTestHostAsync(
         IOutboxManagement outboxManagement,
         Action<OutboxInspectorOptions>? configure,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Action<IServiceCollection>? configureServices = null
     )
     {
         var host = new HostBuilder()
@@ -804,6 +846,7 @@ public sealed class OutboxInspectorEndpointsTests
                 {
                     _ = services.AddRouting();
                     _ = services.AddSingleton(outboxManagement);
+                    configureServices?.Invoke(services);
                 });
                 _ = webBuilder.Configure(app =>
                 {

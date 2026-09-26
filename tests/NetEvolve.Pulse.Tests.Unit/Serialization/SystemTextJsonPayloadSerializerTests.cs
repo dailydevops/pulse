@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.Serialization;
 using System;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -10,7 +11,7 @@ using NetEvolve.Pulse.Serialization;
 using TUnit.Core;
 
 [TestGroup("Serialization")]
-public class SystemTextJsonPayloadSerializerTests
+public partial class SystemTextJsonPayloadSerializerTests
 {
     [Test]
     public async Task Serialize_Generic_SerializesValue()
@@ -192,9 +193,79 @@ public class SystemTextJsonPayloadSerializerTests
         _ = await Assert.That(result).Contains("\"Name\"");
     }
 
+    [Test]
+    public async Task SerializeDeserialize_WithSourceGeneratedResolver_RoundTrips()
+    {
+        var options = Options.Create(new JsonSerializerOptions { TypeInfoResolver = TestJsonContext.Default });
+        var serializer = new SystemTextJsonPayloadSerializer(options);
+        var original = new TestData { Id = 7, Name = "SourceGenerated" };
+
+        var json = serializer.Serialize(original);
+        var result = serializer.Deserialize<TestData>(json);
+
+        _ = await Assert.That(json).Contains("\"Id\":7");
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Name).IsEqualTo(original.Name);
+    }
+
+    [Test]
+#pragma warning disable CA2263 // Prefer generic overload - This test specifically validates the non-generic method
+    public async Task Serialize_NonGeneric_WithSourceGeneratedResolver_SerializesValue()
+    {
+        var options = Options.Create(new JsonSerializerOptions { TypeInfoResolver = TestJsonContext.Default });
+        var serializer = new SystemTextJsonPayloadSerializer(options);
+
+        var result = serializer.Serialize(new TestData { Id = 8, Name = "NonGeneric" }, typeof(TestData));
+
+        _ = await Assert.That(result).Contains("\"Name\":\"NonGeneric\"");
+    }
+#pragma warning restore CA2263
+
+    [Test]
+    public async Task SerializeToBytes_WithSourceGeneratedResolver_RoundTrips()
+    {
+        var options = Options.Create(new JsonSerializerOptions { TypeInfoResolver = TestJsonContext.Default });
+        var serializer = new SystemTextJsonPayloadSerializer(options);
+
+        var bytes = serializer.SerializeToBytes(new TestData { Id = 9, Name = "Bytes" });
+        var result = serializer.Deserialize<TestData>(bytes);
+
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Id).IsEqualTo(9);
+    }
+
+    [Test]
+    public async Task Serialize_WithResolverMissingType_ThrowsNotSupportedException()
+    {
+        var options = Options.Create(new JsonSerializerOptions { TypeInfoResolver = TestJsonContext.Default });
+        var serializer = new SystemTextJsonPayloadSerializer(options);
+
+        _ = await Assert.That(() => serializer.Serialize(new UnregisteredData(1))).Throws<NotSupportedException>();
+    }
+
+    [Test]
+    public async Task Serialize_WithOptionsWithoutResolver_DoesNotModifyConfiguredOptions()
+    {
+        var configured = new JsonSerializerOptions();
+        var serializer = new SystemTextJsonPayloadSerializer(Options.Create(configured));
+
+        _ = serializer.Serialize(new TestData { Id = 10, Name = "Shared" });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(configured.IsReadOnly).IsFalse();
+            _ = await Assert.That(configured.TypeInfoResolver).IsNull();
+        }
+    }
+
     private sealed class TestData
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
     }
+
+    private sealed record UnregisteredData(int Value);
+
+    [JsonSerializable(typeof(TestData))]
+    private sealed partial class TestJsonContext : JsonSerializerContext;
 }

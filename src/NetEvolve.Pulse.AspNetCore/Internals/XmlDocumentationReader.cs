@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.AspNetCore.Internals;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -31,6 +32,11 @@ internal static class XmlDocumentationReader
     /// <returns>
     /// <see langword="true"/> if a summary was found for <paramref name="type"/>; otherwise, <see langword="false"/>.
     /// </returns>
+    [UnconditionalSuppressMessage(
+        "SingleFile",
+        "IL3000:Avoid accessing Assembly file path when publishing as a single file",
+        Justification = "An empty Assembly.Location is handled explicitly: no summary is returned and the OpenAPI metadata falls back to the defaults."
+    )]
     internal static bool TryGetSummary(Type type, out string? summary)
     {
         ArgumentNullException.ThrowIfNull(type);

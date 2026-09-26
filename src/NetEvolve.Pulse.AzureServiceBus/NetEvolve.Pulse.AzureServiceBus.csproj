@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <Description>Azure Service Bus transport for the Pulse CQRS mediator outbox. Delivers outbox messages directly to Azure Service Bus queues or topics using the Azure SDK, supporting single and batched sends with health checks for the target entity.</Description>
     <PackageTags>$(PackageTags);azure;servicebus;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>

@@ -141,4 +141,16 @@ public class ServiceCollectionExtensionsTests
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
         }
     }
+
+    [Test]
+    public async Task AddPulse_WithoutOtherRegistrations_ResolvesPayloadSerializer()
+    {
+        var provider = new ServiceCollection().AddPulse().BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var serializer = provider.GetRequiredService<IPayloadSerializer>();
+
+            _ = await Assert.That(serializer.Serialize("value")).IsEqualTo("\"value\"");
+        }
+    }
 }

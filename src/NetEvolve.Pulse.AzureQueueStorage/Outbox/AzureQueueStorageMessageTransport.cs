@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Outbox;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Json;
 using Azure.Identity;
 using Azure.Storage.Queues;
 using Microsoft.Extensions.Options;
@@ -23,7 +24,6 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     internal const int MaxMessageSizeInBytes = 48 * 1024; // Raw 48 KB limit (64 KB after Base64 encoding)
 
     private readonly AzureQueueStorageTransportOptions _options;
-    private readonly IPayloadSerializer _payloadSerializer;
     private readonly QueueClient? _queueClientOverride;
     private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
     private QueueClient? _queueClient;
@@ -32,16 +32,10 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// Initializes a new instance of the <see cref="AzureQueueStorageMessageTransport"/> class.
     /// </summary>
     /// <param name="options">The configured transport options.</param>
-    /// <param name="payloadSerializer">The serializer used to serialize the outbox message envelope.</param>
-    internal AzureQueueStorageMessageTransport(
-        IOptions<AzureQueueStorageTransportOptions> options,
-        IPayloadSerializer payloadSerializer
-    )
+    internal AzureQueueStorageMessageTransport(IOptions<AzureQueueStorageTransportOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
         _options = options.Value;
-        _payloadSerializer = payloadSerializer;
     }
 
     /// <summary>
@@ -49,19 +43,15 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// with a pre-built queue client. Used for testing.
     /// </summary>
     /// <param name="options">The configured transport options.</param>
-    /// <param name="payloadSerializer">The serializer used to serialize the outbox message envelope.</param>
     /// <param name="queueClient">A pre-built queue client to use instead of creating one from options.</param>
     internal AzureQueueStorageMessageTransport(
         IOptions<AzureQueueStorageTransportOptions> options,
-        IPayloadSerializer payloadSerializer,
         QueueClient queueClient
     )
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
         ArgumentNullException.ThrowIfNull(queueClient);
         _options = options.Value;
-        _payloadSerializer = payloadSerializer;
         _queueClientOverride = queueClient;
     }
 
@@ -73,8 +63,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var json = SerializeMessage(_payloadSerializer, message);
-        var rawBytes = Encoding.UTF8.GetBytes(json);
+        var rawBytes = SerializeMessage(message);
 
         if (rawBytes.Length > MaxMessageSizeInBytes)
         {
@@ -105,17 +94,17 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
         }
     }
 
-    private static string SerializeMessage(IPayloadSerializer payloadSerializer, OutboxMessage message) =>
-        payloadSerializer.Serialize(
-            new
-            {
-                id = message.Id,
-                eventType = message.EventType.ToOutboxEventTypeName(),
-                payload = message.Payload,
-                correlationId = message.CorrelationId,
-                causationId = message.CausationId,
-                createdAt = message.CreatedAt,
-            }
+    private static byte[] SerializeMessage(OutboxMessage message) =>
+        JsonSerializer.SerializeToUtf8Bytes(
+            new AzureQueueStorageEnvelope(
+                message.Id,
+                message.EventType.ToOutboxEventTypeName(),
+                message.Payload,
+                message.CorrelationId,
+                message.CausationId,
+                message.CreatedAt
+            ),
+            AzureQueueStorageJsonSerializerContext.Default.AzureQueueStorageEnvelope
         );
 
     [SuppressMessage(

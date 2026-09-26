@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Outbox;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Resolves and caches <see cref="Type"/> lookups from assembly-qualified event type names
@@ -17,6 +18,11 @@ internal static class OutboxEventTypeResolver
     /// </summary>
     /// <param name="typeName">The assembly-qualified type name read from storage.</param>
     /// <returns>The resolved <see cref="Type"/>, or <see langword="null"/> if it cannot be resolved.</returns>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
+        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
+    )]
     public static Type? Resolve(string typeName)
     {
         if (_cache.TryGetValue(typeName, out var cached))

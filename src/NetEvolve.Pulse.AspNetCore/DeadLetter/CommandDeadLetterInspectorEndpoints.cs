@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using NetEvolve.Pulse.AspNetCore.Internals;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 
 /// <summary>
@@ -63,6 +64,12 @@ public static class CommandDeadLetterInspectorEndpoints
     /// }).RequireAuthorization();
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "Minimal API endpoint mapping uses RequestDelegateFactory, which reflects over the handler signature and the bound request types."
+    )]
+    [RequiresDynamicCode(
+        "Minimal API endpoint mapping can generate code at runtime to bind parameters and write results."
+    )]
     public static IEndpointConventionBuilder MapCommandDeadLetterInspector(
         [NotNull] this IEndpointRouteBuilder endpoints,
         Action<CommandDeadLetterInspectorOptions>? configure = null
@@ -87,7 +94,11 @@ public static class CommandDeadLetterInspectorEndpoints
     private static async Task<IResult> GetStatisticsAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
         CancellationToken cancellationToken
-    ) => TypedResults.Ok(await commandDeadLetterManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false));
+    ) =>
+        TypedResults.Json(
+            await commandDeadLetterManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false),
+            PulseInspectorJsonSerializerContext.Default.CommandDeadLetterStatistics
+        );
 
     private static async Task<IResult> GetPendingEntriesAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
@@ -112,8 +123,9 @@ public static class CommandDeadLetterInspectorEndpoints
             return TypedResults.ValidationProblem(errors);
         }
 
-        return TypedResults.Ok(
-            await commandDeadLetterManagement.GetPendingAsync(count, skip, cancellationToken).ConfigureAwait(false)
+        return TypedResults.Json(
+            await commandDeadLetterManagement.GetPendingAsync(count, skip, cancellationToken).ConfigureAwait(false),
+            PulseInspectorJsonSerializerContext.Default.IReadOnlyListCommandDeadLetterEntry
         );
     }
 
@@ -125,9 +137,17 @@ public static class CommandDeadLetterInspectorEndpoints
     {
         var entry = await commandDeadLetterManagement.GetEntryAsync(id, cancellationToken).ConfigureAwait(false);
 
-        return entry is null ? TypedResults.NotFound() : TypedResults.Ok(entry);
+        return entry is null
+            ? TypedResults.NotFound()
+            : TypedResults.Json(entry, PulseInspectorJsonSerializerContext.Default.CommandDeadLetterEntry);
     }
 
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     private static async Task<IResult> ReplayEntryAsync(
         Guid id,
         ICommandDeadLetterManagement commandDeadLetterManagement,

@@ -155,6 +155,12 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 | PULSE005 | Error | The type argument `T` passed to `[PulseHandler<T>]` does not implement any known Pulse message interface (`ICommand`, `ICommand<T>`, `IQuery<T>`, `IEvent`, or `IStreamQuery<T>`). |
 | PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type. |
 
+## NativeAOT and Trimming
+
+The generated registration method only emits generic `TryAdd*<TService, TImplementation>()` calls and `typeof(...)` literals for open-generic handlers. Both satisfy the `[DynamicallyAccessedMembers(PublicConstructors)]` annotations of `Microsoft.Extensions.DependencyInjection`, so the trimmer keeps every registered handler and its constructor without an `ILLink.Descriptors.xml` file or `[DynamicDependency]` attributes. The `samples/NetEvolve.Pulse.Xample.Aot` smoke application verifies this with a NativeAOT publish on every pull request.
+
+Open-generic handlers registered with `[PulseGenericHandler]` are closed by the DI container at runtime. Under NativeAOT this only works for reference-type type arguments.
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0

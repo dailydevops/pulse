@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
     <Description>SQLite persistence provider for the Pulse outbox pattern using plain ADO.NET. Provides SQLiteOutboxRepository implementing IOutboxRepository with optimized SQL queries, WAL mode support, and BEGIN IMMEDIATE transactions for safe concurrent polling. Supports configurable table names for embedded and edge deployments. Designed for lightweight applications, CLI tools, IoT, and edge services that require the outbox pattern without external infrastructure dependencies.</Description>
     <PackageTags>$(PackageTags);outbox;sqlite;ado-net;embedded;edge;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>

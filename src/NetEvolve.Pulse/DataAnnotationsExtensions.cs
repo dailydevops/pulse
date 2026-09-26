@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Pulse.Extensibility;
@@ -61,6 +62,9 @@ public static class DataAnnotationsExtensions
     /// }
     /// </code>
     /// </example>
+    [RequiresUnreferencedCode(
+        "DataAnnotations validation uses reflection over the validated request and event types. Their properties and validation attributes might be removed by trimming."
+    )]
     public static IMediatorBuilder AddDataAnnotations(this IMediatorBuilder configurator)
     {
         ArgumentNullException.ThrowIfNull(configurator);
