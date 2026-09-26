@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
@@ -1183,6 +1184,192 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                     services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_DeadLetter_UnresolvableEventType_On_GetPending(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await PublishEventsAsync(mediator, 2, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
+
+                    var unresolvableId = await AddUnresolvableMessageAsync(services, OutboxMessageStatus.Pending, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var unresolvable = await management.GetMessageAsync(unresolvableId, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(pending.Count).IsEqualTo(2);
+                        _ = await Assert.That(pending.Select(m => m.Id)).DoesNotContain(unresolvableId);
+                        _ = await Assert.That(unresolvable).IsNotNull();
+                        _ = await Assert.That(unresolvable!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                        _ = await Assert.That(unresolvable.Error).Contains(UnresolvableEventTypeName);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_DeadLetter_UnresolvableEventType_On_GetFailed(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    await outbox.MarkAsFailedAsync(pending[0].Id, "Test error", token).ConfigureAwait(false);
+
+                    var unresolvableId = await AddUnresolvableMessageAsync(services, OutboxMessageStatus.Failed, token)
+                        .ConfigureAwait(false);
+
+                    var failed = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var unresolvable = await management.GetMessageAsync(unresolvableId, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(failed.Count).IsEqualTo(1);
+                        _ = await Assert.That(failed[0].Id).IsEqualTo(pending[0].Id);
+                        _ = await Assert.That(unresolvable).IsNotNull();
+                        _ = await Assert.That(unresolvable!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                        _ = await Assert.That(unresolvable.Error).Contains(UnresolvableEventTypeName);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_List_UnresolvableEventType_In_Management(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var unresolvableId = await AddUnresolvableMessageAsync(services, OutboxMessageStatus.Pending, token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var messages = await management.GetMessagesAsync(cancellationToken: token).ConfigureAwait(false);
+                    var single = await management.GetMessageAsync(unresolvableId, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(messages.Count).IsEqualTo(2);
+                        _ = await Assert
+                            .That(messages.Single(m => m.Id == unresolvableId).EventType.ToOutboxEventTypeName())
+                            .IsEqualTo(UnresolvableEventTypeName);
+                        _ = await Assert.That(single).IsNotNull();
+                        _ = await Assert
+                            .That(single!.EventType.ToOutboxEventTypeName())
+                            .IsEqualTo(UnresolvableEventTypeName);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Dismiss_UnresolvableEventType_DeadLetter(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var unresolvableId = await AddUnresolvableMessageAsync(services, OutboxMessageStatus.Pending, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    _ = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var deadLetters = await management
+                        .GetDeadLetterMessagesAsync(cancellationToken: token)
+                        .ConfigureAwait(false);
+                    var deadLetter = await management
+                        .GetDeadLetterMessageAsync(unresolvableId, token)
+                        .ConfigureAwait(false);
+                    var dismissed = await management.DismissMessageAsync(unresolvableId, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(deadLetters.Select(m => m.Id)).Contains(unresolvableId);
+                        _ = await Assert.That(deadLetter).IsNotNull();
+                        _ = await Assert.That(dismissed).IsTrue();
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    /// <summary>
+    /// Persists an outbox message whose stored event type name cannot be resolved by the reading application,
+    /// as happens when the event type was renamed, removed or trimmed away. The message is added in a separate
+    /// scope so that providers with an identity map (Entity Framework Core) must materialize it from storage.
+    /// </summary>
+    private static async Task<Guid> AddUnresolvableMessageAsync(
+        IServiceProvider services,
+        OutboxMessageStatus status,
+        CancellationToken cancellationToken
+    )
+    {
+        var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
+        var message = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            EventType = new UnresolvableEventType(),
+            Payload = "{}",
+            CreatedAt = now,
+            UpdatedAt = now,
+            Status = status,
+        };
+
+        var scope = services.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var outbox = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+            await outbox.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
+        return message.Id;
+    }
+
+    private const string UnresolvableEventTypeName =
+        "NetEvolve.Pulse.Tests.Removed.RemovedEvent, NetEvolve.Pulse.Tests.Removed";
+
+    /// <summary>
+    /// Stands in for an event type that no longer exists: it reports <see cref="UnresolvableEventTypeName"/>
+    /// as its assembly-qualified name, which every provider persists but <see cref="Type.GetType(string)"/>
+    /// cannot resolve.
+    /// </summary>
+    private sealed class UnresolvableEventType : TypeDelegator
+    {
+        public UnresolvableEventType()
+            : base(typeof(object)) { }
+
+        public override string AssemblyQualifiedName => UnresolvableEventTypeName;
+
+        public override string FullName => "NetEvolve.Pulse.Tests.Removed.RemovedEvent";
+
+        public override string Name => "RemovedEvent";
+    }
 
     /// <summary>
     /// Paging arguments that every provider must reject: non-positive page sizes, negative pages,
