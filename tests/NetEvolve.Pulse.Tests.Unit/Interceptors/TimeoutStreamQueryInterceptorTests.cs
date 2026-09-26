@@ -401,6 +401,31 @@ public sealed class TimeoutStreamQueryInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_WithTimeoutQuery_InfiniteTimeout_NeverTimesOut(CancellationToken cancellationToken)
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, timeProvider);
+        var query = new TestTimeoutStreamQuery(Timeout.InfiniteTimeSpan);
+
+        var items = new List<string>();
+        await foreach (
+            var item in interceptor
+                .HandleAsync(
+                    query,
+                    (_, _) => YieldAfterAdvancing(timeProvider, TimeSpan.FromHours(1), "a", "b"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        )
+        {
+            items.Add(item);
+        }
+
+        _ = await Assert.That(items).IsEquivalentTo(["a", "b"]);
+    }
+
+    [Test]
     public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
