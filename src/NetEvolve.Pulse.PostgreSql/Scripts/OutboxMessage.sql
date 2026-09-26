@@ -124,6 +124,7 @@ END;
 $$;
 
 -- get_failed_outbox_messages_for_retry: Retrieves failed messages eligible for retry
+DROP FUNCTION IF EXISTS ":schema_name".get_failed_outbox_messages_for_retry(INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION ":schema_name".get_failed_outbox_messages_for_retry(
     max_retry_count INTEGER,
     batch_size INTEGER,
@@ -180,6 +181,7 @@ END;
 $$;
 
 -- mark_outbox_message_completed: Marks a message as successfully processed
+DROP FUNCTION IF EXISTS ":schema_name".mark_outbox_message_completed(UUID);
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_completed(
     message_id UUID,
     processed_at TIMESTAMPTZ,
