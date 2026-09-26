@@ -236,6 +236,75 @@ public sealed class TimeoutStreamQueryInterceptorTests
         // This test simply verifies the interceptor completes without resource-leak exceptions.
     }
 
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenItemArrivesAfterDeadlineWithoutObservingCancellation_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+        var items = new List<string>();
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(query, (_, ct) => YieldAfterCancellation(ct, "late"), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                items.Add(item);
+            }
+        });
+
+        _ = await Assert.That(items).IsEmpty();
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenStreamCompletesAfterDeadlineWithoutObservingCancellation_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(query, (_, ct) => YieldAfterCancellation<string>(ct), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                // Consume
+            }
+        });
+    }
+
+    /// <summary>
+    /// Completes normally (without throwing <see cref="OperationCanceledException"/>) only once the
+    /// token has been cancelled, i.e. strictly after the deadline. This models a handler whose work
+    /// finished while the deadline callback was still pending (e.g. under thread-pool starvation).
+    /// </summary>
+    private static async IAsyncEnumerable<T> YieldAfterCancellation<T>(
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        params T[] items
+    )
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (cancellationToken.Register(() => tcs.TrySetResult()))
+        {
+            await tcs.Task.ConfigureAwait(false);
+        }
+
+        foreach (var item in items)
+        {
+            yield return item;
+        }
+    }
+
     private static async IAsyncEnumerable<T> GenerateItems<T>(IEnumerable<T> items)
     {
         foreach (var item in items)
