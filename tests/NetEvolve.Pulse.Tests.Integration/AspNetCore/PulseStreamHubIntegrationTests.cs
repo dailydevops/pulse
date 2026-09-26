@@ -85,7 +85,7 @@ public sealed class PulseStreamHubIntegrationTests
             }
 
             var handlerCancelled = await probe
-                .Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken)
+                .Exited.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken)
                 .ConfigureAwait(false);
 
             _ = await Assert.That(clientException).IsNull();
@@ -160,7 +160,19 @@ public sealed class PulseStreamHubIntegrationTests
 
     internal sealed class CancellationProbe
     {
-        public TaskCompletionSource<bool> Cancelled { get; } =
+        /// <summary>
+        /// Completed when the handler's enumeration ends; the result is whether its cancellation token was
+        /// cancelled at that point.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately signalled from a <see langword="finally"/> block instead of a
+        /// <see cref="CancellationToken.Register(Action)"/> callback: the handler unwinds on a thread-pool
+        /// thread (e.g. the cancelled <see cref="Task.Delay(int, CancellationToken)"/> continuation) while
+        /// <see cref="CancellationTokenSource.Cancel()"/> is still walking its callback list on the SignalR
+        /// receive loop. Disposing a registration whose callback has not been invoked yet unregisters it, so
+        /// a callback-based probe can be skipped even though the token was cancelled.
+        /// </remarks>
+        public TaskCompletionSource<bool> Exited { get; } =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
@@ -172,11 +184,17 @@ public sealed class PulseStreamHubIntegrationTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
-            using var registration = cancellationToken.Register(() => probe.Cancelled.TrySetResult(true));
-            for (var i = 0; request.Count is null || i < request.Count; i++)
+            try
             {
-                yield return i;
-                await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+                for (var i = 0; request.Count is null || i < request.Count; i++)
+                {
+                    yield return i;
+                    await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _ = probe.Exited.TrySetResult(cancellationToken.IsCancellationRequested);
             }
         }
     }
