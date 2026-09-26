@@ -212,6 +212,68 @@ public sealed class AzureQueueStorageMessageTransportTests
     }
 
     [Test]
+    public async Task SendAsync_With_preserve_reference_handler_keeps_envelope_property_set(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { ReferenceHandler = ReferenceHandler.Preserve }
+        );
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert
+            .That(doc.RootElement.EnumerateObject().Select(property => property.Name))
+            .IsEquivalentTo(["id", "eventType", "payload", "correlationId", "causationId", "createdAt"]);
+    }
+
+    [Test]
+    public async Task SendAsync_With_ignore_default_values_keeps_all_envelope_properties(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault }
+        );
+        var message = CreateOutboxMessage();
+        message.Id = Guid.Empty;
+        message.CreatedAt = default;
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert
+            .That(doc.RootElement.EnumerateObject().Select(property => property.Name))
+            .IsEquivalentTo(["id", "eventType", "payload", "correlationId", "causationId", "createdAt"]);
+    }
+
+    [Test]
+    public async Task SendAsync_With_write_indented_writes_compact_envelope(CancellationToken cancellationToken)
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(fakeClient, new JsonSerializerOptions { WriteIndented = true });
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]));
+
+        _ = await Assert.That(json).DoesNotContain("\n");
+    }
+
+    [Test]
     public async Task SendAsync_Passes_visibility_timeout_when_configured(CancellationToken cancellationToken)
     {
         var fakeClient = new FakeQueueClient();
