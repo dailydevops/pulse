@@ -42,8 +42,8 @@ The Entity Framework Core provider materializes `OutboxMessage.EventType` throug
 
 * Add the public static class `OutboxEventTypeResolver` to `NetEvolve.Pulse.Extensibility`, next to `TypeExtensions.ToOutboxEventTypeName`:
   - `Resolve(string)` resolves and caches successful lookups. For a name that cannot be resolved or is malformed (`Type.GetType` throws for an invalid assembly name part even without `throwOnError`), it returns a placeholder `Type` (a private `TypeDelegator` subclass). The placeholder reports the stored name as its `AssemblyQualifiedName`, so `ToOutboxEventTypeName` and the Entity Framework Core converter write the stored name back unchanged.
-  - `IsUnresolvable(Type)` identifies the placeholder.
-  - `DeadLetterUnresolvableAsync(IOutboxRepository, IReadOnlyList<OutboxMessage>, CancellationToken)` moves every placeholder message to `DeadLetter` through the repository's own `MarkAsDeadLetterAsync`. The error is `Cannot resolve event type '<stored name>'. ...`. It returns the remaining messages in their original order.
+  - An internal `IsUnresolvable(Type)` identifies the placeholder for tests. It is not public, because no provider or inspector needs it: providers only call `Resolve` and `DeadLetterUnresolvableAsync`.
+  - `DeadLetterUnresolvableAsync(IOutboxRepository, IReadOnlyList<OutboxMessage>, CancellationToken)` moves the placeholder messages to `DeadLetter` with one bulk `MarkAsDeadLetterAsync(IReadOnlyCollection<Guid>, ...)` call per distinct stored name. The error is `Cannot resolve event type '<stored name>'. ...`. It returns the remaining messages in their original order. Dead-lettering is best-effort: a failure or cancellation is swallowed, because the claim is already committed and throwing would leave the resolvable messages of the batch in `Processing` as well.
 * All seven outbox providers (SQL Server, PostgreSQL, MySQL, SQLite, MongoDB, Cosmos DB and Entity Framework Core) use `Resolve` at every rehydration site. This replaces the per-provider `Type.GetType` calls, caches and `IL2057` suppressions as well as the Cosmos DB `object` fallback.
 * `GetPendingAsync` and `GetFailedForRetryAsync` call `DeadLetterUnresolvableAsync` after the claim is committed. The SQLite claim holds a `BEGIN IMMEDIATE` write lock and the MySQL claim holds row locks, so dead-lettering inside the claim transaction would block or deadlock.
 * Dead-lettering is the right terminal state: the message can never be delivered by this application, so retries only waste attempts. A replay from the inspector resets the message to `Pending` and, once the type is available again, it is delivered normally.
@@ -55,9 +55,10 @@ The Entity Framework Core provider materializes `OutboxMessage.EventType` throug
 * An unresolvable event type no longer blocks the other messages of a batch in any provider.
 * The behavior is consistent across providers and covered by shared integration tests in `OutboxTestsBase`.
 * `GetPendingAsync` and `GetFailedForRetryAsync` may return fewer messages than claimed.
-* If dead-lettering is interrupted after the claim, the message stays in `Processing` and is reclaimed after the processing lease expires by the providers that reclaim expired leases.
+* If dead-lettering fails or is interrupted after the claim, only the unresolvable messages stay in `Processing`; they are reclaimed after the processing lease expires by the providers that reclaim expired leases. The Entity Framework Core and Cosmos DB fetch queries do not reclaim expired leases today, a pre-existing gap outside this decision.
+* A batch whose messages are all unresolvable returns an empty list, so the processor waits one polling interval before the next fetch. A large backlog of unresolvable messages is therefore drained at one batch per polling interval.
 * The placeholder compares equal only to placeholders with the same stored name, not to `typeof(object)`.
-* `NetEvolve.Pulse.Extensibility` gains a public static class. External implementers of `IOutboxRepository` SHOULD use it in the same way. No interface changes.
+* `NetEvolve.Pulse.Extensibility` gains a public static class with `Resolve` and `DeadLetterUnresolvableAsync`. External implementers of `IOutboxRepository` SHOULD use it in the same way. No interface changes.
 
 ## Alternatives Considered
 

@@ -35,8 +35,8 @@ public static class OutboxEventTypeResolver
     /// </summary>
     /// <param name="typeName">The event type name read from storage, usually assembly-qualified.</param>
     /// <returns>
-    /// cannot be resolved or is malformed; use <see cref="IsUnresolvable"/> to tell them apart.
-    /// cannot be resolved; use <see cref="IsUnresolvable"/> to tell them apart.
+    /// The resolved <see cref="Type"/>, or a placeholder whose <see cref="Type.AssemblyQualifiedName"/> is
+    /// <paramref name="typeName"/> when the name cannot be resolved or is malformed.
     /// </returns>
     [UnconditionalSuppressMessage(
         "Trimming",
@@ -80,7 +80,7 @@ public static class OutboxEventTypeResolver
     /// </summary>
     /// <param name="eventType">The event type of an outbox message.</param>
     /// <returns><see langword="true"/> if the event type could not be resolved; otherwise, <see langword="false"/>.</returns>
-    public static bool IsUnresolvable(Type eventType) => eventType is UnresolvableEventType;
+    internal static bool IsUnresolvable(Type eventType) => eventType is UnresolvableEventType;
 
     /// <summary>
     /// Moves every message of a fetched batch whose event type cannot be resolved to
@@ -91,14 +91,16 @@ public static class OutboxEventTypeResolver
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// <paramref name="messages"/> itself when every event type was resolved; otherwise, a new list without
-    /// the dead-lettered messages, in the original order.
+    /// the unresolvable messages, in the original order.
     /// </returns>
     /// <remarks>
-    /// Call this after the claim has been committed. Each dead-lettered message records the error
-    /// <c>Cannot resolve event type '&lt;stored name&gt;'.</c> through
-    /// <see cref="IOutboxRepository.MarkAsDeadLetterAsync(Guid, string, CancellationToken)"/>. If dead-lettering
-    /// is interrupted, the message stays in <see cref="OutboxMessageStatus.Processing"/> and is reclaimed and
-    /// handled again once its processing lease expires.
+    /// Call this after the claim has been committed. The unresolvable messages are dead-lettered with one
+    /// <see cref="IOutboxRepository.MarkAsDeadLetterAsync(IReadOnlyCollection{Guid}, string, CancellationToken)"/>
+    /// call per distinct stored name, with the error <c>Cannot resolve event type '&lt;stored name&gt;'.</c>
+    /// Dead-lettering is best-effort: if it fails or is cancelled, the exception is swallowed so the resolvable
+    /// messages of the claimed batch are still returned. The unresolvable messages are left in
+    /// <see cref="OutboxMessageStatus.Processing"/> and are dead-lettered again once a provider that reclaims
+    /// expired processing leases fetches them again.
     /// </remarks>
     public static async Task<IReadOnlyList<OutboxMessage>> DeadLetterUnresolvableAsync(
         this IOutboxRepository repository,
@@ -109,31 +111,33 @@ public static class OutboxEventTypeResolver
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(messages);
 
-        List<OutboxMessage>? resolved = null;
-
-        for (var i = 0; i < messages.Count; i++)
+        var unresolvable = messages.Where(m => m.EventType is UnresolvableEventType).ToList();
+        if (unresolvable.Count == 0)
         {
-            var message = messages[i];
+            return messages;
+        }
 
-            if (message.EventType is UnresolvableEventType unresolvable)
+        foreach (var group in unresolvable.GroupBy(m => m.EventType.AssemblyQualifiedName, StringComparer.Ordinal))
+        {
+            try
             {
-                resolved ??= [.. messages.Take(i)];
-
                 await repository
                     .MarkAsDeadLetterAsync(
-                        message.Id,
-                        $"Cannot resolve event type '{unresolvable.AssemblyQualifiedName}'. The type was renamed or removed, or it is not compiled into the application that processes the outbox.",
+                        [.. group.Select(m => m.Id)],
+                        $"Cannot resolve event type '{group.Key}'. The type was renamed or removed, or it is not compiled into the application that processes the outbox.",
                         cancellationToken
                     )
                     .ConfigureAwait(false);
             }
-            else
+#pragma warning disable RCS1075 // Best-effort: a failure must not lose the resolvable messages of the committed claim.
+            catch (Exception)
+#pragma warning restore RCS1075
             {
-                resolved?.Add(message);
+                // The messages stay in Processing; see remarks.
             }
         }
 
-        return resolved ?? messages;
+        return [.. messages.Where(m => m.EventType is not UnresolvableEventType)];
     }
 
     /// <summary>

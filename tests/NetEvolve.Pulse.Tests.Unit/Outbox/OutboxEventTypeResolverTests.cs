@@ -141,7 +141,7 @@ public sealed class OutboxEventTypeResolverTests
         _ = await Assert.That(result).IsEquivalentTo([first, last], CollectionOrdering.Matching);
         repository
             .MarkAsDeadLetterAsync(
-                unresolvable.Id,
+                Arg.Is<IReadOnlyCollection<Guid>>(ids => ids != null && ids.SequenceEqual(new[] { unresolvable.Id })),
                 Arg.Is<string>(error =>
                     error != null && error.Contains(UnresolvableTypeName, StringComparison.Ordinal)
                 ),
@@ -149,17 +149,21 @@ public sealed class OutboxEventTypeResolverTests
             )
             .WasCalled(Times.Once);
         repository
-            .MarkAsDeadLetterAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .MarkAsDeadLetterAsync(
+                Arg.Any<IReadOnlyCollection<Guid>>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .WasCalled(Times.Once);
     }
 
     [Test]
-    public async Task DeadLetterUnresolvableAsync_WithSeveralUnresolvable_DeadLettersThemInOneBulkCall()
+    public async Task DeadLetterUnresolvableAsync_WithSeveralOfSameStoredName_DeadLettersThemInOneBulkCall()
     {
         var repository = Mock.Of<IOutboxRepository>();
         var first = CreateMessage(OutboxEventTypeResolver.Resolve(UnresolvableTypeName));
         var kept = CreateMessage(typeof(string));
-        var second = CreateMessage(OutboxEventTypeResolver.Resolve("Other.RemovedEvent, Other"));
+        var second = CreateMessage(OutboxEventTypeResolver.Resolve(UnresolvableTypeName));
 
         var result = await repository.Object.DeadLetterUnresolvableAsync([first, kept, second]).ConfigureAwait(false);
 
