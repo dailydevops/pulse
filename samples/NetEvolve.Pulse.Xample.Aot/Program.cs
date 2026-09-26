@@ -163,11 +163,19 @@ await RunAsync(
                 "built-in logging interceptor invoked for the void command"
             );
 
-            await mediator.SendAsync(new ReserveStockCommand("SKU-1")).ConfigureAwait(false);
+            await Task.WhenAll(
+                    mediator.SendAsync(new ReserveStockCommand("SKU-1")),
+                    mediator.SendAsync(new ReserveStockCommand("SKU-2"))
+                )
+                .ConfigureAwait(false);
             Check(
-                recorder.Invocations.Contains(nameof(ReserveStockHandler))
+                recorder.Invocations.Count(invocation => invocation == nameof(ReserveStockHandler)) == 2
                     && recorder.Invocations.Contains("Handling Command 'ReserveStockCommand' (CorrelationId: )"),
-                "exclusive void command through the closed concurrent command guard"
+                "exclusive void commands through the built-in logging interceptor"
+            );
+            Check(
+                recorder.MaxConcurrentReservations == 1,
+                "overlapping exclusive void commands serialized by the closed concurrent command guard"
             );
 
             var range = new List<int>();
