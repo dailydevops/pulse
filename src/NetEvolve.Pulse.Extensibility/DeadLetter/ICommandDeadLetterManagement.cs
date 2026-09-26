@@ -64,6 +64,8 @@ public interface ICommandDeadLetterManagement
     /// <paramref name="cancellationToken"/> and rethrow the original exception, so the entry shows up in
     /// <see cref="GetPendingAsync"/> again instead of staying in <see cref="CommandDeadLetterStatus.Replaying"/>.
     /// This also applies to a failed re-run of a <see cref="CommandDeadLetterStatus.Resolved"/> entry.
+    /// When the reset itself fails, implementations MUST still rethrow the original exception; the entry then
+    /// stays in <see cref="CommandDeadLetterStatus.Replaying"/> and remains replayable.
     /// </description></item>
     /// </list>
     /// <para><strong>NativeAOT and Trimming:</strong></para>

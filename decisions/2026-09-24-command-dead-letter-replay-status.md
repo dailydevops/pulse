@@ -16,7 +16,7 @@ state: proposed
 instructions: |
   MUST reject ICommandDeadLetterManagement.ReplayAsync for Dismissed entries with CommandDeadLetterEntryDismissedException before changing the status or dispatching; the inspector endpoint MUST map it to 409 Conflict.
   MUST keep Resolved and Replaying entries replayable (deliberate re-run, recovery of stranded entries).
-  MUST reset the entry to New with CancellationToken.None when deserialization or dispatch throws or is cancelled, then rethrow; MUST write Resolved with CancellationToken.None after a successful dispatch.
+  MUST reset the entry to New with CancellationToken.None when deserialization or dispatch throws or is cancelled, then rethrow the original exception, even when the reset itself fails; MUST write Resolved with CancellationToken.None after a successful dispatch.
 ---
 
 # Decision: Command Dead Letter Replay Status Rules
@@ -36,6 +36,7 @@ Issue #788 describes two status bugs that every provider shared:
 - `MapCommandDeadLetterInspector` maps this exception, and only this one, to `409 Conflict`. An `InvalidOperationException` thrown by the replayed handler is not reported as a conflict.
 - `Resolved` entries stay replayable, so an operator can deliberately re-run a command. `Replaying` entries stay replayable too, so entries stranded before this fix, or by a crashed process, can be recovered.
 - When deserialization or dispatch throws, or the call is cancelled, the provider resets the status to `New` and rethrows the original exception. The entry shows up in `GetPendingAsync` again. The reset runs with `CancellationToken.None`, because the caller's token is already cancelled when a cancellation caused the failure.
+- When the reset itself fails, for example because the database is unreachable, the reset error is discarded and the original exception is still rethrown. The caller and the inspector see the real cause of the failure instead of a database error. The entry then stays in `Replaying`, which remains replayable.
 - The Entity Framework provider clears the change tracker before the reset and re-attaches only the entry. The replayed handler may share the same context, and its unsaved changes must neither be persisted nor make the reset fail.
 - The reset always targets `New`, including a failed re-run of a `Resolved` entry. The failure is visible in the pending list instead of being hidden as `Resolved`.
 - After a successful dispatch, `Resolved` is written with `CancellationToken.None`. The command has already run, so a late cancellation must not leave the entry in `Replaying`.

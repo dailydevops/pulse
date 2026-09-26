@@ -194,8 +194,17 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
         }
         catch
         {
-            // Not cancellable: the reset must also run when the replay was cancelled.
-            await SetStatusAsync(_markNewSql, id, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                // Not cancellable: the reset must also run when the replay was cancelled.
+                await SetStatusAsync(_markNewSql, id, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // A failed reset must not hide the replay failure: the entry stays in Replaying
+                // and the original exception is rethrown below.
+            }
+
             throw;
         }
 

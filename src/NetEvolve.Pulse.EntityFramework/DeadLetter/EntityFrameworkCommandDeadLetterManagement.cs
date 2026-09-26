@@ -104,10 +104,19 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
             // The replayed handler may share this context: discard its unsaved changes so the reset
             // neither persists them nor fails on them. Not cancellable: the reset must also run when
             // the replay was cancelled.
-            _context.ChangeTracker.Clear();
-            _ = _context.Attach(entry);
-            entry.Status = CommandDeadLetterStatus.New;
-            _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                _context.ChangeTracker.Clear();
+                _ = _context.Attach(entry);
+                entry.Status = CommandDeadLetterStatus.New;
+                _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // A failed reset must not hide the replay failure: the entry stays in Replaying
+                // and the original exception is rethrown below.
+            }
+
             throw;
         }
 
