@@ -358,6 +358,34 @@ public sealed class TimeoutRequestInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_WithOriginalTokenCancelled_AfterDeadlineElapsed_WhenHandlerIgnoresToken_ReturnsResult(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
+        var command = new TestTimeoutCommand(TimeSpan.FromMilliseconds(50));
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        var result = await interceptor
+            .HandleAsync(
+                command,
+                async (_, _) =>
+                {
+                    await Task.Yield();
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(250));
+                    await cts.CancelAsync().ConfigureAwait(false);
+                    return "late";
+                },
+                cts.Token
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("late");
+    }
+
+    [Test]
     public async Task HandleAsync_WithTimeoutRequest_InfiniteTimeout_NeverTimesOut(CancellationToken cancellationToken)
     {
         var timeProvider = new StarvedTimeProvider();
