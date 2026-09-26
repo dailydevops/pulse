@@ -364,6 +364,109 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
+    public async Task ReplayAsync_WithDismissedEntry_ThrowsDismissedExceptionAndKeepsStatus(
+        CancellationToken cancellationToken
+    )
+    {
+        var handler = new TestReplayCommandHandler();
+        var databaseName = nameof(ReplayAsync_WithDismissedEntry_ThrowsDismissedExceptionAndKeepsStatus);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                handler,
+                CommandDeadLetterStatus.Dismissed,
+                async (management, id) =>
+                {
+                    var exception = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<CommandDeadLetterEntryDismissedException>();
+                    _ = await Assert.That(exception!.EntryId).IsEqualTo(id);
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+                .IsEqualTo(CommandDeadLetterStatus.Dismissed);
+            _ = await Assert.That(handler.HandledCommands).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task ReplayAsync_WithResolvedEntry_ReplaysAgain(CancellationToken cancellationToken)
+    {
+        var handler = new TestReplayCommandHandler();
+        var databaseName = nameof(ReplayAsync_WithResolvedEntry_ReplaysAgain);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                handler,
+                CommandDeadLetterStatus.Resolved,
+                (management, id) => management.ReplayAsync(id, cancellationToken),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+                .IsEqualTo(CommandDeadLetterStatus.Resolved);
+            _ = await Assert.That(handler.HandledCommands).HasSingleItem();
+        }
+    }
+
+    [Test]
+    public async Task ReplayAsync_WhenHandlerThrows_ResetsEntryToNew(CancellationToken cancellationToken)
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerThrows_ResetsEntryToNew);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                new FailingReplayCommandHandler(),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>(),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert
+            .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+            .IsEqualTo(CommandDeadLetterStatus.New);
+    }
+
+    [Test]
+    public async Task ReplayAsync_WhenCancelledDuringDispatch_ResetsEntryToNew(CancellationToken cancellationToken)
+    {
+        var databaseName = nameof(ReplayAsync_WhenCancelledDuringDispatch_ResetsEntryToNew);
+        using var replayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                new CancellingReplayCommandHandler(replayCancellation),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () =>
+                            await management.ReplayAsync(id, replayCancellation.Token).ConfigureAwait(false)
+                        )
+                        .Throws<OperationCanceledException>(),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert
+            .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+            .IsEqualTo(CommandDeadLetterStatus.New);
+    }
+
+    [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
         var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
@@ -464,6 +567,87 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var statistics = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
             _ = await Assert.That(statistics.TotalCount).IsEqualTo(0);
+        }
+    }
+
+    private static async Task<Guid> ReplayWithHandlerAsync(
+        string databaseName,
+        ICommandHandler<TestReplayCommand, string> handler,
+        CommandDeadLetterStatus initialStatus,
+        Func<EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>, Guid, Task> replay,
+        CancellationToken cancellationToken
+    )
+    {
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddPulse();
+        _ = services.AddScoped(_ => handler);
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                var payloadSerializer = scope.ServiceProvider.GetRequiredService<IPayloadSerializer>();
+
+                var context = CreateContext(databaseName);
+                await using (context.ConfigureAwait(false))
+                {
+                    var entry = CreateEntry(
+                        initialStatus,
+                        DateTimeOffset.UtcNow,
+                        typeof(TestReplayCommand).AssemblyQualifiedName!,
+                        payloadSerializer.Serialize(new TestReplayCommand { OrderId = 42 })
+                    );
+                    _ = await context.CommandDeadLetterEntries.AddAsync(entry, cancellationToken);
+                    _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+                    var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                        context,
+                        mediator,
+                        payloadSerializer
+                    );
+
+                    await replay(management, entry.Id).ConfigureAwait(false);
+
+                    return entry.Id;
+                }
+            }
+        }
+    }
+
+    private static async Task<CommandDeadLetterStatus> GetStatusAsync(
+        string databaseName,
+        Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        var context = CreateContext(databaseName);
+        await using (context.ConfigureAwait(false))
+        {
+            var entry = await context
+                .CommandDeadLetterEntries.AsNoTracking()
+                .SingleAsync(e => e.Id == id, cancellationToken)
+                .ConfigureAwait(false);
+            return entry.Status;
+        }
+    }
+
+    private sealed class FailingReplayCommandHandler : ICommandHandler<TestReplayCommand, string>
+    {
+        public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class CancellingReplayCommandHandler(CancellationTokenSource replayCancellation)
+        : ICommandHandler<TestReplayCommand, string>
+    {
+        public async Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            await replayCancellation.CancelAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return "handled";
         }
     }
 
