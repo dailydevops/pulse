@@ -36,6 +36,7 @@ Issue #788 describes two status bugs that every provider shared:
 - `MapCommandDeadLetterInspector` maps this exception, and only this one, to `409 Conflict`. An `InvalidOperationException` thrown by the replayed handler is not reported as a conflict.
 - `Resolved` entries stay replayable, so an operator can deliberately re-run a command. `Replaying` entries stay replayable too, so entries stranded before this fix, or by a crashed process, can be recovered.
 - When deserialization or dispatch throws, or the call is cancelled, the provider resets the status to `New` and rethrows the original exception. The entry shows up in `GetPendingAsync` again. The reset runs with `CancellationToken.None`, because the caller's token is already cancelled when a cancellation caused the failure.
+- The Entity Framework provider clears the change tracker before the reset and re-attaches only the entry. The replayed handler may share the same context, and its unsaved changes must neither be persisted nor make the reset fail.
 - The reset always targets `New`, including a failed re-run of a `Resolved` entry. The failure is visible in the pending list instead of being hidden as `Resolved`.
 - After a successful dispatch, `Resolved` is written with `CancellationToken.None`. The command has already run, so a late cancellation must not leave the entry in `Replaying`.
 
