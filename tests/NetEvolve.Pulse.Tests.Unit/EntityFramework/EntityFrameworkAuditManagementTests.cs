@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Audit;
@@ -342,6 +343,58 @@ public sealed class EntityFrameworkAuditManagementTests
             var statistics = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
 
             _ = await Assert.That(statistics.TotalCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task GetByIdAsync_WithExistingId_ReturnsUntrackedRecord(CancellationToken cancellationToken)
+    {
+        const string databaseName = nameof(GetByIdAsync_WithExistingId_ReturnsUntrackedRecord);
+        var now = DateTimeOffset.UtcNow;
+        var match = CreateRecord(now, commandType: "Match.Command", userId: "user-1");
+        var other = CreateRecord(now, commandType: "Other.Command");
+
+        var seedContext = CreateContext(databaseName);
+        await using (seedContext.ConfigureAwait(false))
+        {
+            await seedContext.AuditEntries.AddRangeAsync([match, other], cancellationToken).ConfigureAwait(false);
+            _ = await seedContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        var context = CreateContext(databaseName);
+        await using (context.ConfigureAwait(false))
+        {
+            var management = new EntityFrameworkAuditManagement<TestAuditStoreDbContext>(context);
+
+            var result = await management.GetByIdAsync(match.Id, cancellationToken).ConfigureAwait(false);
+
+            _ = await Assert.That(result).IsNotNull();
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(result!.Id).IsEqualTo(match.Id);
+                _ = await Assert.That(result.CommandType).IsEqualTo("Match.Command");
+                _ = await Assert.That(result.UserId).IsEqualTo("user-1");
+                _ = await Assert.That(context.ChangeTracker.Entries().Any()).IsFalse();
+            }
+        }
+    }
+
+    [Test]
+    public async Task GetByIdAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
+    {
+        var context = CreateContext(nameof(GetByIdAsync_WithUnknownId_ReturnsNull));
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await context
+                .AuditEntries.AddAsync(CreateRecord(DateTimeOffset.UtcNow), cancellationToken)
+                .ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkAuditManagement<TestAuditStoreDbContext>(context);
+
+            var result = await management.GetByIdAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
+
+            _ = await Assert.That(result).IsNull();
         }
     }
 }

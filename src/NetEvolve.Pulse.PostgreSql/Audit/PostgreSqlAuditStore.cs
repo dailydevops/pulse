@@ -82,7 +82,7 @@ internal sealed class PostgreSqlAuditStore : IAuditStore
                 _ = command.Parameters.AddWithValue("command_type", record.CommandType);
                 _ = command.Parameters.AddWithValue("user_id", (object?)record.UserId ?? DBNull.Value);
                 _ = command.Parameters.AddWithValue("correlation_id", (object?)record.CorrelationId ?? DBNull.Value);
-                _ = command.Parameters.AddWithValue("occurred_at", record.OccurredAt);
+                _ = command.Parameters.AddWithValue("occurred_at", record.OccurredAt.ToUniversalTime());
                 _ = command.Parameters.AddWithValue("duration_ms", record.DurationMs);
                 _ = command.Parameters.AddWithValue("result", (short)record.Result);
                 _ = command.Parameters.AddWithValue("payload", (object?)record.Payload ?? DBNull.Value);

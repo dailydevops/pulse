@@ -41,6 +41,9 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
     /// <summary>Cached SQL command text for retrieving aggregate result counts.</summary>
     private readonly string _getStatisticsSql;
 
+    /// <summary>Cached SQL command text for retrieving a single record by its identifier.</summary>
+    private readonly string _getByIdSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerAuditManagement"/> class.
     /// </summary>
@@ -59,6 +62,16 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
         SqlIdentifier.Validate(options.Value.TableName, nameof(options.Value.TableName));
 
         _fullTableName = $"[{schema}].[{options.Value.TableName}]";
+
+        _getByIdSql = $"""
+            SELECT [{AuditEntrySchema.Columns.Id}], [{AuditEntrySchema.Columns.CommandType}],
+                [{AuditEntrySchema.Columns.UserId}], [{AuditEntrySchema.Columns.CorrelationId}],
+                [{AuditEntrySchema.Columns.OccurredAt}], [{AuditEntrySchema.Columns.DurationMs}],
+                [{AuditEntrySchema.Columns.Result}], [{AuditEntrySchema.Columns.Payload}],
+                [{AuditEntrySchema.Columns.ExceptionMessage}]
+            FROM {_fullTableName}
+            WHERE [{AuditEntrySchema.Columns.Id}] = @Id
+            """;
 
         _getStatisticsSql = $"""
             SELECT [{AuditEntrySchema.Columns.Result}], COUNT(*) AS [Count]
@@ -98,6 +111,26 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
                     }
 
                     return records;
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqlCommand(_getByIdSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@Id", id);
+
+                var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using (reader.ConfigureAwait(false))
+                {
+                    return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? MapToRecord(reader) : null;
                 }
             }
         }

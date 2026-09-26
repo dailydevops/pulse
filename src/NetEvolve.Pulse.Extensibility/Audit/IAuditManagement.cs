@@ -19,6 +19,17 @@ public interface IAuditManagement
     Task<IReadOnlyList<AuditRecord>> QueryAsync(AuditFilter filter, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves a single audit record by its identifier.
+    /// </summary>
+    /// <param name="id">The <see cref="AuditRecord.Id"/> of the record to retrieve.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// The audit record with the given <paramref name="id"/>, or <see langword="null"/> when no
+    /// such record exists.
+    /// </returns>
+    Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves aggregate counts of audit records per <see cref="AuditResult"/>.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>

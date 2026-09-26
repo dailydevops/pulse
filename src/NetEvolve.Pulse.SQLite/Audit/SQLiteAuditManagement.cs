@@ -47,6 +47,9 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
     /// <summary>Cached SQL statement for retrieving audit statistics.</summary>
     private readonly string _getStatisticsSql;
 
+    /// <summary>Cached SQL statement for retrieving a single record by its identifier.</summary>
+    private readonly string _getByIdSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SQLiteAuditManagement"/> class.
     /// </summary>
@@ -62,6 +65,21 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
 
         SqlIdentifier.Validate(opts.TableName, nameof(opts.TableName));
         _table = $"\"{opts.TableName}\"";
+
+        _getByIdSql = $"""
+            SELECT
+                "{AuditEntrySchema.Columns.Id}",
+                "{AuditEntrySchema.Columns.CommandType}",
+                "{AuditEntrySchema.Columns.UserId}",
+                "{AuditEntrySchema.Columns.CorrelationId}",
+                "{AuditEntrySchema.Columns.OccurredAt}",
+                "{AuditEntrySchema.Columns.DurationMs}",
+                "{AuditEntrySchema.Columns.Result}",
+                "{AuditEntrySchema.Columns.Payload}",
+                "{AuditEntrySchema.Columns.ExceptionMessage}"
+            FROM {_table}
+            WHERE "{AuditEntrySchema.Columns.Id}" = @id;
+            """;
 
         _getStatisticsSql = $"""
             SELECT "{AuditEntrySchema.Columns.Result}", COUNT(*)
@@ -159,12 +177,13 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
 
                 if (filter.From is not null)
                 {
-                    _ = command.Parameters.AddWithValue("@from", filter.From.Value);
+                    // OccurredAt is TEXT and compared as a string; normalize bounds to UTC like SQLiteAuditStore.
+                    _ = command.Parameters.AddWithValue("@from", filter.From.Value.ToUniversalTime());
                 }
 
                 if (filter.To is not null)
                 {
-                    _ = command.Parameters.AddWithValue("@to", filter.To.Value);
+                    _ = command.Parameters.AddWithValue("@to", filter.To.Value.ToUniversalTime());
                 }
 
                 if (filter.Result is not null)
@@ -176,6 +195,24 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
                 _ = command.Parameters.AddWithValue("@skip", filter.Skip);
 
                 return await ReadRecordsAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_getByIdSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                // Matches SQLiteAuditStore, which persists the identifier as TEXT via Guid.ToString() ("D", lowercase).
+                _ = command.Parameters.AddWithValue("@id", id.ToString());
+
+                var records = await ReadRecordsAsync(command, cancellationToken).ConfigureAwait(false);
+                return records.Count == 0 ? null : records[0];
             }
         }
     }

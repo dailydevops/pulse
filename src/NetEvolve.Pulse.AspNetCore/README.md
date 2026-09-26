@@ -270,6 +270,36 @@ app.MapCommandDeadLetterInspector(options => options.BasePath = "/admin/commands
    .RequireAuthorization("Operations");
 ```
 
+### Audit Inspector
+
+`MapAuditInspector` maps read-only endpoints over the registered `IAuditManagement` (any Pulse audit store provider). There are no replay, dismiss or other mutating operations.
+
+| Endpoint | Description |
+| --- | --- |
+| `GET {BasePath}/stats` | Success and failure counts (`AuditStatistics`) |
+| `GET {BasePath}/entries` | Filtered, paginated audit records, most recent first |
+| `GET {BasePath}/entries/{id:guid}` | A single audit record, or `404 Not Found` |
+
+Query parameters for `GET {BasePath}/entries` (all optional, combined with AND):
+
+| Parameter | Description |
+| --- | --- |
+| `commandType` | Exact request type name |
+| `userId` | Exact user identifier |
+| `from` / `to` | Inclusive `OccurredAt` bounds (ISO 8601); `from` must not be later than `to` |
+| `result` | `Success` or `Failure` |
+| `take` | Page size, between `1` and `1000` (default `50`) |
+| `skip` | Number of records to skip, `0` or more (default `0`) |
+
+Malformed or out-of-range values return `400 Bad Request`.
+
+`AuditInspectorOptions` sets `BasePath` (default `/pulse/audit`) and `RouteGroupName` (default `Pulse Audit Inspector`, applied via `WithGroupName`). No authorization is built in, so secure the returned route group yourself:
+
+```csharp
+app.MapAuditInspector(options => options.BasePath = "/admin/audit")
+   .RequireAuthorization("AuditReaders");
+```
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0

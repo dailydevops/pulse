@@ -43,6 +43,7 @@ internal sealed class MySqlAuditManagement : IAuditManagement
     private readonly string _connectionString;
     private readonly string _table;
     private readonly string _getStatisticsSql;
+    private readonly string _getByIdSql;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MySqlAuditManagement"/> class.
@@ -58,6 +59,21 @@ internal sealed class MySqlAuditManagement : IAuditManagement
 
         SqlIdentifier.Validate(opts.TableName, nameof(opts.TableName));
         _table = $"`{opts.TableName}`";
+
+        _getByIdSql = $"""
+            SELECT
+                `{AuditEntrySchema.Columns.Id}`,
+                `{AuditEntrySchema.Columns.CommandType}`,
+                `{AuditEntrySchema.Columns.UserId}`,
+                `{AuditEntrySchema.Columns.CorrelationId}`,
+                `{AuditEntrySchema.Columns.OccurredAt}`,
+                `{AuditEntrySchema.Columns.DurationMs}`,
+                `{AuditEntrySchema.Columns.Result}`,
+                `{AuditEntrySchema.Columns.Payload}`,
+                `{AuditEntrySchema.Columns.ExceptionMessage}`
+            FROM {_table}
+            WHERE `{AuditEntrySchema.Columns.Id}` = @id
+            """;
 
         _getStatisticsSql = $"""
             SELECT `{AuditEntrySchema.Columns.Result}`, COUNT(*)
@@ -159,6 +175,24 @@ internal sealed class MySqlAuditManagement : IAuditManagement
                 _ = command.Parameters.AddWithValue("@skip", filter.Skip);
 
                 return await ReadRecordsAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_getByIdSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                // Matches MySqlAuditStore, which persists the identifier as BINARY(16) via Guid.ToByteArray().
+                _ = command.Parameters.AddWithValue("@id", id.ToByteArray());
+
+                var records = await ReadRecordsAsync(command, cancellationToken).ConfigureAwait(false);
+                return records.Count == 0 ? null : records[0];
             }
         }
     }

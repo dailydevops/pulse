@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,6 +35,7 @@ public static class AuditInspectorEndpoints
     /// <list type="bullet">
     /// <item><description><c>GET {BasePath}/stats</c> — aggregate audit result counts.</description></item>
     /// <item><description><c>GET {BasePath}/entries</c> — paginated, filterable audit records.</description></item>
+    /// <item><description><c>GET {BasePath}/entries/{id}</c> — a single audit record, or <c>404</c> when not found.</description></item>
     /// </list>
     /// <para><strong>Read-only:</strong></para>
     /// This method maps strictly read-only endpoints. No replay, dismiss, or other mutating
@@ -67,6 +69,7 @@ public static class AuditInspectorEndpoints
 
         _ = group.MapGet("/stats", GetStatisticsAsync);
         _ = group.MapGet("/entries", GetEntriesAsync);
+        _ = group.MapGet("/entries/{id:guid}", GetEntryAsync);
 
         return group;
     }
@@ -80,7 +83,28 @@ public static class AuditInspectorEndpoints
         [AsParameters] AuditEntriesQuery query,
         IAuditManagement auditManagement,
         CancellationToken cancellationToken
-    ) => TypedResults.Ok(await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false));
+    )
+    {
+        var errors = query.Validate();
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        return TypedResults.Ok(
+            await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false)
+        );
+    }
+
+    private static async Task<IResult> GetEntryAsync(
+        Guid id,
+        IAuditManagement auditManagement,
+        CancellationToken cancellationToken
+    )
+    {
+        var record = await auditManagement.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
+        return record is null ? TypedResults.NotFound() : TypedResults.Ok(record);
+    }
 
     /// <summary>
     /// Query-string binding target for <c>GET {BasePath}/entries</c>.
@@ -113,6 +137,40 @@ public static class AuditInspectorEndpoints
         public int? Take { get; set; }
 
         public int? Skip { get; set; }
+
+        /// <summary>
+        /// The largest page size a single request may ask for, so one call cannot dump the whole audit table.
+        /// </summary>
+        private const int MaxTake = 1000;
+
+        /// <summary>
+        /// Rejects values the persistence providers cannot handle consistently: SQL Server rejects a
+        /// <c>FETCH</c>/<c>OFFSET</c> count of zero or less, PostgreSQL and MySQL reject a negative
+        /// <c>LIMIT</c>/<c>OFFSET</c>, and SQLite treats <c>LIMIT -1</c> as unbounded. Page sizes above
+        /// <see cref="MaxTake"/> are rejected as well.
+        /// </summary>
+        /// <returns>The validation errors keyed by query parameter name; empty when valid.</returns>
+        public Dictionary<string, string[]> Validate()
+        {
+            var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+
+            if (Take is <= 0 or > MaxTake)
+            {
+                errors["take"] = [$"The value must be between 1 and {MaxTake}."];
+            }
+
+            if (Skip < 0)
+            {
+                errors["skip"] = ["The value must not be negative."];
+            }
+
+            if (From > To)
+            {
+                errors["from"] = ["The value must not be later than 'to'."];
+            }
+
+            return errors;
+        }
 
         public AuditFilter ToFilter()
         {

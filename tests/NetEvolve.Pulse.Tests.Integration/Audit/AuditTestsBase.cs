@@ -121,6 +121,67 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
             .ConfigureAwait(false);
 
     [Test]
+    public async Task GetByIdAsync_Returns_record(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    var record = CreateRecord(
+                        commandType: "Test.CreateOrderCommand",
+                        userId: "alice",
+                        correlationId: "corr-xyz",
+                        durationMs: 42.5,
+                        result: AuditResult.Failure,
+                        payload: """{"orderId":1}""",
+                        exceptionMessage: "boom"
+                    );
+                    await store.RecordAsync(CreateRecord(commandType: "Test.Other"), token).ConfigureAwait(false);
+                    await store.RecordAsync(record, token).ConfigureAwait(false);
+
+                    var stored = await management.GetByIdAsync(record.Id, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(stored).IsNotNull();
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(stored!.Id).IsEqualTo(record.Id);
+                        _ = await Assert.That(stored.CommandType).IsEqualTo(record.CommandType);
+                        _ = await Assert.That(stored.UserId).IsEqualTo(record.UserId);
+                        _ = await Assert.That(stored.CorrelationId).IsEqualTo(record.CorrelationId);
+                        _ = await Assert.That(stored.DurationMs).IsEqualTo(record.DurationMs);
+                        _ = await Assert.That(stored.Result).IsEqualTo(AuditResult.Failure);
+                        _ = await Assert.That(stored.Payload).IsEqualTo(record.Payload);
+                        _ = await Assert.That(stored.ExceptionMessage).IsEqualTo(record.ExceptionMessage);
+                        _ = await Assert
+                            .That(Math.Abs((stored.OccurredAt - record.OccurredAt).TotalMilliseconds))
+                            .IsLessThan(1);
+                    }
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetByIdAsync_Returns_null_when_missing(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    await store.RecordAsync(CreateRecord(), token).ConfigureAwait(false);
+
+                    var stored = await management.GetByIdAsync(Guid.NewGuid(), token).ConfigureAwait(false);
+
+                    _ = await Assert.That(stored).IsNull();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task QueryAsync_Filters_by_CommandType(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
@@ -213,6 +274,58 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
 
                     _ = await Assert.That(results).HasSingleItem();
                     _ = await Assert.That(results[0].CommandType).IsEqualTo("Test.Recent");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task QueryAsync_Filters_by_From_and_To_with_non_utc_offset(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    var now = DateTimeOffset.UtcNow;
+                    await store.RecordAsync(CreateRecord(occurredAt: now), token).ConfigureAwait(false);
+
+                    var plusFive = TimeSpan.FromHours(5);
+                    var results = await management
+                        .QueryAsync(
+                            new AuditFilter
+                            {
+                                From = now.AddHours(-1).ToOffset(plusFive),
+                                To = now.AddHours(1).ToOffset(-plusFive),
+                            },
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    _ = await Assert.That(results).HasSingleItem();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task QueryAsync_Filters_non_utc_record_by_utc_bounds(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    var now = DateTimeOffset.UtcNow;
+                    await store
+                        .RecordAsync(CreateRecord(occurredAt: now.ToOffset(TimeSpan.FromHours(-5))), token)
+                        .ConfigureAwait(false);
+
+                    var results = await management
+                        .QueryAsync(new AuditFilter { From = now.AddHours(-1), To = now.AddHours(1) }, token)
+                        .ConfigureAwait(false);
+
+                    _ = await Assert.That(results).HasSingleItem();
                 },
                 cancellationToken
             )
