@@ -63,7 +63,7 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<AuditStatistics>(ResponseJsonOptions, cancellationToken)
+            .Content.ReadFromJsonAsync<AuditStatistics>(cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -100,9 +100,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        var payload = await response
-            .Content.ReadFromJsonAsync<AuditRecord[]>(ResponseJsonOptions, cancellationToken)
-            .ConfigureAwait(false);
+        var payload = await response.Content.ReadFromJsonAsync<AuditRecord[]>(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
         _ = await Assert.That(payload!.Length).IsEqualTo(1);
@@ -136,9 +134,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        var payload = await response
-            .Content.ReadFromJsonAsync<AuditRecord>(ResponseJsonOptions, cancellationToken)
-            .ConfigureAwait(false);
+        var payload = await response.Content.ReadFromJsonAsync<AuditRecord>(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
         using (Assert.Multiple())
@@ -564,14 +560,14 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(customPathResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await customPathResponse
-            .Content.ReadFromJsonAsync<AuditStatistics>(ResponseJsonOptions, cancellationToken)
+            .Content.ReadFromJsonAsync<AuditStatistics>(cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
         _ = await Assert.That(payload!.SuccessCount).IsEqualTo(1);
     }
 
-    // Inspector responses honor the application's HTTP JSON options and write enums as strings by default
+    // Inspector responses honor the application's HTTP JSON options and write enums as numbers by default
 
     [Test]
     public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesPascalCaseJson(
@@ -651,7 +647,7 @@ public sealed class AuditInspectorEndpointsTests
     }
 
     [Test]
-    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsStrings(
+    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsNumbers(
         CancellationToken cancellationToken
     )
     {
@@ -679,14 +675,8 @@ public sealed class AuditInspectorEndpointsTests
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(json).Contains("\"exceptionMessage\":\"boom\"");
-        _ = await Assert.That(json).Contains("\"result\":\"Failure\"");
+        _ = await Assert.That(json).Contains("\"result\":1");
     }
-
-    // The inspector writes enums as strings, which the web defaults of ReadFromJsonAsync cannot read.
-    private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     private static async Task<IHost> CreateTestHostAsync(
         IAuditManagement auditManagement,

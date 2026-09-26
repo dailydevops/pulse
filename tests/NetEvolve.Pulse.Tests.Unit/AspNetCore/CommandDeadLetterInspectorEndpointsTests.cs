@@ -67,7 +67,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<CommandDeadLetterStatistics>(ResponseJsonOptions, cancellationToken)
+            .Content.ReadFromJsonAsync<CommandDeadLetterStatistics>(cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -107,7 +107,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<CommandDeadLetterEntry[]>(ResponseJsonOptions, cancellationToken)
+            .Content.ReadFromJsonAsync<CommandDeadLetterEntry[]>(cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -277,7 +277,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<CommandDeadLetterEntry>(ResponseJsonOptions, cancellationToken)
+            .Content.ReadFromJsonAsync<CommandDeadLetterEntry>(cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -608,7 +608,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(customPathResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
-    // Inspector responses honor the application's HTTP JSON options and write enums as strings by default
+    // Inspector responses honor the application's HTTP JSON options and write enums as numbers by default
 
     [Test]
     public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesPascalCaseJson(
@@ -694,7 +694,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     }
 
     [Test]
-    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsStrings(
+    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsNumbers(
         CancellationToken cancellationToken
     )
     {
@@ -723,14 +723,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(json).Contains("\"attemptCount\":3");
-        _ = await Assert.That(json).Contains("\"status\":\"Replaying\"");
+        _ = await Assert.That(json).Contains("\"status\":1");
     }
-
-    // The inspector writes enums as strings, which the web defaults of ReadFromJsonAsync cannot read.
-    private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter() },
-    };
 
     private static async Task<IHost> CreateTestHostAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
