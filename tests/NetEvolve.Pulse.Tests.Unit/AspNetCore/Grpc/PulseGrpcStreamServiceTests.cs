@@ -118,6 +118,32 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
+    [Timeout(30_000)]
+    public async Task StreamAsync_WhenCancelledDuringPendingWrite_ThrowsOperationCanceledException(
+        CancellationToken cancellationToken
+    )
+    {
+        using var cts = new CancellationTokenSource();
+        var mediator = Mock.Of<IMediator>();
+        _ = mediator
+            .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())
+            .Returns(() => YieldAsync(["first", "second"]));
+        var writer = new PendingStreamWriter();
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            var stream = new TestStreamService(mediator.Object).Stream(
+                new TestStreamQuery(),
+                writer,
+                new TestServerCallContext(cts.Token)
+            );
+            await writer.WriteStarted.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await cts.CancelAsync().ConfigureAwait(false);
+            await stream.ConfigureAwait(false);
+        });
+    }
+
+    [Test]
     public async Task StreamAsync_WhenAlreadyCancelled_WritesNothing()
     {
         using var cts = new CancellationTokenSource();
