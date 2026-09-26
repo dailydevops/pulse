@@ -12,9 +12,9 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-26
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST rehydrate persisted outbox event type names only through OutboxEventTypeResolver.Resolve; MUST NOT call Type.GetType directly or throw for an unresolvable event type in a provider.
