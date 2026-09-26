@@ -32,12 +32,6 @@ Link related issues below. Insert the issue link or reference after the word "Cl
 Explain here how this PR will be tested by the reviewer: commands, dependencies, steps, etc.
 -->
 
-<!-- Optional (mandatory when public interfaces in NetEvolve.Pulse.Extensibility change)
-## Impact
-
-List every added, changed or removed public interface member that external implementers must adapt to.
--->
-
 <!-- Optional
 ## Follow-ups
 
