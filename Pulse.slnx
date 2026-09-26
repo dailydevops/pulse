@@ -26,6 +26,7 @@
     <Project Path="src/NetEvolve.Pulse.Extensibility/NetEvolve.Pulse.Extensibility.csproj" />
     <Project Path="src/NetEvolve.Pulse/NetEvolve.Pulse.csproj" />
     <Project Path="src/NetEvolve.Pulse.AspNetCore/NetEvolve.Pulse.AspNetCore.csproj" />
+    <Project Path="src/NetEvolve.Pulse.AspNetCore.Grpc/NetEvolve.Pulse.AspNetCore.Grpc.csproj" />
     <Project Path="src/NetEvolve.Pulse.EntityFramework/NetEvolve.Pulse.EntityFramework.csproj" />
     <Project Path="src/NetEvolve.Pulse.Dapr/NetEvolve.Pulse.Dapr.csproj" />
     <Project Path="src/NetEvolve.Pulse.MongoDB/NetEvolve.Pulse.MongoDB.csproj" />

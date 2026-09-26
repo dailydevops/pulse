@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <Description>ASP.NET Core gRPC integration for the Pulse CQRS mediator. Provides the PulseGrpcStreamService base class that forwards server-streaming RPCs to IMediator.StreamQueryAsync, writing every yielded item to the IServerStreamWriter with full client cancellation support, and the MapStreamQueryGrpc extension method that registers such services on an IEndpointRouteBuilder. Shipped as a separate package so the core ASP.NET Core integration stays free of any gRPC dependency.</Description>
+    <PackageTags>$(PackageTags);aspnetcore;grpc;streaming;server-streaming;</PackageTags>
+    <RootNamespace>NetEvolve.Pulse</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore.Server" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+  </ItemGroup>
+</Project>
