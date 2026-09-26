@@ -1,7 +1,5 @@
 namespace NetEvolve.Pulse.Configurations;
 
-using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -10,6 +8,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// and back. Used for persisting <see cref="OutboxMessage.EventType"/> in the database.
 /// </summary>
 /// <remarks>
+/// Event type names that cannot be resolved are materialized as the placeholder returned by
+/// <see cref="OutboxEventTypeResolver.Resolve"/>, which converts back to the stored name unchanged.
 /// The converter enforces the maximum column length defined by
 /// <see cref="OutboxMessageSchema.MaxLengths.EventType"/> when converting from <see cref="Type"/> to
 /// <see cref="string"/>.
@@ -17,19 +17,10 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 internal sealed class TypeValueConverter : ValueConverter<Type, string>
 {
     /// <summary>
-    /// Caches resolved types by their assembly-qualified name. <see cref="Type.GetType(string)"/>
-    /// parses the name and probes loaded assemblies on every call, which is measurable in the
-    /// outbox polling hot path where the conversion runs once per materialized row. The set of
-    /// distinct event type names is small and bounded, so the cache cannot grow unbounded.
-    /// Failed resolutions are not cached and throw on every attempt.
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, Type> _typeCache = new(StringComparer.Ordinal);
-
-    /// <summary>
     /// Initializes a new instance of the <see cref="TypeValueConverter"/> class.
     /// </summary>
     public TypeValueConverter()
-        : base(type => ConvertToString(type), typeName => ConvertFromString(typeName)) { }
+        : base(type => ConvertToString(type), typeName => OutboxEventTypeResolver.Resolve(typeName)) { }
 
     private static string ConvertToString(Type type)
     {
@@ -47,16 +38,4 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
 
         return name;
     }
-
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
-        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
-    )]
-    private static Type ConvertFromString(string typeName) =>
-        _typeCache.GetOrAdd(
-            typeName,
-            static name =>
-                Type.GetType(name) ?? throw new InvalidOperationException($"Cannot resolve event type '{name}'.")
-        );
 }

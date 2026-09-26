@@ -1,7 +1,5 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
-using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using Newtonsoft.Json;
@@ -17,13 +15,6 @@ using Newtonsoft.Json;
 /// </remarks>
 internal sealed class CosmosDbOutboxDocument
 {
-    /// <summary>
-    /// Caches resolved event types by their persisted type name, since <see cref="Type.GetType(string, bool)"/>
-    /// parses the assembly-qualified name and probes loaded assemblies on every call. Only successful
-    /// resolutions are cached; unresolvable names keep failing on each encounter.
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, Type> _eventTypeCache = new(StringComparer.Ordinal);
-
     /// <summary>
     /// Gets or sets the Cosmos DB document identifier, mapped from <see cref="OutboxMessage.Id"/>.
     /// </summary>
@@ -135,7 +126,7 @@ internal sealed class CosmosDbOutboxDocument
         new OutboxMessage
         {
             Id = Guid.Parse(Id),
-            EventType = ResolveEventType(EventType),
+            EventType = OutboxEventTypeResolver.Resolve(EventType),
             Payload = Payload,
             CorrelationId = CorrelationId,
             CausationId = CausationId,
@@ -147,34 +138,6 @@ internal sealed class CosmosDbOutboxDocument
             Error = Error,
             Status = (OutboxMessageStatus)Status,
         };
-
-    /// <summary>
-    /// Resolves the event <see cref="Type"/> for the given persisted type name, using a cache to avoid
-    /// repeated reflection lookups for the same name. Falls back to <see cref="object"/> when the type
-    /// name cannot be resolved.
-    /// </summary>
-    /// <param name="eventTypeName">The persisted, assembly-qualified event type name.</param>
-    /// <returns>The resolved event <see cref="Type"/>, or <see cref="object"/> when unresolvable.</returns>
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
-        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
-    )]
-    private static Type ResolveEventType(string eventTypeName)
-    {
-        if (_eventTypeCache.TryGetValue(eventTypeName, out var eventType))
-        {
-            return eventType;
-        }
-
-        var resolved = Type.GetType(eventTypeName, throwOnError: false);
-        if (resolved is null)
-        {
-            return typeof(object);
-        }
-
-        return _eventTypeCache.GetOrAdd(eventTypeName, resolved);
-    }
 
     /// <summary>
     /// Creates a <see cref="CosmosDbOutboxDocument"/> from an <see cref="OutboxMessage"/>.

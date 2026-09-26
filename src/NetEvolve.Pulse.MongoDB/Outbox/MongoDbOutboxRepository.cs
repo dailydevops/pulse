@@ -144,7 +144,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
             messages.Add(OutboxDocumentMapper.ToOutboxMessage(doc));
         }
 
-        return messages;
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -194,7 +194,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
             messages.Add(OutboxDocumentMapper.ToOutboxMessage(doc));
         }
 
-        return messages;
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -308,6 +308,37 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        var messages = await ClaimPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
+
+        // Dead-letter after the claim transaction has committed, because BEGIN IMMEDIATE holds the write lock.
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
+        int maxRetryCount,
+        int batchSize,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var messages = await ClaimFailedForRetryAsync(maxRetryCount, batchSize, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Dead-letter after the claim transaction has committed, because BEGIN IMMEDIATE holds the write lock.
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Claims up to <paramref name="batchSize"/> pending messages, including messages whose processing lease expired.
+    /// </summary>
+    /// <param name="batchSize">Maximum number of messages to claim.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The claimed messages.</returns>
+    private async Task<IReadOnlyList<OutboxMessage>> ClaimPendingAsync(
+        int batchSize,
+        CancellationToken cancellationToken
+    )
+    {
         var now = _timeProvider.GetUtcNow();
         var leaseExpiredBefore = now.ToUniversalTime() - _processingLeaseTimeout;
 
@@ -348,11 +379,17 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         }
     }
 
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
+    /// <summary>
+    /// Claims up to <paramref name="batchSize"/> failed messages that are eligible for a retry.
+    /// </summary>
+    /// <param name="maxRetryCount">Maximum retry count threshold.</param>
+    /// <param name="batchSize">Maximum number of messages to claim.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The claimed messages.</returns>
+    private async Task<IReadOnlyList<OutboxMessage>> ClaimFailedForRetryAsync(
         int maxRetryCount,
         int batchSize,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken
     )
     {
         var now = _timeProvider.GetUtcNow();
@@ -716,11 +753,6 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// <param name="command">The <see cref="SqliteCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
-        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
-    )]
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         SqliteCommand command,
         CancellationToken cancellationToken
@@ -785,11 +817,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                     new OutboxMessage
                     {
                         Id = Guid.Parse(reader.GetString(ordId)),
-                        EventType =
-                            Type.GetType(reader.GetString(ordEventType))
-                            ?? throw new InvalidOperationException(
-                                $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                            ),
+                        EventType = OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType)),
                         Payload = reader.GetString(ordPayload),
                         CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
                         CausationId = causationIdNull ? null : reader.GetString(ordCausationId),

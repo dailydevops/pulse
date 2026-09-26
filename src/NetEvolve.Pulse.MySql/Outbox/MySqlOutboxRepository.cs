@@ -278,8 +278,9 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
         int batchSize,
         CancellationToken cancellationToken = default
-    ) =>
-        await FetchAndClaimMessagesAsync(
+    )
+    {
+        var messages = await FetchAndClaimMessagesAsync(
                 _selectPendingIdsSql,
                 batchSize,
                 null,
@@ -288,14 +289,27 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
             )
             .ConfigureAwait(false);
 
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
         int maxRetryCount,
         int batchSize,
         CancellationToken cancellationToken = default
-    ) =>
-        await FetchAndClaimMessagesAsync(_selectFailedForRetryIdsSql, batchSize, maxRetryCount, null, cancellationToken)
+    )
+    {
+        var messages = await FetchAndClaimMessagesAsync(
+                _selectFailedForRetryIdsSql,
+                batchSize,
+                maxRetryCount,
+                null,
+                cancellationToken
+            )
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
@@ -621,11 +635,6 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// <param name="command">The <see cref="MySqlCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
-        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
-    )]
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         MySqlCommand command,
         CancellationToken cancellationToken
@@ -675,11 +684,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                     new OutboxMessage
                     {
                         Id = new Guid(idBytes),
-                        EventType =
-                            Type.GetType(reader.GetString(ordEventType))
-                            ?? throw new InvalidOperationException(
-                                $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                            ),
+                        EventType = OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType)),
                         Payload = reader.GetString(ordPayload),
                         CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
                         CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
