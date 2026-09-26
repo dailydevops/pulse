@@ -147,9 +147,14 @@ internal sealed class TimeoutStreamQueryInterceptor<TQuery, TResponse> : IStream
 
                 // The deadline callback may not have run yet (e.g. thread-pool starvation), or the handler
                 // may ignore the token: never hand out an item or a completion observed after the deadline.
+                // The timer runs on a coarser clock than GetTimestamp and may fire while the measured elapsed
+                // time is still slightly below the timeout, so a fired deadline token counts as timed out too.
                 if (
                     !cancellationToken.IsCancellationRequested
-                    && _timeProvider.GetElapsedTime(startTimestamp) >= timeout.Value
+                    && (
+                        timeoutCts.IsCancellationRequested
+                        || _timeProvider.GetElapsedTime(startTimestamp) >= timeout.Value
+                    )
                 )
                 {
                     caughtExceptionInfo = ExceptionDispatchInfo.Capture(CreateTimeoutException(timeout.Value, null));

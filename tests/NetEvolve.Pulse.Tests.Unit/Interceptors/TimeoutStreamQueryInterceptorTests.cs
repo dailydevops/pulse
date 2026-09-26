@@ -371,6 +371,36 @@ public sealed class TimeoutStreamQueryInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenDeadlineTimerFiresBeforeClockReachesTimeout_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, timeProvider);
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+        var items = new List<string>();
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(
+                        query,
+                        (_, ct) => YieldAfterFiringTimers(timeProvider, TimeSpan.FromMilliseconds(49), ct, "late"),
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            {
+                items.Add(item);
+            }
+        });
+
+        _ = await Assert.That(items).IsEmpty();
+    }
+
+    [Test]
     public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
@@ -388,6 +418,33 @@ public sealed class TimeoutStreamQueryInterceptorTests
     {
         await Task.Yield();
         timeProvider.Advance(elapsed);
+
+        foreach (var item in items)
+        {
+            yield return item;
+        }
+    }
+
+    /// <summary>
+    /// Advances the clock to just before the deadline, then fires the deadline timer and yields the items
+    /// without observing the cancellation. This models a timer whose coarser clock fires slightly before
+    /// the high-resolution elapsed time reaches the timeout.
+    /// </summary>
+    private static async IAsyncEnumerable<T> YieldAfterFiringTimers<T>(
+        StarvedTimeProvider timeProvider,
+        TimeSpan elapsed,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        params T[] items
+    )
+    {
+        await Task.Yield();
+        timeProvider.Advance(elapsed);
+        timeProvider.FireTimers();
+
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("The deadline timer did not cancel the token.");
+        }
 
         foreach (var item in items)
         {
@@ -456,11 +513,12 @@ public sealed class TimeoutStreamQueryInterceptorTests
     }
 
     /// <summary>
-    /// A <see cref="TimeProvider"/> whose clock is advanced manually and whose timers never fire,
-    /// modelling a deadline callback that is starved and has not run yet.
+    /// A <see cref="TimeProvider"/> whose clock is advanced manually and whose timers only fire when
+    /// <see cref="FireTimers"/> is called, modelling a deadline callback that is starved and has not run yet.
     /// </summary>
     private sealed class StarvedTimeProvider : TimeProvider
     {
+        private readonly List<(TimerCallback Callback, object? State)> _timers = [];
         private long _timestamp;
 
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
@@ -469,10 +527,21 @@ public sealed class TimeoutStreamQueryInterceptorTests
 
         public void Advance(TimeSpan elapsed) => _ = Interlocked.Add(ref _timestamp, elapsed.Ticks);
 
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
-            new NeverFiringTimer();
+        public void FireTimers()
+        {
+            foreach (var (callback, state) in _timers)
+            {
+                callback(state);
+            }
+        }
 
-        private sealed class NeverFiringTimer : ITimer
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            _timers.Add((callback, state));
+            return new ManualTimer();
+        }
+
+        private sealed class ManualTimer : ITimer
         {
             public bool Change(TimeSpan dueTime, TimeSpan period) => true;
 
