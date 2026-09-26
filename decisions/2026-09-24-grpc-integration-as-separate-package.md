@@ -9,9 +9,9 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-26
 
-state: proposed
+state: accepted
 
 instructions: |
   gRPC integration for Pulse lives in the separate package NetEvolve.Pulse.AspNetCore.Grpc, which depends on Grpc.AspNetCore.Server; NetEvolve.Pulse.AspNetCore MUST NOT reference any Grpc.* package.

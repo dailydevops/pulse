@@ -12,7 +12,7 @@ created: 2026-09-24
 
 lastModified: 2026-09-26
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST set IsAotCompatible to true in every runtime package project under src/ (not in the netstandard2.0 source generator) and keep the build free of trim (IL2xxx), single-file (IL3000) and AOT (IL3050) warnings.
