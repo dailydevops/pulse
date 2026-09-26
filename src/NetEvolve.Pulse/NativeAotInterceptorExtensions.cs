@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -239,15 +240,18 @@ public static class NativeAotInterceptorExtensions
             return;
         }
 
+        var registrations = Marker.GetRegistrations(services, openServiceType, closedServiceType);
+
+        if (registrations.Length == 0)
+        {
+            // Without interceptors, the unkeyed resolution works and still covers interceptors registered later.
+            return;
+        }
+
         var keyedDescriptors = new List<ServiceDescriptor>();
 
-        foreach (var descriptor in services)
+        foreach (var descriptor in registrations)
         {
-            if (descriptor.IsKeyedService)
-            {
-                continue;
-            }
-
             if (descriptor.ServiceType == openServiceType)
             {
                 if (
@@ -265,7 +269,7 @@ public static class NativeAotInterceptorExtensions
                     keyedDescriptors.Add(keyedDescriptor);
                 }
             }
-            else if (descriptor.ServiceType == closedServiceType)
+            else
             {
                 keyedDescriptors.Add(ToKeyed(descriptor));
             }
@@ -276,7 +280,12 @@ public static class NativeAotInterceptorExtensions
             services.Add(keyedDescriptor);
         }
 
-        services.Add(ServiceDescriptor.KeyedSingleton(closedServiceType, Marker.Instance));
+        services.Add(
+            ServiceDescriptor.KeyedSingleton(
+                closedServiceType,
+                new Marker(services, openServiceType, closedServiceType, registrations)
+            )
+        );
     }
 
     private static ServiceDescriptor ToKeyed(ServiceDescriptor descriptor)
@@ -396,13 +405,83 @@ public static class NativeAotInterceptorExtensions
 
     /// <summary>
     /// Marks a closed interceptor service type, used as the service key, whose interceptors are registered as keyed
-    /// services with <see cref="ServiceKey"/>.
+    /// services with <see cref="ServiceKey"/>, and detects interceptor registrations that changed afterwards.
     /// </summary>
     internal sealed class Marker
     {
+        private readonly Type _openServiceType;
+        private readonly Type _closedServiceType;
+        private readonly ServiceDescriptor[] _registrations;
+        private IServiceCollection? _services;
+
         /// <summary>
-        /// The shared marker instance.
+        /// Initializes a new instance of the <see cref="Marker"/> class.
         /// </summary>
-        internal static readonly Marker Instance = new();
+        /// <param name="services">The service collection the keyed interceptors were registered in.</param>
+        /// <param name="openServiceType">The open-generic interceptor service type.</param>
+        /// <param name="closedServiceType">The closed interceptor service type for the request.</param>
+        /// <param name="registrations">The unkeyed interceptor registrations the keyed interceptors were built from.</param>
+        internal Marker(
+            IServiceCollection services,
+            Type openServiceType,
+            Type closedServiceType,
+            ServiceDescriptor[] registrations
+        )
+        {
+            _services = services;
+            _openServiceType = openServiceType;
+            _closedServiceType = closedServiceType;
+            _registrations = registrations;
+        }
+
+        /// <summary>
+        /// Returns the unkeyed registrations of <paramref name="openServiceType"/> and
+        /// <paramref name="closedServiceType"/> in registration order.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="openServiceType">The open-generic interceptor service type.</param>
+        /// <param name="closedServiceType">The closed interceptor service type for the request.</param>
+        /// <returns>The unkeyed interceptor registrations.</returns>
+        internal static ServiceDescriptor[] GetRegistrations(
+            IServiceCollection services,
+            Type openServiceType,
+            Type closedServiceType
+        ) =>
+            [
+                .. services.Where(d =>
+                    !d.IsKeyedService && (d.ServiceType == openServiceType || d.ServiceType == closedServiceType)
+                ),
+            ];
+
+        /// <summary>
+        /// Ensures that the interceptor registrations did not change after the keyed interceptors were registered.
+        /// The check runs until it succeeds once.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if an interceptor was registered, replaced or removed after the keyed interceptors were registered,
+        /// because the keyed interceptors would silently miss that change.
+        /// </exception>
+        internal void EnsureRegistrationsUnchanged()
+        {
+            if (Volatile.Read(ref _services) is not { } services)
+            {
+                return;
+            }
+
+            var registrations = GetRegistrations(services, _openServiceType, _closedServiceType);
+
+            if (!registrations.SequenceEqual(_registrations))
+            {
+                var changes = string.Join(", ", registrations.Except(_registrations).Select(d => d.ToString()));
+                throw new InvalidOperationException(
+                    $"The registrations of '{_closedServiceType}' changed after its NativeAOT interceptor registration"
+                        + (changes.Length == 0 ? "." : $": {changes}.")
+                        + " Call the generated handler registration method, or the NativeAotInterceptorExtensions"
+                        + " method, after all interceptor registrations."
+                );
+            }
+
+            Volatile.Write(ref _services, null);
+        }
     }
 }

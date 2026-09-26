@@ -312,11 +312,13 @@ internal sealed partial class PulseMediator : IMediator
     {
         if (
             hasValueTypeArgument
-            && _serviceProvider.GetService<IServiceProviderIsKeyedService>() is { } keyedServices
-            && keyedServices.IsKeyedService(typeof(NativeAotInterceptorExtensions.Marker), typeof(TInterceptor))
+            && _serviceProvider is IKeyedServiceProvider keyedServiceProvider
+            && keyedServiceProvider.GetKeyedService(typeof(NativeAotInterceptorExtensions.Marker), typeof(TInterceptor))
+                is NativeAotInterceptorExtensions.Marker marker
         )
         {
-            return [.. _serviceProvider.GetKeyedServices<TInterceptor>(NativeAotInterceptorExtensions.ServiceKey)];
+            marker.EnsureRegistrationsUnchanged();
+            return [.. keyedServiceProvider.GetKeyedServices<TInterceptor>(NativeAotInterceptorExtensions.ServiceKey)];
         }
 
         return [.. _serviceProvider.GetServices<TInterceptor>()];
