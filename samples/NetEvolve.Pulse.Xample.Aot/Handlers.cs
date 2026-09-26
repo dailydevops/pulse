@@ -106,7 +106,27 @@ internal sealed class RecordingLoggerProvider(InvocationRecorder recorder) : ILo
 /// </summary>
 internal sealed class InvocationRecorder
 {
+    private int _activeReservations;
+    private int _maxConcurrentReservations;
+
     public ConcurrentQueue<string> Invocations { get; } = new();
+
+    /// <summary>
+    /// Gets the highest number of <see cref="ReserveStockHandler"/> invocations that ran at the same time.
+    /// </summary>
+    public int MaxConcurrentReservations => Volatile.Read(ref _maxConcurrentReservations);
+
+    public void EnterReservation()
+    {
+        var active = Interlocked.Increment(ref _activeReservations);
+        int max;
+        while (active > (max = Volatile.Read(ref _maxConcurrentReservations)))
+        {
+            _ = Interlocked.CompareExchange(ref _maxConcurrentReservations, active, max);
+        }
+    }
+
+    public void ExitReservation() => Interlocked.Decrement(ref _activeReservations);
 }
 
 [PulseHandler]
@@ -140,13 +160,24 @@ internal sealed class PingHandler(InvocationRecorder recorder) : ICommandHandler
 internal sealed class ReserveStockHandler(InvocationRecorder recorder)
     : ICommandHandler<ReserveStockCommand, Extensibility.Void>
 {
-    public Task<Extensibility.Void> HandleAsync(
+    public async Task<Extensibility.Void> HandleAsync(
         ReserveStockCommand command,
         CancellationToken cancellationToken = default
     )
     {
         recorder.Invocations.Enqueue(nameof(ReserveStockHandler));
-        return Task.FromResult(Extensibility.Void.Completed);
+        recorder.EnterReservation();
+        try
+        {
+            // Keeps the handler busy long enough for an unguarded second command to overlap.
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            recorder.ExitReservation();
+        }
+
+        return Extensibility.Void.Completed;
     }
 }
 
