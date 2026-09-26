@@ -10,6 +10,13 @@ internal sealed record CountdownStreamQuery(int From) : IStreamQuery<string>
     public string? CorrelationId { get; set; }
 }
 
+internal sealed record RangeStreamQuery(int Count) : IStreamQuery<int>
+{
+    public string? CausationId { get; set; }
+
+    public string? CorrelationId { get; set; }
+}
+
 /// <summary>
 /// Event type that the application only publishes and never names through <c>typeof</c>, like an outbox event
 /// that is rehydrated from its persisted type name.
@@ -53,6 +60,13 @@ internal sealed record AddNumbersCommand(int Left, int Right) : ICommand<int>
 }
 
 internal sealed record PingCommand : ICommand
+{
+    public string? CausationId { get; set; }
+
+    public string? CorrelationId { get; set; }
+}
+
+internal sealed record ReserveStockCommand(string Sku) : IExclusiveCommand
 {
     public string? CausationId { get; set; }
 
