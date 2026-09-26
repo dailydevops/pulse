@@ -14,8 +14,9 @@ using StackExchange.Redis;
 /// <remarks>
 /// <para><strong>Storage:</strong></para>
 /// Each key is stored in Redis with its creation timestamp as the value. When a TTL is configured,
-/// a physical Redis expiry of TTL plus one hour provides automatic cleanup; without a TTL, keys never
-/// expire. TTL-based logical expiry is handled by the <see cref="IdempotencyStore"/>
+/// a physical Redis expiry of TTL plus one hour provides automatic cleanup; without a TTL, keys are stored
+/// without a Redis expiry and are only removed if the server's <c>maxmemory-policy</c> evicts non-volatile
+/// keys (<c>allkeys-*</c>), which breaks duplicate detection. TTL-based logical expiry is handled by the <see cref="IdempotencyStore"/>
 /// wrapper using the injected <see cref="TimeProvider"/>, which makes it testable with fake clocks.
 /// <para><strong>Prerequisites:</strong></para>
 /// <see cref="IConnectionMultiplexer"/> must be registered in the DI container by the caller
