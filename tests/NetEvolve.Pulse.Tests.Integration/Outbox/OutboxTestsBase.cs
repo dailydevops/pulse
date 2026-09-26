@@ -1056,9 +1056,7 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
-    public async Task Should_Persist_UpdatedAt_From_TimeProvider_On_Repository_Transitions(
-        CancellationToken cancellationToken
-    )
+    public async Task Should_Persist_UpdatedAt_From_TimeProvider_On_Transitions(CancellationToken cancellationToken)
     {
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
