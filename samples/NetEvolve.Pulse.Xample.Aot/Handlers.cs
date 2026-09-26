@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Xample.Aot;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Attributes;
 
@@ -19,6 +20,22 @@ internal sealed class CountdownHandler(InvocationRecorder recorder) : IStreamQue
         {
             await Task.Yield();
             yield return i.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+}
+
+[PulseHandler]
+internal sealed class RangeHandler : IStreamQueryHandler<RangeStreamQuery, int>
+{
+    public async IAsyncEnumerable<int> HandleAsync(
+        RangeStreamQuery request,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
+    {
+        for (var i = 1; i <= request.Count; i++)
+        {
+            await Task.Yield();
+            yield return i;
         }
     }
 }
@@ -41,6 +58,47 @@ internal sealed class RecordingRequestInterceptor<TRequest, TResponse>(Invocatio
         recorder.Invocations.Enqueue($"RecordingRequestInterceptor<{typeof(TRequest).Name}>");
         return handler(request, cancellationToken);
     }
+}
+
+/// <summary>
+/// Closed request interceptor for a value-type response, registered next to the built-in open-generic interceptors.
+/// </summary>
+internal sealed class AddNumbersRecordingInterceptor(InvocationRecorder recorder)
+    : IRequestInterceptor<AddNumbersCommand, int>
+{
+    public Task<int> HandleAsync(
+        AddNumbersCommand request,
+        Func<AddNumbersCommand, CancellationToken, Task<int>> handler,
+        CancellationToken cancellationToken = default
+    )
+    {
+        recorder.Invocations.Enqueue(nameof(AddNumbersRecordingInterceptor));
+        return handler(request, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Logger provider that records every log message, so the smoke run can assert that the built-in logging
+/// interceptors ran.
+/// </summary>
+internal sealed class RecordingLoggerProvider(InvocationRecorder recorder) : ILoggerProvider, ILogger
+{
+    public ILogger CreateLogger(string categoryName) => this;
+
+    public IDisposable? BeginScope<TState>(TState state)
+        where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter
+    ) => recorder.Invocations.Enqueue(formatter(state, exception));
+
+    public void Dispose() { }
 }
 
 /// <summary>
@@ -74,6 +132,20 @@ internal sealed class PingHandler(InvocationRecorder recorder) : ICommandHandler
     public Task<Extensibility.Void> HandleAsync(PingCommand command, CancellationToken cancellationToken = default)
     {
         recorder.Invocations.Enqueue(nameof(PingHandler));
+        return Task.FromResult(Extensibility.Void.Completed);
+    }
+}
+
+[PulseHandler]
+internal sealed class ReserveStockHandler(InvocationRecorder recorder)
+    : ICommandHandler<ReserveStockCommand, Extensibility.Void>
+{
+    public Task<Extensibility.Void> HandleAsync(
+        ReserveStockCommand command,
+        CancellationToken cancellationToken = default
+    )
+    {
+        recorder.Invocations.Enqueue(nameof(ReserveStockHandler));
         return Task.FromResult(Extensibility.Void.Completed);
     }
 }
