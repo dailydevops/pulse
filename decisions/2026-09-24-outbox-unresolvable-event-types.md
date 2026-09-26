@@ -22,7 +22,7 @@ instructions: |
   MUST return unresolvable messages from IOutboxManagement reads as the placeholder type, which carries the stored name, instead of skipping them.
 ---
 
-# Outbox Unresolvable Event Types
+# Decision: Outbox Unresolvable Event Types
 
 An outbox message whose persisted event type name cannot be resolved is dead-lettered on fetch with an error that names the stored type. Management reads list it through a placeholder type that carries the stored name.
 
@@ -41,7 +41,7 @@ The Entity Framework Core provider materializes `OutboxMessage.EventType` throug
 ## Decision
 
 * Add the public static class `OutboxEventTypeResolver` to `NetEvolve.Pulse.Extensibility`, next to `TypeExtensions.ToOutboxEventTypeName`:
-  - `Resolve(string)` resolves and caches successful lookups. For a name that cannot be resolved, it returns a placeholder `Type` (a private `TypeDelegator` subclass). The placeholder reports the stored name as its `AssemblyQualifiedName`, so `ToOutboxEventTypeName` and the Entity Framework Core converter write the stored name back unchanged.
+  - `Resolve(string)` resolves and caches successful lookups. For a name that cannot be resolved or is malformed (`Type.GetType` throws for an invalid assembly name part even without `throwOnError`), it returns a placeholder `Type` (a private `TypeDelegator` subclass). The placeholder reports the stored name as its `AssemblyQualifiedName`, so `ToOutboxEventTypeName` and the Entity Framework Core converter write the stored name back unchanged.
   - `IsUnresolvable(Type)` identifies the placeholder.
   - `DeadLetterUnresolvableAsync(IOutboxRepository, IReadOnlyList<OutboxMessage>, CancellationToken)` moves every placeholder message to `DeadLetter` through the repository's own `MarkAsDeadLetterAsync`. The error is `Cannot resolve event type '<stored name>'. ...`. It returns the remaining messages in their original order.
 * All seven outbox providers (SQL Server, PostgreSQL, MySQL, SQLite, MongoDB, Cosmos DB and Entity Framework Core) use `Resolve` at every rehydration site. This replaces the per-provider `Type.GetType` calls, caches and `IL2057` suppressions as well as the Cosmos DB `object` fallback.
