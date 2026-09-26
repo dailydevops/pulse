@@ -85,9 +85,9 @@ public static class ConcurrentCommandGuardExtensions
     /// <description>
     /// <see cref="IRequestInterceptor{TRequest,TResponse}"/> is registered with a singleton factory
     /// via <see cref="ServiceCollectionDescriptorExtensions.TryAddSingleton{TService}(IServiceCollection, Func{IServiceProvider,TService})"/>
-    /// that delegates to the concrete interceptor, so both the open-generic overload
-    /// (<see cref="AddConcurrentCommandGuard(IMediatorBuilder)"/>) and this typed overload resolve
-    /// to the <em>same</em> underlying instance and semaphore dictionary.
+    /// that delegates to the concrete interceptor. When the open-generic overload
+    /// (<see cref="AddConcurrentCommandGuard(IMediatorBuilder)"/>) is already registered, this overload registers
+    /// nothing, so the command is guarded by a single interceptor instance and semaphore dictionary.
     /// </description>
     /// </item>
     /// </list>
