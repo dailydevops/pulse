@@ -85,16 +85,31 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entry = await GetRequiredEntryAsync(id, cancellationToken).ConfigureAwait(false);
+        if (entry.Status == CommandDeadLetterStatus.Dismissed)
+        {
+            throw new CommandDeadLetterEntryDismissedException(id);
+        }
 
         entry.Status = CommandDeadLetterStatus.Replaying;
         _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        await CommandDeadLetterReplayDispatcher
-            .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await CommandDeadLetterReplayDispatcher
+                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            // Not cancellable: the reset must also run when the replay was cancelled.
+            entry.Status = CommandDeadLetterStatus.New;
+            _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
 
+        // Not cancellable: the command has already been executed.
         entry.Status = CommandDeadLetterStatus.Resolved;
-        _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

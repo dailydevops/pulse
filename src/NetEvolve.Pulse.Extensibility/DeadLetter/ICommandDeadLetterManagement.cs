@@ -47,11 +47,31 @@ public interface ICommandDeadLetterManagement
     /// <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.Resolved"/> on success.
     /// Implementations should use the shared <see cref="CommandDeadLetterReplayDispatcher"/> to perform the
     /// type resolution and dispatch, rather than reimplementing the reflection dispatch.
+    /// <para><strong>Status Rules:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// Entries with <see cref="CommandDeadLetterStatus.Dismissed"/> status MUST be rejected with
+    /// <see cref="CommandDeadLetterEntryDismissedException"/> before the status is changed or the command is dispatched.
+    /// </description></item>
+    /// <item><description>
+    /// Entries with <see cref="CommandDeadLetterStatus.Resolved"/> status stay replayable on purpose, so an operator
+    /// can deliberately re-run a command. Entries left in <see cref="CommandDeadLetterStatus.Replaying"/> status,
+    /// for example by a crashed process, stay replayable as well.
+    /// </description></item>
+    /// <item><description>
+    /// When deserialization or dispatch throws, or the operation is cancelled, implementations MUST reset
+    /// <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.New"/> without observing
+    /// <paramref name="cancellationToken"/> and rethrow the original exception, so the entry shows up in
+    /// <see cref="GetPendingAsync"/> again instead of staying in <see cref="CommandDeadLetterStatus.Replaying"/>.
+    /// This also applies to a failed re-run of a <see cref="CommandDeadLetterStatus.Resolved"/> entry.
+    /// </description></item>
+    /// </list>
     /// <para><strong>NativeAOT and Trimming:</strong></para>
     /// Replay is reflection-based and therefore annotated with <see cref="RequiresUnreferencedCodeAttribute"/> and
     /// <see cref="RequiresDynamicCodeAttribute"/>. Implementations MUST carry the same annotations.
     /// </remarks>
     /// <exception cref="CommandDeadLetterEntryNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
+    /// <exception cref="CommandDeadLetterEntryDismissedException">The entry with the given <paramref name="id"/> has been dismissed.</exception>
     [RequiresUnreferencedCode(
         "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
     )]
