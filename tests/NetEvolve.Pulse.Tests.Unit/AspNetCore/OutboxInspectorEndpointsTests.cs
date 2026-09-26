@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -70,7 +72,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<OutboxStatistics>(cancellationToken)
+            .Content.ReadFromJsonAsync<OutboxStatistics>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -112,7 +114,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<OutboxMessageResponse[]>(cancellationToken)
+            .Content.ReadFromJsonAsync<OutboxMessageResponse[]>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -138,7 +140,9 @@ public sealed class OutboxInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        var payload = await response.Content.ReadFromJsonAsync<long>(cancellationToken).ConfigureAwait(false);
+        var payload = await response
+            .Content.ReadFromJsonAsync<long>(ResponseJsonOptions, cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsEqualTo(42L);
     }
@@ -170,7 +174,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<OutboxMessageResponse>(cancellationToken)
+            .Content.ReadFromJsonAsync<OutboxMessageResponse>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -270,7 +274,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<ReplayAllResponse>(cancellationToken)
+            .Content.ReadFromJsonAsync<ReplayAllResponse>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -305,7 +309,9 @@ public sealed class OutboxInspectorEndpointsTests
 
         _ = await Assert.That(customPathResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        var payload = await customPathResponse.Content.ReadFromJsonAsync<long>(cancellationToken).ConfigureAwait(false);
+        var payload = await customPathResponse
+            .Content.ReadFromJsonAsync<long>(ResponseJsonOptions, cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsEqualTo(3L);
     }
@@ -375,7 +381,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<OutboxMessageResponse[]>(cancellationToken)
+            .Content.ReadFromJsonAsync<OutboxMessageResponse[]>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -477,7 +483,7 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<OutboxMessageResponse>(cancellationToken)
+            .Content.ReadFromJsonAsync<OutboxMessageResponse>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -790,10 +796,10 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(body).IsEqualTo("""{"count":7}""");
     }
 
-    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+    // Inspector responses honor the application's HTTP JSON options and write enums as strings by default
 
     [Test]
-    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesPascalCaseJson(
         CancellationToken cancellationToken
     )
     {
@@ -827,8 +833,8 @@ public sealed class OutboxInspectorEndpointsTests
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(json).Contains("\"pending\":1");
-        _ = await Assert.That(json).Contains("\"deadLetter\":5");
+        _ = await Assert.That(json).Contains("\"Pending\":1");
+        _ = await Assert.That(json).Contains("\"DeadLetter\":5");
     }
 
     // Concurrent requests — smoke test for the message endpoints under parallel load. It does NOT reliably
@@ -893,6 +899,89 @@ public sealed class OutboxInspectorEndpointsTests
             }
         }
     }
+
+    [Test]
+    public async Task GetEntry_WithSnakeCaseHttpJsonOptionsAndCustomEnumConverter_HonorsApplicationOptions(
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+        var message = new OutboxMessage
+        {
+            Id = messageId,
+            EventType = typeof(string),
+            Payload = "{}",
+            Status = OutboxMessageStatus.DeadLetter,
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(message);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                    {
+                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                        options.SerializerOptions.Converters.Add(
+                            new JsonStringEnumConverter<OutboxMessageStatus>(JsonNamingPolicy.KebabCaseLower)
+                        );
+                    })
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages/{messageId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains($"\"event_type\":\"{typeof(string).ToOutboxEventTypeName()}\"");
+        _ = await Assert.That(json).Contains("\"status\":\"dead-letter\"");
+    }
+
+    [Test]
+    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsStrings(
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+        var message = new OutboxMessage
+        {
+            Id = messageId,
+            EventType = typeof(string),
+            Payload = "{}",
+            Status = OutboxMessageStatus.DeadLetter,
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(message);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages/{messageId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains($"\"eventType\":\"{typeof(string).ToOutboxEventTypeName()}\"");
+        _ = await Assert.That(json).Contains("\"status\":\"DeadLetter\"");
+    }
+
+    // The inspector writes enums as strings, which the web defaults of ReadFromJsonAsync cannot read.
+    private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     private static async Task<IHost> CreateTestHostAsync(
         IOutboxManagement outboxManagement,

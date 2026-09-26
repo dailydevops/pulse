@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -65,7 +67,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<CommandDeadLetterStatistics>(cancellationToken)
+            .Content.ReadFromJsonAsync<CommandDeadLetterStatistics>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -105,7 +107,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<CommandDeadLetterEntry[]>(cancellationToken)
+            .Content.ReadFromJsonAsync<CommandDeadLetterEntry[]>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -275,7 +277,7 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<CommandDeadLetterEntry>(cancellationToken)
+            .Content.ReadFromJsonAsync<CommandDeadLetterEntry>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -606,10 +608,10 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         _ = await Assert.That(customPathResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
-    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+    // Inspector responses honor the application's HTTP JSON options and write enums as strings by default
 
     [Test]
-    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesPascalCaseJson(
         CancellationToken cancellationToken
     )
     {
@@ -641,9 +643,94 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(json).Contains("\"newCount\":1");
-        _ = await Assert.That(json).Contains("\"dismissedCount\":4");
+        _ = await Assert.That(json).Contains("\"NewCount\":1");
+        _ = await Assert.That(json).Contains("\"DismissedCount\":4");
     }
+
+    [Test]
+    public async Task GetEntry_WithSnakeCaseHttpJsonOptionsAndCustomEnumConverter_HonorsApplicationOptions(
+        CancellationToken cancellationToken
+    )
+    {
+        var entryId = Guid.NewGuid();
+        var entry = new CommandDeadLetterEntry
+        {
+            Id = entryId,
+            CommandType = "TestCommand",
+            Payload = "{}",
+            AttemptCount = 3,
+            Status = CommandDeadLetterStatus.Replaying,
+        };
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>()).Returns(entry);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                    {
+                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                        options.SerializerOptions.Converters.Add(
+                            new JsonStringEnumConverter<CommandDeadLetterStatus>(JsonNamingPolicy.KebabCaseLower)
+                        );
+                    })
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/commands/entries/{entryId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"attempt_count\":3");
+        _ = await Assert.That(json).Contains("\"status\":\"replaying\"");
+    }
+
+    [Test]
+    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsStrings(
+        CancellationToken cancellationToken
+    )
+    {
+        var entryId = Guid.NewGuid();
+        var entry = new CommandDeadLetterEntry
+        {
+            Id = entryId,
+            CommandType = "TestCommand",
+            Payload = "{}",
+            AttemptCount = 3,
+            Status = CommandDeadLetterStatus.Replaying,
+        };
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>()).Returns(entry);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/commands/entries/{entryId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"attemptCount\":3");
+        _ = await Assert.That(json).Contains("\"status\":\"Replaying\"");
+    }
+
+    // The inspector writes enums as strings, which the web defaults of ReadFromJsonAsync cannot read.
+    private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     private static async Task<IHost> CreateTestHostAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,

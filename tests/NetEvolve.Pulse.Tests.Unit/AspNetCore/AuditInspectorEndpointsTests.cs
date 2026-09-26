@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -61,7 +63,7 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await response
-            .Content.ReadFromJsonAsync<AuditStatistics>(cancellationToken)
+            .Content.ReadFromJsonAsync<AuditStatistics>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
@@ -98,7 +100,9 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        var payload = await response.Content.ReadFromJsonAsync<AuditRecord[]>(cancellationToken).ConfigureAwait(false);
+        var payload = await response
+            .Content.ReadFromJsonAsync<AuditRecord[]>(ResponseJsonOptions, cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
         _ = await Assert.That(payload!.Length).IsEqualTo(1);
@@ -132,7 +136,9 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        var payload = await response.Content.ReadFromJsonAsync<AuditRecord>(cancellationToken).ConfigureAwait(false);
+        var payload = await response
+            .Content.ReadFromJsonAsync<AuditRecord>(ResponseJsonOptions, cancellationToken)
+            .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
         using (Assert.Multiple())
@@ -558,17 +564,17 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(customPathResponse.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         var payload = await customPathResponse
-            .Content.ReadFromJsonAsync<AuditStatistics>(cancellationToken)
+            .Content.ReadFromJsonAsync<AuditStatistics>(ResponseJsonOptions, cancellationToken)
             .ConfigureAwait(false);
 
         _ = await Assert.That(payload).IsNotNull();
         _ = await Assert.That(payload!.SuccessCount).IsEqualTo(1);
     }
 
-    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+    // Inspector responses honor the application's HTTP JSON options and write enums as strings by default
 
     [Test]
-    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesPascalCaseJson(
         CancellationToken cancellationToken
     )
     {
@@ -595,9 +601,92 @@ public sealed class AuditInspectorEndpointsTests
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(json).Contains("\"successCount\":3");
-        _ = await Assert.That(json).Contains("\"failureCount\":2");
+        _ = await Assert.That(json).Contains("\"SuccessCount\":3");
+        _ = await Assert.That(json).Contains("\"FailureCount\":2");
     }
+
+    [Test]
+    public async Task GetEntry_WithSnakeCaseHttpJsonOptionsAndCustomEnumConverter_HonorsApplicationOptions(
+        CancellationToken cancellationToken
+    )
+    {
+        var recordId = Guid.NewGuid();
+        var record = new AuditRecord
+        {
+            Id = recordId,
+            CommandType = "TestCommand",
+            Result = AuditResult.Failure,
+            ExceptionMessage = "boom",
+        };
+
+        var mock = Mock.Of<IAuditManagement>();
+        _ = mock.GetByIdAsync(recordId, Arg.Any<CancellationToken>()).Returns(record);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                    {
+                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                        options.SerializerOptions.Converters.Add(
+                            new JsonStringEnumConverter<AuditResult>(JsonNamingPolicy.KebabCaseLower)
+                        );
+                    })
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/audit/entries/{recordId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"exception_message\":\"boom\"");
+        _ = await Assert.That(json).Contains("\"result\":\"failure\"");
+    }
+
+    [Test]
+    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsStrings(
+        CancellationToken cancellationToken
+    )
+    {
+        var recordId = Guid.NewGuid();
+        var record = new AuditRecord
+        {
+            Id = recordId,
+            CommandType = "TestCommand",
+            Result = AuditResult.Failure,
+            ExceptionMessage = "boom",
+        };
+
+        var mock = Mock.Of<IAuditManagement>();
+        _ = mock.GetByIdAsync(recordId, Arg.Any<CancellationToken>()).Returns(record);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/audit/entries/{recordId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"exceptionMessage\":\"boom\"");
+        _ = await Assert.That(json).Contains("\"result\":\"Failure\"");
+    }
+
+    // The inspector writes enums as strings, which the web defaults of ReadFromJsonAsync cannot read.
+    private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     private static async Task<IHost> CreateTestHostAsync(
         IAuditManagement auditManagement,
