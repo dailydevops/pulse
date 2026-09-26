@@ -28,23 +28,29 @@ using NetEvolve.Pulse.Extensibility;
 /// <see cref="TimeoutException"/> thrown. Caller cancellations are propagated as
 /// <see cref="OperationCanceledException"/> as usual.
 /// <para><strong>Resource Management:</strong></para>
-/// The internally created <see cref="CancellationTokenSource"/> is always disposed, even when
+/// The internally created <see cref="CancellationTokenSource"/> instances are always disposed, even when
 /// the handler throws.
 /// </remarks>
 internal sealed class TimeoutRequestInterceptor<TRequest, TResponse> : IRequestInterceptor<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     private readonly IOptions<TimeoutRequestInterceptorOptions> _options;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeoutRequestInterceptor{TRequest, TResponse}"/> class.
     /// </summary>
     /// <param name="options">The timeout interceptor options.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is <see langword="null"/>.</exception>
-    public TimeoutRequestInterceptor(IOptions<TimeoutRequestInterceptorOptions> options)
+    /// <param name="timeProvider">The time provider used to schedule and measure the deadline.</param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="options"/> or <paramref name="timeProvider"/> is <see langword="null"/>.
+    /// </exception>
+    public TimeoutRequestInterceptor(IOptions<TimeoutRequestInterceptorOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         _options = options;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -75,8 +81,8 @@ internal sealed class TimeoutRequestInterceptor<TRequest, TResponse> : IRequestI
             return await handler(request, cancellationToken).ConfigureAwait(false);
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout.Value);
+        using var timeoutCts = new CancellationTokenSource(timeout.Value, _timeProvider);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         try
         {

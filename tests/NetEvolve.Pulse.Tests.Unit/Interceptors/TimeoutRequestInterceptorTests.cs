@@ -16,7 +16,7 @@ public sealed class TimeoutRequestInterceptorTests
     public async Task HandleAsync_WithNullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -30,7 +30,7 @@ public sealed class TimeoutRequestInterceptorTests
     )
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
 
         var result = await interceptor
@@ -46,7 +46,7 @@ public sealed class TimeoutRequestInterceptorTests
     )
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromMilliseconds(50));
 
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
@@ -74,7 +74,7 @@ public sealed class TimeoutRequestInterceptorTests
     )
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
@@ -105,7 +105,7 @@ public sealed class TimeoutRequestInterceptorTests
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(1) }
         );
-        var interceptor = new TimeoutRequestInterceptor<TestCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestCommand, string>(options, TimeProvider.System);
         var command = new TestCommand();
 
         // Even though GlobalTimeout is 1ms, the non-ITimeoutRequest should pass through immediately.
@@ -122,7 +122,7 @@ public sealed class TimeoutRequestInterceptorTests
     )
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(null);
 
         var result = await interceptor
@@ -138,7 +138,7 @@ public sealed class TimeoutRequestInterceptorTests
     )
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(null);
 
         var result = await interceptor
@@ -156,7 +156,7 @@ public sealed class TimeoutRequestInterceptorTests
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(50) }
         );
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(null);
 
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
@@ -185,7 +185,7 @@ public sealed class TimeoutRequestInterceptorTests
         // Per-request timeout (50ms) should take precedence over global (5s),
         // so the request should time out.
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromMilliseconds(50));
 
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
@@ -209,7 +209,7 @@ public sealed class TimeoutRequestInterceptorTests
     public async Task HandleAsync_DisposesLinkedCts_EvenWhenHandlerThrows(CancellationToken cancellationToken)
     {
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options);
+        var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -220,6 +220,16 @@ public sealed class TimeoutRequestInterceptorTests
 
         // If CancellationTokenSource was not disposed, a subsequent test run might detect undisposed resources.
         // This test simply verifies the interceptor completes without resource-leak exceptions.
+    }
+
+    [Test]
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+
+        _ = await Assert
+            .That(() => new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, null!))
+            .Throws<ArgumentNullException>();
     }
 
     private sealed record TestTimeoutCommand(TimeSpan? Timeout) : ICommand<string>, ITimeoutRequest
