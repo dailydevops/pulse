@@ -45,7 +45,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <summary>The optional transaction scope providing an ambient <see cref="NpgsqlTransaction"/> for <see cref="AddAsync"/>.</summary>
     private readonly IOutboxTransactionScope? _transactionScope;
 
-    /// <summary>The time provider used to generate consistent timestamps for cutoff calculations.</summary>
+    /// <summary>The time provider used for every persisted timestamp and cutoff calculation, bound as UTC.</summary>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>The maximum duration a claimed message may remain in the Processing status before it is reclaimed.</summary>
@@ -107,13 +107,15 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             ? OutboxMessageSchema.DefaultSchema
             : options.Value.Schema;
         SqlIdentifier.Validate(schema, nameof(options.Value.Schema));
-        _getPendingSql = $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size, @lease_expired_before)";
+        _getPendingSql =
+            $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(@batch_size, @lease_expired_before, @now_utc)";
         _getFailedForRetrySql =
             $"SELECT * FROM \"{schema}\".get_failed_outbox_messages_for_retry(@max_retry_count, @batch_size, @now_utc)";
         _markCompletedSql =
             $"SELECT \"{schema}\".mark_outbox_message_completed(@message_id, @processed_at, @updated_at)";
-        _markFailedSql = $"SELECT \"{schema}\".mark_outbox_message_failed(@message_id, @error, @next_retry_at)";
-        _markDeadLetterSql = $"SELECT \"{schema}\".mark_outbox_message_dead_letter(@message_id, @error)";
+        _markFailedSql =
+            $"SELECT \"{schema}\".mark_outbox_message_failed(@message_id, @error, @next_retry_at, @updated_at)";
+        _markDeadLetterSql = $"SELECT \"{schema}\".mark_outbox_message_dead_letter(@message_id, @error, @updated_at)";
         _markCompletedBatchSql = $"""
             UPDATE {options.Value.FullTableName}
             SET
@@ -130,7 +132,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.RetryCount}" = "{OutboxMessageSchema.Columns.RetryCount}" + 1,
                 "{OutboxMessageSchema.Columns.Error}" = @error,
                 "{OutboxMessageSchema.Columns.NextRetryAt}" = @next_retry_at,
-                "{OutboxMessageSchema.Columns.UpdatedAt}" = NOW()
+                "{OutboxMessageSchema.Columns.UpdatedAt}" = @updated_at
             WHERE "{OutboxMessageSchema.Columns.Id}" = ANY(@message_ids)
               AND "{OutboxMessageSchema.Columns.Status}" = 1
             """;
@@ -201,7 +203,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        var leaseExpiredBefore = _timeProvider.GetUtcNow() - _processingLeaseTimeout;
+        var now = GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -210,7 +212,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("batch_size", batchSize);
-                _ = command.Parameters.AddWithValue("lease_expired_before", leaseExpiredBefore);
+                _ = command.Parameters.AddWithValue("lease_expired_before", now - _processingLeaseTimeout);
+                _ = command.Parameters.AddWithValue("now_utc", now);
 
                 var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
@@ -243,7 +246,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
-        var now = _timeProvider.GetUtcNow();
+        var now = GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -265,7 +268,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
-        var now = _timeProvider.GetUtcNow();
+        var now = GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -295,7 +298,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             return;
         }
 
-        var now = _timeProvider.GetUtcNow();
+        var now = GetUtcNow();
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -328,6 +331,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("message_id", messageId);
                 _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
                 _ = command.Parameters.AddWithValue("next_retry_at", DBNull.Value);
+                _ = command.Parameters.AddWithValue("updated_at", GetUtcNow());
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -354,6 +358,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                     "next_retry_at",
                     nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value
                 );
+                _ = command.Parameters.AddWithValue("updated_at", GetUtcNow());
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -385,6 +390,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 _ = command.Parameters.Add(
                     new NpgsqlParameter("next_retry_at", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = DBNull.Value }
                 );
+                _ = command.Parameters.AddWithValue("updated_at", GetUtcNow());
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -406,6 +412,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             {
                 _ = command.Parameters.AddWithValue("message_id", messageId);
                 _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
+                _ = command.Parameters.AddWithValue("updated_at", GetUtcNow());
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -415,7 +422,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
+        var cutoffTime = GetUtcNow().Subtract(olderThan);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -430,6 +437,13 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
             }
         }
     }
+
+    /// <summary>
+    /// Returns the current time from the injected <see cref="TimeProvider"/> normalized to UTC,
+    /// because Npgsql only accepts <see cref="DateTimeOffset"/> values with offset zero for <c>timestamptz</c>.
+    /// </summary>
+    /// <returns>The current UTC time.</returns>
+    private DateTimeOffset GetUtcNow() => _timeProvider.GetUtcNow().ToUniversalTime();
 
     /// <summary>
     /// Opens and returns a new <see cref="NpgsqlConnection"/> using the stored connection string.
