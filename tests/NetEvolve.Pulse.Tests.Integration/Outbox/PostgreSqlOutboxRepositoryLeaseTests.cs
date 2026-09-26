@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -46,7 +47,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
 
     private async Task<(PostgreSqlOutboxRepository Repository, OutboxOptions Options)> CreateRepositoryAsync(
         TimeSpan processingLeaseTimeout,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null
     )
     {
         var databaseName = $"lease{Guid.NewGuid():N}";
@@ -91,7 +93,7 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
             ProcessingLeaseTimeout = processingLeaseTimeout,
         };
 
-        var repository = new PostgreSqlOutboxRepository(Options.Create(options), TimeProvider.System);
+        var repository = new PostgreSqlOutboxRepository(Options.Create(options), timeProvider ?? TimeProvider.System);
 
         return (repository, options);
     }
@@ -165,7 +167,32 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
     }
 
     [Test]
-    public async Task ScriptRedeploy_OverPreExistingSingleArgumentFunction_LeavesCallableUnambiguousFunction(
+    public async Task GetPendingAsync_WhenTimeProviderPassesProcessingLease_ReclaimsClaimedMessage(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
+        var (repository, _) = await CreateRepositoryAsync(TimeSpan.FromMinutes(5), cancellationToken, timeProvider)
+            .ConfigureAwait(false);
+
+        var message = CreateMessage(timeProvider.GetUtcNow());
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(claimed).Count().IsEqualTo(1);
+        _ = await Assert.That(claimed[0].UpdatedAt).IsEqualTo(timeProvider.GetUtcNow());
+
+        timeProvider.Advance(TimeSpan.FromMinutes(10));
+
+        var reclaimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(reclaimed).Count().IsEqualTo(1);
+        _ = await Assert.That(reclaimed[0].Id).IsEqualTo(message.Id);
+        _ = await Assert.That(reclaimed[0].UpdatedAt).IsEqualTo(timeProvider.GetUtcNow());
+    }
+
+    [Test]
+    public async Task ScriptRedeploy_OverPreviousFunctionSignatures_LeavesNoAmbiguousOverloads(
         CancellationToken cancellationToken
     )
     {
@@ -189,8 +216,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            // Simulate a database provisioned by a version of this script that predates the lease-reclaim fix:
-            // the table exists and get_pending_outbox_messages has only the single-parameter signature.
+            // Simulate a database provisioned by earlier versions of this script: the table exists and the
+            // functions still have the signatures from before the lease-reclaim and TimeProvider changes.
             var setupCommand = new NpgsqlCommand(
                 $"""
                 CREATE SCHEMA "{schema}";
@@ -223,6 +250,21 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
                     LIMIT batch_size;
                 END;
                 $body$;
+                CREATE FUNCTION "{schema}".get_pending_outbox_messages(
+                    batch_size INTEGER,
+                    lease_expired_before TIMESTAMPTZ DEFAULT NULL
+                )
+                RETURNS TABLE ("Id" UUID)
+                LANGUAGE plpgsql
+                AS $body$ BEGIN RETURN; END; $body$;
+                CREATE FUNCTION "{schema}".mark_outbox_message_failed(message_id UUID, error TEXT, next_retry_at TIMESTAMPTZ)
+                RETURNS VOID LANGUAGE plpgsql AS $body$ BEGIN END; $body$;
+                CREATE FUNCTION "{schema}".mark_outbox_message_dead_letter(message_id UUID, error TEXT)
+                RETURNS VOID LANGUAGE plpgsql AS $body$ BEGIN END; $body$;
+                CREATE FUNCTION "{schema}".replay_outbox_message(message_id UUID)
+                RETURNS INTEGER LANGUAGE plpgsql AS $body$ BEGIN RETURN 0; END; $body$;
+                CREATE FUNCTION "{schema}".replay_all_dead_letter_outbox_messages()
+                RETURNS INTEGER LANGUAGE plpgsql AS $body$ BEGIN RETURN 0; END; $body$;
                 """,
                 connection
             );
@@ -249,19 +291,37 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
             }
         }
 
-        // A one-argument call must resolve unambiguously (via the new parameter's default),
-        // instead of failing with "function ... is not unique" because two overloads exist.
+        // Every earlier signature must be dropped: leftover overloads make calls ambiguous
+        // ("function ... is not unique") or silently keep the database-clock based implementation.
         await using (var connection = new NpgsqlConnection(connectionString))
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            var callCommand = new NpgsqlCommand(
-                $"SELECT * FROM \"{schema}\".get_pending_outbox_messages(10)",
+            var overloadCommand = new NpgsqlCommand(
+                """
+                SELECT p.proname
+                FROM pg_proc p
+                JOIN pg_namespace n ON n.oid = p.pronamespace
+                WHERE n.nspname = @schema
+                GROUP BY p.proname
+                HAVING COUNT(*) > 1
+                """,
                 connection
             );
-            await using (callCommand.ConfigureAwait(false))
+            await using (overloadCommand.ConfigureAwait(false))
             {
-                await using var reader = await callCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                // No rows expected (table is empty); reaching this line without an exception is the assertion.
+                _ = overloadCommand.Parameters.AddWithValue("schema", schema);
+                var overloaded = new List<string>();
+                await using (
+                    var reader = await overloadCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false)
+                )
+                {
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        overloaded.Add(reader.GetString(0));
+                    }
+                }
+
+                _ = await Assert.That(overloaded).IsEmpty();
             }
         }
     }
