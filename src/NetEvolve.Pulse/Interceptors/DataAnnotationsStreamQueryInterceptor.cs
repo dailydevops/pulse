@@ -35,7 +35,7 @@ internal sealed class DataAnnotationsStreamQueryInterceptor<TQuery, TResponse>
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2026:RequiresUnreferencedCode",
-        Justification = "Only registered through DataAnnotationsExtensions.AddDataAnnotations, which carries RequiresUnreferencedCode and surfaces the requirement to the caller."
+        Justification = "Only registered through DataAnnotationsExtensions.AddDataAnnotations, which carries RequiresUnreferencedCode and surfaces the requirement to the caller. NativeAotInterceptorExtensions only closes this interceptor for an existing open-generic registration from AddDataAnnotations."
     )]
     public IAsyncEnumerable<TResponse> HandleAsync(
         TQuery request,

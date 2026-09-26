@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
+﻿namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
 using System.Collections.Immutable;
 using System.Linq;
