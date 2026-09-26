@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse;
 
 using System.Linq;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -96,7 +97,8 @@ public static class AzureQueueStorageExtensions
         }
 
         _ = services.AddSingleton<IMessageTransport>(sp => new AzureQueueStorageMessageTransport(
-            sp.GetRequiredService<IOptions<AzureQueueStorageTransportOptions>>()
+            sp.GetRequiredService<IOptions<AzureQueueStorageTransportOptions>>(),
+            sp.GetService<IOptions<JsonSerializerOptions>>()
         ));
 
         return configurator;
