@@ -373,7 +373,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
         var entryId = await ReplayWithHandlerAsync(
                 databaseName,
-                handler,
+                _ => handler,
                 CommandDeadLetterStatus.Dismissed,
                 async (management, id) =>
                 {
@@ -403,7 +403,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
         var entryId = await ReplayWithHandlerAsync(
                 databaseName,
-                handler,
+                _ => handler,
                 CommandDeadLetterStatus.Resolved,
                 (management, id) => management.ReplayAsync(id, cancellationToken),
                 cancellationToken
@@ -426,7 +426,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
         var entryId = await ReplayWithHandlerAsync(
                 databaseName,
-                new FailingReplayCommandHandler(),
+                _ => new FailingReplayCommandHandler(),
                 CommandDeadLetterStatus.New,
                 async (management, id) =>
                     _ = await Assert
@@ -449,7 +449,7 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
         var entryId = await ReplayWithHandlerAsync(
                 databaseName,
-                new CancellingReplayCommandHandler(replayCancellation),
+                _ => new CancellingReplayCommandHandler(replayCancellation),
                 CommandDeadLetterStatus.New,
                 async (management, id) =>
                     _ = await Assert
@@ -464,6 +464,46 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         _ = await Assert
             .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
             .IsEqualTo(CommandDeadLetterStatus.New);
+    }
+
+    [Test]
+    public async Task ReplayAsync_WhenHandlerThrowsWithPendingChanges_DiscardsHandlerChanges(
+        CancellationToken cancellationToken
+    )
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerThrowsWithPendingChanges_DiscardsHandlerChanges);
+        var handlerEntry = CreateEntry(CommandDeadLetterStatus.New, DateTimeOffset.UtcNow);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                context => new DirtyingFailingReplayCommandHandler(context, handlerEntry),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>()
+                        .WithMessage("replay failed", StringComparison.Ordinal),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        var context = CreateContext(databaseName);
+        await using (context.ConfigureAwait(false))
+        {
+            var ids = await context
+                .CommandDeadLetterEntries.AsNoTracking()
+                .Select(e => e.Id)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert
+                    .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+                    .IsEqualTo(CommandDeadLetterStatus.New);
+                _ = await Assert.That(ids).DoesNotContain(handlerEntry.Id);
+            }
+        }
     }
 
     [Test]
@@ -572,28 +612,28 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
 
     private static async Task<Guid> ReplayWithHandlerAsync(
         string databaseName,
-        ICommandHandler<TestReplayCommand, string> handler,
+        Func<TestCommandDeadLetterDbContext, ICommandHandler<TestReplayCommand, string>> createHandler,
         CommandDeadLetterStatus initialStatus,
         Func<EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>, Guid, Task> replay,
         CancellationToken cancellationToken
     )
     {
-        var services = new ServiceCollection();
-        _ = services.AddLogging();
-        _ = services.AddPulse();
-        _ = services.AddScoped(_ => handler);
-        var provider = services.BuildServiceProvider();
-        await using (provider.ConfigureAwait(false))
+        var context = CreateContext(databaseName);
+        await using (context.ConfigureAwait(false))
         {
-            var scope = provider.CreateAsyncScope();
-            await using (scope.ConfigureAwait(false))
+            var services = new ServiceCollection();
+            _ = services.AddLogging();
+            _ = services.AddPulse();
+            _ = services.AddScoped(_ => createHandler(context));
+            var provider = services.BuildServiceProvider();
+            await using (provider.ConfigureAwait(false))
             {
-                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
-                var payloadSerializer = scope.ServiceProvider.GetRequiredService<IPayloadSerializer>();
-
-                var context = CreateContext(databaseName);
-                await using (context.ConfigureAwait(false))
+                var scope = provider.CreateAsyncScope();
+                await using (scope.ConfigureAwait(false))
                 {
+                    var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+                    var payloadSerializer = scope.ServiceProvider.GetRequiredService<IPayloadSerializer>();
+
                     var entry = CreateEntry(
                         initialStatus,
                         DateTimeOffset.UtcNow,
@@ -638,6 +678,18 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class DirtyingFailingReplayCommandHandler(
+        TestCommandDeadLetterDbContext context,
+        CommandDeadLetterEntry handlerEntry
+    ) : ICommandHandler<TestReplayCommand, string>
+    {
+        public async Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            _ = await context.CommandDeadLetterEntries.AddAsync(handlerEntry, cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("replay failed");
+        }
     }
 
     private sealed class CancellingReplayCommandHandler(CancellationTokenSource replayCancellation)
