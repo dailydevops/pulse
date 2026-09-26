@@ -73,5 +73,5 @@ No configuration section is bound automatically. To use `appsettings.json`, bind
 | `TableName` | `"IdempotencyKey"` | Second segment of the Redis key. Must not be `null`, empty, or whitespace. |
 | `TimeToLive` | `null` | Logical expiry. When `null`, keys never expire logically. When set, it must be greater than zero and at most `TimeSpan.MaxValue` minus one hour (the physical expiry adds one hour). |
 
-The physical Redis expiry of each key is `TimeToLive` plus one hour. When `TimeToLive` is `null`, keys are stored without any expiry and are never evicted by Redis. Set a `TimeToLive` if you want Redis to evict keys automatically.
+The physical Redis expiry of each key is `TimeToLive` plus one hour. When `TimeToLive` is `null`, keys are stored without a Redis expiry. They are only removed if the server's `maxmemory-policy` evicts non-volatile keys (`allkeys-*`), and doing so breaks duplicate detection. Under `volatile-*` or `noeviction` policies the key space grows until the server runs out of memory. Set a `TimeToLive` if the key space must stay bounded.
 Invalid options cause an `OptionsValidationException` at startup or on first resolution of the options.
