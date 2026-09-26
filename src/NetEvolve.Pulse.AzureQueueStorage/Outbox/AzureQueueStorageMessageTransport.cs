@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Outbox;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Azure.Identity;
 using Azure.Storage.Queues;
@@ -122,6 +123,8 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// Creates the envelope contract from a copy of the configured <see cref="JsonSerializerOptions"/>, with
     /// <see cref="AzureQueueStorageJsonSerializerContext"/> appended as fallback resolver, so converters, encoder and
     /// other settings apply while the envelope stays serializable without reflection.
+    /// <see cref="JsonSerializerOptions.DefaultIgnoreCondition"/>, <see cref="JsonSerializerOptions.ReferenceHandler"/>
+    /// and <see cref="JsonSerializerOptions.WriteIndented"/> are reset, so they cannot change the envelope shape or size.
     /// </summary>
     /// <param name="configured">The configured options, or <see langword="null"/> to use the internal defaults.</param>
     /// <returns>The contract used to write the envelope.</returns>
@@ -133,7 +136,13 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
         }
 
         // Copy instead of mutating, the configured instance is shared and may already be read-only.
-        var options = new JsonSerializerOptions(configured);
+        // Settings that change the envelope shape or size are pinned, the wire format stays stable.
+        var options = new JsonSerializerOptions(configured)
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            ReferenceHandler = null,
+            WriteIndented = false,
+        };
         options.TypeInfoResolverChain.Add(AzureQueueStorageJsonSerializerContext.Default);
         return (JsonTypeInfo<AzureQueueStorageEnvelope>)options.GetTypeInfo(typeof(AzureQueueStorageEnvelope));
     }
