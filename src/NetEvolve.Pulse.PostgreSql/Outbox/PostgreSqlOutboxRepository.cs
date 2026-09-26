@@ -356,7 +356,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("error", (object?)errorMessage ?? DBNull.Value);
                 _ = command.Parameters.AddWithValue(
                     "next_retry_at",
-                    nextRetryAt.HasValue ? nextRetryAt.Value : DBNull.Value
+                    nextRetryAt.HasValue ? nextRetryAt.Value.ToUniversalTime() : DBNull.Value
                 );
                 _ = command.Parameters.AddWithValue("updated_at", GetUtcNow());
 
@@ -482,15 +482,15 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         _ = command.Parameters.AddWithValue("Payload", message.Payload);
         _ = command.Parameters.AddWithValue("CorrelationId", (object?)message.CorrelationId ?? DBNull.Value);
         _ = command.Parameters.AddWithValue("CausationId", (object?)message.CausationId ?? DBNull.Value);
-        _ = command.Parameters.AddWithValue("CreatedAt", message.CreatedAt);
-        _ = command.Parameters.AddWithValue("UpdatedAt", message.UpdatedAt);
+        _ = command.Parameters.AddWithValue("CreatedAt", message.CreatedAt.ToUniversalTime());
+        _ = command.Parameters.AddWithValue("UpdatedAt", message.UpdatedAt.ToUniversalTime());
         _ = command.Parameters.AddWithValue(
             "ProcessedAt",
-            message.ProcessedAt.HasValue ? message.ProcessedAt.Value : DBNull.Value
+            message.ProcessedAt.HasValue ? message.ProcessedAt.Value.ToUniversalTime() : DBNull.Value
         );
         _ = command.Parameters.AddWithValue(
             "NextRetryAt",
-            message.NextRetryAt.HasValue ? message.NextRetryAt.Value : DBNull.Value
+            message.NextRetryAt.HasValue ? message.NextRetryAt.Value.ToUniversalTime() : DBNull.Value
         );
         _ = command.Parameters.AddWithValue("RetryCount", message.RetryCount);
         _ = command.Parameters.AddWithValue("Error", (object?)message.Error ?? DBNull.Value);
