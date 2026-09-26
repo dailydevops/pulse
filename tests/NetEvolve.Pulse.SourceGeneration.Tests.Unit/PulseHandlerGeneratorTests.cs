@@ -1491,15 +1491,137 @@ public class PulseHandlerGeneratorTests
         await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
     }
 
+    [Test]
+    public async Task WhenValueTypeRequestsAndPulseReferencedThenNativeAotInterceptorRegistrationsAreGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Collections.Generic;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record AddCommand(int Left, int Right) : ICommand<int>;
+            public record PingCommand : ICommand;
+            public record ReserveCommand : IExclusiveCommand;
+            public record CountQuery : IQuery<long>;
+            public record RangeQuery(int Count) : IStreamQuery<int>;
+            public record struct StructCommand(string Name) : ICommand<string>;
+            public record NameQuery : IQuery<string>;
+            public record GenericCommand : ICommand<System.Guid>;
+            public record OrderPlaced : IEvent
+            {
+                public string Id { get; init; } = System.Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+                public System.DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler]
+            public class AddHandler : ICommandHandler<AddCommand, int>
+            {
+                public Task<int> HandleAsync(AddCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Left + command.Right);
+            }
+
+            [PulseHandler]
+            public class PingHandler : ICommandHandler<PingCommand, Void>
+            {
+                public Task<Void> HandleAsync(PingCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(Void.Completed);
+            }
+
+            [PulseHandler]
+            public class ReserveHandler : ICommandHandler<ReserveCommand, Void>
+            {
+                public Task<Void> HandleAsync(ReserveCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(Void.Completed);
+            }
+
+            [PulseHandler]
+            public class CountHandler : IQueryHandler<CountQuery, long>
+            {
+                public Task<long> HandleAsync(CountQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult(1L);
+            }
+
+            [PulseHandler]
+            public class RangeHandler : IStreamQueryHandler<RangeQuery, int>
+            {
+                public async IAsyncEnumerable<int> HandleAsync(RangeQuery query, CancellationToken cancellationToken = default)
+                {
+                    await Task.CompletedTask;
+                    yield break;
+                }
+            }
+
+            [PulseHandler]
+            public class StructHandler : ICommandHandler<StructCommand, string>
+            {
+                public Task<string> HandleAsync(StructCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+
+            [PulseHandler]
+            public class NameHandler : IQueryHandler<NameQuery, string>
+            {
+                public Task<string> HandleAsync(NameQuery query, CancellationToken cancellationToken = default)
+                    => Task.FromResult("name");
+            }
+
+            [PulseHandler<GenericCommand>]
+            public class GenericHandler<TCommand, TResult> : ICommandHandler<TCommand, TResult>
+                where TCommand : ICommand<TResult>
+            {
+                public Task<TResult> HandleAsync(TCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(default(TResult)!);
+            }
+
+            [PulseHandler]
+            public class OrderPlacedHandler : IEventHandler<OrderPlaced>
+            {
+                public Task HandleAsync(OrderPlaced message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source, referencePulse: true);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenOnlyReferenceTypeRequestsAndPulseReferencedThenNoNativeAotInterceptorRegistrationsAreGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record MyCommand(string Name) : ICommand<string>;
+
+            [PulseHandler]
+            public class MyCommandHandler : ICommandHandler<MyCommand, string>
+            {
+                public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source, referencePulse: true);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
         string? rootNamespace = "TestAssembly",
-        string assemblyName = "TestAssembly"
+        string assemblyName = "TestAssembly",
+        bool referencePulse = false
     )
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
-        var references = GetMetadataReferences();
+        var references = GetMetadataReferences(referencePulse);
 
         var compilation = CSharpCompilation.Create(
             assemblyName,
@@ -1529,7 +1651,7 @@ public class PulseHandlerGeneratorTests
         );
     }
 
-    private static MetadataReference[] GetMetadataReferences()
+    private static MetadataReference[] GetMetadataReferences(bool referencePulse)
     {
         // Core runtime references
         var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
@@ -1551,6 +1673,13 @@ public class PulseHandlerGeneratorTests
         runtimeReferences.Add(
             MetadataReference.CreateFromFile(typeof(Extensibility.Attributes.PulseHandlerAttribute).Assembly.Location)
         );
+
+        if (referencePulse)
+        {
+            runtimeReferences.Add(
+                MetadataReference.CreateFromFile(typeof(NativeAotInterceptorExtensions).Assembly.Location)
+            );
+        }
 
         return [.. runtimeReferences];
     }

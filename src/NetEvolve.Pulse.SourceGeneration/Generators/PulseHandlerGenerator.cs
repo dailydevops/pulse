@@ -60,11 +60,19 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 }
             );
 
-        var combined = allCollected.Combine(rootNamespace).Combine(assemblyName);
+        var nativeAotInterceptorsAvailable = context.CompilationProvider.Select(
+            static (compilation, _) =>
+                compilation.GetTypeByMetadataName(NativeAotInterceptorExtensionsFullName) is not null
+        );
+
+        var combined = allCollected
+            .Combine(rootNamespace)
+            .Combine(assemblyName)
+            .Combine(nativeAotInterceptorsAvailable);
 
         context.RegisterSourceOutput(
             combined,
-            static (spc, data) => Execute(spc, data.Left.Left, data.Left.Right, data.Right)
+            static (spc, data) => Execute(spc, data.Left.Left.Left, data.Left.Left.Right, data.Left.Right, data.Right)
         );
 
         RegisterOpenGenericDiagnosticPipeline(context, pulseHandlerResults);
@@ -424,7 +432,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         SourceProductionContext spc,
         ImmutableArray<HandlerInfo> handlers,
         string? rootNamespace,
-        string? assemblyName
+        string? assemblyName,
+        bool nativeAotInterceptorsAvailable
     )
     {
         ReportNoHandlerInterfaceDiagnostics(spc, handlers);
@@ -438,7 +447,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return;
         }
 
-        var source = GenerateSource(allRegistrations, rootNamespace, assemblyName);
+        var source = GenerateSource(allRegistrations, rootNamespace, assemblyName, nativeAotInterceptorsAvailable);
         spc.AddSource("PulseRegistrations.Handlers.g.cs", source);
     }
 
@@ -576,13 +585,25 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// The target project's root namespace, or <see langword="null"/> to use the default.
     /// </param>
     /// <param name="assemblyName">The target assembly name used to derive the generated method name.</param>
+    /// <param name="nativeAotInterceptorsAvailable">
+    /// Whether the compilation references <c>NetEvolve.Pulse</c>, which provides the NativeAOT interceptor registrations.
+    /// </param>
     /// <returns>The generated C# source text.</returns>
     private static string GenerateSource(
         List<HandlerRegistration> registrations,
         string? rootNamespace,
-        string? assemblyName
+        string? assemblyName,
+        bool nativeAotInterceptorsAvailable
     )
     {
+        var nativeAotInterceptorMethods = nativeAotInterceptorsAvailable
+            ? registrations
+                .Select(static reg => reg.NativeAotInterceptorMethod)
+                .OfType<string>()
+                .Distinct(StringComparer.Ordinal)
+                .ToList()
+            : [];
+
         var targetNamespace = string.IsNullOrWhiteSpace(rootNamespace) ? "NetEvolve.Pulse.Generated" : rootNamespace;
         var methodName = GetMethodName(assemblyName);
         var generatorVersion = typeof(PulseHandlerGenerator).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
@@ -612,6 +633,16 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 )
                 .AppendXmlDocParam("services", "The service collection to add registrations to.")
                 .AppendXmlDocReturns("The same <see cref=\"IServiceCollection\"/> instance for chaining.");
+
+            if (nativeAotInterceptorMethods.Count > 0)
+            {
+                _ = cb.AppendXmlDocRemarks([
+                    "Under NativeAOT, also registers closed variants of the built-in interceptors for the requests with",
+                    "value-type request or response types. Call this method after <c>AddPulse</c> and after every other",
+                    "interceptor registration. Under NativeAOT, the mediator throws for these requests when their",
+                    "interceptor registrations change afterwards.",
+                ]);
+            }
 
             using (cb.ScopeLine($"public static IServiceCollection {methodName}(this IServiceCollection services)"))
             {
@@ -662,6 +693,17 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                                 $"services.{lifetimeMethodName}<{reg.ServiceTypeName}>(static sp => sp.GetRequiredService<{handlerTypeName}>());"
                             );
                         }
+                    }
+                }
+
+                if (nativeAotInterceptorMethods.Count > 0)
+                {
+                    _ = cb.AppendLine();
+                    foreach (var method in nativeAotInterceptorMethods)
+                    {
+                        _ = cb.AppendLine(
+                            $"global::NetEvolve.Pulse.NativeAotInterceptorExtensions.{method}(services);"
+                        );
                     }
                 }
 
@@ -842,7 +884,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 GetFullyQualifiedName(classSymbol),
                 GetFullyQualifiedName(matchingIface),
                 kind,
-                lifetime
+                lifetime,
+                nativeAotInterceptorMethod: GetNativeAotInterceptorMethod(matchingIface, kind)
             );
         }
 
@@ -905,7 +948,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             GetFullyQualifiedName(closedHandler),
             GetFullyQualifiedName(closedService),
             kind,
-            lifetime
+            lifetime,
+            nativeAotInterceptorMethod: GetNativeAotInterceptorMethod(closedService, kind)
         );
     }
 
@@ -966,7 +1010,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                         handlerTypeName: handlerTypeName,
                         serviceTypeName: GetFullyQualifiedName(iface),
                         kind: kind,
-                        lifetime: lifetime
+                        lifetime: lifetime,
+                        nativeAotInterceptorMethod: GetNativeAotInterceptorMethod(iface, kind)
                     )
                 );
             }
@@ -974,6 +1019,53 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         return registrations;
     }
+
+    /// <summary>
+    /// Returns the <c>NativeAotInterceptorExtensions</c> method call, including its type arguments, that registers
+    /// closed interceptors for the request handled through <paramref name="handlerInterface"/>, or
+    /// <see langword="null"/> when the request and response types are reference types or the handler is an event
+    /// handler. The DI container cannot close open-generic interceptors over value types under NativeAOT.
+    /// </summary>
+    /// <param name="handlerInterface">The closed handler interface, e.g. <c>ICommandHandler&lt;TCommand, TResponse&gt;</c>.</param>
+    /// <param name="kind">The handler kind.</param>
+    private static string? GetNativeAotInterceptorMethod(INamedTypeSymbol handlerInterface, HandlerKind kind)
+    {
+        if (kind == HandlerKind.Event || handlerInterface.TypeArguments.Length != 2)
+        {
+            return null;
+        }
+
+        var requestType = handlerInterface.TypeArguments[0];
+        var responseType = handlerInterface.TypeArguments[1];
+
+        if (!requestType.IsValueType && !responseType.IsValueType)
+        {
+            return null;
+        }
+
+        var methodName = kind switch
+        {
+            HandlerKind.Query => "AddNativeAotQueryInterceptors",
+            HandlerKind.StreamQuery => "AddNativeAotStreamQueryInterceptors",
+            _ when IsExclusiveCommand(requestType, responseType) => "AddNativeAotExclusiveCommandInterceptors",
+            _ => "AddNativeAotCommandInterceptors",
+        };
+
+        return $"{methodName}<{GetFullyQualifiedName(requestType)}, {GetFullyQualifiedName(responseType)}>";
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="requestType"/> implements
+    /// <c>IExclusiveCommand&lt;TResponse&gt;</c> for <paramref name="responseType"/>.
+    /// </summary>
+    private static bool IsExclusiveCommand(ITypeSymbol requestType, ITypeSymbol responseType) =>
+        requestType.AllInterfaces.Any(iface =>
+            string.Equals(
+                GetFullMetadataName(iface.OriginalDefinition),
+                ExclusiveCommandMessageInterfaceName,
+                StringComparison.Ordinal
+            ) && SymbolEqualityComparer.Default.Equals(iface.TypeArguments[0], responseType)
+        );
 
     /// <summary>
     /// Builds the list of <see cref="HandlerRegistration"/> entries for all recognized Pulse handler

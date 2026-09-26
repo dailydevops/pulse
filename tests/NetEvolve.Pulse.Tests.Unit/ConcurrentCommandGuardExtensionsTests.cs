@@ -168,6 +168,29 @@ public sealed class ConcurrentCommandGuardExtensionsTests
     }
 
     [Test]
+    public async Task AddConcurrentCommandGuard_Void_RegistersNoOpenGenericService()
+    {
+        // The DI container cannot close open-generic services over value types such as Void under NativeAOT,
+        // so the closed overloads must register the interceptor implementation as a closed service.
+        var services = new ServiceCollection();
+        var configurator = new MediatorBuilder(services);
+
+        _ = configurator.AddConcurrentCommandGuard<ExclusiveVoidCommand>();
+
+        var openGenericDescriptors = services.Where(d => d.ServiceType.IsGenericTypeDefinition).ToList();
+        var interceptor = services
+            .BuildServiceProvider()
+            .GetServices<IRequestInterceptor<ExclusiveVoidCommand, Extensibility.Void>>()
+            .ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(openGenericDescriptors).IsEmpty();
+            _ = await Assert.That(interceptor).HasSingleItem();
+        }
+    }
+
+    [Test]
     public async Task AddConcurrentCommandGuard_Typed_CombinedWithOpenGeneric_DoesNotDuplicateInterfaceRegistrations()
     {
         var services = new ServiceCollection();
