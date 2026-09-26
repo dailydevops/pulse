@@ -83,9 +83,11 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
             .OrderBy(m => m.CreatedAt)
             .Take(batchSize);
 
-        return await _executor
+        var messages = await _executor
             .FetchAndMarkAsync(baseQuery, now, OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -116,9 +118,11 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
             .OrderBy(m => m.UpdatedAt)
             .Take(batchSize);
 
-        return await _executor
+        var messages = await _executor
             .FetchAndMarkAsync(baseQuery, now, OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

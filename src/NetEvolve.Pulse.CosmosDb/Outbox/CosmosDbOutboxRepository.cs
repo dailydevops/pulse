@@ -101,8 +101,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             return [];
         }
 
-        return await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
+        var messages = await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -129,8 +131,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             return [];
         }
 
-        return await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
+        var messages = await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

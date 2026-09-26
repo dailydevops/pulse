@@ -52,7 +52,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
   - Add `DynamicallyAccessedMembers(PublicConstructors)` to generic registration type parameters.
 * Annotate inherently reflection-based public entry points that callers can avoid with `RequiresUnreferencedCode` and `RequiresDynamicCode`. This covers assembly scanning, `AddDataAnnotations`, dead-letter replay (`ICommandDeadLetterManagement.ReplayAsync`, all implementations and `CommandDeadLetterReplayDispatcher.ReplayAsync`) and the ASP.NET Core `Map*` endpoint extensions.
 * Suppress with `UnconditionalSuppressMessage` and a concrete justification only where the value is used safely:
-  - The outbox `Type.GetType` sites, because only the type identity is used and unresolvable types keep the existing behavior.
+  - The outbox `Type.GetType` site in `OutboxEventTypeResolver`, because only the type identity is used and unresolvable types are dead-lettered on fetch, see [Outbox Unresolvable Event Types](./2026-09-24-outbox-unresolvable-event-types.md).
   - The DataAnnotations interceptors, which are reachable only through the annotated registration.
   - The feature-switch-guarded reflection resolver.
   - The handled empty `Assembly.Location`.
@@ -66,7 +66,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * External implementers of `ICommandDeadLetterManagement` that enable the trim analyzer MUST add `RequiresUnreferencedCode` and `RequiresDynamicCode` to their `ReplayAsync` implementation (IL2046). There is no other source or binary impact.
 * The inspector endpoints no longer honor custom `HttpJsonOptions`. They always write the web defaults (camelCase).
 * Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. This limitation is documented. Lifting it requires closed interceptor registrations and is tracked in #771.
-* Outbox event types must be compiled into the application that reads the outbox. An unresolvable event type fails the whole fetch in the ADO.NET outbox providers. This behavior predates this decision and is tracked in #772.
+* Outbox event types must be compiled into the application that reads the outbox. Since #772, a message with an unresolvable event type is dead-lettered on fetch with an error that names the stored type, and the other messages are still processed, see [Outbox Unresolvable Event Types](./2026-09-24-outbox-unresolvable-event-types.md).
 * `NetEvolve.Pulse.AspNetCore.Grpc` is covered like every other runtime package. gRPC for ASP.NET Core is fully NativeAOT-compatible, and `MapStreamQueryGrpc` forwards the `DynamicallyAccessedMembers` requirement of `MapGrpcService`.
 * `MapStreamQueryHub` is not annotated, because `MapHub` carries no `RequiresUnreferencedCode` or `RequiresDynamicCode` and the hub type is statically known. SignalR is not NativeAOT-supported on .NET 8 and only partially on .NET 9 and later; applications must register source-generated contracts for `TQuery` and `TResponse` with the JSON hub protocol. This is documented as a limitation.
 * Provider packages remain limited by the NativeAOT support of their third-party dependencies.

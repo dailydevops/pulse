@@ -212,7 +212,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("batch_size", batchSize);
                 _ = command.Parameters.AddWithValue("lease_expired_before", leaseExpiredBefore);
 
-                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+
+                return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -253,7 +255,9 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 _ = command.Parameters.AddWithValue("batch_size", batchSize);
                 _ = command.Parameters.AddWithValue("now_utc", now);
 
-                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+
+                return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -558,11 +562,6 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// <param name="ordError">Pre-resolved ordinal for the Error column.</param>
     /// <param name="ordStatus">Pre-resolved ordinal for the Status column.</param>
     /// <returns>A populated <see cref="OutboxMessage"/>.</returns>
-    [UnconditionalSuppressMessage(
-        "Trimming",
-        "IL2057:Unrecognized value passed to the parameter of method with 'DynamicallyAccessedMembersAttribute'",
-        Justification = "The resolved event type is only used for its identity (grouping, naming, per-event-type options); no members are reflected on. A type that cannot be resolved in a trimmed or NativeAOT application takes the existing unresolvable-type path."
-    )]
     private static OutboxMessage MapToMessage(
         NpgsqlDataReader reader,
         int ordId,
@@ -581,11 +580,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
         new OutboxMessage
         {
             Id = reader.GetGuid(ordId),
-            EventType =
-                Type.GetType(reader.GetString(ordEventType))
-                ?? throw new InvalidOperationException(
-                    $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                ),
+            EventType = OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType)),
             Payload = reader.GetString(ordPayload),
             CorrelationId = reader.IsDBNull(ordCorrelationId) ? null : reader.GetString(ordCorrelationId),
             CausationId = reader.IsDBNull(ordCausationId) ? null : reader.GetString(ordCausationId),

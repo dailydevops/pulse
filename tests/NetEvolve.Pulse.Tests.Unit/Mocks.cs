@@ -9,5 +9,6 @@ using StackExchange.Redis;
 [assembly: GenerateMock(typeof(IConnectionMultiplexer))]
 [assembly: GenerateMock(typeof(IMediatorBuilder))]
 [assembly: GenerateMock(typeof(IOutboxManagement))]
+[assembly: GenerateMock(typeof(IOutboxRepository))]
 [assembly: GenerateMock(typeof(ICommandDeadLetterManagement))]
 [assembly: GenerateMock(typeof(IAuditManagement))]

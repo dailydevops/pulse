@@ -127,10 +127,10 @@ public sealed class OutboxDocumentMapperTests
         }
     }
 
-    // INVARIANT: Unresolvable event type causes the mapper to fail loudly, so the dispatcher
-    // never silently swallows a typo-injected payload.
+    // INVARIANT: An unresolvable event type is mapped to a placeholder carrying the stored name,
+    // so the repository can dead-letter the message instead of failing the whole fetch.
     [Test]
-    public async Task ToOutboxMessage_with_Unresolvable_EventType_throws()
+    public async Task ToOutboxMessage_with_Unresolvable_EventType_returns_placeholder()
     {
         var doc = new OutboxDocument
         {
@@ -142,7 +142,15 @@ public sealed class OutboxDocumentMapperTests
             Status = (int)OutboxMessageStatus.Pending,
         };
 
-        _ = await Assert.That(() => OutboxDocumentMapper.ToOutboxMessage(doc)).Throws<InvalidOperationException>();
+        var message = OutboxDocumentMapper.ToOutboxMessage(doc);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(OutboxEventTypeResolver.IsUnresolvable(message.EventType)).IsTrue();
+            _ = await Assert
+                .That(message.EventType.ToOutboxEventTypeName())
+                .IsEqualTo("Nonexistent.Type, Nonexistent.Assembly");
+        }
     }
 
     // INVARIANT: Repeated materialization of the same persisted type name resolves to the
@@ -170,10 +178,10 @@ public sealed class OutboxDocumentMapperTests
         }
     }
 
-    // INVARIANT: Failed resolutions are not cached; every re-encounter of an unresolvable
-    // type name fails loudly again instead of returning a stale poisoned entry.
+    // INVARIANT: The placeholder round-trips the stored name, so writing the document back
+    // never replaces the original event type name.
     [Test]
-    public async Task ToOutboxMessage_with_Unresolvable_EventType_throws_on_every_call()
+    public async Task ToOutboxMessage_with_Unresolvable_EventType_round_trips_stored_name()
     {
         var doc = new OutboxDocument
         {
@@ -185,10 +193,8 @@ public sealed class OutboxDocumentMapperTests
             Status = (int)OutboxMessageStatus.Pending,
         };
 
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(() => OutboxDocumentMapper.ToOutboxMessage(doc)).Throws<InvalidOperationException>();
-            _ = await Assert.That(() => OutboxDocumentMapper.ToOutboxMessage(doc)).Throws<InvalidOperationException>();
-        }
+        var roundTripped = OutboxDocumentMapper.ToDocument(OutboxDocumentMapper.ToOutboxMessage(doc));
+
+        _ = await Assert.That(roundTripped.EventType).IsEqualTo("Nonexistent.Repeated.Type, Nonexistent.Assembly");
     }
 }
