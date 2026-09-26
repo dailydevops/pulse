@@ -437,7 +437,10 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task ReplayAsync_When_entry_resolved_replays_again(CancellationToken cancellationToken) =>
+    public async Task ReplayAsync_When_entry_resolved_replays_again(CancellationToken cancellationToken)
+    {
+        var handler = new CountingReplayCommandHandler();
+
         await RunAndVerify(
                 async (services, token) =>
                 {
@@ -449,12 +452,13 @@ public abstract class CommandDeadLetterTestsBase(
 
                     var entry = await management.GetEntryAsync(entryId, token).ConfigureAwait(false);
                     _ = await Assert.That(entry!.Status).IsEqualTo(CommandDeadLetterStatus.Resolved);
+                    _ = await Assert.That(handler.HandledCount).IsEqualTo(2);
                 },
                 cancellationToken,
-                configureServices: services =>
-                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>, TestReplayCommandHandler>()
+                configureServices: services => services.AddSingleton<ICommandHandler<TestReplayCommand, Void>>(handler)
             )
             .ConfigureAwait(false);
+    }
 
     [Test]
     public async Task ReplayAsync_When_handler_throws_resets_entry_to_New(CancellationToken cancellationToken) =>
@@ -631,6 +635,19 @@ public abstract class CommandDeadLetterTestsBase(
     {
         public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             Task.FromResult(Void.Completed);
+    }
+
+    private sealed class CountingReplayCommandHandler : ICommandHandler<TestReplayCommand, Void>
+    {
+        private int _handledCount;
+
+        public int HandledCount => Volatile.Read(ref _handledCount);
+
+        public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            _ = Interlocked.Increment(ref _handledCount);
+            return Task.FromResult(Void.Completed);
+        }
     }
 
     private sealed class FailingReplayCommandHandler : ICommandHandler<TestReplayCommand, Void>
