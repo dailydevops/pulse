@@ -259,7 +259,7 @@ orders.MapQuery<GetOrderQuery, OrderDto>("/{id}");
 | `GET` | `{BasePath}/stats` | `200` with counts per status |
 | `GET` | `{BasePath}/entries?count=50&skip=0` | `200` with pending entries, oldest first; `400` if `count` is not between 1 and 1000 or `skip < 0` |
 | `GET` | `{BasePath}/entries/{id:guid}` | `200` with the entry, `404` if not found |
-| `POST` | `{BasePath}/entries/{id:guid}/replay` | `204` after replaying the command, `404` if not found |
+| `POST` | `{BasePath}/entries/{id:guid}/replay` | `204` after replaying the command, `404` if not found, `409` if the entry was dismissed. Resolved entries can be replayed again; a failed replay resets the entry to `New` |
 | `POST` | `{BasePath}/entries/{id:guid}/dismiss` | `204` after dismissing the entry, `404` if not found |
 
 `CommandDeadLetterInspectorOptions` configures `BasePath` (default `/pulse/commands`) and `RouteGroupName` (default `Pulse Command Dead Letter Inspector`).

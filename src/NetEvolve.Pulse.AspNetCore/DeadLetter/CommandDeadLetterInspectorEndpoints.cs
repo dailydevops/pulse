@@ -40,7 +40,7 @@ public static class CommandDeadLetterInspectorEndpoints
     /// <item><description><c>GET {BasePath}/stats</c> — dead letter statistics.</description></item>
     /// <item><description><c>GET {BasePath}/entries?count=50&amp;skip=0</c> — pending dead-letter entries, oldest first.</description></item>
     /// <item><description><c>GET {BasePath}/entries/{{id:guid}}</c> — a single dead-letter entry, or <c>404</c> if not found.</description></item>
-    /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/replay</c> — replays a dead-letter entry, or <c>404</c> if not found.</description></item>
+    /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/replay</c> — replays a dead-letter entry, <c>404</c> if not found, or <c>409</c> if the entry was dismissed.</description></item>
     /// <item><description><c>POST {BasePath}/entries/{{id:guid}}/dismiss</c> — dismisses a dead-letter entry, or <c>404</c> if not found.</description></item>
     /// </list>
     /// <para>
@@ -154,8 +154,8 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
-        // Catch only the dedicated exception: replay runs the user's command handler, whose own
-        // KeyNotFoundException must not be reported as a missing entry.
+        // Catch only the dedicated exceptions: replay runs the user's command handler, whose own
+        // KeyNotFoundException or InvalidOperationException must not be reported as 404 or 409.
         try
         {
             await commandDeadLetterManagement.ReplayAsync(id, cancellationToken).ConfigureAwait(false);
@@ -163,6 +163,10 @@ public static class CommandDeadLetterInspectorEndpoints
         catch (CommandDeadLetterEntryNotFoundException)
         {
             return TypedResults.NotFound();
+        }
+        catch (CommandDeadLetterEntryDismissedException)
+        {
+            return TypedResults.Conflict();
         }
 
         return TypedResults.NoContent();
