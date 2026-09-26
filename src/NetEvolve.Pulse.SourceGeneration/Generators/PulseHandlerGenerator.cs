@@ -638,8 +638,9 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             {
                 _ = cb.AppendXmlDocRemarks([
                     "Under NativeAOT, also registers closed variants of the built-in interceptors for the requests with",
-                    "value-type request or response types. Call this method after <c>AddPulse</c>, so that the enabled",
-                    "interceptors are registered already.",
+                    "value-type request or response types. Call this method after <c>AddPulse</c> and after every other",
+                    "interceptor registration. Under NativeAOT, the mediator throws for these requests when their",
+                    "interceptor registrations change afterwards.",
                 ]);
             }
 
