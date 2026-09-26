@@ -462,6 +462,46 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
+    public async Task SendAsync_WithInterceptorRemovedAfterKeyedRegistration_ThrowsInvalidOperationException()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+        _ = services.RemoveAll<IRequestInterceptor<ValueCommand, int>>();
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        _ = await Assert
+            .That(() => mediator.SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("changed after its NativeAOT interceptor registration.", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task SendAsync_WithUnchangedKeyedRegistration_UsesKeyedInterceptorsOnEveryCall()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        _ = await mediator.SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None);
+        _ = await mediator.SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None);
+
+        _ = await Assert.That(recorder.Names).IsEquivalentTo(["keyed", "keyed"]);
+    }
+
+    [Test]
     public async Task StreamQueryAsync_WithClosedInterceptorRegisteredAfterKeyedRegistration_ThrowsInvalidOperationException()
     {
         var recorder = new Recorder();
