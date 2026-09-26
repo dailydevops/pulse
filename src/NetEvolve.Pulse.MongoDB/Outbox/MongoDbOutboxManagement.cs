@@ -58,9 +58,13 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter);
-        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.CreatedAt);
+        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.UpdatedAt);
 
         var docs = await GetCollection()
             .Find(filter)
@@ -144,6 +148,60 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
             .ConfigureAwait(false);
 
         return (int)result.ModifiedCount;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var filter = status is { } value
+            ? Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)value)
+            : Builders<OutboxDocument>.Filter.Empty;
+        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.UpdatedAt).Descending(d => d.Id);
+
+        var docs = await GetCollection()
+            .Find(filter)
+            .Sort(sort)
+            .Skip(page * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return docs.ConvertAll(OutboxDocumentMapper.ToOutboxMessage);
+    }
+
+    /// <inheritdoc />
+    public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
+
+        var doc = await GetCollection().Find(filter).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+
+        return doc is null ? null : OutboxDocumentMapper.ToOutboxMessage(doc);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<OutboxDocument>.Filter.And(
+            Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter),
+            Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId)
+        );
+
+        var result = await GetCollection().DeleteOneAsync(filter, cancellationToken).ConfigureAwait(false);
+
+        return result.DeletedCount > 0;
     }
 
     /// <inheritdoc />

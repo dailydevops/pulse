@@ -404,6 +404,112 @@ BEGIN
 END;
 $$;
 
+-- get_outbox_messages: Returns a paginated, read-only list of messages, optionally filtered by status
+CREATE OR REPLACE FUNCTION ":schema_name".get_outbox_messages(
+    page_size INTEGER,
+    page INTEGER,
+    message_status INTEGER
+)
+RETURNS TABLE (
+    "Id"            UUID,
+    "EventType"     VARCHAR(500),
+    "Payload"       TEXT,
+    "CorrelationId" VARCHAR(100),
+    "CausationId"   VARCHAR(100),
+    "CreatedAt"     TIMESTAMPTZ,
+    "UpdatedAt"     TIMESTAMPTZ,
+    "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
+    "RetryCount"    INTEGER,
+    "Error"         TEXT,
+    "Status"        INTEGER
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        om."Id",
+        om."EventType",
+        om."Payload",
+        om."CorrelationId",
+        om."CausationId",
+        om."CreatedAt",
+        om."UpdatedAt",
+        om."ProcessedAt",
+        om."NextRetryAt",
+        om."RetryCount",
+        om."Error",
+        om."Status"
+    FROM ":schema_name".":table_name" om
+    WHERE message_status IS NULL OR om."Status" = message_status
+    ORDER BY om."UpdatedAt" DESC, om."Id" DESC
+    LIMIT page_size
+    OFFSET (page * page_size);
+END;
+$$;
+
+-- get_outbox_message: Returns a single message by Id, regardless of its status
+CREATE OR REPLACE FUNCTION ":schema_name".get_outbox_message(
+    message_id UUID
+)
+RETURNS TABLE (
+    "Id"            UUID,
+    "EventType"     VARCHAR(500),
+    "Payload"       TEXT,
+    "CorrelationId" VARCHAR(100),
+    "CausationId"   VARCHAR(100),
+    "CreatedAt"     TIMESTAMPTZ,
+    "UpdatedAt"     TIMESTAMPTZ,
+    "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
+    "RetryCount"    INTEGER,
+    "Error"         TEXT,
+    "Status"        INTEGER
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        om."Id",
+        om."EventType",
+        om."Payload",
+        om."CorrelationId",
+        om."CausationId",
+        om."CreatedAt",
+        om."UpdatedAt",
+        om."ProcessedAt",
+        om."NextRetryAt",
+        om."RetryCount",
+        om."Error",
+        om."Status"
+    FROM ":schema_name".":table_name" om
+    WHERE om."Id" = message_id;
+END;
+$$;
+
+-- dismiss_outbox_message: Permanently deletes a single dead-letter message
+CREATE OR REPLACE FUNCTION ":schema_name".dismiss_outbox_message(
+    message_id UUID
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM ":schema_name".":table_name"
+    WHERE "Id" = message_id
+      AND "Status" = 4; -- DeadLetter
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
+
 -- get_outbox_statistics: Returns message counts grouped by status
 CREATE OR REPLACE FUNCTION ":schema_name".get_outbox_statistics()
 RETURNS TABLE (

@@ -79,6 +79,9 @@ The script creates:
 | `replay_outbox_message` | Resets a single dead-letter message to Pending |
 | `replay_all_dead_letter_outbox_messages` | Resets all dead-letter messages to Pending |
 | `get_outbox_statistics` | Returns message counts grouped by status |
+| `get_outbox_messages` | Returns a paginated, read-only list of messages in any status, optionally filtered by status |
+| `get_outbox_message` | Returns a single message by ID, regardless of its status |
+| `dismiss_outbox_message` | Permanently deletes a single dead-letter message |
 
 ## Quick Start
 

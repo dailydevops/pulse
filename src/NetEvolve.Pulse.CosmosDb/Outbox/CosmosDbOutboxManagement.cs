@@ -58,12 +58,24 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Results are sorted by <c>updatedAt</c> only. A secondary <c>id</c> sort would require a composite index
+    /// that containers created for earlier versions do not have, so the relative order of messages sharing the
+    /// same <see cref="OutboxMessage.UpdatedAt"/> value is not guaranteed and may shift between pages.
+    /// </remarks>
     public async Task<IReadOnlyList<OutboxMessage>> GetDeadLetterMessagesAsync(
         int pageSize = 50,
         int page = 0,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
         var offset = page * pageSize;
         var query = new QueryDefinition(
             "SELECT * FROM c WHERE c.status = 4 ORDER BY c.updatedAt DESC OFFSET @offset LIMIT @limit"
@@ -215,6 +227,89 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
                     requestOptions,
                     cancellationToken
                 )
+                .ConfigureAwait(false);
+
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Results are sorted by <c>updatedAt</c> only. A secondary <c>id</c> sort would require a composite index
+    /// that containers created for earlier versions do not have, so the relative order of messages sharing the
+    /// same <see cref="OutboxMessage.UpdatedAt"/> value is not guaranteed and may shift between pages.
+    /// </remarks>
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var query = (
+            status is { } value
+                ? new QueryDefinition(
+                    "SELECT * FROM c WHERE c.status = @status ORDER BY c.updatedAt DESC OFFSET @offset LIMIT @limit"
+                ).WithParameter("@status", (int)value)
+                : new QueryDefinition("SELECT * FROM c ORDER BY c.updatedAt DESC OFFSET @offset LIMIT @limit")
+        )
+            .WithParameter("@offset", page * pageSize)
+            .WithParameter("@limit", pageSize);
+
+        return await ExecuteQueryAsync(query, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var id = messageId.ToString();
+
+        try
+        {
+            var response = await _container
+                .ReadItemAsync<CosmosDbOutboxDocument>(id, new PartitionKey(id), cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return response.Resource.ToOutboxMessage();
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var id = messageId.ToString();
+        var partitionKey = new PartitionKey(id);
+
+        try
+        {
+            var current = await _container
+                .ReadItemAsync<CosmosDbOutboxDocument>(id, partitionKey, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (current.Resource.Status != (int)OutboxMessageStatus.DeadLetter)
+            {
+                return false;
+            }
+
+            var requestOptions = new ItemRequestOptions { IfMatchEtag = current.ETag };
+
+            _ = await _container
+                .DeleteItemAsync<CosmosDbOutboxDocument>(id, partitionKey, requestOptions, cancellationToken)
                 .ConfigureAwait(false);
 
             return true;

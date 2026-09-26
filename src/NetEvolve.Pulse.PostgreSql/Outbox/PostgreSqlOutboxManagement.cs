@@ -4,10 +4,11 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using Npgsql;
+using NpgsqlTypes;
 
 /// <summary>
 /// PostgreSQL implementation of <see cref="IOutboxManagement"/> using ADO.NET.
-/// Provides dead-letter inspection, replay, and statistics queries via optimized PostgreSQL functions.
+/// Provides message and dead-letter inspection, replay, dismissal, and statistics queries via optimized PostgreSQL functions.
 /// </summary>
 /// <remarks>
 /// <para><strong>Prerequisites:</strong></para>
@@ -47,6 +48,15 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     /// <summary>Cached SQL for calling the get_outbox_statistics function.</summary>
     private readonly string _getStatisticsSql;
 
+    /// <summary>Cached SQL for calling the get_outbox_messages function.</summary>
+    private readonly string _getMessagesSql;
+
+    /// <summary>Cached SQL for calling the get_outbox_message function.</summary>
+    private readonly string _getMessageSql;
+
+    /// <summary>Cached SQL for calling the dismiss_outbox_message function.</summary>
+    private readonly string _dismissMessageSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlOutboxManagement"/> class.
     /// </summary>
@@ -68,6 +78,9 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
         _replayMessageSql = $"SELECT \"{schema}\".replay_outbox_message(@message_id)";
         _replayAllDeadLetterSql = $"SELECT \"{schema}\".replay_all_dead_letter_outbox_messages()";
         _getStatisticsSql = $"SELECT * FROM \"{schema}\".get_outbox_statistics()";
+        _getMessagesSql = $"SELECT * FROM \"{schema}\".get_outbox_messages(@page_size, @page, @message_status)";
+        _getMessageSql = $"SELECT * FROM \"{schema}\".get_outbox_message(@message_id)";
+        _dismissMessageSql = $"SELECT \"{schema}\".dismiss_outbox_message(@message_id)";
     }
 
     /// <inheritdoc />
@@ -79,6 +92,10 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -166,6 +183,81 @@ internal sealed class PostgreSqlOutboxManagement : IOutboxManagement
                 return result is int count
                     ? count
                     : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getMessagesSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("page_size", pageSize);
+#pragma warning disable RCS1015 // Use nameof operator
+                _ = command.Parameters.AddWithValue("page", page);
+#pragma warning restore RCS1015 // Use nameof operator
+                // The type must be explicit, otherwise PostgreSQL cannot resolve the function for a NULL filter.
+                _ = command.Parameters.Add(
+                    new NpgsqlParameter("message_status", NpgsqlDbType.Integer)
+                    {
+                        Value = status is { } value ? (int)value : DBNull.Value,
+                    }
+                );
+
+                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getMessageSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("message_id", messageId);
+
+                var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return messages.Count > 0 ? messages[0] : null;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_dismissMessageSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("message_id", messageId);
+
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                var deleted = result is int count
+                    ? count
+                    : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+                return deleted > 0;
             }
         }
     }
