@@ -1,11 +1,14 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using TUnit.Assertions;
+using TUnit.Assertions.Enums;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -135,7 +138,7 @@ public sealed class OutboxEventTypeResolverTests
             .Object.DeadLetterUnresolvableAsync([first, unresolvable, last])
             .ConfigureAwait(false);
 
-        _ = await Assert.That(result).IsEquivalentTo([first, last]);
+        _ = await Assert.That(result).IsEquivalentTo([first, last], CollectionOrdering.Matching);
         repository
             .MarkAsDeadLetterAsync(
                 unresolvable.Id,
@@ -148,6 +151,85 @@ public sealed class OutboxEventTypeResolverTests
         repository
             .MarkAsDeadLetterAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
+    }
+
+    [Test]
+    public async Task DeadLetterUnresolvableAsync_WithSeveralUnresolvable_DeadLettersThemInOneBulkCall()
+    {
+        var repository = Mock.Of<IOutboxRepository>();
+        var first = CreateMessage(OutboxEventTypeResolver.Resolve(UnresolvableTypeName));
+        var kept = CreateMessage(typeof(string));
+        var second = CreateMessage(OutboxEventTypeResolver.Resolve("Other.RemovedEvent, Other"));
+
+        var result = await repository.Object.DeadLetterUnresolvableAsync([first, kept, second]).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEquivalentTo([kept], CollectionOrdering.Matching);
+            repository
+                .MarkAsDeadLetterAsync(
+                    Arg.Is<IReadOnlyCollection<Guid>>(ids =>
+                        ids != null && ids.Count == 2 && ids.Contains(first.Id) && ids.Contains(second.Id)
+                    ),
+                    Arg.Any<string>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .WasCalled(Times.Once);
+            repository
+                .MarkAsDeadLetterAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .WasCalled(Times.Never);
+        }
+    }
+
+    [Test]
+    public async Task DeadLetterUnresolvableAsync_WhenDeadLetteringFails_StillReturnsResolvableMessagesInOrder()
+    {
+        var repository = Mock.Of<IOutboxRepository>();
+        _ = repository
+            .MarkAsDeadLetterAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Throws<InvalidOperationException>();
+        _ = repository
+            .MarkAsDeadLetterAsync(
+                Arg.Any<IReadOnlyCollection<Guid>>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Throws<InvalidOperationException>();
+        var first = CreateMessage(typeof(string));
+        var unresolvable = CreateMessage(OutboxEventTypeResolver.Resolve(UnresolvableTypeName));
+        var last = CreateMessage(typeof(int));
+
+        var result = await repository
+            .Object.DeadLetterUnresolvableAsync([first, unresolvable, last])
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEquivalentTo([first, last], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task DeadLetterUnresolvableAsync_WhenCancelledAfterClaim_StillReturnsResolvableMessages()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(false);
+        var repository = Mock.Of<IOutboxRepository>();
+        _ = repository
+            .MarkAsDeadLetterAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Throws<OperationCanceledException>();
+        _ = repository
+            .MarkAsDeadLetterAsync(
+                Arg.Any<IReadOnlyCollection<Guid>>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Throws<OperationCanceledException>();
+        var kept = CreateMessage(typeof(string));
+        var unresolvable = CreateMessage(OutboxEventTypeResolver.Resolve(UnresolvableTypeName));
+
+        var result = await repository
+            .Object.DeadLetterUnresolvableAsync([kept, unresolvable], cts.Token)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEquivalentTo([kept], CollectionOrdering.Matching);
     }
 
     [Test]
