@@ -347,6 +347,28 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
+    public async Task AddCommandInterceptorsCore_WithInapplicableBuiltInInterceptorOnly_RegistersMarker()
+    {
+        var services = new ServiceCollection();
+        _ = new MediatorBuilder(services).AddQueryCaching();
+
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(KeyedDescriptors<IRequestInterceptor<ValueCommand, int>>(services)).IsEmpty();
+            _ = await Assert
+                .That(
+                    services.Any(d =>
+                        d.ServiceType == typeof(NativeAotInterceptorExtensions.Marker)
+                        && Equals(d.ServiceKey, typeof(IRequestInterceptor<ValueCommand, int>))
+                    )
+                )
+                .IsTrue();
+        }
+    }
+
+    [Test]
     public async Task SendAsync_WithOpenGenericInterceptorRegisteredAfterEmptyKeyedRegistration_UsesInterceptor()
     {
         var recorder = new Recorder();
