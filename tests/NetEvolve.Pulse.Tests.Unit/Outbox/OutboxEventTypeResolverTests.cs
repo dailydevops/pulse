@@ -72,6 +72,28 @@ public sealed class OutboxEventTypeResolverTests
     }
 
     [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    [Arguments("Foo[[")]
+    [Arguments("Foo]], Bar")]
+    [Arguments("Foo, ")]
+    [Arguments("Foo, Bar, Version=not-a-version")]
+    [Arguments("Foo, Bar, Culture=xx-invalid-culture")]
+    [Arguments("Foo, Bar, PublicKeyToken=zz")]
+    [Arguments("Foo, Bar/Baz:Qux")]
+    [Arguments("System.Collections.Generic.List`1[[Foo, Bar]]")]
+    public async Task Resolve_WithCorruptTypeName_ReturnsPlaceholderInsteadOfThrowing(string typeName)
+    {
+        var resolved = OutboxEventTypeResolver.Resolve(typeName);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(OutboxEventTypeResolver.IsUnresolvable(resolved)).IsTrue();
+            _ = await Assert.That(resolved.ToOutboxEventTypeName()).IsEqualTo(typeName);
+        }
+    }
+
+    [Test]
     public async Task Resolve_WithUnresolvableTypeName_PlaceholdersAreEqualByStoredName()
     {
         var first = OutboxEventTypeResolver.Resolve(UnresolvableTypeName);
