@@ -528,6 +528,88 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     }
 
     [Test]
+    public async Task ReplayAsync_WhenHandlerThrows_KeepsCallerTrackedEntitiesAttached(
+        CancellationToken cancellationToken
+    )
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerThrows_KeepsCallerTrackedEntitiesAttached);
+        var callerEntry = CreateEntry(CommandDeadLetterStatus.Resolved, DateTimeOffset.UtcNow);
+        TestCommandDeadLetterDbContext sharedContext = null!;
+
+        _ = await ReplayWithHandlerAsync(
+                databaseName,
+                _ => new FailingReplayCommandHandler(),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                {
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>();
+
+                    _ = await Assert.That(sharedContext.Entry(callerEntry).State).IsEqualTo(EntityState.Unchanged);
+                },
+                cancellationToken,
+                async context =>
+                {
+                    sharedContext = context;
+                    _ = await context.CommandDeadLetterEntries.AddAsync(callerEntry, cancellationToken);
+                    _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                }
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task ReplayAsync_WhenHandlerModifiesAndDeletesTrackedEntities_RevertsHandlerChanges(
+        CancellationToken cancellationToken
+    )
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerModifiesAndDeletesTrackedEntities_RevertsHandlerChanges);
+        var modifiedEntry = CreateEntry(CommandDeadLetterStatus.Resolved, DateTimeOffset.UtcNow);
+        var deletedEntry = CreateEntry(CommandDeadLetterStatus.Resolved, DateTimeOffset.UtcNow);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                context => new ModifyingFailingReplayCommandHandler(context, modifiedEntry, deletedEntry),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>(),
+                cancellationToken,
+                async context =>
+                {
+                    await context
+                        .CommandDeadLetterEntries.AddRangeAsync([modifiedEntry, deletedEntry], cancellationToken)
+                        .ConfigureAwait(false);
+                    _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                }
+            )
+            .ConfigureAwait(false);
+
+        var context = CreateContext(databaseName);
+        await using (context.ConfigureAwait(false))
+        {
+            var modified = await context
+                .CommandDeadLetterEntries.AsNoTracking()
+                .SingleAsync(e => e.Id == modifiedEntry.Id, cancellationToken)
+                .ConfigureAwait(false);
+            var deletedExists = await context
+                .CommandDeadLetterEntries.AnyAsync(e => e.Id == deletedEntry.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert
+                    .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
+                    .IsEqualTo(CommandDeadLetterStatus.New);
+                _ = await Assert.That(modified.Status).IsEqualTo(CommandDeadLetterStatus.Resolved);
+                _ = await Assert.That(deletedExists).IsTrue();
+            }
+        }
+    }
+
+    [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
         var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
@@ -636,7 +718,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         Func<TestCommandDeadLetterDbContext, ICommandHandler<TestReplayCommand, string>> createHandler,
         CommandDeadLetterStatus initialStatus,
         Func<EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>, Guid, Task> replay,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Func<TestCommandDeadLetterDbContext, Task>? prepareContext = null
     )
     {
         var context = CreateContext(databaseName);
@@ -670,6 +753,11 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                         payloadSerializer
                     );
 
+                    if (prepareContext is not null)
+                    {
+                        await prepareContext(context).ConfigureAwait(false);
+                    }
+
                     await replay(management, entry.Id).ConfigureAwait(false);
 
                     return entry.Id;
@@ -699,6 +787,20 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class ModifyingFailingReplayCommandHandler(
+        TestCommandDeadLetterDbContext context,
+        CommandDeadLetterEntry modifiedEntry,
+        CommandDeadLetterEntry deletedEntry
+    ) : ICommandHandler<TestReplayCommand, string>
+    {
+        public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            modifiedEntry.Status = CommandDeadLetterStatus.Dismissed;
+            _ = context.CommandDeadLetterEntries.Remove(deletedEntry);
+            throw new InvalidOperationException("replay failed");
+        }
     }
 
     private sealed class RowDeletingFailingReplayCommandHandler(string databaseName)
