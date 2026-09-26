@@ -65,7 +65,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * The core mediator pipeline is verified with NativeAOT on every pull request.
 * External implementers of `ICommandDeadLetterManagement` that enable the trim analyzer MUST add `RequiresUnreferencedCode` and `RequiresDynamicCode` to their `ReplayAsync` implementation (IL2046). There is no other source or binary impact.
 * The inspector endpoints no longer honor custom `HttpJsonOptions`. They always write the web defaults (camelCase).
-* Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. This limitation is documented. Lifting it requires closed interceptor registrations and is tracked in #771.
+* Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. The [Closed Keyed Interceptors for Value-Type Requests Under NativeAOT](./2026-09-24-nativeaot-value-type-interceptors.md) decision lifts this for the built-in interceptors and handlers registered by the source generator (#771).
 * Outbox event types must be compiled into the application that reads the outbox. An unresolvable event type fails the whole fetch in the ADO.NET outbox providers. This behavior predates this decision and is tracked in #772.
 * `NetEvolve.Pulse.AspNetCore.Grpc` is covered like every other runtime package. gRPC for ASP.NET Core is fully NativeAOT-compatible, and `MapStreamQueryGrpc` forwards the `DynamicallyAccessedMembers` requirement of `MapGrpcService`.
 * `MapStreamQueryHub` is not annotated, because `MapHub` carries no `RequiresUnreferencedCode` or `RequiresDynamicCode` and the hub type is statically known. SignalR is not NativeAOT-supported on .NET 8 and only partially on .NET 9 and later; applications must register source-generated contracts for `TQuery` and `TResponse` with the JSON hub protocol. This is documented as a limitation.
@@ -82,5 +82,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 ## Related Decisions
 
 * [Folder Structure and Naming Conventions](./2025-07-10-folder-structure-and-naming-conventions.md) - The smoke application is an example application under `samples/`.
+
+* [Closed Keyed Interceptors for Value-Type Requests Under NativeAOT](./2026-09-24-nativeaot-value-type-interceptors.md) - Lifts the value-type interceptor limitation recorded in the consequences.
 
 * [Centralized Package Version Management](./2025-07-10-centralized-package-version-management.md) - No new package versions are required. The configuration binding generator ships with the existing `Microsoft.Extensions.Configuration.Binder` package.
