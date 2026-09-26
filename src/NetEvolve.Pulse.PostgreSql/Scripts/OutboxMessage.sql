@@ -57,13 +57,18 @@ WHERE "Status" = 2;
 -- Also reclaims messages stuck in Processing whose lease (based on UpdatedAt) has expired,
 -- e.g. after a worker crash, cancellation, or unhandled exception during dispatch.
 -- Uses FOR UPDATE SKIP LOCKED for concurrent polling safety.
--- The single-argument overload from earlier versions of this script is dropped first: PostgreSQL
--- overloads functions by argument types, so CREATE OR REPLACE with an added parameter would
--- otherwise leave both signatures behind and make a one-argument call ambiguous.
+--
+-- All timestamps are passed in by the caller (from the application's TimeProvider) instead of
+-- being taken from the database clock, so the lease comparison and UpdatedAt share one clock.
+-- Overloads from earlier versions of this script are dropped first: PostgreSQL overloads
+-- functions by argument types, so CREATE OR REPLACE with changed parameters would otherwise
+-- leave the old signatures behind and make calls ambiguous.
 DROP FUNCTION IF EXISTS ":schema_name".get_pending_outbox_messages(INTEGER);
+DROP FUNCTION IF EXISTS ":schema_name".get_pending_outbox_messages(INTEGER, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION ":schema_name".get_pending_outbox_messages(
     batch_size INTEGER,
-    lease_expired_before TIMESTAMPTZ DEFAULT NULL
+    lease_expired_before TIMESTAMPTZ,
+    now_utc TIMESTAMPTZ
 )
 RETURNS TABLE (
     "Id"            UUID,
@@ -99,7 +104,7 @@ BEGIN
     UPDATE ":schema_name".":table_name" msg
     SET
         "Status" = 1, -- Processing
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = now_utc
     FROM cte
     WHERE msg."Id" = cte."Id"
     RETURNING
@@ -155,7 +160,7 @@ BEGIN
     UPDATE ":schema_name".":table_name" msg
     SET
         "Status" = 1, -- Processing
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = now_utc
     FROM cte
     WHERE msg."Id" = cte."Id"
     RETURNING
@@ -195,10 +200,12 @@ END;
 $$;
 
 -- mark_outbox_message_failed: Marks a message as failed with error details
+DROP FUNCTION IF EXISTS ":schema_name".mark_outbox_message_failed(UUID, TEXT, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_failed(
     message_id UUID,
     error TEXT,
-    next_retry_at TIMESTAMPTZ
+    next_retry_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -210,16 +217,18 @@ BEGIN
         "RetryCount" = "RetryCount" + 1,
         "Error" = error,
         "NextRetryAt" = next_retry_at,
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = updated_at
     WHERE "Id" = message_id
       AND "Status" = 1; -- Processing
 END;
 $$;
 
 -- mark_outbox_message_dead_letter: Moves a message to dead letter status
+DROP FUNCTION IF EXISTS ":schema_name".mark_outbox_message_dead_letter(UUID, TEXT);
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_dead_letter(
     message_id UUID,
-    error TEXT
+    error TEXT,
+    updated_at TIMESTAMPTZ
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -229,7 +238,7 @@ BEGIN
     SET
         "Status" = 4, -- DeadLetter
         "Error" = error,
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = updated_at
     WHERE "Id" = message_id
       AND "Status" = 1; -- Processing
 END;
@@ -358,8 +367,10 @@ END;
 $$;
 
 -- replay_outbox_message: Resets a dead-letter message to Pending for reprocessing
+DROP FUNCTION IF EXISTS ":schema_name".replay_outbox_message(UUID);
 CREATE OR REPLACE FUNCTION ":schema_name".replay_outbox_message(
-    message_id UUID
+    message_id UUID,
+    updated_at TIMESTAMPTZ
 )
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -373,7 +384,7 @@ BEGIN
         "RetryCount" = 0,
         "Error"      = NULL,
         "NextRetryAt" = NULL,
-        "UpdatedAt"  = NOW()
+        "UpdatedAt"  = updated_at
     WHERE "Id" = message_id
       AND "Status" = 4; -- DeadLetter
 
@@ -383,7 +394,10 @@ END;
 $$;
 
 -- replay_all_dead_letter_outbox_messages: Resets all dead-letter messages to Pending
-CREATE OR REPLACE FUNCTION ":schema_name".replay_all_dead_letter_outbox_messages()
+DROP FUNCTION IF EXISTS ":schema_name".replay_all_dead_letter_outbox_messages();
+CREATE OR REPLACE FUNCTION ":schema_name".replay_all_dead_letter_outbox_messages(
+    updated_at TIMESTAMPTZ
+)
 RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
@@ -396,7 +410,7 @@ BEGIN
         "RetryCount" = 0,
         "Error"      = NULL,
         "NextRetryAt" = NULL,
-        "UpdatedAt"  = NOW()
+        "UpdatedAt"  = updated_at
     WHERE "Status" = 4; -- DeadLetter
 
     GET DIAGNOSTICS updated_count = ROW_COUNT;
