@@ -257,6 +257,10 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
                 RETURNS TABLE ("Id" UUID)
                 LANGUAGE plpgsql
                 AS $body$ BEGIN RETURN; END; $body$;
+                CREATE FUNCTION "{schema}".get_failed_outbox_messages_for_retry(max_retry_count INTEGER, batch_size INTEGER)
+                RETURNS TABLE ("Id" UUID) LANGUAGE plpgsql AS $body$ BEGIN RETURN; END; $body$;
+                CREATE FUNCTION "{schema}".mark_outbox_message_completed(message_id UUID)
+                RETURNS VOID LANGUAGE plpgsql AS $body$ BEGIN END; $body$;
                 CREATE FUNCTION "{schema}".mark_outbox_message_failed(message_id UUID, error TEXT, next_retry_at TIMESTAMPTZ)
                 RETURNS VOID LANGUAGE plpgsql AS $body$ BEGIN END; $body$;
                 CREATE FUNCTION "{schema}".mark_outbox_message_dead_letter(message_id UUID, error TEXT)
