@@ -136,7 +136,10 @@ public sealed class CachingTimeoutLoggingTests
         using var host = await BuildHostAsync(
                 services =>
                 {
-                    _ = services.AddSingleton<ICommandHandler<SlowTimeoutCommand, string>, SlowTimeoutCommandHandler>();
+                    _ = services.AddSingleton<
+                        ICommandHandler<SlowTimeoutCommand, string>,
+                        UntilCancelledTimeoutCommandHandler
+                    >();
                     _ = services.AddPulse(builder => builder.AddRequestTimeout());
                 },
                 cancellationToken
@@ -569,6 +572,17 @@ public sealed class CachingTimeoutLoggingTests
             // Always delay longer than the "fast" test's timeout, but shorter than the "slow" test's timeout,
             // so both the timeout and the pass-through scenario can be exercised deterministically.
             await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+            return "completed";
+        }
+    }
+
+    private sealed class UntilCancelledTimeoutCommandHandler : ICommandHandler<SlowTimeoutCommand, string>
+    {
+        public async Task<string> HandleAsync(SlowTimeoutCommand command, CancellationToken cancellationToken = default)
+        {
+            // Only ever completes through cancellation, so the outcome does not depend on which of two
+            // due timers (deadline vs. a fixed handler delay) the thread pool happens to run first.
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
             return "completed";
         }
     }
