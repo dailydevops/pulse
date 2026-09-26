@@ -129,7 +129,8 @@ await RunAsync(
 
 // Scenario 3: built-in open-generic interceptors for value-type and Void responses. The DI container cannot close
 // open-generic services over value types under NativeAOT, so the generated handler registrations add closed
-// interceptor registrations for these requests. This requires the generated method to run after AddPulse.
+// interceptor registrations for these requests. This requires the generated method to run after AddPulse and after
+// every other interceptor registration.
 await RunAsync(
         config =>
         {

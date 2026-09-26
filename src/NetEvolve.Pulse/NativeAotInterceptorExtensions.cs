@@ -1,7 +1,6 @@
 namespace NetEvolve.Pulse;
 
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -23,18 +22,23 @@ using NetEvolve.Pulse.Interceptors;
 /// </para>
 /// <para>
 /// The methods are called by the handler registrations that <c>NetEvolve.Pulse.SourceGeneration</c> generates, once per
-/// handled request type with a value-type request or response. They close the built-in open-generic interceptors that
-/// are registered at the time of the call and register them, together with closed interceptors for the same request
-/// type, as keyed services that the mediator resolves for value-type requests and responses. When an open-generic
-/// interceptor that Pulse does not know is registered, nothing is registered for the request type, so resolving its
-/// interceptors keeps failing instead of silently skipping that interceptor.
+/// handled request type with a value-type request or response. Applications call them for handlers that are
+/// registered without the source generator. They close the built-in open-generic interceptors that are registered at
+/// the time of the call and register them, together with closed interceptors for the same request type, as keyed
+/// services that the mediator resolves for value-type requests and responses. When an open-generic interceptor that
+/// Pulse does not know is registered, nothing is registered for the request type, so resolving its interceptors keeps
+/// failing instead of silently skipping that interceptor.
+/// </para>
+/// <para>
+/// Call the methods after <c>AddPulse</c> and after every other interceptor registration. When an interceptor for the
+/// request type is registered, replaced or removed afterwards, the mediator throws an
+/// <see cref="InvalidOperationException"/> for the request instead of skipping that interceptor.
 /// </para>
 /// <para>
 /// The methods do nothing while dynamic code is supported, because the DI container closes open-generic services over
 /// value types itself.
 /// </para>
 /// </remarks>
-[EditorBrowsable(EditorBrowsableState.Never)]
 public static class NativeAotInterceptorExtensions
 {
     /// <summary>

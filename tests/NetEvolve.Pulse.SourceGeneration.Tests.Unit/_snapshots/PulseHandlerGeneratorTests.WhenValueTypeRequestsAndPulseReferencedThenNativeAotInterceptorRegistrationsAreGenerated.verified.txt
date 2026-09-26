@@ -23,8 +23,9 @@ public static partial class PulseRegistrationExtensions
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
     /// <remarks>
     /// Under NativeAOT, also registers closed variants of the built-in interceptors for the requests with
-    /// value-type request or response types. Call this method after <c>AddPulse</c>, so that the enabled
-    /// interceptors are registered already.
+    /// value-type request or response types. Call this method after <c>AddPulse</c> and after every other
+    /// interceptor registration. Under NativeAOT, the mediator throws for these requests when their
+    /// interceptor registrations change afterwards.
     /// </remarks>
     public static IServiceCollection AddTestAssemblyPulseHandlers(this IServiceCollection services)
     {
