@@ -312,6 +312,8 @@ services.AddPulse();
 
 Pulse never falls back to reflection in these applications. Serializing a type that no registered context covers throws a `NotSupportedException`.
 
+The Azure Queue Storage transport writes its envelope with the same `JsonSerializerOptions` and appends an internal source-generated context for the envelope, so no application contract is needed for it.
+
 ### APIs That Are Not Trim- or NativeAOT-Safe
 
 The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDynamicCode]` where noted), so the compiler warns when a trimmed or NativeAOT application calls them:
@@ -322,7 +324,7 @@ The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDyna
 | `AddDataAnnotations` | `NetEvolve.Pulse` | RUC | `Validator.TryValidateObject` reflects over the properties and attributes of the validated types. |
 | `ICommandDeadLetterManagement.ReplayAsync` and `CommandDeadLetterReplayDispatcher.ReplayAsync` (all providers) | `NetEvolve.Pulse.Extensibility`, providers | RUC, RDC | Resolve the persisted command type by name and dispatch it through `MakeGenericMethod`. |
 | `MapCommand`, `MapQuery`, `MapStreamQuery` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory` over the application's request types. |
-| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses, including the message listing and the single outbox message, audit record and dead letter entry lookups, use the internal source-generated `PulseInspectorJsonSerializerContext` and the web defaults, independent of the application's `HttpJsonOptions`. |
+| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses use the application's `HttpJsonOptions` with the internal source-generated `PulseInspectorJsonSerializerContext` appended as fallback resolver, so they need no reflection. Enums are written as strings unless the application registers its own converter. |
 
 ### Justified Suppressions
 
