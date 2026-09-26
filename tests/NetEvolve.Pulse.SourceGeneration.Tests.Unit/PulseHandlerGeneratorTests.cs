@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
+namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
 using System.Collections.Immutable;
 using System.Linq;
@@ -1497,7 +1497,6 @@ public class PulseHandlerGeneratorTests
         const string source = """
             using NetEvolve.Pulse.Extensibility;
             using NetEvolve.Pulse.Extensibility.Attributes;
-            using System;
             using System.Collections.Generic;
             using System.Threading;
             using System.Threading.Tasks;
@@ -1509,13 +1508,13 @@ public class PulseHandlerGeneratorTests
             public record RangeQuery(int Count) : IStreamQuery<int>;
             public record struct StructCommand(string Name) : ICommand<string>;
             public record NameQuery : IQuery<string>;
-            public record GenericCommand : ICommand<Guid>;
+            public record GenericCommand : ICommand<System.Guid>;
             public record OrderPlaced : IEvent
             {
-                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string Id { get; init; } = System.Guid.NewGuid().ToString();
                 public string? CausationId { get; set; }
                 public string? CorrelationId { get; set; }
-                public DateTimeOffset? PublishedAt { get; set; }
+                public System.DateTimeOffset? PublishedAt { get; set; }
             }
 
             [PulseHandler]

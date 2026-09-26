@@ -49,4 +49,14 @@ internal static class WellKnownTypeNames
 
     /// <summary>Metadata name of the <c>IStreamQuery&lt;TResponse&gt;</c> message interface.</summary>
     internal const string StreamQueryMessageInterfaceName = "NetEvolve.Pulse.Extensibility.IStreamQuery`1";
+
+    /// <summary>Metadata name of the <c>IExclusiveCommand&lt;TResponse&gt;</c> message interface.</summary>
+    internal const string ExclusiveCommandMessageInterfaceName = "NetEvolve.Pulse.Extensibility.IExclusiveCommand`1";
+
+    // ── Runtime helpers ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fully qualified metadata name of the <c>NativeAotInterceptorExtensions</c> class in <c>NetEvolve.Pulse</c>.
+    /// </summary>
+    internal const string NativeAotInterceptorExtensionsFullName = "NetEvolve.Pulse.NativeAotInterceptorExtensions";
 }
