@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Extensibility.Outbox;
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Reflection;
 
 /// <summary>
@@ -34,7 +35,7 @@ public static class OutboxEventTypeResolver
     /// </summary>
     /// <param name="typeName">The event type name read from storage, usually assembly-qualified.</param>
     /// <returns>
-    /// The resolved <see cref="Type"/>, or a placeholder carrying <paramref name="typeName"/> when the type
+    /// cannot be resolved or is malformed; use <see cref="IsUnresolvable"/> to tell them apart.
     /// cannot be resolved; use <see cref="IsUnresolvable"/> to tell them apart.
     /// </returns>
     [UnconditionalSuppressMessage(
@@ -51,7 +52,19 @@ public static class OutboxEventTypeResolver
             return cached;
         }
 
-        var resolved = Type.GetType(typeName);
+        Type? resolved;
+        try
+        {
+            resolved = Type.GetType(typeName);
+        }
+        catch (Exception ex)
+            when (ex is ArgumentException or IOException or BadImageFormatException or TypeLoadException)
+        {
+            // Type.GetType still throws for a malformed assembly name part (FileLoadException,
+            // CultureNotFoundException) even though it returns null for a type that does not exist.
+            resolved = null;
+        }
+
         if (resolved is null)
         {
             return new UnresolvableEventType(typeName);
