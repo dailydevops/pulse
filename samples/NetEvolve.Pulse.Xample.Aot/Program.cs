@@ -149,7 +149,7 @@ await RunAsync(
                 .ConfigureAwait(false);
             Check(sum == 9, "command with value-type response through built-in interceptors");
             Check(
-                recorder.Invocations.Contains("Handling Command 'AddNumbersCommand' (CorrelationId: (null))"),
+                recorder.Invocations.Contains("Handling Command 'AddNumbersCommand' (CorrelationId: )"),
                 "built-in logging interceptor invoked for the value-type response"
             );
             Check(
@@ -159,14 +159,14 @@ await RunAsync(
 
             await mediator.SendAsync(new PingCommand()).ConfigureAwait(false);
             Check(
-                recorder.Invocations.Contains("Handling Command 'PingCommand' (CorrelationId: (null))"),
+                recorder.Invocations.Contains("Handling Command 'PingCommand' (CorrelationId: )"),
                 "built-in logging interceptor invoked for the void command"
             );
 
             await mediator.SendAsync(new ReserveStockCommand("SKU-1")).ConfigureAwait(false);
             Check(
                 recorder.Invocations.Contains(nameof(ReserveStockHandler))
-                    && recorder.Invocations.Contains("Handling Command 'ReserveStockCommand' (CorrelationId: (null))"),
+                    && recorder.Invocations.Contains("Handling Command 'ReserveStockCommand' (CorrelationId: )"),
                 "exclusive void command through the closed concurrent command guard"
             );
 
@@ -182,7 +182,7 @@ await RunAsync(
 
             Check(range.SequenceEqual([1, 2, 3]), "stream query with value-type items through built-in interceptors");
             Check(
-                recorder.Invocations.Contains("Streaming 'RangeStreamQuery' (CorrelationId: (null))"),
+                recorder.Invocations.Contains("Streaming 'RangeStreamQuery' (CorrelationId: )"),
                 "built-in logging interceptor invoked for the value-type stream query"
             );
 
@@ -191,7 +191,7 @@ await RunAsync(
                 .ConfigureAwait(false);
             Check(
                 order.OrderId == "V-1"
-                    && recorder.Invocations.Contains("Handling Command 'CreateOrderCommand' (CorrelationId: (null))"),
+                    && recorder.Invocations.Contains("Handling Command 'CreateOrderCommand' (CorrelationId: )"),
                 "reference-type response keeps the open-generic interceptors"
             );
         }
