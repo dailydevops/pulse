@@ -198,6 +198,7 @@ services.AddPulse(config => config.AddRequestTimeout(TimeSpan.FromSeconds(30)));
 public record ProcessOrderCommand(string OrderId) : ICommand<OrderResult>, ITimeoutRequest
 {
     public string? CorrelationId { get; set; }
+    public string? CausationId { get; set; }
 
     public TimeSpan? Timeout => TimeSpan.FromSeconds(10);
 }

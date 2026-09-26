@@ -34,6 +34,7 @@ namespace NetEvolve.Pulse.Extensibility;
 /// public record ProcessOrderCommand(string OrderId) : ICommand&lt;OrderResult&gt;, ITimeoutRequest
 /// {
 ///     public string? CorrelationId { get; set; }
+///     public string? CausationId { get; set; }
 ///     public TimeSpan? Timeout =&gt; TimeSpan.FromSeconds(10);
 /// }
 ///
@@ -41,6 +42,7 @@ namespace NetEvolve.Pulse.Extensibility;
 /// public record GetStatusQuery(string Id) : IQuery&lt;Status&gt;, ITimeoutRequest
 /// {
 ///     public string? CorrelationId { get; set; }
+///     public string? CausationId { get; set; }
 ///     public TimeSpan? Timeout =&gt; null;
 /// }
 /// </code>
