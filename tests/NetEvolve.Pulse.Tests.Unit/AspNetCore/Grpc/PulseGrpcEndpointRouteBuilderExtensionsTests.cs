@@ -96,9 +96,12 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQueryGrpc_WhenClientCancels_StopsStream(CancellationToken cancellationToken)
     {
+        var serverToken = new TaskCompletionSource<CancellationToken>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
         var serverStreamEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var host = await CreateTestHostAsync(
-                YieldForeverAsync(serverStreamEnded, CancellationToken.None),
+                YieldForeverAsync(serverToken, serverStreamEnded, CancellationToken.None),
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -117,6 +120,11 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
         _ = await Assert.That(await call.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false)).IsTrue();
         await cts.CancelAsync().ConfigureAwait(false);
 
+        // CancelAsync returns after the registered callbacks ran, and the client-to-server abort is synchronous,
+        // so the server-side token is already cancelled here; no wall-clock wait is involved.
+        var handlerToken = await serverToken.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        _ = await Assert.That(handlerToken.IsCancellationRequested).IsTrue();
+
         var exception = await Assert.ThrowsAsync<RpcException>(async () =>
         {
             while (await call.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false))
@@ -126,7 +134,9 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
         });
 
         _ = await Assert.That(exception!.StatusCode).IsEqualTo(StatusCode.Cancelled);
-        await serverStreamEnded.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        // The handler ends on its next thread-pool turn; bounded by the test token only, as scheduling latency on a
+        // loaded runner is not what this test asserts.
+        await serverStreamEnded.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     [Test]
@@ -206,10 +216,12 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
 #pragma warning restore CS1998
 
     private static async IAsyncEnumerable<string> YieldForeverAsync(
+        TaskCompletionSource<CancellationToken> started,
         TaskCompletionSource ended,
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
+        _ = started.TrySetResult(cancellationToken);
         try
         {
             var i = 0;
