@@ -235,8 +235,9 @@ public sealed class NativeAotInterceptorExtensionsTests
             new ClosedRecordingInterceptor("keyed", recorder)
         );
         NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
-        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
-            new ClosedRecordingInterceptor("unkeyed", recorder)
+        _ = services.AddKeyedSingleton<IRequestInterceptor<ValueCommand, int>>(
+            Key,
+            new ClosedRecordingInterceptor("keyed only", recorder)
         );
 
         await using var provider = services.BuildServiceProvider();
@@ -248,7 +249,9 @@ public sealed class NativeAotInterceptorExtensionsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(result).IsEqualTo(42);
-            _ = await Assert.That(recorder.Names).IsEquivalentTo(["keyed"]);
+            _ = await Assert
+                .That(recorder.Names)
+                .IsEquivalentTo(["keyed", "keyed only"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         }
     }
 
@@ -303,8 +306,9 @@ public sealed class NativeAotInterceptorExtensionsTests
             new StreamRecordingInterceptor("keyed", recorder)
         );
         NativeAotInterceptorExtensions.AddStreamQueryInterceptorsCore<RangeQuery, int>(services);
-        _ = services.AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
-            new StreamRecordingInterceptor("unkeyed", recorder)
+        _ = services.AddKeyedSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
+            Key,
+            new StreamRecordingInterceptor("keyed only", recorder)
         );
 
         await using var provider = services.BuildServiceProvider();
@@ -322,8 +326,145 @@ public sealed class NativeAotInterceptorExtensionsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(items).IsEquivalentTo([1, 2]);
-            _ = await Assert.That(recorder.Names).IsEquivalentTo(["keyed"]);
+            _ = await Assert
+                .That(recorder.Names)
+                .IsEquivalentTo(["keyed", "keyed only"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         }
+    }
+
+    [Test]
+    public async Task AddCommandInterceptorsCore_WithoutInterceptors_RegistersNothing()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IRequestInterceptor<ReferenceCommand, string>>(
+            new ReferenceRecordingInterceptor("other", new Recorder())
+        );
+        var count = services.Count;
+
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+
+        _ = await Assert.That(services.Count).IsEqualTo(count);
+    }
+
+    [Test]
+    public async Task SendAsync_WithOpenGenericInterceptorRegisteredAfterEmptyKeyedRegistration_UsesInterceptor()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(OpenRecordingInterceptor<,>))
+        );
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var result = await scope
+            .ServiceProvider.GetRequiredService<IMediator>()
+            .SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo(42);
+            _ = await Assert.That(recorder.Names).IsEquivalentTo(["open"]);
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_WithOpenGenericInterceptorRegisteredAfterKeyedRegistration_ThrowsInvalidOperationException()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(OpenRecordingInterceptor<,>))
+        );
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        _ = await Assert
+            .That(() => mediator.SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None))
+            .Throws<InvalidOperationException>();
+        _ = await Assert.That(recorder.Names).IsEmpty();
+    }
+
+    [Test]
+    public async Task SendAsync_WithClosedInterceptorRegisteredAfterKeyedRegistration_ThrowsInvalidOperationException()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("late", recorder)
+        );
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        _ = await Assert
+            .That(() => mediator.SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None))
+            .Throws<InvalidOperationException>();
+        _ = await Assert.That(recorder.Names).IsEmpty();
+    }
+
+    [Test]
+    public async Task SendAsync_WithInterceptorReplacedAfterKeyedRegistration_ThrowsInvalidOperationException()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+        _ = services.Replace(
+            ServiceDescriptor.Singleton<IRequestInterceptor<ValueCommand, int>>(
+                new ClosedRecordingInterceptor("replacement", recorder)
+            )
+        );
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        _ = await Assert
+            .That(() => mediator.SendAsync<ValueCommand, int>(new ValueCommand(), CancellationToken.None))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithClosedInterceptorRegisteredAfterKeyedRegistration_ThrowsInvalidOperationException()
+    {
+        var recorder = new Recorder();
+        var services = CreateServices(recorder);
+        _ = services.AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
+            new StreamRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddStreamQueryInterceptorsCore<RangeQuery, int>(services);
+        _ = services.AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
+            new StreamRecordingInterceptor("late", recorder)
+        );
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        _ = await Assert
+            .That(async () =>
+            {
+                await foreach (var _ in mediator.StreamQueryAsync<RangeQuery, int>(new RangeQuery()))
+                {
+                    recorder.Names.Enqueue("item");
+                }
+            })
+            .Throws<InvalidOperationException>();
     }
 
     private static List<ServiceDescriptor> KeyedDescriptors<TService>(IServiceCollection services) =>
@@ -461,13 +602,18 @@ public sealed class NativeAotInterceptorExtensionsTests
         ) => handler(request, cancellationToken);
     }
 
-    private sealed class OpenRecordingInterceptor<TRequest, TResponse> : IRequestInterceptor<TRequest, TResponse>
+    private sealed class OpenRecordingInterceptor<TRequest, TResponse>(Recorder recorder)
+        : IRequestInterceptor<TRequest, TResponse>
         where TRequest : IRequest<TResponse>
     {
         public Task<TResponse> HandleAsync(
             TRequest request,
             Func<TRequest, CancellationToken, Task<TResponse>> handler,
             CancellationToken cancellationToken = default
-        ) => handler(request, cancellationToken);
+        )
+        {
+            recorder.Names.Enqueue("open");
+            return handler(request, cancellationToken);
+        }
     }
 }
