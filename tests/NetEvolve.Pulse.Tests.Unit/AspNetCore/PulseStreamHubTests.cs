@@ -169,6 +169,41 @@ public sealed class PulseStreamHubTests
         }
     }
 
+    // INVARIANT: SignalR injects the unsubscribe token as the hub method argument; that token
+    // must reach the real stream handler through the mediator even when the enumerator itself
+    // is obtained without a token.
+    [Test]
+    public async Task StreamAsync_WithRealMediator_MethodArgumentCancellationReachesHandler()
+    {
+        var handler = new InfiniteStreamQueryHandler();
+        var services = new ServiceCollection().AddLogging();
+        _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(handler);
+        _ = services.AddPulse(_ => { });
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            using var hub = new PulseStreamHub<TestStreamQuery, string>(provider.GetRequiredService<IMediator>());
+            using var cts = new CancellationTokenSource();
+
+            var received = 0;
+            await foreach (var _ in hub.StreamAsync(new TestStreamQuery(), cts.Token).ConfigureAwait(false))
+            {
+                if (++received == 3)
+                {
+                    await cts.CancelAsync().ConfigureAwait(false);
+                }
+                else if (received > 100)
+                {
+                    // Guard: fail with an assertion instead of hanging if the token never reaches the handler.
+                    break;
+                }
+            }
+
+            _ = await Assert.That(received).IsEqualTo(3);
+            _ = await Assert.That(handler.ObservedCancellation).IsTrue();
+        }
+    }
+
     private static async Task<List<string>> CollectAsync(IAsyncEnumerable<string> source)
     {
         var items = new List<string>();
