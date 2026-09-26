@@ -10,9 +10,9 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-26
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST keep IOutboxManagement.GetMessagesAsync and GetMessageAsync read-only; MUST NOT reuse IOutboxRepository.GetPendingAsync or any other method that changes message status for inspection.

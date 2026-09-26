@@ -8,9 +8,9 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-26
 
-state: proposed
+state: accepted
 
 instructions: |
   Applies to all public interfaces in NetEvolve.Pulse.Extensibility and governs commit messages and PR descriptions, not only source files.
