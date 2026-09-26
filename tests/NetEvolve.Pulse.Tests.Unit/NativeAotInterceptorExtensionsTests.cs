@@ -78,6 +78,78 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
+    public async Task AddCommandInterceptorsCore_WithAllBuiltInInterceptors_ClosesEveryRequestInterceptor()
+    {
+        var services = new ServiceCollection();
+        _ = new MediatorBuilder(services)
+            .AddActivityAndMetrics()
+            .AddAudit()
+            .AddCacheInvalidation()
+            .AddCommandDeadLetter()
+            .AddDataAnnotations()
+            .AddIdempotency()
+            .AddLogging()
+            .AddRequestTimeout();
+        var openImplementationTypes = services
+            .Where(d => !d.IsKeyedService && d.ServiceType == typeof(IRequestInterceptor<,>))
+            .Select(d => d.ImplementationType!.Name)
+            .ToList();
+
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+
+        var closedImplementationTypes = KeyedDescriptors<IRequestInterceptor<ValueCommand, int>>(services)
+            .Select(d => d.KeyedImplementationType!)
+            .ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(openImplementationTypes.Count).IsEqualTo(8);
+            _ = await Assert
+                .That(closedImplementationTypes.Select(t => t.Name))
+                .IsEquivalentTo(openImplementationTypes, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            _ = await Assert
+                .That(
+                    closedImplementationTypes.All(t =>
+                        t.GenericTypeArguments.SequenceEqual([typeof(ValueCommand), typeof(int)])
+                    )
+                )
+                .IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task AddStreamQueryInterceptorsCore_WithAllBuiltInInterceptors_ClosesEveryStreamQueryInterceptor()
+    {
+        var services = new ServiceCollection();
+        _ = new MediatorBuilder(services).AddActivityAndMetrics().AddDataAnnotations().AddLogging().AddRequestTimeout();
+        var openImplementationTypes = services
+            .Where(d => !d.IsKeyedService && d.ServiceType == typeof(IStreamQueryInterceptor<,>))
+            .Select(d => d.ImplementationType!.Name)
+            .ToList();
+
+        NativeAotInterceptorExtensions.AddStreamQueryInterceptorsCore<RangeQuery, int>(services);
+
+        var closedImplementationTypes = KeyedDescriptors<IStreamQueryInterceptor<RangeQuery, int>>(services)
+            .Select(d => d.KeyedImplementationType!)
+            .ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(openImplementationTypes.Count).IsEqualTo(4);
+            _ = await Assert
+                .That(closedImplementationTypes.Select(t => t.Name))
+                .IsEquivalentTo(openImplementationTypes, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            _ = await Assert
+                .That(
+                    closedImplementationTypes.All(t =>
+                        t.GenericTypeArguments.SequenceEqual([typeof(RangeQuery), typeof(int)])
+                    )
+                )
+                .IsTrue();
+        }
+    }
+
+    [Test]
     public async Task AddCommandInterceptorsCore_WithVoidResponse_ResolvesClosedKeyedInterceptors()
     {
         var services = new ServiceCollection()
