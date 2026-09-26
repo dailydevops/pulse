@@ -29,24 +29,35 @@ using NetEvolve.Pulse.Extensibility;
 /// caller-initiated cancellation: only when the deadline is exceeded is a
 /// <see cref="TimeoutException"/> thrown. Caller cancellations are propagated as
 /// <see cref="OperationCanceledException"/> as usual.
+/// <para><strong>Deadline Enforcement:</strong></para>
+/// Besides cancelling the token passed to the handler, the elapsed time is checked after every
+/// step of the enumeration. An item or a completion observed after the deadline results in a
+/// <see cref="TimeoutException"/>, even when the deadline callback has not run yet (e.g. under
+/// thread-pool starvation) or the handler does not observe the token.
 /// <para><strong>Resource Management:</strong></para>
-/// The internally created <see cref="CancellationTokenSource"/> is always disposed, even when
+/// The internally created <see cref="CancellationTokenSource"/> instances are always disposed, even when
 /// the handler throws.
 /// </remarks>
 internal sealed class TimeoutStreamQueryInterceptor<TQuery, TResponse> : IStreamQueryInterceptor<TQuery, TResponse>
     where TQuery : IStreamQuery<TResponse>
 {
     private readonly IOptions<TimeoutRequestInterceptorOptions> _options;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeoutStreamQueryInterceptor{TQuery, TResponse}"/> class.
     /// </summary>
     /// <param name="options">The timeout interceptor options.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is <see langword="null"/>.</exception>
-    public TimeoutStreamQueryInterceptor(IOptions<TimeoutRequestInterceptorOptions> options)
+    /// <param name="timeProvider">The time provider used to schedule and measure the deadline.</param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="options"/> or <paramref name="timeProvider"/> is <see langword="null"/>.
+    /// </exception>
+    public TimeoutStreamQueryInterceptor(IOptions<TimeoutRequestInterceptorOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         _options = options;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -103,8 +114,9 @@ internal sealed class TimeoutStreamQueryInterceptor<TQuery, TResponse> : IStream
             yield break;
         }
 
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(timeout.Value);
+        var startTimestamp = _timeProvider.GetTimestamp();
+        var timeoutCts = new CancellationTokenSource(timeout.Value, _timeProvider);
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         // yield return is not allowed inside a try/catch block, so we capture any exception
         // from the inner enumerator and re-throw it after the yield loop completes.
@@ -124,17 +136,23 @@ internal sealed class TimeoutStreamQueryInterceptor<TQuery, TResponse> : IStream
                 catch (OperationCanceledException ex)
                     when (!cancellationToken.IsCancellationRequested && linkedToken.IsCancellationRequested)
                 {
-                    caughtExceptionInfo = ExceptionDispatchInfo.Capture(
-                        new TimeoutException(
-                            $"The stream query '{typeof(TQuery).Name}' timed out after {timeout.Value.TotalMilliseconds}ms.",
-                            ex
-                        )
-                    );
+                    caughtExceptionInfo = ExceptionDispatchInfo.Capture(CreateTimeoutException(timeout.Value, ex));
                     break;
                 }
                 catch (Exception ex)
                 {
                     caughtExceptionInfo = ExceptionDispatchInfo.Capture(ex);
+                    break;
+                }
+
+                // The deadline callback may not have run yet (e.g. thread-pool starvation), or the handler
+                // may ignore the token: never hand out an item or a completion observed after the deadline.
+                if (
+                    !cancellationToken.IsCancellationRequested
+                    && _timeProvider.GetElapsedTime(startTimestamp) >= timeout.Value
+                )
+                {
+                    caughtExceptionInfo = ExceptionDispatchInfo.Capture(CreateTimeoutException(timeout.Value, null));
                     break;
                 }
 
@@ -151,8 +169,12 @@ internal sealed class TimeoutStreamQueryInterceptor<TQuery, TResponse> : IStream
         {
             await enumerator.DisposeAsync().ConfigureAwait(false);
             cts.Dispose();
+            timeoutCts.Dispose();
         }
 
         caughtExceptionInfo?.Throw();
     }
+
+    private static TimeoutException CreateTimeoutException(TimeSpan timeout, Exception? innerException) =>
+        new($"The stream query '{typeof(TQuery).Name}' timed out after {timeout.TotalMilliseconds}ms.", innerException);
 }
