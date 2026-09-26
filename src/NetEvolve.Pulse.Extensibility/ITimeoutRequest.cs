@@ -14,12 +14,19 @@ namespace NetEvolve.Pulse.Extensibility;
 /// <list type="number">
 /// <item><description>If <see cref="Timeout"/> is non-<see langword="null"/>, that value is used as the deadline.</description></item>
 /// <item><description>If <see cref="Timeout"/> is <see langword="null"/>, the globally configured fallback timeout is used (if set).</description></item>
-/// <item><description>If neither is set, the interceptor is a transparent pass-through.</description></item>
+/// <item><description>If neither is set, or the effective value is <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>, the interceptor is a transparent pass-through.</description></item>
 /// </list>
 /// Requests that do not implement <see cref="ITimeoutRequest"/> are always passed through without any timeout.
 /// <para><strong>Distinguishing Timeout from User Cancellation:</strong></para>
 /// The interceptor correctly distinguishes between a timeout-triggered cancellation and a caller-initiated
 /// cancellation, re-throwing a <see cref="TimeoutException"/> only in the former case.
+/// <para><strong>Late Completion and Side Effects:</strong></para>
+/// The deadline is also enforced after the handler returns: a result that is produced after the deadline
+/// (for example because the handler ignores the cancellation token or the deadline callback is delayed under
+/// thread-pool starvation) is discarded and a <see cref="TimeoutException"/> is thrown instead. This applies to
+/// commands and queries alike. A command handler that finished late may already have performed its work
+/// (database writes, published events, external calls), so any retry policy that reacts to the
+/// <see cref="TimeoutException"/> must be idempotent.
 /// </remarks>
 /// <example>
 /// <code>

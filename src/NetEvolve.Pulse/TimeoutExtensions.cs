@@ -39,8 +39,10 @@ public static class TimeoutExtensions
     /// </list>
     /// Requests that do not implement <see cref="ITimeoutRequest"/> are always passed through.
     /// <para><strong>Cancellation Semantics:</strong></para>
-    /// A <see cref="TimeoutException"/> is thrown only when the deadline is exceeded.
+    /// A <see cref="TimeoutException"/> is thrown only when the deadline is exceeded, including when the handler
+    /// completes after the deadline without observing the cancellation token.
     /// Caller-initiated cancellations propagate as <see cref="OperationCanceledException"/> as usual.
+    /// The deadline is scheduled and measured with the registered <see cref="TimeProvider"/>.
     /// </remarks>
     /// <example>
     /// <para><strong>Without global timeout (only ITimeoutRequest requests with a non-null Timeout are affected):</strong></para>

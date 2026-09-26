@@ -5,11 +5,11 @@ namespace NetEvolve.Pulse.Interceptors;
 /// </summary>
 /// <remarks>
 /// <para><strong>Global Timeout:</strong></para>
-/// When <see cref="GlobalTimeout"/> is set, all requests that do not implement
-/// <see cref="Extensibility.ITimeoutRequest"/> are also subject to the global deadline.
-/// Requests that implement <see cref="Extensibility.ITimeoutRequest"/> always use their own
-/// <see cref="Extensibility.ITimeoutRequest.Timeout"/> value, which takes precedence over
-/// <see cref="GlobalTimeout"/>.
+/// <see cref="GlobalTimeout"/> is only applied to requests that implement
+/// <see cref="Extensibility.ITimeoutRequest"/> and return <see langword="null"/> from
+/// <see cref="Extensibility.ITimeoutRequest.Timeout"/>. A non-<see langword="null"/>
+/// <see cref="Extensibility.ITimeoutRequest.Timeout"/> always takes precedence, and requests that do not
+/// implement <see cref="Extensibility.ITimeoutRequest"/> are never subject to a deadline.
 /// </remarks>
 /// <example>
 /// <code>
