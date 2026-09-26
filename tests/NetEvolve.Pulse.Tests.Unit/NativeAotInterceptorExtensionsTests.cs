@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NetEvolve.Extensions.TUnit;
@@ -79,7 +80,9 @@ public sealed class NativeAotInterceptorExtensionsTests
     [Test]
     public async Task AddCommandInterceptorsCore_WithVoidResponse_ResolvesClosedKeyedInterceptors()
     {
-        var services = new ServiceCollection().AddLogging();
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         _ = services.AddPulse(config => config.AddLogging());
 
         NativeAotInterceptorExtensions.AddCommandInterceptorsCore<VoidCommand, Extensibility.Void>(services);
@@ -130,7 +133,10 @@ public sealed class NativeAotInterceptorExtensionsTests
             .AddSingleton<IRequestInterceptor<ValueCommand, int>>(_ => new ClosedRecordingInterceptor("factory"))
             .AddSingleton<IRequestInterceptor<ValueCommand, int>, DefaultRecordingInterceptor>();
         _ = new MediatorBuilder(services).AddLogging();
-        _ = services.AddLogging();
+        _ = services
+            .AddLogging()
+            .AddSingleton(TimeProvider.System)
+            .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
         NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
 
@@ -225,12 +231,13 @@ public sealed class NativeAotInterceptorExtensionsTests
     {
         var recorder = new Recorder();
         var services = CreateServices(recorder);
-        _ = services
-            .AddKeyedSingleton<IRequestInterceptor<ValueCommand, int>>(
-                Key,
-                new ClosedRecordingInterceptor("keyed", recorder)
-            )
-            .AddSingleton<IRequestInterceptor<ValueCommand, int>>(new ClosedRecordingInterceptor("unkeyed", recorder));
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+        _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
+            new ClosedRecordingInterceptor("unkeyed", recorder)
+        );
 
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -268,14 +275,13 @@ public sealed class NativeAotInterceptorExtensionsTests
     {
         var recorder = new Recorder();
         var services = CreateServices(recorder);
-        _ = services
-            .AddKeyedSingleton<IRequestInterceptor<ReferenceCommand, string>>(
-                Key,
-                new ReferenceRecordingInterceptor("keyed", recorder)
-            )
-            .AddSingleton<IRequestInterceptor<ReferenceCommand, string>>(
-                new ReferenceRecordingInterceptor("unkeyed", recorder)
-            );
+        _ = services.AddSingleton<IRequestInterceptor<ReferenceCommand, string>>(
+            new ReferenceRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ReferenceCommand, string>(services);
+        _ = services.AddSingleton<IRequestInterceptor<ReferenceCommand, string>>(
+            new ReferenceRecordingInterceptor("unkeyed", recorder)
+        );
 
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -283,7 +289,9 @@ public sealed class NativeAotInterceptorExtensionsTests
             .ServiceProvider.GetRequiredService<IMediator>()
             .SendAsync<ReferenceCommand, string>(new ReferenceCommand(), CancellationToken.None);
 
-        _ = await Assert.That(recorder.Names).IsEquivalentTo(["unkeyed"]);
+        _ = await Assert
+            .That(recorder.Names)
+            .IsEquivalentTo(["keyed", "unkeyed"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -291,14 +299,13 @@ public sealed class NativeAotInterceptorExtensionsTests
     {
         var recorder = new Recorder();
         var services = CreateServices(recorder);
-        _ = services
-            .AddKeyedSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
-                Key,
-                new StreamRecordingInterceptor("keyed", recorder)
-            )
-            .AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
-                new StreamRecordingInterceptor("unkeyed", recorder)
-            );
+        _ = services.AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
+            new StreamRecordingInterceptor("keyed", recorder)
+        );
+        NativeAotInterceptorExtensions.AddStreamQueryInterceptorsCore<RangeQuery, int>(services);
+        _ = services.AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
+            new StreamRecordingInterceptor("unkeyed", recorder)
+        );
 
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
