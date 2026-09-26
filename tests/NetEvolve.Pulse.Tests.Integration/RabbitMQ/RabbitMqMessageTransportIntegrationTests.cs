@@ -49,7 +49,10 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
                 ExchangeName,
                 ExchangeType.Fanout,
                 durable: false,
-                autoDelete: true,
+                // Not auto-delete: each test gets its own instance and connection, and closing the previous
+                // one removes its exclusive queue's binding, which would asynchronously delete the exchange
+                // between this declare and the next test's QueueBind (404 NOT_FOUND).
+                autoDelete: false,
                 cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
