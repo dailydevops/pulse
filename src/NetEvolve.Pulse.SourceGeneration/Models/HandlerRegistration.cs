@@ -27,6 +27,14 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
     public bool IsOpenGeneric { get; }
 
     /// <summary>
+    /// The generic <c>NativeAotInterceptorExtensions</c> method call, including its type arguments, that registers
+    /// closed interceptors for the handled request under NativeAOT (e.g.
+    /// <c>AddNativeAotCommandInterceptors&lt;global::Ns.MyCommand, int&gt;</c>), or <see langword="null"/> when the
+    /// request and response types are reference types.
+    /// </summary>
+    public string? NativeAotInterceptorMethod { get; }
+
+    /// <summary>
     /// Initializes a new <see cref="HandlerRegistration"/> with the specified type names, kind, and lifetime.
     /// </summary>
     /// <param name="handlerTypeName">The fully qualified name of the concrete handler class.</param>
@@ -36,12 +44,17 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
     /// <param name="isOpenGeneric">
     /// <see langword="true"/> when the registration represents an open-generic type pair.
     /// </param>
+    /// <param name="nativeAotInterceptorMethod">
+    /// The <c>NativeAotInterceptorExtensions</c> method call for value-type requests or responses, or
+    /// <see langword="null"/>.
+    /// </param>
     public HandlerRegistration(
         string handlerTypeName,
         string serviceTypeName,
         HandlerKind kind,
         int lifetime,
-        bool isOpenGeneric = false
+        bool isOpenGeneric = false,
+        string? nativeAotInterceptorMethod = null
     )
     {
         HandlerTypeName = handlerTypeName;
@@ -49,6 +62,7 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
         Kind = kind;
         Lifetime = lifetime;
         IsOpenGeneric = isOpenGeneric;
+        NativeAotInterceptorMethod = nativeAotInterceptorMethod;
     }
 
     /// <inheritdoc />
@@ -57,7 +71,8 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
         && string.Equals(ServiceTypeName, other.ServiceTypeName, StringComparison.Ordinal)
         && Kind == other.Kind
         && Lifetime == other.Lifetime
-        && IsOpenGeneric == other.IsOpenGeneric;
+        && IsOpenGeneric == other.IsOpenGeneric
+        && string.Equals(NativeAotInterceptorMethod, other.NativeAotInterceptorMethod, StringComparison.Ordinal);
 
     /// <inheritdoc />
     public override bool Equals(object obj) => obj is HandlerRegistration other && Equals(other);
@@ -73,6 +88,13 @@ internal readonly struct HandlerRegistration : IEquatable<HandlerRegistration>
             hash = (hash * 31) + (int)Kind;
             hash = (hash * 31) + Lifetime;
             hash = (hash * 31) + (IsOpenGeneric ? 1 : 0);
+            hash =
+                (hash * 31)
+                + (
+                    NativeAotInterceptorMethod is null
+                        ? 0
+                        : StringComparer.Ordinal.GetHashCode(NativeAotInterceptorMethod)
+                );
             return hash;
         }
     }
