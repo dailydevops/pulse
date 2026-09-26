@@ -228,7 +228,9 @@ internal sealed partial class PulseMediator : IMediator
         where TRequest : IRequest<TResponse>
     {
         // Retrieve all registered request interceptors, keeping registration order
-        var interceptors = _serviceProvider.GetServices<IRequestInterceptor<TRequest, TResponse>>().ToArray();
+        var interceptors = GetInterceptors<IRequestInterceptor<TRequest, TResponse>>(
+            typeof(TRequest).IsValueType || typeof(TResponse).IsValueType
+        );
 
         if (interceptors.Length == 0)
         {
@@ -271,7 +273,9 @@ internal sealed partial class PulseMediator : IMediator
         where TQuery : IStreamQuery<TResponse>
     {
         // Retrieve all registered stream query interceptors, keeping registration order
-        var interceptors = _serviceProvider.GetServices<IStreamQueryInterceptor<TQuery, TResponse>>().ToArray();
+        var interceptors = GetInterceptors<IStreamQueryInterceptor<TQuery, TResponse>>(
+            typeof(TQuery).IsValueType || typeof(TResponse).IsValueType
+        );
 
         if (interceptors.Length == 0)
         {
@@ -293,6 +297,29 @@ internal sealed partial class PulseMediator : IMediator
         }
 
         return next(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Resolves the registered interceptors in registration order. For requests with a value-type request or response,
+    /// the closed keyed interceptors registered by <see cref="NativeAotInterceptorExtensions"/> are used when present,
+    /// because the DI container cannot close open-generic interceptors over value types under NativeAOT.
+    /// </summary>
+    /// <typeparam name="TInterceptor">The closed interceptor service type.</typeparam>
+    /// <param name="hasValueTypeArgument">Whether the request or response type is a value type.</param>
+    /// <returns>The resolved interceptors.</returns>
+    private TInterceptor[] GetInterceptors<TInterceptor>(bool hasValueTypeArgument)
+        where TInterceptor : notnull
+    {
+        if (
+            hasValueTypeArgument
+            && _serviceProvider.GetService<IServiceProviderIsKeyedService>() is { } keyedServices
+            && keyedServices.IsKeyedService(typeof(NativeAotInterceptorExtensions.Marker), typeof(TInterceptor))
+        )
+        {
+            return [.. _serviceProvider.GetKeyedServices<TInterceptor>(NativeAotInterceptorExtensions.ServiceKey)];
+        }
+
+        return [.. _serviceProvider.GetServices<TInterceptor>()];
     }
 
     /// <summary>

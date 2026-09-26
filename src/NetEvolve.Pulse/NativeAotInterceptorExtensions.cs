@@ -1,8 +1,13 @@
 namespace NetEvolve.Pulse;
 
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Interceptors;
 
 /// <summary>
 /// Registers closed variants of the built-in open-generic interceptors for a single request type, so that requests
@@ -37,6 +42,27 @@ public static class NativeAotInterceptorExtensions
     internal const string ServiceKey = "NetEvolve.Pulse.NativeAotInterceptors";
 
     /// <summary>
+    /// The built-in open-generic request and stream query interceptors that can be closed.
+    /// </summary>
+    private static readonly HashSet<Type> KnownOpenInterceptors =
+    [
+        typeof(ActivityAndMetricsRequestInterceptor<,>),
+        typeof(AuditRequestInterceptor<,>),
+        typeof(CacheInvalidationInterceptor<,>),
+        typeof(CommandDeadLetterInterceptor<,>),
+        typeof(ConcurrentCommandGuardInterceptor<,>),
+        typeof(DataAnnotationsRequestInterceptor<,>),
+        typeof(DistributedCacheQueryInterceptor<,>),
+        typeof(IdempotencyCommandInterceptor<,>),
+        typeof(LoggingRequestInterceptor<,>),
+        typeof(TimeoutRequestInterceptor<,>),
+        typeof(ActivityAndMetricsStreamQueryInterceptor<,>),
+        typeof(DataAnnotationsStreamQueryInterceptor<,>),
+        typeof(LoggingStreamQueryInterceptor<,>),
+        typeof(TimeoutStreamQueryInterceptor<,>),
+    ];
+
+    /// <summary>
     /// Registers closed variants of the built-in request interceptors for the command type
     /// <typeparamref name="TCommand"/> under NativeAOT.
     /// </summary>
@@ -48,7 +74,17 @@ public static class NativeAotInterceptorExtensions
     public static IServiceCollection AddNativeAotCommandInterceptors<TCommand, TResponse>(
         this IServiceCollection services
     )
-        where TCommand : ICommand<TResponse> => throw new NotImplementedException(typeof(TCommand).Name);
+        where TCommand : ICommand<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            AddCommandInterceptorsCore<TCommand, TResponse>(services);
+        }
+
+        return services;
+    }
 
     /// <summary>
     /// Registers closed variants of the built-in request interceptors, including the concurrent command guard, for
@@ -62,7 +98,17 @@ public static class NativeAotInterceptorExtensions
     public static IServiceCollection AddNativeAotExclusiveCommandInterceptors<TCommand, TResponse>(
         this IServiceCollection services
     )
-        where TCommand : IExclusiveCommand<TResponse> => throw new NotImplementedException(typeof(TCommand).Name);
+        where TCommand : IExclusiveCommand<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            AddExclusiveCommandInterceptorsCore<TCommand, TResponse>(services);
+        }
+
+        return services;
+    }
 
     /// <summary>
     /// Registers closed variants of the built-in request interceptors, including query caching, for the query type
@@ -74,7 +120,17 @@ public static class NativeAotInterceptorExtensions
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="services"/> is <see langword="null"/>.</exception>
     public static IServiceCollection AddNativeAotQueryInterceptors<TQuery, TResponse>(this IServiceCollection services)
-        where TQuery : IQuery<TResponse> => throw new NotImplementedException(typeof(TQuery).Name);
+        where TQuery : IQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            AddQueryInterceptorsCore<TQuery, TResponse>(services);
+        }
+
+        return services;
+    }
 
     /// <summary>
     /// Registers closed variants of the built-in stream query interceptors for the stream query type
@@ -88,17 +144,265 @@ public static class NativeAotInterceptorExtensions
     public static IServiceCollection AddNativeAotStreamQueryInterceptors<TQuery, TResponse>(
         this IServiceCollection services
     )
-        where TQuery : IStreamQuery<TResponse> => throw new NotImplementedException(typeof(TQuery).Name);
+        where TQuery : IStreamQuery<TResponse>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+        {
+            AddStreamQueryInterceptorsCore<TQuery, TResponse>(services);
+        }
+
+        return services;
+    }
 
     internal static void AddCommandInterceptorsCore<TCommand, TResponse>(IServiceCollection services)
-        where TCommand : ICommand<TResponse> => throw new NotImplementedException(typeof(TCommand).Name);
+        where TCommand : ICommand<TResponse> =>
+        AddKeyedInterceptors(
+            services,
+            typeof(IRequestInterceptor<,>),
+            typeof(IRequestInterceptor<TCommand, TResponse>),
+            DescribeRequestInterceptor<TCommand, TResponse>
+        );
 
     internal static void AddExclusiveCommandInterceptorsCore<TCommand, TResponse>(IServiceCollection services)
-        where TCommand : IExclusiveCommand<TResponse> => throw new NotImplementedException(typeof(TCommand).Name);
+        where TCommand : IExclusiveCommand<TResponse> =>
+        AddKeyedInterceptors(
+            services,
+            typeof(IRequestInterceptor<,>),
+            typeof(IRequestInterceptor<TCommand, TResponse>),
+            static (openImplementationType, lifetime) =>
+                openImplementationType == typeof(ConcurrentCommandGuardInterceptor<,>)
+                    ? ServiceDescriptor.DescribeKeyed(
+                        typeof(IRequestInterceptor<TCommand, TResponse>),
+                        ServiceKey,
+                        typeof(ConcurrentCommandGuardInterceptor<TCommand, TResponse>),
+                        lifetime
+                    )
+                    : DescribeRequestInterceptor<TCommand, TResponse>(openImplementationType, lifetime)
+        );
 
     internal static void AddQueryInterceptorsCore<TQuery, TResponse>(IServiceCollection services)
-        where TQuery : IQuery<TResponse> => throw new NotImplementedException(typeof(TQuery).Name);
+        where TQuery : IQuery<TResponse> =>
+        AddKeyedInterceptors(
+            services,
+            typeof(IRequestInterceptor<,>),
+            typeof(IRequestInterceptor<TQuery, TResponse>),
+            static (openImplementationType, lifetime) =>
+                openImplementationType == typeof(DistributedCacheQueryInterceptor<,>)
+                    ? ServiceDescriptor.DescribeKeyed(
+                        typeof(IRequestInterceptor<TQuery, TResponse>),
+                        ServiceKey,
+                        typeof(DistributedCacheQueryInterceptor<TQuery, TResponse>),
+                        lifetime
+                    )
+                    : DescribeRequestInterceptor<TQuery, TResponse>(openImplementationType, lifetime)
+        );
 
     internal static void AddStreamQueryInterceptorsCore<TQuery, TResponse>(IServiceCollection services)
-        where TQuery : IStreamQuery<TResponse> => throw new NotImplementedException(typeof(TQuery).Name);
+        where TQuery : IStreamQuery<TResponse> =>
+        AddKeyedInterceptors(
+            services,
+            typeof(IStreamQueryInterceptor<,>),
+            typeof(IStreamQueryInterceptor<TQuery, TResponse>),
+            static (openImplementationType, lifetime) =>
+                CloseStreamQueryInterceptor<TQuery, TResponse>(openImplementationType) is { } implementationType
+                    ? ServiceDescriptor.DescribeKeyed(
+                        typeof(IStreamQueryInterceptor<TQuery, TResponse>),
+                        ServiceKey,
+                        implementationType,
+                        lifetime
+                    )
+                    : null
+        );
+
+    /// <summary>
+    /// Registers the closed keyed interceptors for <paramref name="closedServiceType"/> and the marker that tells the
+    /// mediator to resolve them, unless an unknown open-generic interceptor is registered.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="openServiceType">The open-generic interceptor service type.</param>
+    /// <param name="closedServiceType">The closed interceptor service type for the request.</param>
+    /// <param name="describe">
+    /// Creates the closed keyed descriptor for a built-in open-generic implementation type and lifetime, or returns
+    /// <see langword="null"/> when the implementation does not apply to the request.
+    /// </param>
+    private static void AddKeyedInterceptors(
+        IServiceCollection services,
+        Type openServiceType,
+        Type closedServiceType,
+        Func<Type, ServiceLifetime, ServiceDescriptor?> describe
+    )
+    {
+        if (services.Any(d => d.ServiceType == typeof(Marker) && closedServiceType.Equals(d.ServiceKey)))
+        {
+            return;
+        }
+
+        var keyedDescriptors = new List<ServiceDescriptor>();
+
+        foreach (var descriptor in services)
+        {
+            if (descriptor.IsKeyedService)
+            {
+                continue;
+            }
+
+            if (descriptor.ServiceType == openServiceType)
+            {
+                if (
+                    descriptor.ImplementationType is not { } openImplementationType
+                    || !KnownOpenInterceptors.Contains(openImplementationType)
+                )
+                {
+                    // An open-generic interceptor that cannot be closed here, e.g. a validation interceptor, keeps the
+                    // resolution failing instead of being skipped silently.
+                    return;
+                }
+
+                if (describe(openImplementationType, descriptor.Lifetime) is { } keyedDescriptor)
+                {
+                    keyedDescriptors.Add(keyedDescriptor);
+                }
+            }
+            else if (descriptor.ServiceType == closedServiceType)
+            {
+                keyedDescriptors.Add(ToKeyed(descriptor));
+            }
+        }
+
+        foreach (var keyedDescriptor in keyedDescriptors)
+        {
+            services.Add(keyedDescriptor);
+        }
+
+        services.Add(ServiceDescriptor.KeyedSingleton(closedServiceType, Marker.Instance));
+    }
+
+    private static ServiceDescriptor ToKeyed(ServiceDescriptor descriptor)
+    {
+        if (descriptor.ImplementationInstance is { } instance)
+        {
+            return new ServiceDescriptor(descriptor.ServiceType, ServiceKey, instance);
+        }
+
+        if (descriptor.ImplementationFactory is { } factory)
+        {
+            return new ServiceDescriptor(
+                descriptor.ServiceType,
+                ServiceKey,
+                (serviceProvider, _) => factory(serviceProvider),
+                descriptor.Lifetime
+            );
+        }
+
+        return new ServiceDescriptor(
+            descriptor.ServiceType,
+            ServiceKey,
+            descriptor.ImplementationType!,
+            descriptor.Lifetime
+        );
+    }
+
+    private static ServiceDescriptor? DescribeRequestInterceptor<TRequest, TResponse>(
+        Type openImplementationType,
+        ServiceLifetime lifetime
+    )
+        where TRequest : IRequest<TResponse> =>
+        CloseRequestInterceptor<TRequest, TResponse>(openImplementationType) is { } implementationType
+            ? ServiceDescriptor.DescribeKeyed(
+                typeof(IRequestInterceptor<TRequest, TResponse>),
+                ServiceKey,
+                implementationType,
+                lifetime
+            )
+            : null;
+
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+    private static Type? CloseRequestInterceptor<TRequest, TResponse>(Type openImplementationType)
+        where TRequest : IRequest<TResponse>
+    {
+        if (openImplementationType == typeof(ActivityAndMetricsRequestInterceptor<,>))
+        {
+            return typeof(ActivityAndMetricsRequestInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(AuditRequestInterceptor<,>))
+        {
+            return typeof(AuditRequestInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(CacheInvalidationInterceptor<,>))
+        {
+            return typeof(CacheInvalidationInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(CommandDeadLetterInterceptor<,>))
+        {
+            return typeof(CommandDeadLetterInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(DataAnnotationsRequestInterceptor<,>))
+        {
+            return typeof(DataAnnotationsRequestInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(IdempotencyCommandInterceptor<,>))
+        {
+            return typeof(IdempotencyCommandInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(LoggingRequestInterceptor<,>))
+        {
+            return typeof(LoggingRequestInterceptor<TRequest, TResponse>);
+        }
+
+        if (openImplementationType == typeof(TimeoutRequestInterceptor<,>))
+        {
+            return typeof(TimeoutRequestInterceptor<TRequest, TResponse>);
+        }
+
+        // The concurrent command guard and query caching only apply to exclusive commands and queries, which the
+        // corresponding methods close.
+        return null;
+    }
+
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+    private static Type? CloseStreamQueryInterceptor<TQuery, TResponse>(Type openImplementationType)
+        where TQuery : IStreamQuery<TResponse>
+    {
+        if (openImplementationType == typeof(ActivityAndMetricsStreamQueryInterceptor<,>))
+        {
+            return typeof(ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse>);
+        }
+
+        if (openImplementationType == typeof(DataAnnotationsStreamQueryInterceptor<,>))
+        {
+            return typeof(DataAnnotationsStreamQueryInterceptor<TQuery, TResponse>);
+        }
+
+        if (openImplementationType == typeof(LoggingStreamQueryInterceptor<,>))
+        {
+            return typeof(LoggingStreamQueryInterceptor<TQuery, TResponse>);
+        }
+
+        if (openImplementationType == typeof(TimeoutStreamQueryInterceptor<,>))
+        {
+            return typeof(TimeoutStreamQueryInterceptor<TQuery, TResponse>);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Marks a closed interceptor service type, used as the service key, whose interceptors are registered as keyed
+    /// services with <see cref="ServiceKey"/>.
+    /// </summary>
+    internal sealed class Marker
+    {
+        /// <summary>
+        /// The shared marker instance.
+        /// </summary>
+        internal static readonly Marker Instance = new();
+    }
 }
