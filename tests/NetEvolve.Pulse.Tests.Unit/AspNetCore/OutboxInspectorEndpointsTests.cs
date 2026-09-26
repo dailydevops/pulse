@@ -977,6 +977,55 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(json).Contains("\"status\":\"DeadLetter\"");
     }
 
+    [Test]
+    public async Task GetMessages_WithoutApplicationTypeInfoResolver_FallsBackToPulseContracts(
+        CancellationToken cancellationToken
+    )
+    {
+        var messages = new[]
+        {
+            new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                EventType = typeof(string),
+                Payload = "{}",
+                Status = OutboxMessageStatus.Completed,
+            },
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(messages);
+
+        // Mirrors a NativeAOT application without reflection resolver: only the Pulse contracts can resolve the models.
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                        options.SerializerOptions.TypeInfoResolverChain.Clear()
+                    )
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/outbox/messages", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"status\":\"Completed\"");
+    }
+
     // The inspector writes enums as strings, which the web defaults of ReadFromJsonAsync cannot read.
     private static readonly JsonSerializerOptions ResponseJsonOptions = new(JsonSerializerDefaults.Web)
     {

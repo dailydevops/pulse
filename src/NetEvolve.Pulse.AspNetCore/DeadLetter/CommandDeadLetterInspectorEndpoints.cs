@@ -8,8 +8,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.AspNetCore.Internals;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
+using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 /// <summary>
 /// Provides extension methods for <see cref="IEndpointRouteBuilder"/> to map read/administrative
@@ -93,15 +95,17 @@ public static class CommandDeadLetterInspectorEndpoints
 
     private static async Task<IResult> GetStatisticsAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     ) =>
         TypedResults.Json(
             await commandDeadLetterManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false),
-            PulseInspectorJsonSerializerContext.Default.CommandDeadLetterStatistics
+            PulseInspectorJsonOptions.GetTypeInfo<CommandDeadLetterStatistics>(jsonOptions)
         );
 
     private static async Task<IResult> GetPendingEntriesAsync(
         ICommandDeadLetterManagement commandDeadLetterManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken,
         int count = 50,
         int skip = 0
@@ -125,13 +129,14 @@ public static class CommandDeadLetterInspectorEndpoints
 
         return TypedResults.Json(
             await commandDeadLetterManagement.GetPendingAsync(count, skip, cancellationToken).ConfigureAwait(false),
-            PulseInspectorJsonSerializerContext.Default.IReadOnlyListCommandDeadLetterEntry
+            PulseInspectorJsonOptions.GetTypeInfo<IReadOnlyList<CommandDeadLetterEntry>>(jsonOptions)
         );
     }
 
     private static async Task<IResult> GetEntryAsync(
         Guid id,
         ICommandDeadLetterManagement commandDeadLetterManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     )
     {
@@ -139,7 +144,7 @@ public static class CommandDeadLetterInspectorEndpoints
 
         return entry is null
             ? TypedResults.NotFound()
-            : TypedResults.Json(entry, PulseInspectorJsonSerializerContext.Default.CommandDeadLetterEntry);
+            : TypedResults.Json(entry, PulseInspectorJsonOptions.GetTypeInfo<CommandDeadLetterEntry>(jsonOptions));
     }
 
     [RequiresUnreferencedCode(

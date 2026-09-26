@@ -8,8 +8,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.AspNetCore.Internals;
 using NetEvolve.Pulse.Extensibility.Audit;
+using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 /// <summary>
 /// Provides extension methods for <see cref="IEndpointRouteBuilder"/> to map read-only HTTP
@@ -83,16 +85,18 @@ public static class AuditInspectorEndpoints
 
     private static async Task<IResult> GetStatisticsAsync(
         IAuditManagement auditManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     ) =>
         TypedResults.Json(
             await auditManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false),
-            PulseInspectorJsonSerializerContext.Default.AuditStatistics
+            PulseInspectorJsonOptions.GetTypeInfo<AuditStatistics>(jsonOptions)
         );
 
     private static async Task<IResult> GetEntriesAsync(
         [AsParameters] AuditEntriesQuery query,
         IAuditManagement auditManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     )
     {
@@ -104,20 +108,21 @@ public static class AuditInspectorEndpoints
 
         return TypedResults.Json(
             await auditManagement.QueryAsync(query.ToFilter(), cancellationToken).ConfigureAwait(false),
-            PulseInspectorJsonSerializerContext.Default.IReadOnlyListAuditRecord
+            PulseInspectorJsonOptions.GetTypeInfo<IReadOnlyList<AuditRecord>>(jsonOptions)
         );
     }
 
     private static async Task<IResult> GetEntryAsync(
         Guid id,
         IAuditManagement auditManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     )
     {
         var record = await auditManagement.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
         return record is null
             ? TypedResults.NotFound()
-            : TypedResults.Json(record, PulseInspectorJsonSerializerContext.Default.AuditRecord);
+            : TypedResults.Json(record, PulseInspectorJsonOptions.GetTypeInfo<AuditRecord>(jsonOptions));
     }
 
     /// <summary>

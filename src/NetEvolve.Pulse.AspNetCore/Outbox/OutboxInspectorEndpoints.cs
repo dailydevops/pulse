@@ -8,8 +8,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.AspNetCore.Internals;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 /// <summary>
 /// Provides extension methods for <see cref="IEndpointRouteBuilder"/> to map read/administrative
@@ -101,15 +103,17 @@ public static class OutboxInspectorEndpoints
 
     private static async Task<IResult> GetStatisticsAsync(
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     ) =>
         TypedResults.Json(
             await outboxManagement.GetStatisticsAsync(cancellationToken).ConfigureAwait(false),
-            PulseInspectorJsonSerializerContext.Default.OutboxStatistics
+            PulseInspectorJsonOptions.GetTypeInfo<OutboxStatistics>(jsonOptions)
         );
 
     private static async Task<IResult> GetMessagesAsync(
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken,
         int pageSize = 50,
         int page = 0,
@@ -132,12 +136,16 @@ public static class OutboxInspectorEndpoints
             .GetMessagesAsync(pageSize, page, status, cancellationToken)
             .ConfigureAwait(false);
 
-        return TypedResults.Json(messages, PulseInspectorJsonSerializerContext.Default.IReadOnlyListOutboxMessage);
+        return TypedResults.Json(
+            messages,
+            PulseInspectorJsonOptions.GetTypeInfo<IReadOnlyList<OutboxMessage>>(jsonOptions)
+        );
     }
 
     private static async Task<IResult> GetMessageAsync(
         Guid id,
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     )
     {
@@ -145,11 +153,12 @@ public static class OutboxInspectorEndpoints
 
         return message is null
             ? TypedResults.NotFound()
-            : TypedResults.Json(message, PulseInspectorJsonSerializerContext.Default.OutboxMessage);
+            : TypedResults.Json(message, PulseInspectorJsonOptions.GetTypeInfo<OutboxMessage>(jsonOptions));
     }
 
     private static async Task<IResult> GetDeadLetterMessagesAsync(
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken,
         int pageSize = 50,
         int page = 0
@@ -164,21 +173,26 @@ public static class OutboxInspectorEndpoints
             .GetDeadLetterMessagesAsync(pageSize, page, cancellationToken)
             .ConfigureAwait(false);
 
-        return TypedResults.Json(messages, PulseInspectorJsonSerializerContext.Default.IReadOnlyListOutboxMessage);
+        return TypedResults.Json(
+            messages,
+            PulseInspectorJsonOptions.GetTypeInfo<IReadOnlyList<OutboxMessage>>(jsonOptions)
+        );
     }
 
     private static async Task<IResult> GetDeadLetterCountAsync(
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     ) =>
         TypedResults.Json(
             await outboxManagement.GetDeadLetterCountAsync(cancellationToken).ConfigureAwait(false),
-            PulseInspectorJsonSerializerContext.Default.Int64
+            PulseInspectorJsonOptions.GetTypeInfo<long>(jsonOptions)
         );
 
     private static async Task<IResult> GetDeadLetterMessageAsync(
         Guid id,
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     )
     {
@@ -186,7 +200,7 @@ public static class OutboxInspectorEndpoints
 
         return message is null
             ? TypedResults.NotFound()
-            : TypedResults.Json(message, PulseInspectorJsonSerializerContext.Default.OutboxMessage);
+            : TypedResults.Json(message, PulseInspectorJsonOptions.GetTypeInfo<OutboxMessage>(jsonOptions));
     }
 
     private static async Task<IResult> ReplayMessageAsync(
@@ -213,6 +227,7 @@ public static class OutboxInspectorEndpoints
 
     private static async Task<IResult> ReplayAllDeadLetterAsync(
         IOutboxManagement outboxManagement,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     )
     {
@@ -220,7 +235,7 @@ public static class OutboxInspectorEndpoints
 
         return TypedResults.Json(
             new OutboxReplayAllResult(count),
-            PulseInspectorJsonSerializerContext.Default.OutboxReplayAllResult
+            PulseInspectorJsonOptions.GetTypeInfo<OutboxReplayAllResult>(jsonOptions)
         );
     }
 

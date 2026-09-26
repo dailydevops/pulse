@@ -12,11 +12,13 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// outbox, audit and command dead letter inspector endpoints.
 /// </summary>
 /// <remarks>
-/// Using source-generated contracts keeps the inspector responses trim- and NativeAOT-safe and independent of the
-/// application's <c>HttpJsonOptions</c>. The responses always use <see cref="JsonSerializerDefaults.Web"/> and write
-/// <see cref="OutboxMessage.EventType"/> as its outbox event type identifier through <see cref="TypeJsonConverter"/>.
+/// The context is not used on its own. <see cref="PulseInspectorJsonOptions"/> appends it to a copy of the
+/// application's <c>HttpJsonOptions</c> as fallback resolver, so the contracts stay trim- and NativeAOT-safe while the
+/// application's naming policy and converters apply. <see cref="TypeJsonConverter"/> and the string enum converters
+/// are added there, because the converters of <see cref="JsonSourceGenerationOptionsAttribute"/> only apply to the
+/// context's own options.
 /// </remarks>
-[JsonSourceGenerationOptions(JsonSerializerDefaults.Web, Converters = [typeof(TypeJsonConverter)])]
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(OutboxStatistics))]
 [JsonSerializable(typeof(OutboxMessage))]
 [JsonSerializable(typeof(IReadOnlyList<OutboxMessage>))]
