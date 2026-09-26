@@ -43,25 +43,13 @@ public static class NativeAotInterceptorExtensions
     internal const string ServiceKey = "NetEvolve.Pulse.NativeAotInterceptors";
 
     /// <summary>
-    /// The built-in open-generic request and stream query interceptors that can be closed.
+    /// The descriptor that the describe callbacks return for a built-in interceptor that does not apply to the request
+    /// kind, for example the concurrent command guard for a query.
     /// </summary>
-    private static readonly HashSet<Type> KnownOpenInterceptors =
-    [
-        typeof(ActivityAndMetricsRequestInterceptor<,>),
-        typeof(AuditRequestInterceptor<,>),
-        typeof(CacheInvalidationInterceptor<,>),
-        typeof(CommandDeadLetterInterceptor<,>),
-        typeof(ConcurrentCommandGuardInterceptor<,>),
-        typeof(DataAnnotationsRequestInterceptor<,>),
-        typeof(DistributedCacheQueryInterceptor<,>),
-        typeof(IdempotencyCommandInterceptor<,>),
-        typeof(LoggingRequestInterceptor<,>),
-        typeof(TimeoutRequestInterceptor<,>),
-        typeof(ActivityAndMetricsStreamQueryInterceptor<,>),
-        typeof(DataAnnotationsStreamQueryInterceptor<,>),
-        typeof(LoggingStreamQueryInterceptor<,>),
-        typeof(TimeoutStreamQueryInterceptor<,>),
-    ];
+    private static readonly ServiceDescriptor NotApplicableDescriptor = new(
+        typeof(INotApplicableInterceptor),
+        new object()
+    );
 
     /// <summary>
     /// Registers closed variants of the built-in request interceptors for the command type
@@ -173,14 +161,13 @@ public static class NativeAotInterceptorExtensions
             typeof(IRequestInterceptor<,>),
             typeof(IRequestInterceptor<TCommand, TResponse>),
             static (openImplementationType, lifetime) =>
-                openImplementationType == typeof(ConcurrentCommandGuardInterceptor<,>)
-                    ? ServiceDescriptor.DescribeKeyed(
-                        typeof(IRequestInterceptor<TCommand, TResponse>),
-                        ServiceKey,
-                        typeof(ConcurrentCommandGuardInterceptor<TCommand, TResponse>),
-                        lifetime
-                    )
-                    : DescribeRequestInterceptor<TCommand, TResponse>(openImplementationType, lifetime)
+                DescribeKeyed(
+                    typeof(IRequestInterceptor<TCommand, TResponse>),
+                    openImplementationType == typeof(ConcurrentCommandGuardInterceptor<,>)
+                        ? typeof(ConcurrentCommandGuardInterceptor<TCommand, TResponse>)
+                        : CloseRequestInterceptor<TCommand, TResponse>(openImplementationType),
+                    lifetime
+                )
         );
 
     internal static void AddQueryInterceptorsCore<TQuery, TResponse>(IServiceCollection services)
@@ -190,14 +177,13 @@ public static class NativeAotInterceptorExtensions
             typeof(IRequestInterceptor<,>),
             typeof(IRequestInterceptor<TQuery, TResponse>),
             static (openImplementationType, lifetime) =>
-                openImplementationType == typeof(DistributedCacheQueryInterceptor<,>)
-                    ? ServiceDescriptor.DescribeKeyed(
-                        typeof(IRequestInterceptor<TQuery, TResponse>),
-                        ServiceKey,
-                        typeof(DistributedCacheQueryInterceptor<TQuery, TResponse>),
-                        lifetime
-                    )
-                    : DescribeRequestInterceptor<TQuery, TResponse>(openImplementationType, lifetime)
+                DescribeKeyed(
+                    typeof(IRequestInterceptor<TQuery, TResponse>),
+                    openImplementationType == typeof(DistributedCacheQueryInterceptor<,>)
+                        ? typeof(DistributedCacheQueryInterceptor<TQuery, TResponse>)
+                        : CloseRequestInterceptor<TQuery, TResponse>(openImplementationType),
+                    lifetime
+                )
         );
 
     internal static void AddStreamQueryInterceptorsCore<TQuery, TResponse>(IServiceCollection services)
@@ -207,14 +193,11 @@ public static class NativeAotInterceptorExtensions
             typeof(IStreamQueryInterceptor<,>),
             typeof(IStreamQueryInterceptor<TQuery, TResponse>),
             static (openImplementationType, lifetime) =>
-                CloseStreamQueryInterceptor<TQuery, TResponse>(openImplementationType) is { } implementationType
-                    ? ServiceDescriptor.DescribeKeyed(
-                        typeof(IStreamQueryInterceptor<TQuery, TResponse>),
-                        ServiceKey,
-                        implementationType,
-                        lifetime
-                    )
-                    : null
+                DescribeKeyed(
+                    typeof(IStreamQueryInterceptor<TQuery, TResponse>),
+                    CloseStreamQueryInterceptor<TQuery, TResponse>(openImplementationType),
+                    lifetime
+                )
         );
 
     /// <summary>
@@ -225,8 +208,9 @@ public static class NativeAotInterceptorExtensions
     /// <param name="openServiceType">The open-generic interceptor service type.</param>
     /// <param name="closedServiceType">The closed interceptor service type for the request.</param>
     /// <param name="describe">
-    /// Creates the closed keyed descriptor for a built-in open-generic implementation type and lifetime, or returns
-    /// <see langword="null"/> when the implementation does not apply to the request.
+    /// Creates the closed keyed descriptor for a built-in open-generic implementation type and lifetime. Returns
+    /// <see cref="NotApplicableDescriptor"/> when the built-in implementation does not apply to the request kind, and
+    /// <see langword="null"/> when the implementation type is unknown.
     /// </param>
     private static void AddKeyedInterceptors(
         IServiceCollection services,
@@ -256,7 +240,7 @@ public static class NativeAotInterceptorExtensions
             {
                 if (
                     descriptor.ImplementationType is not { } openImplementationType
-                    || !KnownOpenInterceptors.Contains(openImplementationType)
+                    || describe(openImplementationType, descriptor.Lifetime) is not { } keyedDescriptor
                 )
                 {
                     // An open-generic interceptor that cannot be closed here, e.g. a validation interceptor, keeps the
@@ -264,7 +248,7 @@ public static class NativeAotInterceptorExtensions
                     return;
                 }
 
-                if (describe(openImplementationType, descriptor.Lifetime) is { } keyedDescriptor)
+                if (!ReferenceEquals(keyedDescriptor, NotApplicableDescriptor))
                 {
                     keyedDescriptors.Add(keyedDescriptor);
                 }
@@ -318,14 +302,42 @@ public static class NativeAotInterceptorExtensions
         ServiceLifetime lifetime
     )
         where TRequest : IRequest<TResponse> =>
-        CloseRequestInterceptor<TRequest, TResponse>(openImplementationType) is { } implementationType
-            ? ServiceDescriptor.DescribeKeyed(
-                typeof(IRequestInterceptor<TRequest, TResponse>),
-                ServiceKey,
-                implementationType,
-                lifetime
-            )
-            : null;
+        DescribeKeyed(
+            typeof(IRequestInterceptor<TRequest, TResponse>),
+            CloseRequestInterceptor<TRequest, TResponse>(openImplementationType),
+            lifetime
+        );
+
+    /// <summary>
+    /// Creates the keyed descriptor for a closed interceptor implementation type returned by
+    /// <see cref="CloseRequestInterceptor{TRequest, TResponse}(Type)"/> or
+    /// <see cref="CloseStreamQueryInterceptor{TQuery, TResponse}(Type)"/>.
+    /// </summary>
+    /// <param name="serviceType">The closed interceptor service type.</param>
+    /// <param name="implementationType">
+    /// The closed implementation type, <see cref="INotApplicableInterceptor"/>, or <see langword="null"/> for an unknown
+    /// implementation type.
+    /// </param>
+    /// <param name="lifetime">The lifetime of the open-generic registration.</param>
+    /// <returns>
+    /// The keyed descriptor, <see cref="NotApplicableDescriptor"/> for <see cref="INotApplicableInterceptor"/>, or
+    /// <see langword="null"/> for an unknown implementation type.
+    /// </returns>
+    private static ServiceDescriptor? DescribeKeyed(
+        Type serviceType,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? implementationType,
+        ServiceLifetime lifetime
+    )
+    {
+        if (implementationType is null)
+        {
+            return null;
+        }
+
+        return implementationType == typeof(INotApplicableInterceptor)
+            ? NotApplicableDescriptor
+            : ServiceDescriptor.DescribeKeyed(serviceType, ServiceKey, implementationType, lifetime);
+    }
 
     [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
     private static Type? CloseRequestInterceptor<TRequest, TResponse>(Type openImplementationType)
@@ -371,8 +383,16 @@ public static class NativeAotInterceptorExtensions
             return typeof(TimeoutRequestInterceptor<TRequest, TResponse>);
         }
 
-        // The concurrent command guard and query caching only apply to exclusive commands and queries, which the
-        // corresponding methods close.
+        if (
+            openImplementationType == typeof(ConcurrentCommandGuardInterceptor<,>)
+            || openImplementationType == typeof(DistributedCacheQueryInterceptor<,>)
+        )
+        {
+            // The concurrent command guard and query caching only apply to exclusive commands and queries, which the
+            // corresponding methods close.
+            return typeof(INotApplicableInterceptor);
+        }
+
         return null;
     }
 
@@ -402,6 +422,11 @@ public static class NativeAotInterceptorExtensions
 
         return null;
     }
+
+    /// <summary>
+    /// Stands for a built-in interceptor that does not apply to the request kind.
+    /// </summary>
+    private interface INotApplicableInterceptor;
 
     /// <summary>
     /// Marks a closed interceptor service type, used as the service key, whose interceptors are registered as keyed
