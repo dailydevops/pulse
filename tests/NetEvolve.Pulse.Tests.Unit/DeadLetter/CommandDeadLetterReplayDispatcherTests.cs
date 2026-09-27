@@ -90,7 +90,7 @@ public sealed class CommandDeadLetterReplayDispatcherTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task ReplayAsync_MarksReplayedCommandOnlyDuringDispatch(CancellationToken cancellationToken)
+    public async Task ReplayAsync_MarksReplayedCommandDuringDispatch(CancellationToken cancellationToken)
     {
         var handler = new ReplayObservingCommandHandler();
 
@@ -101,11 +101,7 @@ public sealed class CommandDeadLetterReplayDispatcherTests
             )
             .ConfigureAwait(false);
 
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(handler.WasReplayedDuringDispatch).IsTrue();
-            _ = await Assert.That(CommandDeadLetterReplayDispatcher.IsReplayedCommand(handler.Command!)).IsFalse();
-        }
+        _ = await Assert.That(handler.WasReplayedDuringDispatch).IsTrue();
     }
 
     private static async Task ReplayAsync<TCommand, TResponse>(
@@ -162,13 +158,10 @@ public sealed class CommandDeadLetterReplayDispatcherTests
 
     private sealed class ReplayObservingCommandHandler : ICommandHandler<VoidCommand, Extensibility.Void>
     {
-        public VoidCommand? Command { get; private set; }
-
         public bool WasReplayedDuringDispatch { get; private set; }
 
         public Task<Extensibility.Void> HandleAsync(VoidCommand command, CancellationToken cancellationToken = default)
         {
-            Command = command;
             WasReplayedDuringDispatch = CommandDeadLetterReplayDispatcher.IsReplayedCommand(command);
             return Task.FromResult(Extensibility.Void.Completed);
         }

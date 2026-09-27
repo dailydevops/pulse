@@ -712,7 +712,7 @@ public abstract class CommandDeadLetterTestsBase(
             .StoreAsync(
                 typeof(TestReplayCommand).AssemblyQualifiedName!,
                 serializer.Serialize(new TestReplayCommand("replay-value")),
-                new InvalidOperationException("boom"),
+                new NotSupportedException("boom"),
                 token
             )
             .ConfigureAwait(false);
