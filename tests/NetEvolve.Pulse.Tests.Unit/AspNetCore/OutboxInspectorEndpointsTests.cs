@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -790,10 +792,10 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(body).IsEqualTo("""{"count":7}""");
     }
 
-    // Inspector responses use the Pulse web defaults, independent of the application's HTTP JSON options
+    // Inspector responses honor the application's HTTP JSON options and write enums as numbers by default
 
     [Test]
-    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesCamelCaseJson(
+    public async Task GetStatistics_WithPascalCaseHttpJsonOptions_WritesPascalCaseJson(
         CancellationToken cancellationToken
     )
     {
@@ -827,14 +829,14 @@ public sealed class OutboxInspectorEndpointsTests
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(json).Contains("\"pending\":1");
-        _ = await Assert.That(json).Contains("\"deadLetter\":5");
+        _ = await Assert.That(json).Contains("\"Pending\":1");
+        _ = await Assert.That(json).Contains("\"DeadLetter\":5");
     }
 
     // Concurrent requests — smoke test for the message endpoints under parallel load. It does NOT reliably
     // reproduce the pre-#770 read-only JsonSerializerOptions race (see #792/#800). The actual guard is that the
-    // endpoints serialize via PulseInspectorJsonSerializerContext JsonTypeInfo overloads instead of shared
-    // JsonSerializerOptions passed to TypedResults.Json.
+    // endpoints serialize via JsonTypeInfo overloads resolved from the PulseInspectorJsonOptions copy instead of
+    // shared JsonSerializerOptions passed to TypedResults.Json.
 
     [Test]
     public async Task MessageEndpoints_WithConcurrentRequests_AllReturnOk(CancellationToken cancellationToken)
@@ -892,6 +894,132 @@ public sealed class OutboxInspectorEndpointsTests
                 response.Dispose();
             }
         }
+    }
+
+    [Test]
+    public async Task GetEntry_WithSnakeCaseHttpJsonOptionsAndCustomEnumConverter_HonorsApplicationOptions(
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+        var message = new OutboxMessage
+        {
+            Id = messageId,
+            EventType = typeof(string),
+            Payload = "{}",
+            Status = OutboxMessageStatus.DeadLetter,
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(message);
+
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                    {
+                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                        options.SerializerOptions.Converters.Add(
+                            new JsonStringEnumConverter<OutboxMessageStatus>(JsonNamingPolicy.KebabCaseLower)
+                        );
+                    })
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages/{messageId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains($"\"event_type\":\"{typeof(string).ToOutboxEventTypeName()}\"");
+        _ = await Assert.That(json).Contains("\"status\":\"dead-letter\"");
+    }
+
+    [Test]
+    public async Task GetEntry_WithDefaultHttpJsonOptions_WritesCamelCaseJsonAndEnumsAsNumbers(
+        CancellationToken cancellationToken
+    )
+    {
+        var messageId = Guid.NewGuid();
+        var message = new OutboxMessage
+        {
+            Id = messageId,
+            EventType = typeof(string),
+            Payload = "{}",
+            Status = OutboxMessageStatus.DeadLetter,
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(message);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/messages/{messageId}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains($"\"eventType\":\"{typeof(string).ToOutboxEventTypeName()}\"");
+        _ = await Assert.That(json).Contains("\"status\":4");
+    }
+
+    [Test]
+    public async Task GetMessages_WithoutApplicationTypeInfoResolver_FallsBackToPulseContracts(
+        CancellationToken cancellationToken
+    )
+    {
+        var messages = new[]
+        {
+            new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                EventType = typeof(string),
+                Payload = "{}",
+                Status = OutboxMessageStatus.Completed,
+            },
+        };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(messages);
+
+        // Mirrors a NativeAOT application without reflection resolver: only the Pulse contracts can resolve the models.
+        using var host = await CreateTestHostAsync(
+                mock.Object,
+                null,
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                        options.SerializerOptions.TypeInfoResolverChain.Clear()
+                    )
+            )
+            .ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri("/pulse/outbox/messages", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(json).Contains("\"status\":2");
     }
 
     private static async Task<IHost> CreateTestHostAsync(

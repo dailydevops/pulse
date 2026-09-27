@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -120,6 +121,156 @@ public sealed class AzureQueueStorageMessageTransportTests
             _ = await Assert.That(root.GetProperty("causationId").GetString()).IsEqualTo("cause-456");
             _ = await Assert.That(root.GetProperty("createdAt").GetDateTimeOffset()).IsEqualTo(message.CreatedAt);
         }
+    }
+
+    [Test]
+    public async Task SendAsync_With_custom_converter_honors_configured_JsonSerializerOptions(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { Converters = { new UnixSecondsDateTimeOffsetConverter() } }
+        );
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert
+            .That(doc.RootElement.GetProperty("createdAt").GetInt64())
+            .IsEqualTo(message.CreatedAt.ToUnixTimeSeconds());
+    }
+
+    [Test]
+    public async Task SendAsync_With_custom_naming_policy_keeps_envelope_property_names(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseUpper }
+        );
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert
+            .That(doc.RootElement.EnumerateObject().Select(property => property.Name))
+            .IsEquivalentTo(["id", "eventType", "payload", "correlationId", "causationId", "createdAt"]);
+    }
+
+    [Test]
+    public async Task SendAsync_With_ignore_null_values_keeps_all_envelope_properties(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull }
+        );
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert.That(doc.RootElement.GetProperty("causationId").ValueKind).IsEqualTo(JsonValueKind.Null);
+    }
+
+    [Test]
+    public async Task SendAsync_With_unrelated_source_generated_resolver_writes_envelope(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { TypeInfoResolver = UnrelatedJsonSerializerContext.Default }
+        );
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert.That(doc.RootElement.GetProperty("id").GetGuid()).IsEqualTo(message.Id);
+    }
+
+    [Test]
+    public async Task SendAsync_With_preserve_reference_handler_keeps_envelope_property_set(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { ReferenceHandler = ReferenceHandler.Preserve }
+        );
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert
+            .That(doc.RootElement.EnumerateObject().Select(property => property.Name))
+            .IsEquivalentTo(["id", "eventType", "payload", "correlationId", "causationId", "createdAt"]);
+    }
+
+    [Test]
+    public async Task SendAsync_With_ignore_default_values_keeps_all_envelope_properties(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(
+            fakeClient,
+            new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault }
+        );
+        var message = CreateOutboxMessage();
+        message.Id = Guid.Empty;
+        message.CreatedAt = default;
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        using var doc = JsonDocument.Parse(
+            Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]))
+        );
+
+        _ = await Assert
+            .That(doc.RootElement.EnumerateObject().Select(property => property.Name))
+            .IsEquivalentTo(["id", "eventType", "payload", "correlationId", "causationId", "createdAt"]);
+    }
+
+    [Test]
+    public async Task SendAsync_With_write_indented_writes_compact_envelope(CancellationToken cancellationToken)
+    {
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(fakeClient, new JsonSerializerOptions { WriteIndented = true });
+        var message = CreateOutboxMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(fakeClient.SentMessages[0]));
+
+        _ = await Assert.That(json).DoesNotContain("\n");
     }
 
     [Test]
@@ -251,6 +402,17 @@ public sealed class AzureQueueStorageMessageTransportTests
         return new AzureQueueStorageMessageTransport(options, fakeClient);
     }
 
+    private static AzureQueueStorageMessageTransport CreateTransport(
+        FakeQueueClient fakeClient,
+        JsonSerializerOptions jsonSerializerOptions
+    )
+    {
+        var options = Options.Create(
+            new AzureQueueStorageTransportOptions { ConnectionString = "UseDevelopmentStorage=true" }
+        );
+        return new AzureQueueStorageMessageTransport(options, fakeClient, Options.Create(jsonSerializerOptions));
+    }
+
     private static OutboxMessage CreateOutboxMessage(string? payload = null) =>
         new()
         {
@@ -357,4 +519,20 @@ public sealed class AzureQueueStorageMessageTransportTests
         public string Id { get; init; } = Guid.NewGuid().ToString();
         public DateTimeOffset? PublishedAt { get; set; }
     }
+
+    private sealed class UnixSecondsDateTimeOffsetConverter : JsonConverter<DateTimeOffset>
+    {
+        public override DateTimeOffset Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        ) => DateTimeOffset.FromUnixTimeSeconds(reader.GetInt64());
+
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options) =>
+            writer.WriteNumberValue(value.ToUnixTimeSeconds());
+    }
 }
+
+// An application context that knows nothing about the transport envelope.
+[JsonSerializable(typeof(int))]
+internal sealed partial class UnrelatedJsonSerializerContext : JsonSerializerContext;
