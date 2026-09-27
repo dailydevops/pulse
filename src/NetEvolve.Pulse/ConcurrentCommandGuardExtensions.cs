@@ -83,8 +83,9 @@ public static class ConcurrentCommandGuardExtensions
     /// <description>
     /// <see cref="IRequestInterceptor{TRequest,TResponse}"/> is added with a singleton factory that delegates
     /// to the concrete interceptor. It is added alongside any other interceptor already registered for the
-    /// same <typeparamref name="TRequest"/> / <typeparamref name="TResponse"/> pair, so the registration order
-    /// relative to other interceptors does not matter.
+    /// same <typeparamref name="TRequest"/> / <typeparamref name="TResponse"/> pair, so the guard is registered
+    /// whatever the registration order. The registration order still decides the guard's position in the
+    /// interceptor pipeline, because interceptors are applied in reverse registration order.
     /// </description>
     /// </item>
     /// </list>
