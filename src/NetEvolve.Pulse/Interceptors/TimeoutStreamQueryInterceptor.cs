@@ -22,7 +22,7 @@ using NetEvolve.Pulse.Extensibility;
 /// <list type="number">
 /// <item><description><see cref="ITimeoutRequest.Timeout"/> — used when non-<see langword="null"/>.</description></item>
 /// <item><description><see cref="TimeoutRequestInterceptorOptions.GlobalTimeout"/> — used as fallback when <see cref="ITimeoutRequest.Timeout"/> is <see langword="null"/>.</description></item>
-/// <item><description>If neither is set, the interceptor is a transparent pass-through for that query.</description></item>
+/// <item><description>If neither is set, or the effective value is <see cref="Timeout.InfiniteTimeSpan"/>, the interceptor is a transparent pass-through for that query.</description></item>
 /// </list>
 /// <para><strong>Cancellation Semantics:</strong></para>
 /// The interceptor correctly distinguishes between a timeout-triggered cancellation and a
@@ -99,8 +99,8 @@ internal sealed class TimeoutStreamQueryInterceptor<TQuery, TResponse> : IStream
         // Resolve effective timeout: per-request value first, global fallback second.
         var timeout = timeoutRequest.Timeout ?? _options.Value.GlobalTimeout;
 
-        // No timeout configured — transparent pass-through.
-        if (timeout is null)
+        // No timeout configured (or an infinite one) — transparent pass-through.
+        if (timeout is null || timeout.Value == Timeout.InfiniteTimeSpan)
         {
             await foreach (
                 var item in handler(request, cancellationToken)

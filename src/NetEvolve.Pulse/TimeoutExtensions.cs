@@ -35,12 +35,14 @@ public static class TimeoutExtensions
     /// <list type="number">
     /// <item><description><see cref="ITimeoutRequest.Timeout"/> — used when non-<see langword="null"/>.</description></item>
     /// <item><description><paramref name="globalTimeout"/> — used as fallback when <see cref="ITimeoutRequest.Timeout"/> is <see langword="null"/>.</description></item>
-    /// <item><description>If neither is set, the interceptor is a transparent pass-through.</description></item>
+    /// <item><description>If neither is set, or the effective value is <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>, the interceptor is a transparent pass-through.</description></item>
     /// </list>
     /// Requests that do not implement <see cref="ITimeoutRequest"/> are always passed through.
     /// <para><strong>Cancellation Semantics:</strong></para>
-    /// A <see cref="TimeoutException"/> is thrown only when the deadline is exceeded.
+    /// A <see cref="TimeoutException"/> is thrown only when the deadline is exceeded, including when the handler
+    /// completes after the deadline without observing the cancellation token.
     /// Caller-initiated cancellations propagate as <see cref="OperationCanceledException"/> as usual.
+    /// The deadline is scheduled and measured with the registered <see cref="TimeProvider"/>.
     /// </remarks>
     /// <example>
     /// <para><strong>Without global timeout (only ITimeoutRequest requests with a non-null Timeout are affected):</strong></para>

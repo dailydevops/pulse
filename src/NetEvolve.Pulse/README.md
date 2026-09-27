@@ -187,6 +187,38 @@ Behavior summary:
 | `ExpirationMode = Absolute` (default) | `Expiry` (or `DefaultExpiry`) is applied as absolute expiry relative to now |
 | `ExpirationMode = Sliding` | `Expiry` (or `DefaultExpiry`) window resets on each cache access |
 
+### Request Timeouts
+
+Enforce a per-request deadline for commands and queries that implement `ITimeoutRequest` (from `NetEvolve.Pulse.Extensibility`). All other requests pass through unchanged.
+
+```csharp
+// Optional global fallback for ITimeoutRequest implementations that return a null Timeout
+services.AddPulse(config => config.AddRequestTimeout(TimeSpan.FromSeconds(30)));
+
+public record ProcessOrderCommand(string OrderId) : ICommand<OrderResult>, ITimeoutRequest
+{
+    public string? CorrelationId { get; set; }
+    public string? CausationId { get; set; }
+
+    public TimeSpan? Timeout => TimeSpan.FromSeconds(10);
+}
+```
+
+Behavior summary:
+
+| Scenario | Result |
+| --- | --- |
+| Handler completes within the deadline | Result returned |
+| Handler observes the cancelled token after the deadline | `TimeoutException` |
+| Handler ignores the token and returns after the deadline | `TimeoutException`; the late result is discarded |
+| Caller cancels the `CancellationToken` | `OperationCanceledException` (never `TimeoutException`) |
+| `Timeout` and `GlobalTimeout` are `null`, or `Timeout` is `Timeout.InfiniteTimeSpan` | Pass-through without deadline |
+| Request does **not** implement `ITimeoutRequest` | Pass-through without deadline |
+
+The deadline is scheduled and measured with the registered `TimeProvider`, so it can be controlled in tests.
+
+> **Side effects:** the interceptor cannot undo work. A command handler that finished after the deadline may already have written data, published events or called external systems before the `TimeoutException` is thrown. Any retry policy that reacts to a `TimeoutException` must therefore be idempotent (for example by combining it with `IIdempotentCommand<TResponse>` or natural idempotency keys).
+
 ### Outbox Pattern Configuration
 
 The outbox pattern ensures reliable event delivery by persisting events before dispatching:
