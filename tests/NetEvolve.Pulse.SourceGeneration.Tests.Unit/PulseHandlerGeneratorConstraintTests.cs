@@ -178,6 +178,33 @@ public class PulseHandlerGeneratorConstraintTests
             """
     )]
     [Arguments(
+        "ArrayConstraint",
+        """
+            public sealed record C1 : ICommand<string>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>, IComparable<TResult[]>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """
+    )]
+    [Arguments(
+        "StructConstraintOnNullableResultTypeParameter",
+        """
+            public sealed record C1 : ICommand<int?>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+                where TResult : struct
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult));
+            }
+            """
+    )]
+    [Arguments(
         "ClassConstraintOnStreamQueryResult",
         """
             public sealed record S1 : IStreamQuery<int>;
@@ -255,6 +282,35 @@ public class PulseHandlerGeneratorConstraintTests
             """
     )]
     [Arguments(
+        "ValueTypeMessageWithNewConstraintSatisfied",
+        """
+            public record struct C1 : ICommand<string>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : struct, ICommand<TResult>, new()
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """
+    )]
+    [Arguments(
+        "ArrayConstraintSatisfied",
+        """
+            public sealed record C1 : ICommand<string>, IComparable<string[]>
+            {
+                public int CompareTo(string[]? other) => 0;
+            }
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>, IComparable<TResult[]>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """
+    )]
+    [Arguments(
         "EventHandlerConstraintsSatisfied",
         """
             public record struct E1 : IEvent, IMarker
@@ -275,6 +331,62 @@ public class PulseHandlerGeneratorConstraintTests
             """
     )]
     public async Task WhenGenericHandlerConstraintsSatisfiedThenRegistrationGeneratedWithoutErrors(
+        string scenario,
+        string declarations
+    )
+    {
+        var (pulseDiagnostics, generatedErrors) = RunGenerator(declarations);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(pulseDiagnostics).IsEmpty().Because(scenario);
+            _ = await Assert.That(generatedErrors).IsEmpty().Because(scenario);
+        }
+    }
+
+    [Test]
+    [Arguments(
+        "ConcreteHandlerWithSeveralEventHandlerInterfaces",
+        """
+            public sealed record E1 : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            public sealed record E2 : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler<E2>]
+            public sealed class H1 : IEventHandler<E1>, IEventHandler<E2>
+            {
+                public Task HandleAsync(E1 message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+                public Task HandleAsync(E2 message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            }
+            """
+    )]
+    [Arguments(
+        "ConcreteHandlerWithSeveralCommandHandlerInterfaces",
+        """
+            public sealed record C1 : ICommand<string>;
+            public sealed record C2 : ICommand<int>;
+
+            [PulseHandler<C2>]
+            public sealed class H1 : ICommandHandler<C1, string>, ICommandHandler<C2, int>
+            {
+                public Task<string> HandleAsync(C1 command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                public Task<int> HandleAsync(C2 command, CancellationToken cancellationToken = default) => Task.FromResult(0);
+            }
+            """
+    )]
+    public async Task WhenConcreteHandlerImplementsSeveralHandlerInterfacesThenExplicitMessageTypeIsRegistered(
         string scenario,
         string declarations
     )
