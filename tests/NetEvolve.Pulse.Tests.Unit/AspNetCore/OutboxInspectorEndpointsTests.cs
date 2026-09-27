@@ -831,6 +831,69 @@ public sealed class OutboxInspectorEndpointsTests
         _ = await Assert.That(json).Contains("\"deadLetter\":5");
     }
 
+    // Concurrent requests — smoke test for the message endpoints under parallel load. It does NOT reliably
+    // reproduce the pre-#770 read-only JsonSerializerOptions race (see #792/#800). The actual guard is that the
+    // endpoints serialize via PulseInspectorJsonSerializerContext JsonTypeInfo overloads instead of shared
+    // JsonSerializerOptions passed to TypedResults.Json.
+
+    [Test]
+    public async Task MessageEndpoints_WithConcurrentRequests_AllReturnOk(CancellationToken cancellationToken)
+    {
+        var message = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            EventType = typeof(string),
+            Payload = "{}",
+            Status = OutboxMessageStatus.DeadLetter,
+        };
+        var messages = new[] { message };
+
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetDeadLetterMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(message);
+        _ = mock.GetMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(message);
+        _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(messages);
+        _ = mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(messages);
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        string[] paths =
+        [
+            $"/pulse/outbox/dead-letters/{message.Id}",
+            "/pulse/outbox/dead-letters",
+            $"/pulse/outbox/messages/{message.Id}",
+            "/pulse/outbox/messages",
+        ];
+
+        var responses = await Task.WhenAll(
+                Enumerable
+                    .Range(0, 32)
+                    .Select(i => client.GetAsync(new Uri(paths[i % paths.Length], UriKind.Relative), cancellationToken))
+            )
+            .ConfigureAwait(false);
+
+        try
+        {
+            var statusCodes = responses.Select(response => response.StatusCode).ToArray();
+
+            _ = await Assert.That(statusCodes).All(statusCode => statusCode == HttpStatusCode.OK);
+        }
+        finally
+        {
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
+        }
+    }
+
     private static async Task<IHost> CreateTestHostAsync(
         IOutboxManagement outboxManagement,
         Action<OutboxInspectorOptions>? configure,
