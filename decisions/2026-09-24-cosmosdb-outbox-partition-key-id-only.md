@@ -13,13 +13,15 @@ lastModified: 2026-09-24
 state: proposed
 
 instructions: |
-  The Cosmos DB outbox container MUST be partitioned on /id; CosmosDbOutboxOptions.PartitionKeyPath MUST only accept "/id" (ordinal) and MUST throw an ArgumentException naming the option when CosmosDbOutboxRepository or CosmosDbOutboxManagement is constructed with any other value.
+  The Cosmos DB outbox container MUST be partitioned on /id; CosmosDbOutboxOptions.PartitionKeyPath MUST only accept "/id" (ordinal).
+  Any other value MUST fail at host startup through CosmosDbOutboxOptionsValidator (IValidateOptions, registered with TryAddEnumerable and ValidateOnStart by AddCosmosDbOutbox and UseCosmosDbOutbox), with a message naming the option.
+  CosmosDbOutboxRepository and CosmosDbOutboxManagement MUST keep throwing an ArgumentException for such a value when constructed, as a fallback.
   Point operations MUST keep using new PartitionKey(id); MUST NOT add a configurable partition key value without superseding this decision.
 ---
 
 # Decision: Cosmos DB Outbox Supports Only the `/id` Partition Key Path
 
-The Cosmos DB outbox provider supports only containers partitioned on `/id`. `CosmosDbOutboxOptions.PartitionKeyPath` keeps its default `/id`, and any other value is rejected when the repository or the management API is constructed.
+The Cosmos DB outbox provider supports only containers partitioned on `/id`. `CosmosDbOutboxOptions.PartitionKeyPath` keeps its default `/id`, and any other value is rejected at host startup.
 
 ## Context
 
@@ -27,14 +29,16 @@ Every point operation of `CosmosDbOutboxRepository` and `CosmosDbOutboxManagemen
 
 ## Decision
 
-- `PartitionKeyPath` accepts only `/id` (ordinal comparison). Anything else, including `/Id`, `/id/`, empty or whitespace, throws an `ArgumentException` that names the option and the supported value.
-- The check runs in the constructors of `CosmosDbOutboxRepository` and `CosmosDbOutboxManagement`, so it fires on first resolution of these scoped services.
+- `PartitionKeyPath` accepts only `/id` (ordinal comparison). Anything else, including `/Id`, `/id/`, empty or whitespace, is rejected with a message that names the option and the supported value.
+- The check runs at host startup: `AddCosmosDbOutbox` and `UseCosmosDbOutbox` register an internal `CosmosDbOutboxOptionsValidator` (`IValidateOptions<CosmosDbOutboxOptions>`) with `TryAddEnumerable` and call `ValidateOnStart()`, as the Azure Queue Storage, Azure Service Bus, Dapr, RabbitMQ and Redis providers do. A bad value makes `IHost.StartAsync` throw an `OptionsValidationException`, and so does any later resolution of the options.
+- The constructors of `CosmosDbOutboxRepository` and `CosmosDbOutboxManagement` keep the same check and throw an `ArgumentException`, for options that do not go through the validator.
 - The XML documentation and the package README state that the container must be partitioned on `/id`.
 
 ## Consequences
 
-- A misconfigured container fails loudly instead of stalling the outbox silently. The outbox processor logs the error on every poll cycle and storing an outbox message throws.
-- Configurations that set `PartitionKeyPath` to another value purely as documentation, on an `/id` container, now throw and must remove the setting or set it to `/id`.
+- A misconfigured `PartitionKeyPath` stops the host at startup instead of stalling the outbox silently.
+- Configurations that set `PartitionKeyPath` to another value purely as documentation, on an `/id` container, now fail at startup and must remove the setting or set it to `/id`.
+- The option value is checked, not the container. A container created with another partition key path while the option keeps `/id` still returns `404 Not Found` on point operations; the README and XML documentation state the container requirement.
 - Status queries keep fanning out to all physical partitions. TTL cleanup keeps the container small.
 
 ## Alternatives Considered
