@@ -52,7 +52,8 @@ _ = await database.Database.CreateContainerIfNotExistsAsync(
     new ContainerProperties(id: "outbox_messages", partitionKeyPath: "/id")
     {
         // Required when EnableTimeToLive is true: -1 turns TTL on without expiring
-        // documents that carry no "ttl" property (pending, processing, failed).
+        // documents that carry no "ttl" property (pending, processing, failed) or
+        // "ttl": -1 (dead-letter messages replayed to pending).
         DefaultTimeToLive = -1,
     });
 ```
@@ -128,7 +129,7 @@ services.AddPulse(config => config
 | `DatabaseName` | `string` | _(required)_ | The Cosmos DB database name. The database must exist. |
 | `ContainerName` | `string` | `outbox_messages` | The Cosmos DB container name. The container must exist. |
 | `PartitionKeyPath` | `string` | `/id` | Informational only. The container must use `/id` (see [Container Setup](#container-setup)). |
-| `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. Requires `DefaultTimeToLive` on the container. |
+| `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. Replaying a dead-letter message sets its `ttl` to `-1`, so it does not expire while pending. Requires `DefaultTimeToLive` on the container. |
 | `TtlSeconds` | `int` | `86400` (24 hours) | TTL in seconds for completed and dead-letter documents. Only applies when `EnableTimeToLive` is `true`. |
 
 ## Concurrency
