@@ -183,14 +183,39 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
                 await GetEntryByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
                 ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
+            if (entry.Status == CommandDeadLetterStatus.Dismissed)
+            {
+                throw new CommandDeadLetterEntryDismissedException(id);
+            }
+
             _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
 
-            await CommandDeadLetterReplayDispatcher
-                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await CommandDeadLetterReplayDispatcher
+                    .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                try
+                {
+                    // Not cancellable: the reset must also run when the replay was cancelled.
+                    _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.New, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed reset must not hide the replay failure: the entry stays in Replaying
+                    // and the original exception is rethrown below.
+                }
 
-            _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, cancellationToken)
+                throw;
+            }
+
+            // Not cancellable: the command has already been executed.
+            _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, CancellationToken.None)
                 .ConfigureAwait(false);
         }
     }

@@ -85,16 +85,47 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entry = await GetRequiredEntryAsync(id, cancellationToken).ConfigureAwait(false);
+        if (entry.Status == CommandDeadLetterStatus.Dismissed)
+        {
+            throw new CommandDeadLetterEntryDismissedException(id);
+        }
 
         entry.Status = CommandDeadLetterStatus.Replaying;
         _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        await CommandDeadLetterReplayDispatcher
-            .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await CommandDeadLetterReplayDispatcher
+                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            // Not cancellable: the reset must also run when the replay was cancelled.
+            try
+            {
+                DiscardPendingChanges();
+                if (_context.Entry(entry).State == EntityState.Detached)
+                {
+                    // The handler cleared the change tracker.
+                    _ = _context.Attach(entry);
+                }
 
+                entry.Status = CommandDeadLetterStatus.New;
+                _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // A failed reset must not hide the replay failure: the entry stays in Replaying
+                // and the original exception is rethrown below.
+            }
+
+            throw;
+        }
+
+        // Not cancellable: the command has already been executed.
         entry.Status = CommandDeadLetterStatus.Resolved;
-        _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -121,6 +152,35 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
             ResolvedCount: counts.GetValueOrDefault(CommandDeadLetterStatus.Resolved),
             DismissedCount: counts.GetValueOrDefault(CommandDeadLetterStatus.Dismissed)
         );
+    }
+
+    /// <summary>
+    /// Discards the unsaved changes a failed replay left in the shared context, so the reset
+    /// neither persists them nor fails on them.
+    /// </summary>
+    /// <remarks>
+    /// Changes the caller made before the replay were already saved together with the
+    /// <see cref="CommandDeadLetterStatus.Replaying"/> status, so every pending change belongs to the
+    /// replayed handler. Entities that are tracked without changes stay attached.
+    /// </remarks>
+    private void DiscardPendingChanges()
+    {
+        foreach (
+            var tracked in _context
+                .ChangeTracker.Entries()
+                .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+                .ToList()
+        )
+        {
+            if (tracked.State == EntityState.Added)
+            {
+                tracked.State = EntityState.Detached;
+                continue;
+            }
+
+            tracked.CurrentValues.SetValues(tracked.OriginalValues);
+            tracked.State = EntityState.Unchanged;
+        }
     }
 
     /// <summary>

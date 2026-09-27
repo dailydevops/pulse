@@ -180,14 +180,39 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
                 await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
                 ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
+            if (entry.Status == CommandDeadLetterStatus.Dismissed)
+            {
+                throw new CommandDeadLetterEntryDismissedException(id);
+            }
+
             await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
 
-            await CommandDeadLetterReplayDispatcher
-                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await CommandDeadLetterReplayDispatcher
+                    .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                try
+                {
+                    // Not cancellable: the reset must also run when the replay was cancelled.
+                    await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.New, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed reset must not hide the replay failure: the entry stays in Replaying
+                    // and the original exception is rethrown below.
+                }
 
-            await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, cancellationToken)
+                throw;
+            }
+
+            // Not cancellable: the command has already been executed.
+            await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, CancellationToken.None)
                 .ConfigureAwait(false);
         }
     }

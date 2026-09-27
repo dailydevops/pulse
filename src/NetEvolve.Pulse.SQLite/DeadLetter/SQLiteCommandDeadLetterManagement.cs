@@ -53,6 +53,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     // Cached SQL statements
     private readonly string _getPendingSql;
     private readonly string _getByIdSql;
+    private readonly string _setNewSql;
     private readonly string _setReplayingSql;
     private readonly string _setResolvedSql;
     private readonly string _dismissSql;
@@ -111,6 +112,12 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
                 "{CommandDeadLetterSchema.Columns.AttemptCount}",
                 "{CommandDeadLetterSchema.Columns.Status}"
             FROM {table}
+            WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id;
+            """;
+
+        _setNewSql = $"""
+            UPDATE {table}
+            SET "{CommandDeadLetterSchema.Columns.Status}" = 0
             WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id;
             """;
 
@@ -189,23 +196,59 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
                 await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
                 ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
-            var replayingCommand = new SqliteCommand(_setReplayingSql, connection);
-            await using (replayingCommand.ConfigureAwait(false))
+            if (entry.Status == CommandDeadLetterStatus.Dismissed)
             {
-                _ = replayingCommand.Parameters.AddWithValue("@id", id.ToString());
-                _ = await replayingCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                throw new CommandDeadLetterEntryDismissedException(id);
             }
 
-            await CommandDeadLetterReplayDispatcher
-                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-                .ConfigureAwait(false);
+            await SetStatusAsync(connection, _setReplayingSql, id, cancellationToken).ConfigureAwait(false);
 
-            var resolvedCommand = new SqliteCommand(_setResolvedSql, connection);
-            await using (resolvedCommand.ConfigureAwait(false))
+            try
             {
-                _ = resolvedCommand.Parameters.AddWithValue("@id", id.ToString());
-                _ = await resolvedCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                await CommandDeadLetterReplayDispatcher
+                    .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                    .ConfigureAwait(false);
             }
+            catch
+            {
+                try
+                {
+                    // Not cancellable: the reset must also run when the replay was cancelled.
+                    await SetStatusAsync(connection, _setNewSql, id, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed reset must not hide the replay failure: the entry stays in Replaying
+                    // and the original exception is rethrown below.
+                }
+
+                throw;
+            }
+
+            // Not cancellable: the command has already been executed.
+            await SetStatusAsync(connection, _setResolvedSql, id, CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Executes a status update statement for the dead letter entry identified by <paramref name="id"/>.
+    /// </summary>
+    /// <param name="connection">The open connection to use for the update.</param>
+    /// <param name="sql">The cached status update statement to execute.</param>
+    /// <param name="id">The identifier of the dead letter entry to update.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    private static async Task SetStatusAsync(
+        SqliteConnection connection,
+        string sql,
+        Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        var command = new SqliteCommand(sql, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            _ = command.Parameters.AddWithValue("@id", id.ToString());
+            _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

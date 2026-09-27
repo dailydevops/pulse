@@ -46,6 +46,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     // Cached SQL statements
     private readonly string _getPendingSql;
     private readonly string _getByIdSql;
+    private readonly string _markNewSql;
     private readonly string _markReplayingSql;
     private readonly string _markResolvedSql;
     private readonly string _markDismissedSql;
@@ -103,6 +104,12 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
                 `{CommandDeadLetterSchema.Columns.AttemptCount}`,
                 `{CommandDeadLetterSchema.Columns.Status}`
             FROM {table}
+            WHERE `{CommandDeadLetterSchema.Columns.Id}` = @id
+            """;
+
+        _markNewSql = $"""
+            UPDATE {table}
+            SET `{CommandDeadLetterSchema.Columns.Status}` = 0
             WHERE `{CommandDeadLetterSchema.Columns.Id}` = @id
             """;
 
@@ -172,13 +179,37 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             await GetByIdAsync(id, cancellationToken).ConfigureAwait(false)
             ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
+        if (entry.Status == CommandDeadLetterStatus.Dismissed)
+        {
+            throw new CommandDeadLetterEntryDismissedException(id);
+        }
+
         await SetStatusAsync(_markReplayingSql, id, cancellationToken).ConfigureAwait(false);
 
-        await CommandDeadLetterReplayDispatcher
-            .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await CommandDeadLetterReplayDispatcher
+                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch
+        {
+            try
+            {
+                // Not cancellable: the reset must also run when the replay was cancelled.
+                await SetStatusAsync(_markNewSql, id, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // A failed reset must not hide the replay failure: the entry stays in Replaying
+                // and the original exception is rethrown below.
+            }
 
-        await SetStatusAsync(_markResolvedSql, id, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+
+        // Not cancellable: the command has already been executed.
+        await SetStatusAsync(_markResolvedSql, id, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

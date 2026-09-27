@@ -1,15 +1,24 @@
 namespace NetEvolve.Pulse.Tests.Integration.DeadLetter;
 
+using System.Data.Common;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MySql.Data.MySqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.DeadLetter;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.DeadLetter;
+using Npgsql;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -404,6 +413,216 @@ public abstract class CommandDeadLetterTestsBase(
             )
             .ConfigureAwait(false);
 
+    [Test]
+    public async Task ReplayAsync_When_entry_dismissed_throws_Dismissed(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+                    await management.DismissAsync(entryId, token).ConfigureAwait(false);
+
+                    var exception = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<CommandDeadLetterEntryDismissedException>();
+                    _ = await Assert.That(exception!.EntryId).IsEqualTo(entryId);
+
+                    var entry = await management.GetEntryAsync(entryId, token).ConfigureAwait(false);
+                    _ = await Assert.That(entry!.Status).IsEqualTo(CommandDeadLetterStatus.Dismissed);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>, FailingReplayCommandHandler>()
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task ReplayAsync_When_entry_resolved_replays_again(CancellationToken cancellationToken)
+    {
+        var handler = new CountingReplayCommandHandler();
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+                    await management.ReplayAsync(entryId, token).ConfigureAwait(false);
+
+                    await management.ReplayAsync(entryId, token).ConfigureAwait(false);
+
+                    var entry = await management.GetEntryAsync(entryId, token).ConfigureAwait(false);
+                    _ = await Assert.That(entry!.Status).IsEqualTo(CommandDeadLetterStatus.Resolved);
+                    _ = await Assert.That(handler.HandledCount).IsEqualTo(2);
+                },
+                cancellationToken,
+                configureServices: services => services.AddSingleton<ICommandHandler<TestReplayCommand, Void>>(handler)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task ReplayAsync_When_handler_throws_resets_entry_to_New(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<InvalidOperationException>();
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    _ = await Assert.That(pending).HasSingleItem();
+                    _ = await Assert.That(pending[0].Id).IsEqualTo(entryId);
+
+                    var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+                    _ = await Assert.That(stats.ReplayingCount).IsEqualTo(0);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>, FailingReplayCommandHandler>()
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task ReplayAsync_When_cancelled_resets_entry_to_New(CancellationToken cancellationToken)
+    {
+        using var replayCancellation = new CancellationTokenSource();
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+                    using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, replayCancellation.Token);
+
+                    _ = await Assert
+                        .That(() => management.ReplayAsync(entryId, linked.Token))
+                        .Throws<OperationCanceledException>();
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    _ = await Assert.That(pending).HasSingleItem();
+                    _ = await Assert.That(pending[0].Id).IsEqualTo(entryId);
+
+                    var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+                    _ = await Assert.That(stats.ReplayingCount).IsEqualTo(0);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>>(
+                        new CancellingReplayCommandHandler(replayCancellation)
+                    )
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task ReplayAsync_When_reset_fails_rethrows_handler_exception(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<InvalidOperationException>()
+                        .WithMessage("replay failed", StringComparison.Ordinal);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddScoped<ICommandHandler<TestReplayCommand, Void>>(
+                        sp => new TableDroppingReplayCommandHandler(token =>
+                            DropDeadLetterTableAsync(
+                                sp,
+                                nameof(ReplayAsync_When_reset_fails_rethrows_handler_exception),
+                                token
+                            )
+                        )
+                    )
+            )
+            .ConfigureAwait(false);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Security",
+        "CA2100:Review SQL queries for security vulnerabilities",
+        Justification = "The table name is the test method name."
+    )]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Security",
+        "S2077:Formatting SQL queries is security-sensitive",
+        Justification = "The table name is the test method name."
+    )]
+    private async Task DropDeadLetterTableAsync(IServiceProvider services, string tableName, CancellationToken token)
+    {
+        var contextFactory = services.GetService<
+            IDbContextFactory<EntityFrameworkCommandDeadLetterInitializer.TestCommandDeadLetterDbContext>
+        >();
+        if (contextFactory is not null)
+        {
+            var context = await contextFactory.CreateDbContextAsync(token).ConfigureAwait(false);
+            await using (context.ConfigureAwait(false))
+            {
+                var entityType = context.Model.FindEntityType(typeof(CommandDeadLetterEntry))!;
+                var table = context
+                    .GetService<ISqlGenerationHelper>()
+                    .DelimitIdentifier(entityType.GetTableName()!, entityType.GetSchema());
+                var dropSql = $"DROP TABLE {table}";
+                _ = await context.Database.ExecuteSqlRawAsync(dropSql, token).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        var schema = TestHelper.TargetFramework;
+        DbConnection connection = DatabaseServiceFixture.ServiceType switch
+        {
+            ServiceType.SQLite => new SqliteConnection(DatabaseServiceFixture.ConnectionString),
+            ServiceType.SqlServer => new SqlConnection(DatabaseServiceFixture.ConnectionString),
+            ServiceType.PostgreSQL => new NpgsqlConnection(DatabaseServiceFixture.ConnectionString),
+            ServiceType.MySql => new MySqlConnection(DatabaseServiceFixture.ConnectionString),
+            _ => throw new NotSupportedException(
+                $"Database type {DatabaseServiceFixture.ServiceType} is not supported."
+            ),
+        };
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(token).ConfigureAwait(false);
+            var command = connection.CreateCommand();
+            await using (command.ConfigureAwait(false))
+            {
+                command.CommandText = DatabaseServiceFixture.ServiceType switch
+                {
+                    ServiceType.SqlServer => $"DROP TABLE [{schema}].[{tableName}]",
+                    ServiceType.PostgreSQL => $"DROP TABLE \"{schema}\".\"{tableName}\"",
+                    ServiceType.MySql => $"DROP TABLE `{tableName}`",
+                    _ => $"DROP TABLE \"{tableName}\"",
+                };
+                _ = await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async Task<Guid> StoreReplayableEntryAsync(IServiceProvider services, CancellationToken token)
+    {
+        var store = services.GetRequiredService<ICommandDeadLetterStore>();
+        var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+        var serializer = services.GetRequiredService<IPayloadSerializer>();
+
+        await store
+            .StoreAsync(
+                typeof(TestReplayCommand).AssemblyQualifiedName!,
+                serializer.Serialize(new TestReplayCommand("replay-value")),
+                new InvalidOperationException("boom"),
+                token
+            )
+            .ConfigureAwait(false);
+
+        var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+        return pending.Single().Id;
+    }
+
     private sealed record TestReplayCommand(string Value) : ICommand<Void>
     {
         public string? CausationId { get; set; }
@@ -414,5 +633,45 @@ public abstract class CommandDeadLetterTestsBase(
     {
         public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             Task.FromResult(Void.Completed);
+    }
+
+    private sealed class CountingReplayCommandHandler : ICommandHandler<TestReplayCommand, Void>
+    {
+        private int _handledCount;
+
+        public int HandledCount => Volatile.Read(ref _handledCount);
+
+        public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            _ = Interlocked.Increment(ref _handledCount);
+            return Task.FromResult(Void.Completed);
+        }
+    }
+
+    private sealed class FailingReplayCommandHandler : ICommandHandler<TestReplayCommand, Void>
+    {
+        public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class TableDroppingReplayCommandHandler(Func<CancellationToken, Task> dropTable)
+        : ICommandHandler<TestReplayCommand, Void>
+    {
+        public async Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            await dropTable(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("replay failed");
+        }
+    }
+
+    private sealed class CancellingReplayCommandHandler(CancellationTokenSource replayCancellation)
+        : ICommandHandler<TestReplayCommand, Void>
+    {
+        public async Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
+        {
+            await replayCancellation.CancelAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return Void.Completed;
+        }
     }
 }

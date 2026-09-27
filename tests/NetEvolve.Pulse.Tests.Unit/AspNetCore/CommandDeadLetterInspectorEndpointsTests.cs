@@ -471,6 +471,59 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
             .Throws<KeyNotFoundException>();
     }
 
+    // POST {base}/entries/{id:guid}/replay — dismissed entry
+
+    [Test]
+    public async Task ReplayEntry_WhenEntryDismissed_ReturnsConflict(CancellationToken cancellationToken)
+    {
+        var entryId = Guid.NewGuid();
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.ReplayAsync(entryId, Arg.Any<CancellationToken>())
+            .Throws(new CommandDeadLetterEntryDismissedException(entryId));
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .PostAsync(
+                new Uri($"/pulse/commands/entries/{entryId}/replay", UriKind.Relative),
+                content: null,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Conflict);
+    }
+
+    // POST {base}/entries/{id:guid}/replay — handler failure is not reported as a conflict
+
+    [Test]
+    public async Task ReplayEntry_WhenHandlerThrowsInvalidOperation_DoesNotReturnConflict(
+        CancellationToken cancellationToken
+    )
+    {
+        var entryId = Guid.NewGuid();
+
+        var mock = Mock.Of<ICommandDeadLetterManagement>();
+        _ = mock.ReplayAsync(entryId, Arg.Any<CancellationToken>()).Throws<InvalidOperationException>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        _ = await Assert
+            .That(async () =>
+                await client
+                    .PostAsync(
+                        new Uri($"/pulse/commands/entries/{entryId}/replay", UriKind.Relative),
+                        content: null,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            .Throws<InvalidOperationException>();
+    }
+
     // POST {base}/entries/{id:guid}/dismiss — unknown entry
 
     [Test]
