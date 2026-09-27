@@ -406,6 +406,25 @@ public class PulseHandlerGeneratorConstraintTests
             """,
         "global::G1<global::C1, string>"
     )]
+    [Arguments(
+        "TypeInGenericClassWithTypeParameterConstraintSatisfied",
+        """
+            public class Outer<T>
+            {
+                public interface IInner<U> { }
+            }
+
+            public sealed record C1 : RequestBase, ICommand<string>, Outer<string>.IInner<C1>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>, Outer<TResult>.IInner<TCmd>
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """,
+        "global::G1<global::C1, string>"
+    )]
     public async Task WhenGenericHandlerConstraintsSatisfiedThenRegistrationGeneratedWithoutErrors(
         string scenario,
         string declarations,
