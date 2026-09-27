@@ -38,17 +38,19 @@ public sealed class CosmosDbOutboxOptions
     public string ContainerName { get; set; } = DefaultContainerName;
 
     /// <summary>
-    /// Gets or sets the partition key path for the container.
+    /// Gets or sets the partition key path of the container.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Defaults to <see cref="DefaultPartitionKeyPath"/> (<c>/id</c>).
-    /// This value is informational for container creation guidance only. The repository and the
-    /// management API always use the document <c>id</c> as <see cref="Microsoft.Azure.Cosmos.PartitionKey"/>
-    /// value for point operations, so the container must be created with the partition key path <c>/id</c>.
+    /// Defaults to <see cref="DefaultPartitionKeyPath"/> (<c>/id</c>), which is the only supported value.
+    /// The container must be created with the partition key path <c>/id</c>, because the repository
+    /// and the management API always use the document <c>id</c> as
+    /// <see cref="Microsoft.Azure.Cosmos.PartitionKey"/> value for point reads, patches and deletes.
+    /// Any other value makes the repository and the management API throw an
+    /// <see cref="ArgumentException"/> when they are constructed.
     /// </para>
     /// <para>
-    /// With the default <c>/id</c> path every document is its own logical partition. Point
+    /// With the <c>/id</c> path every document is its own logical partition. Point
     /// operations stay single-partition, but the recurring status-based queries (pending polling,
     /// retry polling, counts, and cleanup) fan out to all physical partitions, so their RU cost
     /// and latency grow with the number of physical partitions. Enable
@@ -77,4 +79,23 @@ public sealed class CosmosDbOutboxOptions
     /// Defaults to <see cref="DefaultTtlSeconds"/> (86400 seconds = 24 hours).
     /// </remarks>
     public int TtlSeconds { get; set; } = DefaultTtlSeconds;
+
+    /// <summary>
+    /// Throws when <see cref="PartitionKeyPath"/> is not <see cref="DefaultPartitionKeyPath"/>.
+    /// </summary>
+    /// <remarks>
+    /// Point operations always use the document <c>id</c> as partition key value. On a container
+    /// partitioned on another path they return <c>404 Not Found</c>, which the claim and cleanup
+    /// logic treats as "already deleted", so the outbox would stall silently.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The partition key path is not supported.</exception>
+    internal void ThrowIfPartitionKeyPathIsNotSupported()
+    {
+        if (!string.Equals(PartitionKeyPath, DefaultPartitionKeyPath, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"{nameof(CosmosDbOutboxOptions)}.{nameof(PartitionKeyPath)} '{PartitionKeyPath}' is not supported. The only supported value is '{DefaultPartitionKeyPath}', and the container must be partitioned on '{DefaultPartitionKeyPath}'."
+            );
+        }
+    }
 }
