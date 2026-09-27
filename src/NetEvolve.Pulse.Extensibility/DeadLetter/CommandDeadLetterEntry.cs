@@ -55,13 +55,23 @@ public sealed class CommandDeadLetterEntry
     public string? ExceptionMessage { get; set; }
 
     /// <summary>
-    /// Gets or sets the timestamp when this entry was recorded.
+    /// Gets or sets the timestamp when the latest failure of this command was recorded.
     /// </summary>
+    /// <remarks>
+    /// Set when the entry is stored and updated by every failed replay, so a replayed entry moves to the end of
+    /// <see cref="ICommandDeadLetterManagement.GetPendingAsync"/>.
+    /// </remarks>
     public DateTimeOffset OccurredAt { get; set; }
 
     /// <summary>
     /// Gets or sets the number of times processing of this command has been attempted.
     /// </summary>
+    /// <remarks>
+    /// The original failure that created the entry counts as the first attempt. Every failed or cancelled
+    /// <see cref="ICommandDeadLetterManagement.ReplayAsync"/> increments the value by one and updates
+    /// <see cref="ExceptionType"/>, <see cref="ExceptionMessage"/> and <see cref="OccurredAt"/> with the latest
+    /// failure. A successful replay leaves the value unchanged.
+    /// </remarks>
     public int AttemptCount { get; set; }
 
     /// <summary>

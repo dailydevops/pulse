@@ -50,8 +50,14 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <summary>Cached SQL for updating the status of a dead letter entry.</summary>
     private readonly string _updateStatusSql;
 
+    /// <summary>Cached SQL for resetting a dead letter entry after a failed replay.</summary>
+    private readonly string _recordReplayFailureSql;
+
     /// <summary>Cached SQL for aggregating entry counts per status.</summary>
     private readonly string _getStatisticsSql;
+
+    /// <summary>The time provider used to timestamp a failed replay.</summary>
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlCommandDeadLetterManagement"/> class.
@@ -59,20 +65,24 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <param name="options">The command dead letter configuration options.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads for replay.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public PostgreSqlCommandDeadLetterManagement(
         IOptions<CommandDeadLetterOptions> options,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = options.Value.ConnectionString;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? CommandDeadLetterSchema.DefaultSchema
@@ -109,6 +119,16 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         _updateStatusSql = $"""
             UPDATE {qualifiedTableName}
             SET "{CommandDeadLetterSchema.Columns.Status}" = @status
+            WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id
+            """;
+
+        _recordReplayFailureSql = $"""
+            UPDATE {qualifiedTableName}
+            SET "{CommandDeadLetterSchema.Columns.Status}" = @status,
+                "{CommandDeadLetterSchema.Columns.AttemptCount}" = "{CommandDeadLetterSchema.Columns.AttemptCount}" + 1,
+                "{CommandDeadLetterSchema.Columns.ExceptionType}" = @exception_type,
+                "{CommandDeadLetterSchema.Columns.ExceptionMessage}" = @exception_message,
+                "{CommandDeadLetterSchema.Columns.OccurredAt}" = @occurred_at
             WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id
             """;
 
@@ -194,13 +214,12 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
                     .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
                 try
                 {
                     // Not cancellable: the reset must also run when the replay was cancelled.
-                    await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.New, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    await RecordReplayFailureAsync(connection, id, ex).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -328,6 +347,28 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     }
 
     /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    private async Task RecordReplayFailureAsync(NpgsqlConnection connection, Guid id, Exception exception)
+    {
+        var command = new NpgsqlCommand(_recordReplayFailureSql, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            _ = command.Parameters.AddWithValue("status", (short)CommandDeadLetterStatus.New);
+            _ = command.Parameters.AddWithValue(
+                "exception_type",
+                (object?)GetExceptionTypeName(exception) ?? DBNull.Value
+            );
+            _ = command.Parameters.AddWithValue("exception_message", exception.Message);
+            _ = command.Parameters.AddWithValue("occurred_at", _timeProvider.GetUtcNow());
+            _ = command.Parameters.AddWithValue("id", id);
+
+            _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Updates the status of the dead letter entry identified by <paramref name="id"/>.
     /// </summary>
     private async Task UpdateStatusAsync(
@@ -372,5 +413,17 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             AttemptCount = reader.GetInt32(ordAttemptCount),
             Status = (CommandDeadLetterStatus)reader.GetInt16(ordStatus),
         };
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

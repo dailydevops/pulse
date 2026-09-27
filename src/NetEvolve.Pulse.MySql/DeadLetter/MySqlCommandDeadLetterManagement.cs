@@ -42,11 +42,12 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     private readonly string _connectionString;
     private readonly IMediatorSendOnly _mediator;
     private readonly IPayloadSerializer _payloadSerializer;
+    private readonly TimeProvider _timeProvider;
 
     // Cached SQL statements
     private readonly string _getPendingSql;
     private readonly string _getByIdSql;
-    private readonly string _markNewSql;
+    private readonly string _markFailedSql;
     private readonly string _markReplayingSql;
     private readonly string _markResolvedSql;
     private readonly string _markDismissedSql;
@@ -58,21 +59,25 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <param name="options">The command dead letter configuration options.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public MySqlCommandDeadLetterManagement(
         IOptions<CommandDeadLetterOptions> options,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         var opts = options.Value;
         _connectionString = opts.ConnectionString;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
 
         SqlIdentifier.Validate(opts.TableName, nameof(opts.TableName));
         var table = $"`{opts.TableName}`";
@@ -107,9 +112,13 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             WHERE `{CommandDeadLetterSchema.Columns.Id}` = @id
             """;
 
-        _markNewSql = $"""
+        _markFailedSql = $"""
             UPDATE {table}
-            SET `{CommandDeadLetterSchema.Columns.Status}` = 0
+            SET `{CommandDeadLetterSchema.Columns.Status}` = 0,
+                `{CommandDeadLetterSchema.Columns.AttemptCount}` = `{CommandDeadLetterSchema.Columns.AttemptCount}` + 1,
+                `{CommandDeadLetterSchema.Columns.ExceptionType}` = @exceptionType,
+                `{CommandDeadLetterSchema.Columns.ExceptionMessage}` = @exceptionMessage,
+                `{CommandDeadLetterSchema.Columns.OccurredAt}` = @occurredAtTicks
             WHERE `{CommandDeadLetterSchema.Columns.Id}` = @id
             """;
 
@@ -192,12 +201,12 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
                 .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
             try
             {
                 // Not cancellable: the reset must also run when the replay was cancelled.
-                await SetStatusAsync(_markNewSql, id, CancellationToken.None).ConfigureAwait(false);
+                await RecordReplayFailureAsync(id, ex).ConfigureAwait(false);
             }
             catch
             {
@@ -319,6 +328,30 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     }
 
     /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    /// <param name="id">The identifier of the dead letter entry to update.</param>
+    /// <param name="exception">The exception that caused the replay to fail.</param>
+    private async Task RecordReplayFailureAsync(Guid id, Exception exception)
+    {
+        var connection = await CreateConnectionAsync(CancellationToken.None).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_markFailedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@id", id.ToByteArray());
+                _ = command.Parameters.AddWithValue("@exceptionType", GetExceptionTypeName(exception));
+                _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
+                _ = command.Parameters.AddWithValue("@occurredAtTicks", _timeProvider.GetUtcNow().UtcTicks);
+
+                _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
     /// Opens and returns a new <see cref="MySqlConnection"/> using the stored connection string.
     /// The caller is responsible for disposing the connection.
     /// </summary>
@@ -382,5 +415,17 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
 
             return entries;
         }
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

@@ -79,6 +79,31 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         }
     }
 
+    [Test]
+    public async Task IsReplayedCommand_OutsideReplay_ReturnsFalse() =>
+        _ = await Assert.That(CommandDeadLetterReplayDispatcher.IsReplayedCommand(new VoidCommand())).IsFalse();
+
+    [Test]
+    public async Task IsReplayedCommand_WithNullCommand_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() => CommandDeadLetterReplayDispatcher.IsReplayedCommand(null!))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task ReplayAsync_MarksReplayedCommandDuringDispatch(CancellationToken cancellationToken)
+    {
+        var handler = new ReplayObservingCommandHandler();
+
+        await ReplayAsync<VoidCommand, Extensibility.Void>(
+                handler,
+                new VoidCommand { Value = "observed" },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(handler.WasReplayedDuringDispatch).IsTrue();
+    }
+
     private static async Task ReplayAsync<TCommand, TResponse>(
         ICommandHandler<TCommand, TResponse> handler,
         TCommand command,
@@ -127,6 +152,17 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         public Task<Extensibility.Void> HandleAsync(VoidCommand command, CancellationToken cancellationToken = default)
         {
             LastValue = command.Value;
+            return Task.FromResult(Extensibility.Void.Completed);
+        }
+    }
+
+    private sealed class ReplayObservingCommandHandler : ICommandHandler<VoidCommand, Extensibility.Void>
+    {
+        public bool WasReplayedDuringDispatch { get; private set; }
+
+        public Task<Extensibility.Void> HandleAsync(VoidCommand command, CancellationToken cancellationToken = default)
+        {
+            WasReplayedDuringDispatch = CommandDeadLetterReplayDispatcher.IsReplayedCommand(command);
             return Task.FromResult(Extensibility.Void.Completed);
         }
     }

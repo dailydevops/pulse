@@ -20,6 +20,7 @@ using NetEvolve.Pulse.Extensibility.DeadLetter;
 /// <item><description>If the handler completes successfully, its result is returned unchanged and no store interaction occurs.</description></item>
 /// <item><description>If the handler throws, and <see cref="ICommandDeadLetterStore"/> is registered in the DI container, the command's serialized payload and the exception are recorded via <see cref="ICommandDeadLetterStore.StoreAsync"/> before the original exception is rethrown.</description></item>
 /// <item><description>If <see cref="ICommandDeadLetterStore"/> is not registered, the interceptor is a no-op on failure - the original exception is still rethrown unchanged.</description></item>
+/// <item><description>If the failed command is the one <see cref="CommandDeadLetterReplayDispatcher"/> is replaying, no new entry is stored - <see cref="ICommandDeadLetterManagement.ReplayAsync"/> records the failure on the replayed entry instead. Other commands sent by the replayed handler are still recorded.</description></item>
 /// <item><description>The original exception is always rethrown, whether or not a store is registered - this interceptor never swallows a command failure, it only optionally records it first.</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
@@ -69,7 +70,10 @@ internal sealed class CommandDeadLetterInterceptor<TRequest, TResponse> : IReque
         }
         catch (Exception ex)
         {
-            var store = _serviceProvider.GetService<ICommandDeadLetterStore>();
+            // A failed replay is recorded on the replayed entry by ICommandDeadLetterManagement.ReplayAsync.
+            var store = CommandDeadLetterReplayDispatcher.IsReplayedCommand(request)
+                ? null
+                : _serviceProvider.GetService<ICommandDeadLetterStore>();
             if (store is not null)
             {
                 var payload = _payloadSerializer.Serialize(request);

@@ -50,10 +50,13 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <summary>The serializer used to deserialize stored payloads for replay.</summary>
     private readonly IPayloadSerializer _payloadSerializer;
 
+    /// <summary>The time provider used to timestamp a failed replay.</summary>
+    private readonly TimeProvider _timeProvider;
+
     // Cached SQL statements
     private readonly string _getPendingSql;
     private readonly string _getByIdSql;
-    private readonly string _setNewSql;
+    private readonly string _setFailedSql;
     private readonly string _setReplayingSql;
     private readonly string _setResolvedSql;
     private readonly string _dismissSql;
@@ -65,15 +68,18 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <param name="options">The command dead letter configuration options.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads for replay.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public SQLiteCommandDeadLetterManagement(
         IOptions<CommandDeadLetterOptions> options,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
 
         var opts = options.Value;
@@ -81,6 +87,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         _enableWalMode = opts.EnableWalMode;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
 
         SqlIdentifier.Validate(opts.TableName, nameof(opts.TableName));
         var table = $"\"{opts.TableName}\"";
@@ -115,9 +122,13 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
             WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id;
             """;
 
-        _setNewSql = $"""
+        _setFailedSql = $"""
             UPDATE {table}
-            SET "{CommandDeadLetterSchema.Columns.Status}" = 0
+            SET "{CommandDeadLetterSchema.Columns.Status}" = 0,
+                "{CommandDeadLetterSchema.Columns.AttemptCount}" = "{CommandDeadLetterSchema.Columns.AttemptCount}" + 1,
+                "{CommandDeadLetterSchema.Columns.ExceptionType}" = @exceptionType,
+                "{CommandDeadLetterSchema.Columns.ExceptionMessage}" = @exceptionMessage,
+                "{CommandDeadLetterSchema.Columns.OccurredAt}" = @occurredAt
             WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id;
             """;
 
@@ -209,12 +220,12 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
                     .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
                 try
                 {
                     // Not cancellable: the reset must also run when the replay was cancelled.
-                    await SetStatusAsync(connection, _setNewSql, id, CancellationToken.None).ConfigureAwait(false);
+                    await SetFailedAsync(connection, id, ex).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -249,6 +260,26 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         {
             _ = command.Parameters.AddWithValue("@id", id.ToString());
             _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    /// <param name="connection">The open connection to use for the update.</param>
+    /// <param name="id">The identifier of the dead letter entry to update.</param>
+    /// <param name="exception">The exception that caused the replay to fail.</param>
+    private async Task SetFailedAsync(SqliteConnection connection, Guid id, Exception exception)
+    {
+        var command = new SqliteCommand(_setFailedSql, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            _ = command.Parameters.AddWithValue("@id", id.ToString());
+            _ = command.Parameters.AddWithValue("@exceptionType", GetExceptionTypeName(exception));
+            _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
+            _ = command.Parameters.AddWithValue("@occurredAt", _timeProvider.GetUtcNow());
+            _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
 
@@ -427,5 +458,17 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
 
             return entries;
         }
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

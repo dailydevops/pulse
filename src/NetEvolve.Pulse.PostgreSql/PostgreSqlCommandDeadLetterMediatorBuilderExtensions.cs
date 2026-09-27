@@ -57,6 +57,8 @@ public static class PostgreSqlCommandDeadLetterMediatorBuilderExtensions
     {
         var services = configurator.Services;
 
+        services.TryAddSingleton(TimeProvider.System);
+
         _ = services
             .RemoveAll<ICommandDeadLetterStore>()
             .AddScoped<ICommandDeadLetterStore, PostgreSqlCommandDeadLetterStore>();

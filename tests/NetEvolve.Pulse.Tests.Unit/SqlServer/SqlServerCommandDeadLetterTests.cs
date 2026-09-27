@@ -100,7 +100,9 @@ public sealed class SqlServerCommandDeadLetterTests
         var serializer = Mock.Of<IPayloadSerializer>();
 
         _ = await Assert
-            .That(() => new SqlServerCommandDeadLetterManagement(null!, mediator.Object, serializer.Object))
+            .That(() =>
+                new SqlServerCommandDeadLetterManagement(null!, mediator.Object, serializer.Object, TimeProvider.System)
+            )
             .Throws<ArgumentNullException>();
     }
 
@@ -115,7 +117,8 @@ public sealed class SqlServerCommandDeadLetterTests
                 new SqlServerCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = null }),
                     mediator.Object,
-                    serializer.Object
+                    serializer.Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -132,7 +135,8 @@ public sealed class SqlServerCommandDeadLetterTests
                 new SqlServerCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty }),
                     mediator.Object,
-                    serializer.Object
+                    serializer.Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -149,7 +153,8 @@ public sealed class SqlServerCommandDeadLetterTests
                 new SqlServerCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " }),
                     mediator.Object,
-                    serializer.Object
+                    serializer.Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -165,7 +170,8 @@ public sealed class SqlServerCommandDeadLetterTests
                 new SqlServerCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
                     null!,
-                    serializer.Object
+                    serializer.Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -181,6 +187,24 @@ public sealed class SqlServerCommandDeadLetterTests
                 new SqlServerCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
                     mediator.Object,
+                    null!,
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Management_Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        var mediator = Mock.Of<IMediatorSendOnly>();
+
+        _ = await Assert
+            .That(() =>
+                new SqlServerCommandDeadLetterManagement(
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+                    mediator.Object,
+                    Mock.Of<IPayloadSerializer>().Object,
                     null!
                 )
             )
@@ -196,7 +220,8 @@ public sealed class SqlServerCommandDeadLetterTests
         var management = new SqlServerCommandDeadLetterManagement(
             Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
             mediator.Object,
-            serializer.Object
+            serializer.Object,
+            TimeProvider.System
         );
 
         _ = await Assert.That(management).IsNotNull();
@@ -222,7 +247,8 @@ public sealed class SqlServerCommandDeadLetterTests
                         }
                     ),
                     mediator.Object,
-                    serializer.Object
+                    serializer.Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
