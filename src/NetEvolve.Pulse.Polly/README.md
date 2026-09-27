@@ -40,8 +40,9 @@ dotnet add package NetEvolve.Pulse.Polly
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Pulse;
-using NetEvolve.Pulse.Polly;
+using NetEvolve.Pulse.Extensibility;
 using Polly;
+using Polly.Retry;
 
 var services = new ServiceCollection();
 
@@ -64,6 +65,8 @@ var result = await mediator.SendAsync<CreateOrderCommand, OrderResult>(
 ```
 
 ## Usage
+
+The snippets below assume the `using` directives from the Quick Start, plus `Polly.CircuitBreaker` and `Polly.Fallback` where those strategies are used.
 
 ### Per-Handler Retry Policy
 
@@ -133,12 +136,14 @@ services.AddPulse(config => config
 
 ### Void Commands
 
-For commands that don't return a response:
+For commands that don't return a response. `Void` is `NetEvolve.Pulse.Extensibility.Void`; alias it to avoid the ambiguity with `System.Void`:
 
 ```csharp
+using Void = NetEvolve.Pulse.Extensibility.Void;
+
 services.AddPulse(config => config
     .AddCommandHandler<DeleteOrderCommand, DeleteOrderHandler>()
-    .AddPollyRequestPolicies<DeleteOrderCommand>(pipeline => pipeline
+    .AddPollyCommandPolicies<DeleteOrderCommand>(pipeline => pipeline
         .AddRetry(new RetryStrategyOptions<Void>
         {
             MaxRetryAttempts = 2,
@@ -169,7 +174,7 @@ services.AddPulse(config => config
 
 ### Bulkhead Isolation
 
-Limit concurrent executions to prevent resource exhaustion:
+Limit concurrent executions to prevent resource exhaustion. `AddConcurrencyLimiter` is provided by the separate [`Polly.RateLimiting`](https://www.nuget.org/packages/Polly.RateLimiting/) package, and `ConcurrencyLimiterOptions` lives in `System.Threading.RateLimiting`:
 
 ```csharp
 services.AddPulse(config => config
@@ -204,9 +209,9 @@ Pulse interceptors execute in **LIFO (Last-In, First-Out)** order. The last regi
 ```csharp
 config
     .AddCommandHandler<CreateOrder, Result, CreateOrderHandler>()
-    .AddValidationInterceptor<CreateOrder, Result>()   // Executes third (innermost)
-    .AddPollyRequestPolicies<CreateOrder, Result>(...)        // Executes second
-    .AddActivityAndMetrics();                          // Executes first (outermost)
+    .AddCommandInterceptor<CreateOrder, Result, ValidationInterceptor>() // Executes third (innermost)
+    .AddPollyRequestPolicies<CreateOrder, Result>(...)                   // Executes second
+    .AddActivityAndMetrics();                                            // Executes first (outermost)
 ```
 
 Within a single Polly pipeline, strategies execute in the order they are added:
@@ -268,14 +273,14 @@ pipeline
 For different policies per handler type, use keyed services:
 
 ```csharp
-services.AddKeyedSingleton("critical", sp =>
+services.AddKeyedSingleton("critical", (sp, key) =>
 {
     var builder = new ResiliencePipelineBuilder<OrderResult>();
     builder.AddRetry(new RetryStrategyOptions<OrderResult> { MaxRetryAttempts = 5 });
     return builder.Build();
 });
 
-services.AddKeyedSingleton("standard", sp =>
+services.AddKeyedSingleton("standard", (sp, key) =>
 {
     var builder = new ResiliencePipelineBuilder<OrderResult>();
     builder.AddRetry(new RetryStrategyOptions<OrderResult> { MaxRetryAttempts = 2 });
@@ -294,7 +299,7 @@ Polly v8 provides built-in telemetry through `System.Diagnostics`:
 // - Polly.Timeout
 // - Polly.RateLimiter
 
-// Example: Monitor circuit breaker state
+// Example: Monitor circuit breaker state (requires System.Diagnostics.Metrics)
 var meterListener = new MeterListener();
 meterListener.InstrumentPublished = (instrument, listener) =>
 {
