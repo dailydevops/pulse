@@ -87,6 +87,32 @@ public sealed class CosmosDbOutboxManagementTests
     }
 
     [Test]
+    [Arguments("/eventType")]
+    [Arguments("/Id")]
+    [Arguments("/id/")]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async Task Constructor_WithUnsupportedPartitionKeyPath_ThrowsArgumentException(string partitionKeyPath)
+    {
+        using var client = new CosmosClient(EmulatorConnectionString);
+
+        var exception = await Assert
+            .That(() =>
+                new CosmosDbOutboxManagement(
+                    client,
+                    Options.Create(
+                        new CosmosDbOutboxOptions { DatabaseName = "TestDb", PartitionKeyPath = partitionKeyPath }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentException>();
+
+        _ = await Assert.That(exception!.Message).Contains(nameof(CosmosDbOutboxOptions.PartitionKeyPath));
+        _ = await Assert.That(exception.Message).Contains("/id");
+    }
+
+    [Test]
     public async Task Constructor_WithValidOptions_CreatesInstance()
     {
         using var client = new CosmosClient(EmulatorConnectionString);
