@@ -382,6 +382,41 @@ public sealed class RequestInterceptorsTests
     }
 
     [Test]
+    public async Task ConcurrentCommandGuard_TypedOverloadAfterCommandInterceptor_ConcurrentSends_SerializesExecution(
+        CancellationToken cancellationToken
+    )
+    {
+        using var host = await CreateHostAsync(
+                mediatorBuilder =>
+                    mediatorBuilder
+                        .AddCommandInterceptor<OrderedGuardedCommand, int, PassThroughCommandInterceptor>()
+                        .AddConcurrentCommandGuard<OrderedGuardedCommand, int>()
+                        .AddCommandHandler<OrderedGuardedCommand, int, OrderedGuardedCommandHandler>(),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        var scope = host.Services.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            var tasks = Enumerable
+                .Range(0, 5)
+                .Select(_ =>
+                    mediator.SendAsync<OrderedGuardedCommand, int>(new OrderedGuardedCommand(), cancellationToken)
+                )
+                .ToArray();
+
+            _ = await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        await host.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(OrderedGuardedCommandHandler.MaxConcurrent).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task DataAnnotations_InvalidCommand_ThrowsValidationException(CancellationToken cancellationToken)
     {
         using var host = await CreateHostAsync(
@@ -615,6 +650,45 @@ public sealed class RequestInterceptorsTests
         public static int MaxConcurrent => _maxConcurrent;
 
         public async Task<int> HandleAsync(GuardedCommand command, CancellationToken cancellationToken = default)
+        {
+            var current = Interlocked.Increment(ref _currentConcurrent);
+            var max = _maxConcurrent;
+            while (current > max)
+            {
+                _ = Interlocked.CompareExchange(ref _maxConcurrent, current, max);
+                max = _maxConcurrent;
+            }
+
+            await Task.Delay(20, cancellationToken).ConfigureAwait(false);
+            _ = Interlocked.Decrement(ref _currentConcurrent);
+
+            return current;
+        }
+    }
+
+    private sealed record OrderedGuardedCommand : IExclusiveCommand<int>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class PassThroughCommandInterceptor : ICommandInterceptor<OrderedGuardedCommand, int>
+    {
+        public Task<int> HandleAsync(
+            OrderedGuardedCommand request,
+            Func<OrderedGuardedCommand, CancellationToken, Task<int>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request, cancellationToken);
+    }
+
+    private sealed class OrderedGuardedCommandHandler : ICommandHandler<OrderedGuardedCommand, int>
+    {
+        private static int _currentConcurrent;
+        private static int _maxConcurrent;
+
+        public static int MaxConcurrent => _maxConcurrent;
+
+        public async Task<int> HandleAsync(OrderedGuardedCommand command, CancellationToken cancellationToken = default)
         {
             var current = Interlocked.Increment(ref _currentConcurrent);
             var max = _maxConcurrent;
