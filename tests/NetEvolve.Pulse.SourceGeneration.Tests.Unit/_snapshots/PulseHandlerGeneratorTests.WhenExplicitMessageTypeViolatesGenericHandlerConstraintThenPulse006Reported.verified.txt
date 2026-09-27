@@ -1,0 +1,30 @@
+﻿{
+  diagnostics: [
+    {
+      DefaultSeverity: Error,
+      Descriptor: {
+        Category: Usage,
+        DefaultSeverity: Error,
+        Description: {},
+        HelpLinkUri: ,
+        Id: PULSE006,
+        IsEnabledByDefault: true,
+        MessageFormat: {},
+        Title: {}
+      },
+      Id: PULSE006,
+      IsSuppressed: false,
+      IsWarningAsError: false,
+      Location: {
+        IsInMetadata: false,
+        IsInSource: false,
+        Kind: ExternalFile,
+        SourceSpan: {
+          Start: 185,
+          Length: 236
+        }
+      },
+      Severity: Error
+    }
+  ]
+}
