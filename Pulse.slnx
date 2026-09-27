@@ -2,6 +2,7 @@
   <Folder Name="/Solution Items/">
     <File Path=".commitlintrc" />
     <File Path=".csharpierignore" />
+    <File Path=".csharpierrc.yaml" />
     <File Path=".editorconfig" />
     <File Path=".filenesting.json" />
     <File Path=".gitattributes" />
