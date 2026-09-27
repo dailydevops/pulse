@@ -872,6 +872,66 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenHyphenatedAssemblyNameThenMethodNameReplacesInvalidCharacters()
+    {
+        var (diagnostics, generatedSources) = RunGenerator(SimpleCommandHandlerSource, assemblyName: "my-service");
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    [Arguments("my-service", "Addmy_servicePulseHandlers")]
+    [Arguments("My-App.Core", "AddMy_AppCorePulseHandlers")]
+    [Arguments("My App", "AddMy_AppPulseHandlers")]
+    [Arguments("a+b", "Adda_bPulseHandlers")]
+    [Arguments("a-b", "Adda_bPulseHandlers")]
+    [Arguments("ab", "AddabPulseHandlers")]
+    [Arguments("1-app", "Add1_appPulseHandlers")]
+    [Arguments("class", "AddclassPulseHandlers")]
+    [Arguments("Café-日本", "AddCafé_日本PulseHandlers")]
+    [Arguments("NetEvolve.Pulse", "AddNetEvolvePulsePulseHandlers")]
+    public async Task WhenAssemblyNameHasNonIdentifierCharactersThenGeneratedCodeCompiles(
+        string assemblyName,
+        string expectedMethodName
+    )
+    {
+        var outputCompilation = CompileWithGenerator(assemblyName);
+
+        var errors = outputCompilation
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Select(d => d.ToString())
+            .ToArray();
+        var methodNames = outputCompilation
+            .GetTypeByMetadataName("TestAssembly.PulseRegistrationExtensions")!
+            .GetMembers()
+            .OfType<IMethodSymbol>()
+            .Select(m => m.Name)
+            .ToArray();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(errors).IsEmpty();
+            _ = await Assert.That(methodNames).Contains(expectedMethodName);
+        }
+    }
+
+    [Test]
+    [Arguments("R&D")]
+    [Arguments("a<b>")]
+    public async Task WhenAssemblyNameHasXmlCharactersThenGeneratedDocumentationIsWellFormed(string assemblyName)
+    {
+        var outputCompilation = CompileWithGenerator(assemblyName);
+
+        var warnings = outputCompilation
+            .GetDiagnostics()
+            .Where(d => d.Location.SourceTree?.FilePath.EndsWith(".g.cs", StringComparison.Ordinal) == true)
+            .Select(d => d.ToString())
+            .ToArray();
+
+        _ = await Assert.That(warnings).IsEmpty();
+    }
+
+    [Test]
     public async Task WhenEmptyAssemblyNameThenFallbackMethodNameIsGenerated()
     {
         const string source = """
@@ -1640,6 +1700,61 @@ public class PulseHandlerGeneratorTests
 
         var (diagnostics, generatedSources) = RunGenerator(source, referencePulse: true);
         await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    private const string SimpleCommandHandlerSource = """
+        using NetEvolve.Pulse.Extensibility;
+        using NetEvolve.Pulse.Extensibility.Attributes;
+        using System.Threading;
+        using System.Threading.Tasks;
+
+        public record MyCommand(string Name) : ICommand<string>
+        {
+            public string? CausationId { get; set; }
+            public string? CorrelationId { get; set; }
+        }
+
+        [PulseHandler]
+        public class MyCommandHandler : ICommandHandler<MyCommand, string>
+        {
+            public Task<string> HandleAsync(MyCommand command, CancellationToken cancellationToken = default)
+                => Task.FromResult(command.Name);
+        }
+        """;
+
+    private static Compilation CompileWithGenerator(string assemblyName)
+    {
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose);
+        var syntaxTree = CSharpSyntaxTree.ParseText(SimpleCommandHandlerSource, parseOptions);
+        var compilation = CSharpCompilation.Create(
+            assemblyName,
+            [syntaxTree],
+            [
+                .. GetMetadataReferences(referencePulse: false),
+                MetadataReference.CreateFromFile(
+                    typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection).Assembly.Location
+                ),
+                MetadataReference.CreateFromFile(
+                    typeof(Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions)
+                        .Assembly
+                        .Location
+                ),
+            ],
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable
+            )
+        );
+
+        _ = CSharpGeneratorDriver
+            .Create(
+                generators: [new PulseHandlerGenerator().AsSourceGenerator()],
+                optionsProvider: new TestAnalyzerConfigOptionsProvider("TestAssembly"),
+                parseOptions: parseOptions
+            )
+            .RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
+
+        return outputCompilation;
     }
 
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(

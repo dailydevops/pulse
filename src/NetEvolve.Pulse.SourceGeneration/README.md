@@ -13,7 +13,7 @@ NetEvolve.Pulse.SourceGeneration is a Roslyn source generator for the Pulse CQRS
 - **Pure Open-Generic Handler Support**: `[PulseGenericHandler]` registers an open-generic handler class directly as an open-generic DI service (e.g. `services.TryAddScoped(typeof(ICommandHandler<,>), typeof(MyHandler<,>))`), allowing the DI container to resolve any closed variant at runtime
 - **Incremental Generator**: Uses `ForAttributeWithMetadataName` for fast, IDE-friendly discovery
 - **Configurable Lifetimes**: Supports `Singleton`, `Scoped` (default), and `Transient` via `PulseServiceLifetime` enum
-- **Assembly-Derived Method Name**: Generated method name is derived from `AssemblyName` with dots removed and `PulseHandlers` appended (e.g., `MyProject` → `AddMyProjectPulseHandlers`)
+- **Assembly-Derived Method Name**: Generated method name is `Add` + `AssemblyName` + `PulseHandlers`. Dots are removed and every other character that is not valid in a C# identifier (for example `-`, space or `+`) is replaced with `_` (e.g., `MyProject` → `AddMyProjectPulseHandlers`, `My.Project` → `AddMyProjectPulseHandlers`, `my-service` → `Addmy_servicePulseHandlers`)
 - **Root Namespace Support**: Generated namespace uses the consuming project's `RootNamespace`
 - **Multi-Interface Instance Sharing**: Handlers implementing multiple interfaces are registered as the concrete type once; each interface resolves via a factory delegate so all share the same instance within the configured lifetime
 - **Diagnostics**: PULSE001–PULSE006 covering missing handler interfaces, duplicate registrations, open-generic type annotations, and invalid or incompatible explicit message type arguments
