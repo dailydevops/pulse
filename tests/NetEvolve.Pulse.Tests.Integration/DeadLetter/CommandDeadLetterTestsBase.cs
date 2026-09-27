@@ -37,6 +37,7 @@ public abstract class CommandDeadLetterTestsBase(
         Func<IServiceProvider, CancellationToken, Task> testableCode,
         CancellationToken cancellationToken,
         Action<IServiceCollection>? configureServices = null,
+        Action<IMediatorBuilder>? configureMediator = null,
         [CallerMemberName] string tableName = null!
     )
     {
@@ -49,7 +50,11 @@ public abstract class CommandDeadLetterTestsBase(
                 DatabaseInitializer.Initialize(services, DatabaseServiceFixture);
                 configureServices?.Invoke(services);
                 _ = services
-                    .AddPulse(mediatorBuilder => DatabaseInitializer.Configure(mediatorBuilder, DatabaseServiceFixture))
+                    .AddPulse(mediatorBuilder =>
+                    {
+                        DatabaseInitializer.Configure(mediatorBuilder, DatabaseServiceFixture);
+                        configureMediator?.Invoke(mediatorBuilder);
+                    })
                     .Configure<CommandDeadLetterOptions>(options =>
                     {
                         options.TableName = tableName;
@@ -541,6 +546,99 @@ public abstract class CommandDeadLetterTestsBase(
                             )
                         )
                     )
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task ReplayAsync_When_handler_throws_updates_existing_entry(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+                    var original = await management.GetEntryAsync(entryId, token).ConfigureAwait(false);
+
+                    // Keep OccurredAt of the replay failure distinct from the stored failure.
+                    await Task.Delay(TimeSpan.FromMilliseconds(20), token).ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(() => management.ReplayAsync(entryId, token))
+                        .Throws<InvalidOperationException>()
+                        .WithMessage("replay failed", StringComparison.Ordinal);
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    _ = await Assert.That(pending).HasSingleItem();
+                    _ = await Assert.That(pending[0].Id).IsEqualTo(entryId);
+                    _ = await Assert.That(pending[0].AttemptCount).IsEqualTo(2);
+                    _ = await Assert.That(pending[0].ExceptionMessage).IsEqualTo("replay failed");
+                    _ = await Assert
+                        .That(pending[0].ExceptionType)
+                        .IsEqualTo(typeof(InvalidOperationException).AssemblyQualifiedName);
+                    _ = await Assert.That(pending[0].OccurredAt).IsNotEqualTo(original!.OccurredAt);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>, FailingReplayCommandHandler>(),
+                configureMediator: mediatorBuilder => mediatorBuilder.AddCommandDeadLetter()
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task ReplayAsync_When_replayed_twice_counts_every_attempt(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+
+                    for (var i = 0; i < 2; i++)
+                    {
+                        _ = await Assert
+                            .That(() => management.ReplayAsync(entryId, token))
+                            .Throws<InvalidOperationException>();
+                    }
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    _ = await Assert.That(pending).HasSingleItem();
+                    _ = await Assert.That(pending[0].Id).IsEqualTo(entryId);
+                    _ = await Assert.That(pending[0].AttemptCount).IsEqualTo(3);
+
+                    var stats = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+                    _ = await Assert.That(stats.TotalCount).IsEqualTo(1);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>, FailingReplayCommandHandler>(),
+                configureMediator: mediatorBuilder => mediatorBuilder.AddCommandDeadLetter()
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task SendAsync_When_handler_throws_stores_entry_with_one_attempt(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    _ = await Assert
+                        .That(() => mediator.SendAsync<TestReplayCommand, Void>(new TestReplayCommand("sent"), token))
+                        .Throws<InvalidOperationException>();
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    _ = await Assert.That(pending).HasSingleItem();
+                    _ = await Assert.That(pending[0].AttemptCount).IsEqualTo(1);
+                    _ = await Assert.That(pending[0].ExceptionMessage).IsEqualTo("replay failed");
+                    _ = await Assert
+                        .That(pending[0].CommandType)
+                        .IsEqualTo(typeof(TestReplayCommand).AssemblyQualifiedName);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<ICommandHandler<TestReplayCommand, Void>, FailingReplayCommandHandler>(),
+                configureMediator: mediatorBuilder => mediatorBuilder.AddCommandDeadLetter()
             )
             .ConfigureAwait(false);
 
