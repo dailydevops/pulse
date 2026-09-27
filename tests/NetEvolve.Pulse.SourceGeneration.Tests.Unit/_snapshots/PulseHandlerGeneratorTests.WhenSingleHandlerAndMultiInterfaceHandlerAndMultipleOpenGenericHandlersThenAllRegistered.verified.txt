@@ -26,7 +26,7 @@ public static partial class PulseRegistrationExtensions
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::MyCommand, string>, global::MyCommandHandler>();
         services.TryAddScoped<global::MultiHandler>();
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::AnotherCommand, int>>(static sp => sp.GetRequiredService<global::MultiHandler>());
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>>(static sp => sp.GetRequiredService<global::MultiHandler>());
+        services.TryAddEnumerable(global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Scoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::MultiHandler>(static sp => sp.GetRequiredService<global::MultiHandler>()));
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IQueryHandler<global::QueryA, string>, global::GenericQueryHandler<global::QueryA, string>>();
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IQueryHandler<global::QueryB, int>, global::GenericQueryHandler<global::QueryB, int>>();
 

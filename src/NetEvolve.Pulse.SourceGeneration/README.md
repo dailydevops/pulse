@@ -8,7 +8,7 @@ NetEvolve.Pulse.SourceGeneration is a Roslyn source generator for the Pulse CQRS
 
 ## Features
 
-- **Compile-Time Code Generation**: Emits `IServiceCollection` extension methods with `TryAdd*` registrations for all annotated handlers
+- **Compile-Time Code Generation**: Emits `IServiceCollection` extension methods with `TryAdd*` registrations for command, query and stream query handlers and `TryAddEnumerable` registrations for event handlers
 - **Closed Open-Generic Handler Support**: `[PulseHandler<TMessage>]` closes open-generic handler classes for specific message types at compile time; multiple attributes on the same class register it for multiple message types
 - **Pure Open-Generic Handler Support**: `[PulseGenericHandler]` registers an open-generic handler class directly as an open-generic DI service (e.g. `services.TryAddScoped(typeof(ICommandHandler<,>), typeof(MyHandler<,>))`), allowing the DI container to resolve any closed variant at runtime
 - **Incremental Generator**: Uses `ForAttributeWithMetadataName` for fast, IDE-friendly discovery
@@ -65,7 +65,9 @@ services.AddMyProjectPulseHandlers();
 
 ### Handler Registration
 
-Annotate handler classes with `[PulseHandler]` and the generator emits `TryAddScoped`, `TryAddSingleton`, or `TryAddTransient` calls based on the configured lifetime:
+Annotate handler classes with `[PulseHandler]` and the generator emits `TryAddScoped`, `TryAddSingleton`, or `TryAddTransient` calls based on the configured lifetime. Command, query and stream query handlers have exactly one handler per message type, so an existing registration wins.
+
+An event can have several handlers. For `IEventHandler<TEvent>` the generator emits `TryAddEnumerable` with a `ServiceDescriptor` of the configured lifetime, for example `services.TryAddEnumerable(ServiceDescriptor.Transient<IEventHandler<OrderCreatedEvent>, NotificationHandler>())`. Every annotated event handler is registered next to handlers from `AddEventHandler` and `AddOutbox`, and calling the generated method twice does not register a handler twice.
 
 ```csharp
 [PulseHandler] // Scoped (default)
@@ -129,8 +131,8 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
         Task.CompletedTask;
 }
 
-// Generated: services.TryAddSingleton(
-//     typeof(IEventHandler<>), typeof(GenericAuditEventHandler<>));
+// Generated: services.TryAddEnumerable(ServiceDescriptor.Singleton(
+//     typeof(IEventHandler<>), typeof(GenericAuditEventHandler<>)));
 ```
 
 > **Note:** `[PulseHandler]` on an open-generic class produces a **PULSE004** error — use `[PulseGenericHandler]` instead when you need a true open-generic DI registration.
@@ -142,7 +144,7 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 | `ICommandHandler<TCommand>` | Void command handler (single type parameter) |
 | `ICommandHandler<TCommand, TResponse>` | Command handler with response |
 | `IQueryHandler<TQuery, TResponse>` | Query handler |
-| `IEventHandler<TEvent>` | Event handler (multiple handlers per event are valid) |
+| `IEventHandler<TEvent>` | Event handler (multiple handlers per event are valid, all of them are registered) |
 | `IStreamQueryHandler<TQuery, TResponse>` | Streaming query handler |
 
 ## Diagnostics
@@ -157,7 +159,7 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 
 ## NativeAOT and Trimming
 
-The generated registration method only emits generic `TryAdd*<TService, TImplementation>()` calls and `typeof(...)` literals for open-generic handlers. Both satisfy the `[DynamicallyAccessedMembers(PublicConstructors)]` annotations of `Microsoft.Extensions.DependencyInjection`, so the trimmer keeps every registered handler and its constructor without an `ILLink.Descriptors.xml` file or `[DynamicDependency]` attributes. The `samples/NetEvolve.Pulse.Xample.Aot` smoke application verifies this with a NativeAOT publish on every pull request.
+The generated registration method only emits generic `TryAdd*<TService, TImplementation>()` and `ServiceDescriptor.{Lifetime}<TService, TImplementation>()` calls and `typeof(...)` literals for open-generic handlers. Both satisfy the `[DynamicallyAccessedMembers(PublicConstructors)]` annotations of `Microsoft.Extensions.DependencyInjection`, so the trimmer keeps every registered handler and its constructor without an `ILLink.Descriptors.xml` file or `[DynamicDependency]` attributes. The `samples/NetEvolve.Pulse.Xample.Aot` smoke application verifies this with a NativeAOT publish on every pull request.
 
 Open-generic handlers registered with `[PulseGenericHandler]` are closed by the DI container at runtime. Under NativeAOT this only works for reference-type type arguments.
 

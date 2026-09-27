@@ -331,7 +331,7 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
-    public async Task WhenTransientLifetimeSpecifiedThenTryAddTransientIsGenerated()
+    public async Task WhenTransientLifetimeSpecifiedForEventHandlerThenTransientDescriptorIsGenerated()
     {
         const string source = """
             using NetEvolve.Pulse.Extensibility;
@@ -349,6 +349,36 @@ public class PulseHandlerGeneratorTests
             }
 
             [PulseHandler(Lifetime = PulseServiceLifetime.Transient)]
+            public class MyEventHandler : IEventHandler<MyEvent>
+            {
+                public Task HandleAsync(MyEvent message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenSingletonLifetimeSpecifiedForEventHandlerThenSingletonDescriptorIsGenerated()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            public record MyEvent : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler(Lifetime = PulseServiceLifetime.Singleton)]
             public class MyEventHandler : IEventHandler<MyEvent>
             {
                 public Task HandleAsync(MyEvent message, CancellationToken cancellationToken = default)

@@ -23,7 +23,7 @@ public static partial class PulseRegistrationExtensions
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
     public static IServiceCollection AddTestAssemblyPulseHandlers(this IServiceCollection services)
     {
-        services.TryAddTransient<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::MyEventHandler>();
+        services.TryAddEnumerable(global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Singleton<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::MyEventHandler>());
 
         return services;
     }

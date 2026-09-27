@@ -672,14 +672,18 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                         foreach (var reg in regs)
                         {
                             _ = cb.AppendLine(
-                                $"services.{lifetimeMethodName}(typeof({reg.ServiceTypeName}), typeof({handlerTypeName}));"
+                                reg.Kind == HandlerKind.Event
+                                    ? $"services.TryAddEnumerable({GetServiceDescriptorMethod(reg.Lifetime)}(typeof({reg.ServiceTypeName}), typeof({handlerTypeName})));"
+                                    : $"services.{lifetimeMethodName}(typeof({reg.ServiceTypeName}), typeof({handlerTypeName}));"
                             );
                         }
                     }
                     else if (regs.Count == 1)
                     {
                         _ = cb.AppendLine(
-                            $"services.{lifetimeMethodName}<{regs[0].ServiceTypeName}, {handlerTypeName}>();"
+                            regs[0].Kind == HandlerKind.Event
+                                ? $"services.TryAddEnumerable({GetServiceDescriptorMethod(regs[0].Lifetime)}<{regs[0].ServiceTypeName}, {handlerTypeName}>());"
+                                : $"services.{lifetimeMethodName}<{regs[0].ServiceTypeName}, {handlerTypeName}>();"
                         );
                     }
                     else
@@ -689,8 +693,13 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                         _ = cb.AppendLine($"services.{lifetimeMethodName}<{handlerTypeName}>();");
                         foreach (var reg in regs)
                         {
+                            // Event handlers use the two-type-argument factory overload, so the descriptor carries
+                            // the handler type as implementation type. TryAddEnumerable then keeps different handlers
+                            // of the same event and skips the same handler registered twice.
                             _ = cb.AppendLine(
-                                $"services.{lifetimeMethodName}<{reg.ServiceTypeName}>(static sp => sp.GetRequiredService<{handlerTypeName}>());"
+                                reg.Kind == HandlerKind.Event
+                                    ? $"services.TryAddEnumerable({GetServiceDescriptorMethod(reg.Lifetime)}<{reg.ServiceTypeName}, {handlerTypeName}>(static sp => sp.GetRequiredService<{handlerTypeName}>()));"
+                                    : $"services.{lifetimeMethodName}<{reg.ServiceTypeName}>(static sp => sp.GetRequiredService<{handlerTypeName}>());"
                             );
                         }
                     }
@@ -715,7 +724,20 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// Maps a <c>PulseServiceLifetime</c> integer value to the fully qualified <c>ServiceDescriptor</c> factory method.
+    /// Event handlers are registered through <c>TryAddEnumerable</c>, because an event can have several handlers.
+    /// </summary>
+    private static string GetServiceDescriptorMethod(int lifetime) =>
+        lifetime switch
+        {
+            0 => "global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Singleton",
+            2 => "global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Transient",
+            _ => "global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Scoped",
+        };
+
+    /// <summary>
     /// Maps a <c>PulseServiceLifetime</c> integer value to the corresponding DI registration method name.
+    /// Used for command, query and stream query handlers, which have exactly one handler per message type.
     /// </summary>
     private static string GetLifetimeMethodName(int lifetime) =>
         lifetime switch
