@@ -207,7 +207,11 @@ public sealed class CosmosDbExtensionsTests
 
         var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IOutboxRepository));
 
-        _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxRepository));
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(services.Count(d => d.ServiceType == typeof(IOutboxRepository))).IsEqualTo(1);
+            _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxRepository));
+        }
     }
 
     [Test]
@@ -219,6 +223,10 @@ public sealed class CosmosDbExtensionsTests
 
         var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IOutboxManagement));
 
-        _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxManagement));
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(services.Count(d => d.ServiceType == typeof(IOutboxManagement))).IsEqualTo(1);
+            _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxManagement));
+        }
     }
 }
