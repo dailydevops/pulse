@@ -9,7 +9,7 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-24
+lastModified: 2026-09-27
 
 state: proposed
 
@@ -31,7 +31,7 @@ Issue #864 follows the [Command Dead Letter Replay Status Rules](./2026-09-24-co
 
 * `CommandDeadLetterReplayDispatcher.ReplayAsync` stores the deserialized command instance in an `AsyncLocal` for the duration of the dispatch and restores the previous value afterwards. The new public method `CommandDeadLetterReplayDispatcher.IsReplayedCommand(object)` compares a command with that instance by reference.
 * `CommandDeadLetterInterceptor` does not call `ICommandDeadLetterStore.StoreAsync` when the failed request is the replayed command. It still rethrows the exception. The check compares references, so a command that the replayed handler sends is still recorded, even when it is equal to the replayed command by value.
-* The reset to `New` after a failed or cancelled replay is one update of the entry. It increments `AttemptCount` by one, sets `ExceptionType` and `ExceptionMessage` from the new exception and sets `OccurredAt` to `TimeProvider.GetUtcNow()`. The SQL providers do this with one `UPDATE ... SET AttemptCount = AttemptCount + 1`, so the count is never read and written back. The rules of the status decision still apply: the update runs with `CancellationToken.None`, and a failure of the update is discarded so the original exception is rethrown.
+* The reset to `New` after a failed or cancelled replay is one update of the entry. It increments `AttemptCount` by one, sets `ExceptionType` and `ExceptionMessage` from the new exception and sets `OccurredAt` to `TimeProvider.GetUtcNow()`. The ADO.NET providers do this with one `UPDATE ... SET AttemptCount = AttemptCount + 1`, so the count is never read and written back. The Entity Framework provider increments the tracked entity, like all its other status changes. If two replays of the same entry race past the status check, which the status decision accepts, it can lose one attempt. `ExceptionType` is truncated to `CommandDeadLetterSchema.MaxLengths.ExceptionType`, so a long generic exception type name cannot make the update fail and leave the entry in `Replaying`. The rules of the status decision still apply: the update runs with `CancellationToken.None`, and a failure of the update is discarded so the original exception is rethrown.
 * Every command dead letter management takes a `TimeProvider` through its constructor. The `Add*CommandDeadLetterStore` extensions register `TimeProvider.System` with `TryAddSingleton`, as the idempotency extensions do.
 * A successful replay does not change `AttemptCount`.
 * The idempotency reservation is not bypassed during a replay. The failed attempt that created the entry has already reserved the key, whatever the registration order of `AddIdempotency()` and `AddCommandDeadLetter()`. A replay of an `IIdempotentCommand` therefore fails with `IdempotencyConflictException` until the key is removed from the idempotency store. That conflict is recorded on the replayed entry like any other failure. This is documented on `ICommandDeadLetterManagement.ReplayAsync`.
