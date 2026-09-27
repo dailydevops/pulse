@@ -43,8 +43,9 @@ public sealed class CosmosDbOutboxOptions
     /// <remarks>
     /// <para>
     /// Defaults to <see cref="DefaultPartitionKeyPath"/> (<c>/id</c>).
-    /// This value is informational for container creation guidance; the repository uses it
-    /// to construct <see cref="Microsoft.Azure.Cosmos.PartitionKey"/> values for point operations.
+    /// This value is informational for container creation guidance only. The repository and the
+    /// management API always use the document <c>id</c> as <see cref="Microsoft.Azure.Cosmos.PartitionKey"/>
+    /// value for point operations, so the container must be created with the partition key path <c>/id</c>.
     /// </para>
     /// <para>
     /// With the default <c>/id</c> path every document is its own logical partition. Point
