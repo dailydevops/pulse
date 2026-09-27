@@ -155,7 +155,7 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 | PULSE002 | Warning | Multiple `[PulseHandler]` types implement the same command or query handler contract. Events are excluded — multiple event handlers are valid. |
 | PULSE004 | Error | Type annotated with `[PulseHandler]` is an open generic type and cannot be automatically registered. Use `[PulseHandler<TMessage>]` for closed registrations or `[PulseGenericHandler]` for open-generic DI registrations. |
 | PULSE005 | Error | The type argument `T` passed to `[PulseHandler<T>]` does not implement any known Pulse message interface (`ICommand`, `ICommand<T>`, `IQuery<T>`, `IEvent`, or `IStreamQuery<T>`). |
-| PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type. |
+| PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type, or the inferred type arguments do not satisfy the handler's generic constraints. |
 
 ## NativeAOT and Trimming
 

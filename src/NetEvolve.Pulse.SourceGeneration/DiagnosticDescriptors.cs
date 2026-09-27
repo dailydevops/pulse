@@ -71,7 +71,8 @@ internal static class DiagnosticDescriptors
     /// <summary>
     /// PULSE006 – a closed registration for the given message type cannot be constructed because
     /// the handler does not implement a compatible handler interface or its type parameters cannot
-    /// all be inferred from the message type.
+    /// all be inferred from the message type, or the inferred type arguments do not satisfy the
+    /// handler's generic constraints.
     /// </summary>
     public static readonly DiagnosticDescriptor IncompatibleExplicitMessageType = new(
         id: "PULSE006",
