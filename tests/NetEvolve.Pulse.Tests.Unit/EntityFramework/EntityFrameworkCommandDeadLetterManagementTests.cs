@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.DeadLetter;
 using NetEvolve.Pulse.Extensibility;
@@ -52,7 +53,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                 new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                     null!,
                     mediator,
-                    serializer
+                    serializer,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -71,7 +73,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                     new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                         context,
                         null!,
-                        serializer
+                        serializer,
+                        TimeProvider.System
                     )
                 )
                 .Throws<ArgumentNullException>();
@@ -91,6 +94,28 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                     new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                         context,
                         mediator,
+                        null!,
+                        TimeProvider.System
+                    )
+                )
+                .Throws<ArgumentNullException>();
+        }
+    }
+
+    [Test]
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        var context = CreateContext(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException));
+        await using (context.ConfigureAwait(false))
+        {
+            var mediator = new NoOpMediator();
+
+            _ = await Assert
+                .That(() =>
+                    new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
+                        context,
+                        mediator,
+                        new PassthroughPayloadSerializer(),
                         null!
                     )
                 )
@@ -119,7 +144,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var pending = await management.GetPendingAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -152,7 +178,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var pending = await management.GetPendingAsync(2, 0, cancellationToken).ConfigureAwait(false);
@@ -180,7 +207,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var pending = await management.GetPendingAsync(1, 1, cancellationToken).ConfigureAwait(false);
@@ -204,7 +232,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             _ = await Assert
@@ -226,7 +255,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var result = await management.GetEntryAsync(entry.Id, cancellationToken).ConfigureAwait(false);
@@ -249,7 +279,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var result = await management.GetEntryAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
@@ -282,7 +313,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             _ = await Assert
@@ -300,7 +332,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             _ = await Assert
@@ -343,7 +376,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                     var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                         context,
                         mediator,
-                        payloadSerializer
+                        payloadSerializer,
+                        TimeProvider.System
                     );
 
                     await management.ReplayAsync(entry.Id, cancellationToken).ConfigureAwait(false);
@@ -439,6 +473,39 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         _ = await Assert
             .That(await GetStatusAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false))
             .IsEqualTo(CommandDeadLetterStatus.New);
+    }
+
+    [Test]
+    public async Task ReplayAsync_WhenHandlerThrows_RecordsFailureOnEntry(CancellationToken cancellationToken)
+    {
+        var databaseName = nameof(ReplayAsync_WhenHandlerThrows_RecordsFailureOnEntry);
+        var failedAt = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+
+        var entryId = await ReplayWithHandlerAsync(
+                databaseName,
+                _ => new FailingReplayCommandHandler(),
+                CommandDeadLetterStatus.New,
+                async (management, id) =>
+                    _ = await Assert
+                        .That(async () => await management.ReplayAsync(id, cancellationToken).ConfigureAwait(false))
+                        .Throws<InvalidOperationException>(),
+                cancellationToken,
+                timeProvider: new FakeTimeProvider(failedAt)
+            )
+            .ConfigureAwait(false);
+
+        var entry = await GetStoredEntryAsync(databaseName, entryId, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(entry.Status).IsEqualTo(CommandDeadLetterStatus.New);
+            _ = await Assert.That(entry.AttemptCount).IsEqualTo(2);
+            _ = await Assert
+                .That(entry.ExceptionType)
+                .IsEqualTo(typeof(InvalidOperationException).AssemblyQualifiedName);
+            _ = await Assert.That(entry.ExceptionMessage).IsEqualTo("replay failed");
+            _ = await Assert.That(entry.OccurredAt).IsEqualTo(failedAt);
+        }
     }
 
     [Test]
@@ -642,7 +709,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             _ = await Assert
@@ -666,7 +734,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             await management.DismissAsync(entry.Id, cancellationToken).ConfigureAwait(false);
@@ -703,7 +772,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var statistics = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
@@ -728,7 +798,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
             var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                 context,
                 new NoOpMediator(),
-                new PassthroughPayloadSerializer()
+                new PassthroughPayloadSerializer(),
+                TimeProvider.System
             );
 
             var statistics = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
@@ -743,7 +814,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CommandDeadLetterStatus initialStatus,
         Func<EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>, Guid, Task> replay,
         CancellationToken cancellationToken,
-        Func<TestCommandDeadLetterDbContext, Task>? prepareContext = null
+        Func<TestCommandDeadLetterDbContext, Task>? prepareContext = null,
+        TimeProvider? timeProvider = null
     )
     {
         var context = CreateContext(databaseName);
@@ -774,7 +846,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
                     var management = new EntityFrameworkCommandDeadLetterManagement<TestCommandDeadLetterDbContext>(
                         context,
                         mediator,
-                        payloadSerializer
+                        payloadSerializer,
+                        timeProvider ?? TimeProvider.System
                     );
 
                     if (prepareContext is not null)
@@ -794,16 +867,21 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         string databaseName,
         Guid id,
         CancellationToken cancellationToken
+    ) => (await GetStoredEntryAsync(databaseName, id, cancellationToken).ConfigureAwait(false)).Status;
+
+    private static async Task<CommandDeadLetterEntry> GetStoredEntryAsync(
+        string databaseName,
+        Guid id,
+        CancellationToken cancellationToken
     )
     {
         var context = CreateContext(databaseName);
         await using (context.ConfigureAwait(false))
         {
-            var entry = await context
+            return await context
                 .CommandDeadLetterEntries.AsNoTracking()
                 .SingleAsync(e => e.Id == id, cancellationToken)
                 .ConfigureAwait(false);
-            return entry.Status;
         }
     }
 

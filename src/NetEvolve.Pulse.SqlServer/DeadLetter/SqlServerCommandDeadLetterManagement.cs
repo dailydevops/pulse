@@ -50,8 +50,14 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <summary>Cached SQL command text for updating the status of a dead letter entry.</summary>
     private readonly string _updateStatusSql;
 
+    /// <summary>Cached SQL command text for resetting a dead letter entry after a failed replay.</summary>
+    private readonly string _recordReplayFailureSql;
+
     /// <summary>Cached SQL command text for retrieving aggregate status counts.</summary>
     private readonly string _getStatisticsSql;
+
+    /// <summary>The time provider used to timestamp a failed replay.</summary>
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerCommandDeadLetterManagement"/> class.
@@ -59,20 +65,24 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <param name="options">The command dead letter configuration options.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public SqlServerCommandDeadLetterManagement(
         IOptions<CommandDeadLetterOptions> options,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = options.Value.ConnectionString;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? CommandDeadLetterSchema.DefaultSchema
@@ -113,6 +123,16 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         _updateStatusSql = $"""
             UPDATE {fullTableName}
             SET [{CommandDeadLetterSchema.Columns.Status}] = @Status
+            WHERE [{CommandDeadLetterSchema.Columns.Id}] = @Id
+            """;
+
+        _recordReplayFailureSql = $"""
+            UPDATE {fullTableName}
+            SET [{CommandDeadLetterSchema.Columns.Status}] = @Status,
+                [{CommandDeadLetterSchema.Columns.AttemptCount}] = [{CommandDeadLetterSchema.Columns.AttemptCount}] + 1,
+                [{CommandDeadLetterSchema.Columns.ExceptionType}] = @ExceptionType,
+                [{CommandDeadLetterSchema.Columns.ExceptionMessage}] = @ExceptionMessage,
+                [{CommandDeadLetterSchema.Columns.OccurredAt}] = @OccurredAt
             WHERE [{CommandDeadLetterSchema.Columns.Id}] = @Id
             """;
 
@@ -197,13 +217,12 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
                     .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
                 try
                 {
                     // Not cancellable: the reset must also run when the replay was cancelled.
-                    _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.New, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    await RecordReplayFailureAsync(connection, id, ex).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -325,6 +344,31 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
 
                 return MapToEntry(reader);
             }
+        }
+    }
+
+    /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    /// <param name="connection">The open connection to use for the update.</param>
+    /// <param name="id">The identifier of the dead letter entry to update.</param>
+    /// <param name="exception">The exception that caused the replay to fail.</param>
+    private async Task RecordReplayFailureAsync(SqlConnection connection, Guid id, Exception exception)
+    {
+        var command = new SqlCommand(_recordReplayFailureSql, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            _ = command.Parameters.AddWithValue("@Id", id);
+            _ = command.Parameters.AddWithValue("@Status", (short)CommandDeadLetterStatus.New);
+            _ = command.Parameters.AddWithValue(
+                "@ExceptionType",
+                (object?)exception.GetType().AssemblyQualifiedName ?? DBNull.Value
+            );
+            _ = command.Parameters.AddWithValue("@ExceptionMessage", exception.Message);
+            _ = command.Parameters.AddWithValue("@OccurredAt", _timeProvider.GetUtcNow());
+
+            _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
 

@@ -26,6 +26,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     private readonly TContext _context;
     private readonly IMediatorSendOnly _mediator;
     private readonly IPayloadSerializer _payloadSerializer;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkCommandDeadLetterManagement{TContext}"/> class.
@@ -33,19 +34,23 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
     /// <param name="context">The DbContext for database operations.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public EntityFrameworkCommandDeadLetterManagement(
         TContext context,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _context = context;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -99,7 +104,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
                 .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
             // Not cancellable: the reset must also run when the replay was cancelled.
             try
@@ -112,6 +117,10 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
                 }
 
                 entry.Status = CommandDeadLetterStatus.New;
+                entry.AttemptCount++;
+                entry.ExceptionType = ex.GetType().AssemblyQualifiedName;
+                entry.ExceptionMessage = ex.Message;
+                entry.OccurredAt = _timeProvider.GetUtcNow();
                 _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
             }
             catch

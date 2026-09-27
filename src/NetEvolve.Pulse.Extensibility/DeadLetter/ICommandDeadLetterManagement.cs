@@ -67,6 +67,22 @@ public interface ICommandDeadLetterManagement
     /// When the reset itself fails, implementations MUST still rethrow the original exception; the entry then
     /// stays in <see cref="CommandDeadLetterStatus.Replaying"/> and remains replayable.
     /// </description></item>
+    /// <item><description>
+    /// The reset after a failed or cancelled replay MUST also record the attempt on the same entry: increment
+    /// <see cref="CommandDeadLetterEntry.AttemptCount"/> by one, set <see cref="CommandDeadLetterEntry.ExceptionType"/>
+    /// and <see cref="CommandDeadLetterEntry.ExceptionMessage"/> from the new exception, and set
+    /// <see cref="CommandDeadLetterEntry.OccurredAt"/> to the current time of the injected <see cref="TimeProvider"/>.
+    /// A failed replay never creates a new entry: the command dead letter interceptor skips the command that
+    /// <see cref="CommandDeadLetterReplayDispatcher"/> is replaying (see
+    /// <see cref="CommandDeadLetterReplayDispatcher.IsReplayedCommand"/>). A successful replay does not change
+    /// <see cref="CommandDeadLetterEntry.AttemptCount"/>.
+    /// </description></item>
+    /// <item><description>
+    /// An <c>IIdempotentCommand</c> keeps its idempotency key reserved after the failed attempt that created the
+    /// entry, whatever the registration order of the idempotency and dead letter interceptors. Its replay therefore
+    /// fails with an idempotency conflict, which is recorded on the entry like any other failure, until the key is
+    /// removed from the idempotency store. Dismiss such an entry if the command must not run again.
+    /// </description></item>
     /// </list>
     /// <para><strong>NativeAOT and Trimming:</strong></para>
     /// Replay is reflection-based and therefore annotated with <see cref="RequiresUnreferencedCodeAttribute"/> and

@@ -28,6 +28,33 @@ public static class CommandDeadLetterReplayDispatcher
     private static readonly ConcurrentDictionary<string, Type> _commandTypeCache = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Holds the command instance that is currently being replayed in this asynchronous flow.
+    /// </summary>
+    private static readonly AsyncLocal<object?> _replayedCommand = new();
+
+    /// <summary>
+    /// Determines whether <paramref name="command"/> is the command instance that
+    /// <see cref="ReplayAsync"/> is currently dispatching in this asynchronous flow.
+    /// </summary>
+    /// <param name="command">The command to check.</param>
+    /// <returns>
+    /// <see langword="true"/> if <paramref name="command"/> is the same instance that is being replayed;
+    /// otherwise, <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// The check compares references, not values. Other commands that the replayed handler sends,
+    /// even equal ones, are not treated as replayed. Interceptors use this to avoid recording a failed
+    /// replay as a new dead letter entry, because the management updates the replayed entry instead.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="command"/> is <see langword="null"/>.</exception>
+    public static bool IsReplayedCommand(object command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        return ReferenceEquals(_replayedCommand.Value, command);
+    }
+
+    /// <summary>
     /// Resolves the command and response types from the persisted metadata, deserializes the payload,
     /// and dispatches the resulting command instance via <paramref name="mediator"/>.
     /// </summary>
@@ -67,6 +94,8 @@ public static class CommandDeadLetterReplayDispatcher
 
         var sendAsyncMethod = ResolveSendAsyncMethod().MakeGenericMethod(resolvedType, responseType);
 
+        var previousCommand = _replayedCommand.Value;
+        _replayedCommand.Value = command;
         try
         {
             var result = sendAsyncMethod.Invoke(mediator, [command, cancellationToken]);
@@ -75,6 +104,10 @@ public static class CommandDeadLetterReplayDispatcher
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
         {
             ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+        }
+        finally
+        {
+            _replayedCommand.Value = previousCommand;
         }
     }
 
