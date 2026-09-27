@@ -65,6 +65,13 @@ await RunAsync(
             await mediator.PublishAsync(new OrderCancelledEvent("A-1")).ConfigureAwait(false);
             Check(
                 recorder.Invocations.Contains("OrderNotificationHandler<OrderCancelledEvent>"),
+                "event handler implementing two event handler interfaces"
+            );
+            var notificationInstances = recorder
+                .Invocations.Where(static i => i.StartsWith("OrderNotificationHandler#", StringComparison.Ordinal))
+                .ToList();
+            Check(
+                notificationInstances.Count == 2 && notificationInstances.Distinct(StringComparer.Ordinal).Count() == 1,
                 "event handler sharing one instance across two event handler interfaces"
             );
 

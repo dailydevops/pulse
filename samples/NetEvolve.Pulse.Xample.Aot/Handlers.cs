@@ -207,15 +207,24 @@ internal sealed class OrderNotificationHandler(InvocationRecorder recorder)
     : IEventHandler<OrderCreatedEvent>,
         IEventHandler<OrderCancelledEvent>
 {
+    /// <summary>
+    /// Gets the invocation entry that identifies this instance, so the smoke check can prove that both event handler
+    /// interfaces resolve the same instance.
+    /// </summary>
+    private string InstanceMarker =>
+        $"{nameof(OrderNotificationHandler)}#{RuntimeHelpers.GetHashCode(this).ToString(CultureInfo.InvariantCulture)}";
+
     public Task HandleAsync(OrderCreatedEvent message, CancellationToken cancellationToken = default)
     {
         recorder.Invocations.Enqueue($"{nameof(OrderNotificationHandler)}<{nameof(OrderCreatedEvent)}>");
+        recorder.Invocations.Enqueue(InstanceMarker);
         return Task.CompletedTask;
     }
 
     public Task HandleAsync(OrderCancelledEvent message, CancellationToken cancellationToken = default)
     {
         recorder.Invocations.Enqueue($"{nameof(OrderNotificationHandler)}<{nameof(OrderCancelledEvent)}>");
+        recorder.Invocations.Enqueue(InstanceMarker);
         return Task.CompletedTask;
     }
 }
