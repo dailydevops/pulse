@@ -53,6 +53,7 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         var opts = options.Value;
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.DatabaseName);
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.ContainerName);
+        opts.ThrowIfPartitionKeyPathIsNotSupported();
 
         _container = cosmosClient.GetContainer(opts.DatabaseName, opts.ContainerName);
         _timeProvider = timeProvider;

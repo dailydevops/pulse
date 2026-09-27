@@ -41,7 +41,7 @@ dotnet add package NetEvolve.Pulse.CosmosDb
 The provider does not create the database or the container. Create both before the application starts processing the outbox.
 
 > [!IMPORTANT]
-> The container **must** use the partition key path `/id`. The repository and the management API always use the document `id` (the outbox message ID) as partition key value for point reads, patches and deletes. Any other partition key path makes these operations fail with `404 Not Found`. `CosmosDbOutboxOptions.PartitionKeyPath` is informational only and does not change this behavior.
+> The container **must** use the partition key path `/id`. The repository and the management API always use the document `id` (the outbox message ID) as partition key value for point reads, patches and deletes. On a container with any other partition key path these operations return `404 Not Found`, which would stall the outbox silently. `CosmosDbOutboxOptions.PartitionKeyPath` therefore only accepts `/id`; any other value fails options validation at host startup with an `OptionsValidationException`.
 
 ```csharp
 using Microsoft.Azure.Cosmos;
@@ -128,7 +128,7 @@ services.AddPulse(config => config
 |---|---|---|---|
 | `DatabaseName` | `string` | _(required)_ | The Cosmos DB database name. The database must exist. |
 | `ContainerName` | `string` | `outbox_messages` | The Cosmos DB container name. The container must exist. |
-| `PartitionKeyPath` | `string` | `/id` | Informational only. The container must use `/id` (see [Container Setup](#container-setup)). |
+| `PartitionKeyPath` | `string` | `/id` | Only `/id` is supported; other values fail validation at startup. The container must use `/id` (see [Container Setup](#container-setup)). |
 | `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. Replaying a dead-letter message sets its `ttl` to `-1`, so it does not expire while pending. Requires `DefaultTimeToLive` on the container. |
 | `TtlSeconds` | `int` | `86400` (24 hours) | TTL in seconds for completed and dead-letter documents. Only applies when `EnableTimeToLive` is `true`. |
 
