@@ -229,4 +229,68 @@ public sealed class CosmosDbExtensionsTests
             _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxManagement));
         }
     }
+
+    [Test]
+    public async Task AddCosmosDbOutbox_WithUnsupportedPartitionKeyPath_ThrowsOnOptionsResolution()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.AddCosmosDbOutbox(opts =>
+            {
+                opts.DatabaseName = "TestDb";
+                opts.PartitionKeyPath = "/eventType";
+            })
+        );
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var exception = await Assert
+                .That(() => provider.GetRequiredService<IOptions<CosmosDbOutboxOptions>>().Value)
+                .ThrowsExactly<OptionsValidationException>();
+
+            _ = await Assert.That(exception!.Message).Contains(nameof(CosmosDbOutboxOptions.PartitionKeyPath));
+        }
+    }
+
+    [Test]
+    public async Task UseCosmosDbOutbox_WithUnsupportedPartitionKeyPath_ThrowsOnOptionsResolution()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config
+                .AddOutbox()
+                .UseCosmosDbOutbox(opts =>
+                {
+                    opts.DatabaseName = "TestDb";
+                    opts.PartitionKeyPath = "/eventType";
+                })
+        );
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var exception = await Assert
+                .That(() => provider.GetRequiredService<IOptions<CosmosDbOutboxOptions>>().Value)
+                .ThrowsExactly<OptionsValidationException>();
+
+            _ = await Assert.That(exception!.Message).Contains(nameof(CosmosDbOutboxOptions.PartitionKeyPath));
+        }
+    }
+
+    [Test]
+    public async Task AddCosmosDbOutbox_CombinedWithUseCosmosDbOutbox_RegistersOptionsValidatorOnce()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.AddCosmosDbOutbox(opts => opts.DatabaseName = "TestDb").UseCosmosDbOutbox(_ => { })
+        );
+
+        var count = services.Count(d =>
+            d.ServiceType == typeof(IValidateOptions<CosmosDbOutboxOptions>)
+            && d.ImplementationType == typeof(CosmosDbOutboxOptionsValidator)
+        );
+
+        _ = await Assert.That(count).IsEqualTo(1);
+    }
 }
