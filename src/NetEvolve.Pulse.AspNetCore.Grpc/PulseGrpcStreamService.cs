@@ -77,7 +77,7 @@ public abstract class PulseGrpcStreamService<TQuery, TResponse>
     [SuppressMessage(
         "Usage",
         "S8949:Pass the cancellation token",
-        Justification = "IAsyncStreamWriter.WriteAsync(T, CancellationToken) throws NotSupportedException for writers that only implement WriteAsync(T); the token is checked before each write instead."
+        Justification = "IAsyncStreamWriter.WriteAsync(T, CancellationToken) throws NotSupportedException for writers that only implement WriteAsync(T); the token is checked before each write and a pending write is abandoned through WaitAsync instead."
     )]
     protected async Task StreamAsync<TMessage>(
         [NotNull] TQuery query,
@@ -103,7 +103,8 @@ public abstract class PulseGrpcStreamService<TQuery, TResponse>
             // Handlers may ignore the token, so check it before every write.
             cancellationToken.ThrowIfCancellationRequested();
 
-            await responseStream.WriteAsync(map(item)).ConfigureAwait(false);
+            // A write can stall when the transport stops draining; stop waiting once the call is cancelled.
+            await responseStream.WriteAsync(map(item)).WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }
