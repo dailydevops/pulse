@@ -32,6 +32,7 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
 
     private readonly Container _container;
     private readonly TimeProvider _timeProvider;
+    private readonly bool _enableTtl;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CosmosDbOutboxManagement"/> class.
@@ -55,6 +56,7 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
 
         _container = cosmosClient.GetContainer(opts.DatabaseName, opts.ContainerName);
         _timeProvider = timeProvider;
+        _enableTtl = opts.EnableTimeToLive;
     }
 
     /// <inheritdoc />
@@ -146,16 +148,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
                 return false;
             }
 
-            var now = _timeProvider.GetUtcNow();
             var requestOptions = new PatchItemRequestOptions { IfMatchEtag = current.ETag };
-
-            var patches = new List<PatchOperation>
-            {
-                PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
-                PatchOperation.Set("/retryCount", 0),
-                PatchOperation.Set("/error", (string?)null),
-                PatchOperation.Set("/updatedAt", now),
-            };
+            var patches = CreateReplayPatches();
 
             _ = await _container
                 .PatchItemAsync<CosmosDbOutboxDocument>(id, partitionKey, patches, requestOptions, cancellationToken)
@@ -206,16 +200,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
-        var now = _timeProvider.GetUtcNow();
         var requestOptions = new PatchItemRequestOptions { IfMatchEtag = document.ETag };
-
-        var patches = new List<PatchOperation>
-        {
-            PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
-            PatchOperation.Set("/retryCount", 0),
-            PatchOperation.Set("/error", (string?)null),
-            PatchOperation.Set("/updatedAt", now),
-        };
+        var patches = CreateReplayPatches();
 
         try
         {
@@ -235,6 +221,32 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Creates the patch operations that reset a dead-letter document to <see cref="OutboxMessageStatus.Pending"/>.
+    /// </summary>
+    /// <remarks>
+    /// When TTL is enabled, dead-letter documents carry a <c>ttl</c> value. Cosmos DB counts TTL from the last
+    /// modification, so a replayed document would still be deleted <see cref="CosmosDbOutboxOptions.TtlSeconds"/>
+    /// after the replay. Setting <c>ttl</c> to <c>-1</c> keeps the replayed message until it is processed again.
+    /// </remarks>
+    private List<PatchOperation> CreateReplayPatches()
+    {
+        var patches = new List<PatchOperation>
+        {
+            PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
+            PatchOperation.Set("/retryCount", 0),
+            PatchOperation.Set("/error", (string?)null),
+            PatchOperation.Set("/updatedAt", _timeProvider.GetUtcNow()),
+        };
+
+        if (_enableTtl)
+        {
+            patches.Add(PatchOperation.Set("/ttl", -1));
+        }
+
+        return patches;
     }
 
     /// <inheritdoc />

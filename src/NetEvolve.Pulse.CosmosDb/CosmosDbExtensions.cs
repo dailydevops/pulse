@@ -108,11 +108,12 @@ public static class CosmosDbExtensions
         // Ensure TimeProvider is registered.
         services.TryAddSingleton(TimeProvider.System);
 
-        // Register the repository.
-        services.TryAddScoped<IOutboxRepository, CosmosDbOutboxRepository>();
-
-        // Register the management API.
-        services.TryAddScoped<IOutboxManagement, CosmosDbOutboxManagement>();
+        // Replace any previously registered repository and management API.
+        _ = services
+            .RemoveAll<IOutboxRepository>()
+            .AddScoped<IOutboxRepository, CosmosDbOutboxRepository>()
+            .RemoveAll<IOutboxManagement>()
+            .AddScoped<IOutboxManagement, CosmosDbOutboxManagement>();
 
         return configurator;
     }

@@ -197,4 +197,36 @@ public sealed class CosmosDbExtensionsTests
             _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
         }
     }
+
+    [Test]
+    public async Task UseCosmosDbOutbox_WithPreviouslyRegisteredRepository_ReplacesRepository()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddScoped(_ => Mock.Of<IOutboxRepository>().Object);
+        _ = services.AddPulse(config => config.AddOutbox().UseCosmosDbOutbox(opts => opts.DatabaseName = "TestDb"));
+
+        var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IOutboxRepository));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(services.Count(d => d.ServiceType == typeof(IOutboxRepository))).IsEqualTo(1);
+            _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxRepository));
+        }
+    }
+
+    [Test]
+    public async Task UseCosmosDbOutbox_WithPreviouslyRegisteredManagement_ReplacesManagement()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddScoped(_ => Mock.Of<IOutboxManagement>().Object);
+        _ = services.AddPulse(config => config.AddOutbox().UseCosmosDbOutbox(opts => opts.DatabaseName = "TestDb"));
+
+        var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IOutboxManagement));
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(services.Count(d => d.ServiceType == typeof(IOutboxManagement))).IsEqualTo(1);
+            _ = await Assert.That(descriptor?.ImplementationType).IsEqualTo(typeof(CosmosDbOutboxManagement));
+        }
+    }
 }
