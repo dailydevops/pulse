@@ -584,6 +584,37 @@ public abstract class CommandDeadLetterTestsBase(
             .ConfigureAwait(false);
 
     [Test]
+    public async Task ReplayAsync_When_exception_type_is_too_long_truncates_it(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var exceptionTypeName = LongNameFailingReplayCommandHandler.ExceptionTypeName;
+                    _ = await Assert
+                        .That(exceptionTypeName.Length)
+                        .IsGreaterThan(CommandDeadLetterSchema.MaxLengths.ExceptionType);
+
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+                    var entryId = await StoreReplayableEntryAsync(services, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(() => management.ReplayAsync(entryId, token)).Throws<Exception>();
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+                    _ = await Assert.That(pending).HasSingleItem();
+                    _ = await Assert.That(pending[0].AttemptCount).IsEqualTo(2);
+                    _ = await Assert
+                        .That(pending[0].ExceptionType)
+                        .IsEqualTo(exceptionTypeName[..CommandDeadLetterSchema.MaxLengths.ExceptionType]);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.AddSingleton<
+                        ICommandHandler<TestReplayCommand, Void>,
+                        LongNameFailingReplayCommandHandler
+                    >()
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task ReplayAsync_When_replayed_twice_counts_every_attempt(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
@@ -750,6 +781,38 @@ public abstract class CommandDeadLetterTestsBase(
     {
         public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("replay failed");
+    }
+
+    private sealed class LongNameFailingReplayCommandHandler : ICommandHandler<TestReplayCommand, Void>
+    {
+        public static string ExceptionTypeName =>
+            typeof(ReplayException<
+                Dictionary<Dictionary<string, Guid>, Dictionary<string, Guid>>
+            >).AssemblyQualifiedName!;
+
+        public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default) =>
+            throw new ReplayException<Dictionary<Dictionary<string, Guid>, Dictionary<string, Guid>>>();
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2326:Unused type parameters should be removed",
+        Justification = "The type argument only lengthens the assembly-qualified exception type name."
+    )]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3871:Exception types should be \"public\"",
+        Justification = "Test-only exception that never leaves the test."
+    )]
+    private sealed class ReplayException<T> : Exception
+    {
+        public ReplayException() { }
+
+        public ReplayException(string message)
+            : base(message) { }
+
+        public ReplayException(string message, Exception innerException)
+            : base(message, innerException) { }
     }
 
     private sealed class TableDroppingReplayCommandHandler(Func<CancellationToken, Task> dropTable)
