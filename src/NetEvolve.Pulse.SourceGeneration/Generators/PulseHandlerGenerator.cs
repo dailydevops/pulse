@@ -878,7 +878,9 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Find the matching open handler interface in the class's AllInterfaces.
+        // Find the matching handler interface in the class's AllInterfaces. A class may implement the
+        // same handler interface for several messages, so its message argument must be the explicit
+        // message type or a type parameter still to be closed over it.
         // A manual loop is used instead of LINQ's FirstOrDefault to avoid allocating a
         // closure/display-class per call.
 #pragma warning disable S3267 // Loops should be simplified using the "Where" LINQ method
@@ -890,6 +892,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                     GetFullMetadataName(iface.OriginalDefinition),
                     expectedHandlerIfaceName,
                     StringComparison.Ordinal
+                )
+                && (
+                    iface.TypeArguments[0] is ITypeParameterSymbol
+                    || SymbolEqualityComparer.Default.Equals(iface.TypeArguments[0], messageType)
                 )
             )
             {
