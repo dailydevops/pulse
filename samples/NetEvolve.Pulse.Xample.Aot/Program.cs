@@ -54,8 +54,18 @@ await RunAsync(
             await mediator.PublishAsync(new OrderCreatedEvent("A-1")).ConfigureAwait(false);
             Check(recorder.Invocations.Contains(nameof(OrderCreatedHandler)), "event handler");
             Check(
+                recorder.Invocations.Contains("OrderNotificationHandler<OrderCreatedEvent>"),
+                "second generated event handler for the same event"
+            );
+            Check(
                 recorder.Invocations.Contains("AuditEventHandler<OrderCreatedEvent>"),
                 "open-generic event handler closed by the DI container"
+            );
+
+            await mediator.PublishAsync(new OrderCancelledEvent("A-1")).ConfigureAwait(false);
+            Check(
+                recorder.Invocations.Contains("OrderNotificationHandler<OrderCancelledEvent>"),
+                "event handler sharing one instance across two event handler interfaces"
             );
 
             // The outbox providers persist ToOutboxEventTypeName() and rehydrate it with Type.GetType. Their IL2057

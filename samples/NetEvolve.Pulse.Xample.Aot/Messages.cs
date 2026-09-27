@@ -90,3 +90,14 @@ internal sealed record OrderCreatedEvent(string OrderId) : IEvent
 
     public DateTimeOffset? PublishedAt { get; set; }
 }
+
+internal sealed record OrderCancelledEvent(string OrderId) : IEvent
+{
+    public string? CausationId { get; set; }
+
+    public string? CorrelationId { get; set; }
+
+    public string Id { get; init; } = Guid.NewGuid().ToString("N");
+
+    public DateTimeOffset? PublishedAt { get; set; }
+}

@@ -199,6 +199,28 @@ internal sealed class OrderCreatedHandler(InvocationRecorder recorder) : IEventH
 }
 
 /// <summary>
+/// Second handler for <see cref="OrderCreatedEvent"/> that also handles <see cref="OrderCancelledEvent"/>, so the
+/// generated registrations share one instance across both event handler interfaces.
+/// </summary>
+[PulseHandler]
+internal sealed class OrderNotificationHandler(InvocationRecorder recorder)
+    : IEventHandler<OrderCreatedEvent>,
+        IEventHandler<OrderCancelledEvent>
+{
+    public Task HandleAsync(OrderCreatedEvent message, CancellationToken cancellationToken = default)
+    {
+        recorder.Invocations.Enqueue($"{nameof(OrderNotificationHandler)}<{nameof(OrderCreatedEvent)}>");
+        return Task.CompletedTask;
+    }
+
+    public Task HandleAsync(OrderCancelledEvent message, CancellationToken cancellationToken = default)
+    {
+        recorder.Invocations.Enqueue($"{nameof(OrderNotificationHandler)}<{nameof(OrderCancelledEvent)}>");
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>
 /// Open-generic handler registered through <c>[PulseGenericHandler]</c>; the DI container closes it at runtime.
 /// </summary>
 /// <typeparam name="TEvent">The event type.</typeparam>
