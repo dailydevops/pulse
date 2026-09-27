@@ -15,6 +15,7 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Internals;
 using TUnit.Core;
+using TUnit.Mocks;
 
 [TestGroup("NativeAot")]
 public sealed class NativeAotInterceptorExtensionsTests
@@ -255,6 +256,31 @@ public sealed class NativeAotInterceptorExtensionsTests
         _ = await Assert
             .That(descriptors[0].KeyedImplementationType)
             .IsEqualTo(typeof(ConcurrentCommandGuardInterceptor<ExclusiveValueCommand, int>));
+    }
+
+    [Test]
+    public async Task AddExclusiveCommandInterceptorsCore_WithClosedGuardAfterClosedInterceptor_RegistersSingleGuard()
+    {
+        var other = Mock.Of<IRequestInterceptor<ExclusiveValueCommand, int>>().Object;
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(other);
+        _ = new MediatorBuilder(services).AddConcurrentCommandGuard<ExclusiveValueCommand, int>();
+
+        NativeAotInterceptorExtensions.AddExclusiveCommandInterceptorsCore<ExclusiveValueCommand, int>(services);
+
+        await using var provider = services.BuildServiceProvider();
+        var interceptors = provider.GetKeyedServices<IRequestInterceptor<ExclusiveValueCommand, int>>(Key).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(interceptors.Count).IsEqualTo(2);
+            _ = await Assert.That(interceptors[0]).IsSameReferenceAs(other);
+            _ = await Assert
+                .That(interceptors[1])
+                .IsSameReferenceAs(
+                    provider.GetRequiredService<ConcurrentCommandGuardInterceptor<ExclusiveValueCommand, int>>()
+                );
+        }
     }
 
     [Test]
