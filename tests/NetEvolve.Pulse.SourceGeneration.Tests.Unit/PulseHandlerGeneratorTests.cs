@@ -1253,6 +1253,30 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenExplicitMessageTypeViolatesGenericHandlerConstraintThenPulse006Reported()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public sealed record C1 : ICommand<string>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd> : ICommandHandler<TCmd, int>
+                where TCmd : ICommand<int>
+            {
+                public Task<int> HandleAsync(TCmd command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(0);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenConcreteHandlerAnnotatedWithGenericAttributeThenRegistrationIsGenerated()
     {
         const string source = """

@@ -258,7 +258,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
 
             var lifetime = ReadLifetimeFromSingleAttr(attr);
-            var reg = TryBuildExplicitRegistration(classSymbol, messageType, lifetime);
+            var reg = TryBuildExplicitRegistration(ctx.SemanticModel.Compilation, classSymbol, messageType, lifetime);
             if (reg.HasValue)
             {
                 registrations.Add(reg.Value);
@@ -867,6 +867,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// registration cannot be constructed.
     /// </summary>
     private static HandlerRegistration? TryBuildExplicitRegistration(
+        Compilation compilation,
         INamedTypeSymbol classSymbol,
         INamedTypeSymbol messageType,
         int lifetime
@@ -877,7 +878,9 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Find the matching open handler interface in the class's AllInterfaces.
+        // Find the matching handler interface in the class's AllInterfaces. A class may implement the
+        // same handler interface for several messages, so its message argument must be the explicit
+        // message type or a type parameter still to be closed over it.
         // A manual loop is used instead of LINQ's FirstOrDefault to avoid allocating a
         // closure/display-class per call.
 #pragma warning disable S3267 // Loops should be simplified using the "Where" LINQ method
@@ -889,6 +892,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                     GetFullMetadataName(iface.OriginalDefinition),
                     expectedHandlerIfaceName,
                     StringComparison.Ordinal
+                )
+                && (
+                    iface.TypeArguments[0] is ITypeParameterSymbol
+                    || SymbolEqualityComparer.Default.Equals(iface.TypeArguments[0], messageType)
                 )
             )
             {
@@ -962,6 +969,13 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             }
         }
 
+        // Construct does not validate constraints; an unsatisfied one would otherwise surface as
+        // CS0310/CS0311/CS0452/CS0453/CS8377 inside the generated file instead of PULSE006.
+        if (!SatisfiesConstraints(compilation, classSymbol.TypeParameters, handlerTypeArgs))
+        {
+            return null;
+        }
+
         var closedHandler = classSymbol.Construct(handlerTypeArgs);
 
         // Build the closed service interface type arguments.
@@ -985,6 +999,137 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             lifetime,
             nativeAotInterceptorMethod: GetNativeAotInterceptorMethod(closedService, kind)
         );
+    }
+
+    /// <summary>
+    /// Determines whether every type argument satisfies the constraints of its type parameter
+    /// (C# specification §8.4.5), so the constructed handler type compiles. A <c>notnull</c> constraint is
+    /// not checked because the compiler only warns (CS8714) when it is violated.
+    /// </summary>
+    private static bool SatisfiesConstraints(
+        Compilation compilation,
+        ImmutableArray<ITypeParameterSymbol> typeParameters,
+        ITypeSymbol[] typeArguments
+    )
+    {
+        for (var j = 0; j < typeParameters.Length; j++)
+        {
+            var typeParameter = typeParameters[j];
+            var typeArgument = typeArguments[j];
+            var isNullableValueType = typeArgument.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+
+            if (
+                (typeParameter.HasReferenceTypeConstraint && !typeArgument.IsReferenceType)
+                || (typeParameter.HasValueTypeConstraint && (!typeArgument.IsValueType || isNullableValueType))
+                || (typeParameter.HasUnmanagedTypeConstraint && (!typeArgument.IsUnmanagedType || isNullableValueType))
+                || (typeParameter.HasConstructorConstraint && !HasPublicParameterlessConstructor(typeArgument))
+            )
+            {
+                return false;
+            }
+
+            foreach (var constraintType in typeParameter.ConstraintTypes)
+            {
+                var conversion = compilation.ClassifyConversion(
+                    typeArgument,
+                    SubstituteTypeParameters(compilation, constraintType, typeParameters, typeArguments)
+                );
+
+                if (
+                    !conversion.IsIdentity
+                    && !(conversion.IsImplicit && (conversion.IsReference || conversion.IsBoxing))
+                )
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="type"/> satisfies a <c>new()</c> constraint.
+    /// </summary>
+    private static bool HasPublicParameterlessConstructor(ITypeSymbol type)
+    {
+        if (type.IsValueType)
+        {
+            return true;
+        }
+
+        if (type is not INamedTypeSymbol { TypeKind: TypeKind.Class, IsAbstract: false } namedType)
+        {
+            return false;
+        }
+
+        foreach (var constructor in namedType.InstanceConstructors)
+        {
+            if (constructor.Parameters.Length == 0 && constructor.DeclaredAccessibility == Accessibility.Public)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Replaces references to <paramref name="typeParameters"/> in <paramref name="type"/> with the
+    /// matching <paramref name="typeArguments"/>, e.g. <c>ICommand&lt;TResult&gt;</c> becomes
+    /// <c>ICommand&lt;string&gt;</c>.
+    /// </summary>
+    private static ITypeSymbol SubstituteTypeParameters(
+        Compilation compilation,
+        ITypeSymbol type,
+        ImmutableArray<ITypeParameterSymbol> typeParameters,
+        ITypeSymbol[] typeArguments
+    )
+    {
+        switch (type)
+        {
+            case ITypeParameterSymbol typeParameter:
+                var index = typeParameters.IndexOf(typeParameter, SymbolEqualityComparer.Default);
+                return index >= 0 ? typeArguments[index] : type;
+            case IArrayTypeSymbol arrayType:
+                return compilation.CreateArrayTypeSymbol(
+                    SubstituteTypeParameters(compilation, arrayType.ElementType, typeParameters, typeArguments),
+                    arrayType.Rank
+                );
+            case INamedTypeSymbol { IsGenericType: true } namedType:
+                // IsGenericType is also true for Outer<T>.IInner, which has no type arguments of its own:
+                // substitute the containing type first and look the nested type up on the result.
+                var definition = namedType.ContainingType is { IsGenericType: true } containingType
+                    ? (
+                        (INamedTypeSymbol)SubstituteTypeParameters(
+                            compilation,
+                            containingType,
+                            typeParameters,
+                            typeArguments
+                        )
+                    ).GetTypeMembers(namedType.Name, namedType.Arity)[0]
+                    : namedType.OriginalDefinition;
+
+                if (namedType.Arity == 0)
+                {
+                    return definition;
+                }
+
+                var substituted = new ITypeSymbol[namedType.TypeArguments.Length];
+                for (var i = 0; i < substituted.Length; i++)
+                {
+                    substituted[i] = SubstituteTypeParameters(
+                        compilation,
+                        namedType.TypeArguments[i],
+                        typeParameters,
+                        typeArguments
+                    );
+                }
+
+                return definition.Construct(substituted);
+            default:
+                return type;
+        }
     }
 
     /// <summary>
