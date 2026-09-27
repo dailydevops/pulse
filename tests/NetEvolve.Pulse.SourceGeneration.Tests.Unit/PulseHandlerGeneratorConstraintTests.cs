@@ -27,13 +27,19 @@ public class PulseHandlerGeneratorConstraintTests
 
         public interface IMarker { }
 
+        public abstract record RequestBase
+        {
+            public string? CausationId { get; set; }
+            public string? CorrelationId { get; set; }
+        }
+
         """;
 
     [Test]
     [Arguments(
         "FixedResultTypeMismatch",
         """
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd> : ICommandHandler<TCmd, int>
@@ -46,7 +52,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "ExtraInterfaceConstraint",
         """
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -59,7 +65,11 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "ClassConstraintOnValueTypeMessage",
         """
-            public record struct C1 : ICommand<string>;
+            public record struct C1 : ICommand<string>
+            {
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+            }
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -72,7 +82,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "StructConstraintOnReferenceTypeMessage",
         """
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -85,7 +95,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "NewConstraintWithoutParameterlessConstructor",
         """
-            public sealed record C1(string Name) : ICommand<string>;
+            public sealed record C1(string Name) : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -98,7 +108,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "NewConstraintOnAbstractMessage",
         """
-            public abstract record C1 : ICommand<string>;
+            public abstract record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -111,8 +121,8 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "BaseTypeConstraint",
         """
-            public abstract record CommandBase : ICommand<string>;
-            public sealed record C1 : ICommand<string>;
+            public abstract record CommandBase : RequestBase, ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -125,7 +135,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "NestedGenericConstraint",
         """
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -138,7 +148,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "StructConstraintOnResultTypeParameter",
         """
-            public sealed record Q1 : IQuery<string>;
+            public sealed record Q1 : RequestBase, IQuery<string>;
 
             [PulseHandler<Q1>]
             public sealed class G1<TQuery, TResult> : IQueryHandler<TQuery, TResult>
@@ -152,7 +162,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "UnmanagedConstraintOnResultTypeParameter",
         """
-            public sealed record Q1 : IQuery<string>;
+            public sealed record Q1 : RequestBase, IQuery<string>;
 
             [PulseHandler<Q1>]
             public sealed class G1<TQuery, TResult> : IQueryHandler<TQuery, TResult>
@@ -164,23 +174,9 @@ public class PulseHandlerGeneratorConstraintTests
             """
     )]
     [Arguments(
-        "NotNullConstraintOnNullableResultTypeParameter",
-        """
-            public sealed record C1 : ICommand<int?>;
-
-            [PulseHandler<C1>]
-            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
-                where TCmd : ICommand<TResult>
-                where TResult : notnull
-            {
-                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
-            }
-            """
-    )]
-    [Arguments(
         "ArrayConstraint",
         """
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -193,7 +189,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "StructConstraintOnNullableResultTypeParameter",
         """
-            public sealed record C1 : ICommand<int?>;
+            public sealed record C1 : RequestBase, ICommand<int?>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -207,7 +203,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "ClassConstraintOnStreamQueryResult",
         """
-            public sealed record S1 : IStreamQuery<int>;
+            public sealed record S1 : RequestBase, IStreamQuery<int>;
 
             [PulseHandler<S1>]
             public sealed class G1<TQuery, TResult> : IStreamQueryHandler<TQuery, TResult>
@@ -237,17 +233,39 @@ public class PulseHandlerGeneratorConstraintTests
             }
             """
     )]
+    [Arguments(
+        "InterfaceNestedInGenericClassConstraint",
+        """
+            public class Outer<T>
+            {
+                public interface IInner { }
+            }
+
+            public sealed record C1 : RequestBase, ICommand<string>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>, Outer<int>.IInner
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """
+    )]
     public async Task WhenGenericHandlerConstraintNotSatisfiedThenPulse006ReportedAndNoGeneratedCodeErrors(
         string scenario,
         string declarations
     )
     {
-        var (pulseDiagnostics, generatedErrors) = RunGenerator(declarations);
+        var result = RunGenerator(declarations);
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(pulseDiagnostics.Select(d => d.Id)).IsEquivalentTo(["PULSE006"]).Because(scenario);
-            _ = await Assert.That(generatedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.InputErrors).IsEmpty().Because(scenario);
+            _ = await Assert
+                .That(result.PulseDiagnostics.Select(d => d.Id))
+                .IsEquivalentTo(["PULSE006"])
+                .Because(scenario);
+            _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
         }
     }
 
@@ -255,7 +273,7 @@ public class PulseHandlerGeneratorConstraintTests
     [Arguments(
         "NestedGenericConstraintSatisfied",
         """
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : RequestBase, ICommand<string>;
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -264,12 +282,13 @@ public class PulseHandlerGeneratorConstraintTests
             {
                 public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
             }
-            """
+            """,
+        "global::G1<global::C1, string>"
     )]
     [Arguments(
         "BaseTypeAndValueTypeConstraintsSatisfied",
         """
-            public abstract record CommandBase : ICommand<int>;
+            public abstract record CommandBase : RequestBase, ICommand<int>;
             public sealed record C1 : CommandBase, IMarker;
 
             [PulseHandler<C1>]
@@ -279,25 +298,31 @@ public class PulseHandlerGeneratorConstraintTests
             {
                 public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult));
             }
-            """
+            """,
+        "global::G1<global::C1, int>"
     )]
     [Arguments(
         "ValueTypeMessageWithNewConstraintSatisfied",
         """
-            public record struct C1 : ICommand<string>;
+            public record struct C1 : ICommand<string>
+            {
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+            }
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
-                where TCmd : struct, ICommand<TResult>, new()
+                where TCmd : ICommand<TResult>, new()
             {
                 public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
             }
-            """
+            """,
+        "global::G1<global::C1, string>"
     )]
     [Arguments(
         "ArrayConstraintSatisfied",
         """
-            public sealed record C1 : ICommand<string>, IComparable<string[]>
+            public sealed record C1 : RequestBase, ICommand<string>, IComparable<string[]>
             {
                 public int CompareTo(string[]? other) => 0;
             }
@@ -308,7 +333,8 @@ public class PulseHandlerGeneratorConstraintTests
             {
                 public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
             }
-            """
+            """,
+        "global::G1<global::C1, string>"
     )]
     [Arguments(
         "EventHandlerConstraintsSatisfied",
@@ -328,19 +354,72 @@ public class PulseHandlerGeneratorConstraintTests
             {
                 public Task HandleAsync(TEvent message, CancellationToken cancellationToken = default) => Task.CompletedTask;
             }
-            """
+            """,
+        "global::G1<global::E1>"
+    )]
+    [Arguments(
+        "NotNullConstraintOnNullableValueTypeResult",
+        """
+            public sealed record C1 : RequestBase, ICommand<int?>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+                where TResult : notnull
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """,
+        "global::G1<global::C1, int?>"
+    )]
+    [Arguments(
+        "NotNullConstraintOnNullableReferenceTypeResult",
+        """
+            public sealed record C1 : RequestBase, ICommand<string?>;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>
+                where TResult : notnull
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """,
+        "global::G1<global::C1, string"
+    )]
+    [Arguments(
+        "InterfaceNestedInGenericClassConstraintSatisfied",
+        """
+            public class Outer<T>
+            {
+                public interface IInner { }
+            }
+
+            public sealed record C1 : RequestBase, ICommand<string>, Outer<int>.IInner;
+
+            [PulseHandler<C1>]
+            public sealed class G1<TCmd, TResult> : ICommandHandler<TCmd, TResult>
+                where TCmd : ICommand<TResult>, Outer<int>.IInner
+            {
+                public Task<TResult> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(default(TResult)!);
+            }
+            """,
+        "global::G1<global::C1, string>"
     )]
     public async Task WhenGenericHandlerConstraintsSatisfiedThenRegistrationGeneratedWithoutErrors(
         string scenario,
-        string declarations
+        string declarations,
+        string expectedRegistration
     )
     {
-        var (pulseDiagnostics, generatedErrors) = RunGenerator(declarations);
+        var result = RunGenerator(declarations);
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(pulseDiagnostics).IsEmpty().Because(scenario);
-            _ = await Assert.That(generatedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.InputErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.PulseDiagnostics).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedSource).Contains(expectedRegistration).Because(scenario);
         }
     }
 
@@ -370,13 +449,14 @@ public class PulseHandlerGeneratorConstraintTests
                 public Task HandleAsync(E1 message, CancellationToken cancellationToken = default) => Task.CompletedTask;
                 public Task HandleAsync(E2 message, CancellationToken cancellationToken = default) => Task.CompletedTask;
             }
-            """
+            """,
+        "IEventHandler<global::E2>, global::H1>"
     )]
     [Arguments(
         "ConcreteHandlerWithSeveralCommandHandlerInterfaces",
         """
-            public sealed record C1 : ICommand<string>;
-            public sealed record C2 : ICommand<int>;
+            public sealed record C1 : RequestBase, ICommand<string>;
+            public sealed record C2 : RequestBase, ICommand<int>;
 
             [PulseHandler<C2>]
             public sealed class H1 : ICommandHandler<C1, string>, ICommandHandler<C2, int>
@@ -384,23 +464,27 @@ public class PulseHandlerGeneratorConstraintTests
                 public Task<string> HandleAsync(C1 command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
                 public Task<int> HandleAsync(C2 command, CancellationToken cancellationToken = default) => Task.FromResult(0);
             }
-            """
+            """,
+        "ICommandHandler<global::C2, int>, global::H1>"
     )]
     public async Task WhenConcreteHandlerImplementsSeveralHandlerInterfacesThenExplicitMessageTypeIsRegistered(
         string scenario,
-        string declarations
+        string declarations,
+        string expectedRegistration
     )
     {
-        var (pulseDiagnostics, generatedErrors) = RunGenerator(declarations);
+        var result = RunGenerator(declarations);
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(pulseDiagnostics).IsEmpty().Because(scenario);
-            _ = await Assert.That(generatedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.InputErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.PulseDiagnostics).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedSource).Contains(expectedRegistration).Because(scenario);
         }
     }
 
-    private static (Diagnostic[] PulseDiagnostics, Diagnostic[] GeneratedErrors) RunGenerator(string declarations)
+    private static GeneratorResult RunGenerator(string declarations)
     {
         var references = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string)!
             .Split(Path.PathSeparator)
@@ -439,15 +523,26 @@ public class PulseHandlerGeneratorConstraintTests
         var pulseDiagnostics = generatorDiagnostics
             .Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))
             .ToArray();
-        var generatedErrors = outputCompilation
+        var errors = outputCompilation
             .GetDiagnostics()
-            .Where(d =>
-                d.Severity == DiagnosticSeverity.Error
-                && d.Location.SourceTree is not null
-                && d.Location.SourceTree != inputTree
-            )
+            .Where(d => d.Severity == DiagnosticSeverity.Error && d.Location.SourceTree is not null)
             .ToArray();
+        var generatedSource = string.Concat(
+            outputCompilation.SyntaxTrees.Where(tree => tree != inputTree).Select(tree => tree.ToString())
+        );
 
-        return (pulseDiagnostics, generatedErrors);
+        return new GeneratorResult(
+            pulseDiagnostics,
+            [.. errors.Where(d => d.Location.SourceTree == inputTree)],
+            [.. errors.Where(d => d.Location.SourceTree != inputTree)],
+            generatedSource
+        );
     }
+
+    private sealed record GeneratorResult(
+        Diagnostic[] PulseDiagnostics,
+        Diagnostic[] InputErrors,
+        Diagnostic[] GeneratedErrors,
+        string GeneratedSource
+    );
 }
