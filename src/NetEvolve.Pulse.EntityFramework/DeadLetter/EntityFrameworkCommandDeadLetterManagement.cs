@@ -118,7 +118,7 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
 
                 entry.Status = CommandDeadLetterStatus.New;
                 entry.AttemptCount++;
-                entry.ExceptionType = ex.GetType().AssemblyQualifiedName;
+                entry.ExceptionType = GetExceptionTypeName(ex);
                 entry.ExceptionMessage = ex.Message;
                 entry.OccurredAt = _timeProvider.GetUtcNow();
                 _ = await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
@@ -206,5 +206,17 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
             .ConfigureAwait(false);
 
         return entry ?? throw new CommandDeadLetterEntryNotFoundException(id);
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

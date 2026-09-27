@@ -358,7 +358,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             _ = command.Parameters.AddWithValue("status", (short)CommandDeadLetterStatus.New);
             _ = command.Parameters.AddWithValue(
                 "exception_type",
-                (object?)exception.GetType().AssemblyQualifiedName ?? DBNull.Value
+                (object?)GetExceptionTypeName(exception) ?? DBNull.Value
             );
             _ = command.Parameters.AddWithValue("exception_message", exception.Message);
             _ = command.Parameters.AddWithValue("occurred_at", _timeProvider.GetUtcNow());
@@ -413,5 +413,17 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             AttemptCount = reader.GetInt32(ordAttemptCount),
             Status = (CommandDeadLetterStatus)reader.GetInt16(ordStatus),
         };
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

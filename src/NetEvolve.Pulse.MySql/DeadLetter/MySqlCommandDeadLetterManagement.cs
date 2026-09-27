@@ -342,7 +342,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@id", id.ToByteArray());
-                _ = command.Parameters.AddWithValue("@exceptionType", exception.GetType().AssemblyQualifiedName);
+                _ = command.Parameters.AddWithValue("@exceptionType", GetExceptionTypeName(exception));
                 _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
                 _ = command.Parameters.AddWithValue("@occurredAtTicks", _timeProvider.GetUtcNow().UtcTicks);
 
@@ -415,5 +415,17 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
 
             return entries;
         }
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

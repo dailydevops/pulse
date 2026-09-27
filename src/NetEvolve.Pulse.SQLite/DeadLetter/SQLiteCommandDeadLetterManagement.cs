@@ -276,7 +276,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         await using (command.ConfigureAwait(false))
         {
             _ = command.Parameters.AddWithValue("@id", id.ToString());
-            _ = command.Parameters.AddWithValue("@exceptionType", exception.GetType().AssemblyQualifiedName);
+            _ = command.Parameters.AddWithValue("@exceptionType", GetExceptionTypeName(exception));
             _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
             _ = command.Parameters.AddWithValue("@occurredAt", _timeProvider.GetUtcNow());
             _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
@@ -458,5 +458,17 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
 
             return entries;
         }
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }
