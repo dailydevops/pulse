@@ -13,8 +13,10 @@ using StackExchange.Redis;
 /// </summary>
 /// <remarks>
 /// <para><strong>Storage:</strong></para>
-/// Each key is stored in Redis with its creation timestamp as the value and a physical TTL
-/// for automatic cleanup. TTL-based logical expiry is handled by the <see cref="IdempotencyStore"/>
+/// Each key is stored in Redis with its creation timestamp as the value. When a TTL is configured,
+/// a physical Redis expiry of TTL plus one hour provides automatic cleanup; without a TTL, keys are stored
+/// without a Redis expiry and are only removed if the server's <c>maxmemory-policy</c> evicts non-volatile
+/// keys (<c>allkeys-*</c>), which breaks duplicate detection. TTL-based logical expiry is handled by the <see cref="IdempotencyStore"/>
 /// wrapper using the injected <see cref="TimeProvider"/>, which makes it testable with fake clocks.
 /// <para><strong>Prerequisites:</strong></para>
 /// <see cref="IConnectionMultiplexer"/> must be registered in the DI container by the caller
@@ -23,9 +25,6 @@ using StackExchange.Redis;
 internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
 {
     private const int DefaultDatabase = -1;
-
-    /// <summary>Physical TTL used as a safety net for Redis key cleanup when no TTL is configured.</summary>
-    private static readonly TimeSpan DefaultPhysicalTtl = TimeSpan.FromHours(24);
 
     private readonly IConnectionMultiplexer _multiplexer;
     private readonly IOptions<IdempotencyKeyOptions> _options;
@@ -101,11 +100,9 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
 
         var database = _multiplexer.GetDatabase(DefaultDatabase);
 
-        // Use a physical TTL
+        // Physical expiry is TTL + 1h headroom; a null TTL means "never expire", so no expiry is set.
         // Logical expiry is handled by the IdempotencyStore wrapper via TimeProvider.
-        var physicalTtl = _options.Value.TimeToLive.HasValue
-            ? _options.Value.TimeToLive.Value + TimeSpan.FromHours(1)
-            : DefaultPhysicalTtl;
+        var physicalTtl = _options.Value.TimeToLive + TimeSpan.FromHours(1);
 
         var timestamp = createdAt.ToString("O", CultureInfo.InvariantCulture);
 

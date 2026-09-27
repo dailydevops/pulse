@@ -120,9 +120,9 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         _ = await Assert.That(capture.StringSetCalls[0].When).IsEqualTo(When.NotExists);
     }
 
-    // INVARIANT (Q07): Default physical TTL is 24h when no TTL is configured.
+    // INVARIANT (#790): A null TimeToLive means "keys never expire", so no physical expiry is set.
     [Test]
-    public async Task StoreAsync_Default_TTL_is_24h(CancellationToken cancellationToken)
+    public async Task StoreAsync_Null_TTL_stores_key_without_expiry(CancellationToken cancellationToken)
     {
         var (mux, capture) = BuildFakes();
 
@@ -131,7 +131,7 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         await repo.StoreAsync("k1", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(capture.StringSetCalls).HasCount(1);
-        _ = await Assert.That(capture.StringSetCalls[0].Expiry).IsEqualTo(TimeSpan.FromHours(24));
+        _ = await Assert.That(capture.StringSetCalls[0].Expiry).IsNull();
     }
 
     // INVARIANT (Q07): With configured TTL, physical TTL = TTL + 1h headroom so the
