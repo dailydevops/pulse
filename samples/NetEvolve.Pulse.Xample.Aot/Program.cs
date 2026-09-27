@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -126,7 +127,87 @@ await RunAsync(
     )
     .ConfigureAwait(false);
 
-// Scenario 3: the registered IPayloadSerializer with an application JsonSerializerContext, configured as documented
+// Scenario 3: built-in open-generic interceptors for value-type and Void responses. The DI container cannot close
+// open-generic services over value types under NativeAOT, so the generated handler registrations add closed
+// interceptor registrations for these requests. This requires the generated method to run after AddPulse and after
+// every other interceptor registration.
+await RunAsync(
+        config =>
+        {
+            _ = config
+                .AddActivityAndMetrics()
+                .AddLogging(options => options.LogLevel = LogLevel.Information)
+                .AddConcurrentCommandGuard<ReserveStockCommand>();
+            _ = config.Services.AddSingleton<ILoggerProvider, RecordingLoggerProvider>();
+            config.Services.TryAddEnumerable(
+                ServiceDescriptor.Scoped<IRequestInterceptor<AddNumbersCommand, int>, AddNumbersRecordingInterceptor>()
+            );
+        },
+        async (mediator, recorder) =>
+        {
+            var sum = await mediator
+                .SendAsync<AddNumbersCommand, int>(new AddNumbersCommand(4, 5))
+                .ConfigureAwait(false);
+            Check(sum == 9, "command with value-type response through built-in interceptors");
+            Check(
+                recorder.Invocations.Contains("Handling Command 'AddNumbersCommand' (CorrelationId: )"),
+                "built-in logging interceptor invoked for the value-type response"
+            );
+            Check(
+                recorder.Invocations.Contains(nameof(AddNumbersRecordingInterceptor)),
+                "closed interceptor invoked for the value-type response"
+            );
+
+            await mediator.SendAsync(new PingCommand()).ConfigureAwait(false);
+            Check(
+                recorder.Invocations.Contains("Handling Command 'PingCommand' (CorrelationId: )"),
+                "built-in logging interceptor invoked for the void command"
+            );
+
+            await Task.WhenAll(
+                    mediator.SendAsync(new ReserveStockCommand("SKU-1")),
+                    mediator.SendAsync(new ReserveStockCommand("SKU-2"))
+                )
+                .ConfigureAwait(false);
+            Check(
+                recorder.Invocations.Count(invocation => invocation == nameof(ReserveStockHandler)) == 2
+                    && recorder.Invocations.Contains("Handling Command 'ReserveStockCommand' (CorrelationId: )"),
+                "exclusive void commands through the built-in logging interceptor"
+            );
+            Check(
+                recorder.MaxConcurrentReservations == 1,
+                "overlapping exclusive void commands serialized by the closed concurrent command guard"
+            );
+
+            var range = new List<int>();
+            await foreach (
+                var item in mediator
+                    .StreamQueryAsync<RangeStreamQuery, int>(new RangeStreamQuery(3))
+                    .ConfigureAwait(false)
+            )
+            {
+                range.Add(item);
+            }
+
+            Check(range.SequenceEqual([1, 2, 3]), "stream query with value-type items through built-in interceptors");
+            Check(
+                recorder.Invocations.Contains("Streaming 'RangeStreamQuery' (CorrelationId: )"),
+                "built-in logging interceptor invoked for the value-type stream query"
+            );
+
+            var order = await mediator
+                .SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand("V-1"))
+                .ConfigureAwait(false);
+            Check(
+                order.OrderId == "V-1"
+                    && recorder.Invocations.Contains("Handling Command 'CreateOrderCommand' (CorrelationId: )"),
+                "reference-type response keeps the open-generic interceptors"
+            );
+        }
+    )
+    .ConfigureAwait(false);
+
+// Scenario 4: the registered IPayloadSerializer with an application JsonSerializerContext, configured as documented
 // in the "Payload Serialization Under NativeAOT" section of the NetEvolve.Pulse README.
 var serializerProvider = new ServiceCollection()
     .Configure<JsonSerializerOptions>(options => options.TypeInfoResolverChain.Insert(0, SmokeJsonContext.Default))
