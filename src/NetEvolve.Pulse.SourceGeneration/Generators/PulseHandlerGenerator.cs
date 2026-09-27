@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NetEvolve.CodeBuilder;
 using NetEvolve.Pulse.SourceGeneration.Models;
@@ -748,8 +749,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         };
 
     /// <summary>
-    /// Derives the generated extension method name from the assembly name by removing dots.
-    /// For example, <c>NetEvolve.Pulse</c> becomes <c>AddNetEvolvePulseHandlers</c>.
+    /// Derives the generated extension method name from the assembly name. Dots are removed, and every other
+    /// character that cannot appear in a C# identifier is replaced with <c>_</c>.
+    /// For example, <c>NetEvolve.Pulse</c> becomes <c>AddNetEvolvePulsePulseHandlers</c>
+    /// and <c>my-service</c> becomes <c>Addmy_servicePulseHandlers</c>.
     /// </summary>
     private static string GetMethodName(string? assemblyName)
     {
@@ -758,7 +761,13 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return "AddGeneratedPulseHandlers";
         }
 
-        return $"Add{assemblyName!.Replace(".", string.Empty)}PulseHandlers";
+        var identifier = string.Concat(
+            assemblyName!
+                .Where(static c => c != '.')
+                .Select(static c => SyntaxFacts.IsIdentifierPartCharacter(c) ? c : '_')
+        );
+
+        return $"Add{identifier}PulseHandlers";
     }
 
     /// <summary>
