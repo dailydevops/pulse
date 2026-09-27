@@ -206,7 +206,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             try
             {
                 // Not cancellable: the reset must also run when the replay was cancelled.
-                await SetStatusAsync(_markFailedSql, id, CancellationToken.None, ex).ConfigureAwait(false);
+                await RecordReplayFailureAsync(id, ex).ConfigureAwait(false);
             }
             catch
             {
@@ -310,15 +310,9 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
 
     /// <summary>
     /// Executes a status-update statement parameterized on <c>@id</c> against the dead letter entry
-    /// identified by <paramref name="id"/>. When <paramref name="failure"/> is set, the statement also
-    /// receives the failure details of a replay.
+    /// identified by <paramref name="id"/>.
     /// </summary>
-    private async Task SetStatusAsync(
-        string sql,
-        Guid id,
-        CancellationToken cancellationToken,
-        Exception? failure = null
-    )
+    private async Task SetStatusAsync(string sql, Guid id, CancellationToken cancellationToken)
     {
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -327,14 +321,32 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@id", id.ToByteArray());
-                if (failure is not null)
-                {
-                    _ = command.Parameters.AddWithValue("@exceptionType", failure.GetType().AssemblyQualifiedName);
-                    _ = command.Parameters.AddWithValue("@exceptionMessage", failure.Message);
-                    _ = command.Parameters.AddWithValue("@occurredAtTicks", _timeProvider.GetUtcNow().UtcTicks);
-                }
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    /// <param name="id">The identifier of the dead letter entry to update.</param>
+    /// <param name="exception">The exception that caused the replay to fail.</param>
+    private async Task RecordReplayFailureAsync(Guid id, Exception exception)
+    {
+        var connection = await CreateConnectionAsync(CancellationToken.None).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new MySqlCommand(_markFailedSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@id", id.ToByteArray());
+                _ = command.Parameters.AddWithValue("@exceptionType", exception.GetType().AssemblyQualifiedName);
+                _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
+                _ = command.Parameters.AddWithValue("@occurredAtTicks", _timeProvider.GetUtcNow().UtcTicks);
+
+                _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
     }
