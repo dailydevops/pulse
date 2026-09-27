@@ -48,7 +48,7 @@ using Polly;
 /// services.AddPulse(config => config
 ///     .AddCommandHandler&lt;CreateOrder, OrderResult, CreateOrderHandler&gt;()
 ///     .AddPollyCommandPolicies&lt;CreateOrder, OrderResult&gt;(pipeline => pipeline
-///         .AddRetry(new RetryStrategyOptions
+///         .AddRetry(new RetryStrategyOptions&lt;OrderResult&gt;
 ///         {
 ///             MaxRetryAttempts = 3,
 ///             Delay = TimeSpan.FromSeconds(1),
@@ -59,10 +59,10 @@ using Polly;
 /// <code>
 /// services.AddPulse(config => config
 ///     .AddQueryHandler&lt;GetUserQuery, User, GetUserQueryHandler&gt;()
-///     .AddPollyCommandPolicies&lt;GetUserQuery, User&gt;(pipeline => pipeline
+///     .AddPollyQueryPolicies&lt;GetUserQuery, User&gt;(pipeline => pipeline
 ///         .AddTimeout(TimeSpan.FromSeconds(30))
-///         .AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 3 })
-///         .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+///         .AddRetry(new RetryStrategyOptions&lt;User&gt; { MaxRetryAttempts = 3 })
+///         .AddCircuitBreaker(new CircuitBreakerStrategyOptions&lt;User&gt;
 ///         {
 ///             FailureRatio = 0.5,
 ///             MinimumThroughput = 10,
