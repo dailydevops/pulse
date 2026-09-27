@@ -1097,8 +1097,24 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                     arrayType.Rank
                 );
             case INamedTypeSymbol { IsGenericType: true } namedType:
-                // ponytail: type arguments of a generic containing type are not substituted; add when a
-                // constraint references a nested type of a generic outer type.
+                // IsGenericType is also true for Outer<T>.IInner, which has no type arguments of its own:
+                // substitute the containing type first and look the nested type up on the result.
+                var definition = namedType.ContainingType is { IsGenericType: true } containingType
+                    ? (
+                        (INamedTypeSymbol)SubstituteTypeParameters(
+                            compilation,
+                            containingType,
+                            typeParameters,
+                            typeArguments
+                        )
+                    ).GetTypeMembers(namedType.Name, namedType.Arity)[0]
+                    : namedType.OriginalDefinition;
+
+                if (namedType.Arity == 0)
+                {
+                    return definition;
+                }
+
                 var substituted = new ITypeSymbol[namedType.TypeArguments.Length];
                 for (var i = 0; i < substituted.Length; i++)
                 {
@@ -1110,7 +1126,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                     );
                 }
 
-                return namedType.OriginalDefinition.Construct(substituted);
+                return definition.Construct(substituted);
             default:
                 return type;
         }
