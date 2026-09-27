@@ -15,10 +15,36 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
 
     private MsSqlContainer? _container;
 
+    // Pool Blocking Period=NeverBlock: by default SqlClient caches a failed open for 5 s to 1 min and rethrows it for
+    // every open on the same pool. All test databases are created through this one connection string, so a single
+    // failed connect would otherwise fail every fixture that initializes in that window.
     public string ConnectionString =>
         (
             _container ?? throw new InvalidOperationException("The SQL Server container has not been started.")
-        ).GetConnectionString() + ";MultipleActiveResultSets=True;";
+        ).GetConnectionString() + ";MultipleActiveResultSets=True;Pool Blocking Period=NeverBlock;";
+
+    // The tail of the container output, to tell a crashed SQL Server (microsoft/mssql-docker#974) from a network issue.
+    internal async Task<string> GetDiagnosticsAsync()
+    {
+        if (_container is null)
+        {
+            return "The SQL Server container has not been started.";
+        }
+
+        try
+        {
+            var (stdout, stderr) = await _container.GetLogsAsync().ConfigureAwait(false);
+            var tail = string.Join(
+                Environment.NewLine,
+                $"{stdout}{stderr}".Split('\n', StringSplitOptions.RemoveEmptyEntries).TakeLast(40)
+            );
+            return $"SQL Server container {_container.Id} output (last 40 lines):{Environment.NewLine}{tail}";
+        }
+        catch (Exception ex)
+        {
+            return $"Reading the SQL Server container output failed: {ex.Message}";
+        }
+    }
 
     public ValueTask DisposeAsync() => _container?.DisposeAsync() ?? ValueTask.CompletedTask;
 
