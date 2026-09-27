@@ -835,8 +835,8 @@ public sealed class OutboxInspectorEndpointsTests
 
     // Concurrent requests — smoke test for the message endpoints under parallel load. It does NOT reliably
     // reproduce the pre-#770 read-only JsonSerializerOptions race (see #792/#800). The actual guard is that the
-    // endpoints serialize via PulseInspectorJsonSerializerContext JsonTypeInfo overloads instead of shared
-    // JsonSerializerOptions passed to TypedResults.Json.
+    // endpoints serialize via JsonTypeInfo overloads resolved from the PulseInspectorJsonOptions copy instead of
+    // shared JsonSerializerOptions passed to TypedResults.Json.
 
     [Test]
     public async Task MessageEndpoints_WithConcurrentRequests_AllReturnOk(CancellationToken cancellationToken)
