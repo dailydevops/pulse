@@ -23,8 +23,8 @@ public static partial class PulseRegistrationExtensions
     /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
     public static IServiceCollection AddTestAssemblyPulseHandlers(this IServiceCollection services)
     {
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::EventHandlerA>();
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::EventHandlerB>();
+        services.TryAddEnumerable(global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Scoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::EventHandlerA>());
+        services.TryAddEnumerable(global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Scoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::MyEvent>, global::EventHandlerB>());
 
         return services;
     }

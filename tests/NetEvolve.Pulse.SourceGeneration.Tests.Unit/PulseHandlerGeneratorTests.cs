@@ -331,7 +331,7 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
-    public async Task WhenTransientLifetimeSpecifiedThenTryAddTransientIsGenerated()
+    public async Task WhenTransientLifetimeSpecifiedForEventHandlerThenTransientDescriptorIsGenerated()
     {
         const string source = """
             using NetEvolve.Pulse.Extensibility;

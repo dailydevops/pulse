@@ -36,7 +36,7 @@ public static partial class PulseRegistrationExtensions
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IStreamQueryHandler<global::RangeQuery, int>, global::RangeHandler>();
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::StructCommand, string>, global::StructHandler>();
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IQueryHandler<global::NameQuery, string>, global::NameHandler>();
-        services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::OrderPlaced>, global::OrderPlacedHandler>();
+        services.TryAddEnumerable(global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Scoped<global::NetEvolve.Pulse.Extensibility.IEventHandler<global::OrderPlaced>, global::OrderPlacedHandler>());
         services.TryAddScoped<global::NetEvolve.Pulse.Extensibility.ICommandHandler<global::GenericCommand, global::System.Guid>, global::GenericHandler<global::GenericCommand, global::System.Guid>>();
 
         global::NetEvolve.Pulse.NativeAotInterceptorExtensions.AddNativeAotCommandInterceptors<global::AddCommand, int>(services);
