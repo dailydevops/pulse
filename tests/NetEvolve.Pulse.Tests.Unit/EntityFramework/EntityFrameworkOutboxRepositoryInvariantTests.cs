@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -72,7 +73,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
             _ = await context.OutboxMessages.AddAsync(notDueMessage, cancellationToken).ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
@@ -105,7 +110,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
             _ = await context.OutboxMessages.AddAsync(pastMessage, cancellationToken).ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             var pending = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
@@ -132,7 +141,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
             _ = await context.OutboxMessages.AddAsync(msg, cancellationToken).ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
 
@@ -165,7 +178,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
             _ = await context.OutboxMessages.AddAsync(dlq, cancellationToken).ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             await repository.MarkAsCompletedAsync(dlq.Id, cancellationToken).ConfigureAwait(false);
 
@@ -192,7 +209,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
             _ = await context.OutboxMessages.AddAsync(completed, cancellationToken).ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             await repository.MarkAsFailedAsync(completed.Id, "boom", cancellationToken).ConfigureAwait(false);
 
@@ -228,7 +249,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
             _ = await context.OutboxMessages.AddAsync(processing, cancellationToken).ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             await repository.MarkAsCompletedAsync(processing.Id, cancellationToken).ConfigureAwait(false);
 
@@ -278,7 +303,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
                 .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             // Cutoff = 1 day - only the 5-day-old Completed message qualifies.
             var deleted = await repository
@@ -321,7 +350,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
                 .ConfigureAwait(false);
             _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, fakeTime);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                fakeTime
+            );
 
             var retried = await repository
                 .GetFailedForRetryAsync(maxRetryCount: 5, batchSize: 10, cancellationToken)
@@ -344,7 +377,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
         var context = CreateContext(nameof(AddAsync_Persists_message_and_AddAsync_with_null_throws));
         await using (context.ConfigureAwait(false))
         {
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                TimeProvider.System
+            );
 
             // null path
             _ = await Assert
@@ -368,7 +405,11 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
         var context = CreateContext(nameof(GetPendingAsync_Honors_cancellation_token));
         await using (context.ConfigureAwait(false))
         {
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                TimeProvider.System
+            );
 
             using var cts = new CancellationTokenSource();
             await cts.CancelAsync().ConfigureAwait(false);
