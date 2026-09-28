@@ -136,6 +136,140 @@ public class OutboxProcessorOptionsValidatorTests
     }
 
     [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    [Arguments(-2)]
+    public async Task Validate_WithOverrideProcessingTimeoutNotPositive_Fails(int milliseconds)
+    {
+        var options = new OutboxProcessorOptions
+        {
+            EventTypeOverrides =
+            {
+                [typeof(OverrideEvent)] = new OutboxEventTypeOptions
+                {
+                    ProcessingTimeout = TimeSpan.FromMilliseconds(milliseconds),
+                },
+            },
+        };
+
+        var result = _validator.Validate(null, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.FailureMessage).Contains(typeof(OverrideEvent).FullName!);
+            _ = await Assert.That(result.FailureMessage).Contains(nameof(OutboxEventTypeOptions.ProcessingTimeout));
+        }
+    }
+
+    [Test]
+    public async Task Validate_WithOverrideProcessingTimeoutAboveCancelAfterLimit_Fails()
+    {
+        var options = new OutboxProcessorOptions
+        {
+            EventTypeOverrides =
+            {
+                [typeof(OverrideEvent)] = new OutboxEventTypeOptions
+                {
+                    ProcessingTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 1d),
+                },
+            },
+        };
+
+        var result = _validator.Validate(null, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.FailureMessage).Contains(typeof(OverrideEvent).FullName!);
+        }
+    }
+
+    [Test]
+    public async Task Validate_WithValidOverrideProcessingTimeout_Succeeds()
+    {
+        var options = new OutboxProcessorOptions
+        {
+            EventTypeOverrides =
+            {
+                [typeof(OverrideEvent)] = new OutboxEventTypeOptions
+                {
+                    ProcessingTimeout = TimeSpan.FromMilliseconds(int.MaxValue),
+                },
+                [typeof(OutboxProcessorOptionsValidatorTests)] = new OutboxEventTypeOptions
+                {
+                    MaxRetryCount = null,
+                    ProcessingTimeout = null,
+                    EnableBatchSending = null,
+                },
+            },
+        };
+
+        var result = _validator.Validate(null, options);
+
+        _ = await Assert.That(result.Succeeded).IsTrue();
+    }
+
+    [Test]
+    public async Task Validate_WithOverrideAndGlobalFailures_ReportsAllFailures()
+    {
+        var options = new OutboxProcessorOptions
+        {
+            BatchSize = 0,
+            EventTypeOverrides =
+            {
+                [typeof(OverrideEvent)] = new OutboxEventTypeOptions
+                {
+                    MaxRetryCount = 0,
+                    ProcessingTimeout = TimeSpan.Zero,
+                },
+            },
+        };
+
+        var result = _validator.Validate(null, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.Failures!.Count()).IsEqualTo(3);
+        }
+    }
+
+    [Test]
+    public async Task Validate_WithNullOverrideValue_FailsWithoutThrowing()
+    {
+        var options = new OutboxProcessorOptions { EventTypeOverrides = { [typeof(OverrideEvent)] = null! } };
+
+        var result = _validator.Validate(null, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.FailureMessage).Contains(typeof(OverrideEvent).FullName!);
+        }
+    }
+
+    [Test]
+    public async Task Validate_WithProcessingTimeoutAboveCancelAfterLimit_Fails()
+    {
+        var options = new OutboxProcessorOptions { ProcessingTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 1d) };
+
+        var result = _validator.Validate(null, options);
+
+        _ = await Assert.That(result.Failed).IsTrue();
+    }
+
+    [Test]
+    public async Task Validate_WithProcessingTimeoutAtCancelAfterLimit_Succeeds()
+    {
+        var options = new OutboxProcessorOptions { ProcessingTimeout = TimeSpan.FromMilliseconds(int.MaxValue) };
+
+        var result = _validator.Validate(null, options);
+
+        _ = await Assert.That(result.Succeeded).IsTrue();
+    }
+
+    [Test]
     public async Task Validate_WithZeroProcessingTimeout_Fails()
     {
         var options = new OutboxProcessorOptions { ProcessingTimeout = TimeSpan.Zero };
