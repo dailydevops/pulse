@@ -210,7 +210,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
+        var filter = ProcessingMessageFilter(messageId);
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.Completed)
             .Set(d => d.UpdatedAt, now)
@@ -232,7 +232,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
+        var filter = ProcessingMessageFilter(messageId);
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.Failed)
             .Set(d => d.UpdatedAt, now)
@@ -256,7 +256,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
+        var filter = ProcessingMessageFilter(messageId);
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.Failed)
             .Set(d => d.UpdatedAt, now)
@@ -280,7 +280,7 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
+        var filter = ProcessingMessageFilter(messageId);
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.DeadLetter)
             .Set(d => d.UpdatedAt, now)
@@ -348,6 +348,19 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
             return false;
         }
     }
+
+    /// <summary>
+    /// Matches the message with <paramref name="messageId"/> only while it is still
+    /// <see cref="OutboxMessageStatus.Processing"/>, so a late status update from a stalled worker
+    /// cannot overwrite a message that another worker already settled.
+    /// </summary>
+    /// <param name="messageId">The message identifier.</param>
+    /// <returns>The filter definition.</returns>
+    private static FilterDefinition<OutboxDocument> ProcessingMessageFilter(Guid messageId) =>
+        Builders<OutboxDocument>.Filter.And(
+            Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId),
+            Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.Processing)
+        );
 
     /// <summary>
     /// Returns the <see cref="IMongoCollection{TDocument}"/> for outbox documents.
