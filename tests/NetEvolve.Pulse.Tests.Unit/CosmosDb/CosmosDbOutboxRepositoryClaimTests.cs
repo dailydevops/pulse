@@ -91,6 +91,43 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
     }
 
     [Test]
+    public async Task GetPendingAsync_WhenReclaimPatchThrowsPreconditionFailed_SkipsExpiredProcessingCandidate(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var document = CreateDocument(Guid.NewGuid(), status: 1);
+        document.UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        document.ETag = "\"stale-etag\"";
+        var capturedOptions = new List<PatchItemRequestOptions?>();
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [document],
+                ]),
+            OnPatchItem = (_, _, _, options) =>
+            {
+                capturedOptions.Add(options);
+                throw new CosmosException("conflict", HttpStatusCode.PreconditionFailed, 0, "activity", 0);
+            },
+        };
+
+        var repository = CreateRepository(container);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(claimed.Count).IsEqualTo(0);
+            _ = await Assert.That(capturedOptions.Count).IsEqualTo(1);
+            _ = await Assert.That(capturedOptions[0]?.IfMatchEtag).IsEqualTo("\"stale-etag\"");
+        }
+    }
+
+    [Test]
     public async Task GetPendingAsync_WhenPatchThrowsNotFound_SkipsCandidate(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

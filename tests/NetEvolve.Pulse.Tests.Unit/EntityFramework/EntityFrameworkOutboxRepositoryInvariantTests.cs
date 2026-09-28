@@ -419,4 +419,48 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
                 .Throws<OperationCanceledException>();
         }
     }
+
+    // INVARIANT (#813): GetPendingAsync reclaims Processing messages only after the configured
+    // OutboxOptions.ProcessingLeaseTimeout, not after a hardcoded default.
+    [Test]
+    [Arguments(30, 45, 15)]
+    [Arguments(3600, 5400, 1800)]
+    public async Task GetPendingAsync_Uses_configured_ProcessingLeaseTimeout(
+        int leaseSeconds,
+        int expiredAgeSeconds,
+        int activeAgeSeconds,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider(
+            DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture)
+        );
+        var now = fakeTime.GetUtcNow();
+        var context = CreateContext($"{nameof(GetPendingAsync_Uses_configured_ProcessingLeaseTimeout)}_{leaseSeconds}");
+        await using (context.ConfigureAwait(false))
+        {
+            var expired = CreateMessage(OutboxMessageStatus.Processing, now.AddSeconds(-expiredAgeSeconds));
+            var active = CreateMessage(OutboxMessageStatus.Processing, now.AddSeconds(-activeAgeSeconds));
+            _ = await context.OutboxMessages.AddAsync(expired, cancellationToken).ConfigureAwait(false);
+            _ = await context.OutboxMessages.AddAsync(active, cancellationToken).ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions { ProcessingLeaseTimeout = TimeSpan.FromSeconds(leaseSeconds) }),
+                fakeTime
+            );
+
+            var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(claimed).HasCount(1);
+                _ = await Assert.That(claimed[0].Id).IsEqualTo(expired.Id);
+                _ = await Assert.That(claimed[0].UpdatedAt).IsEqualTo(now);
+            }
+        }
+    }
 }
