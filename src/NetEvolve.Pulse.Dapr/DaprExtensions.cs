@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.OutBox;
+using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Extension methods for registering the Dapr message transport with the Pulse mediator.

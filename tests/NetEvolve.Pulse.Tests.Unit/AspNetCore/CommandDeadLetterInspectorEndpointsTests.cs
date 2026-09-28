@@ -14,10 +14,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.DeadLetter;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 using TUnit.Core;
-using PulseEndpoints = NetEvolve.Pulse.DeadLetter.CommandDeadLetterInspectorEndpoints;
+using PulseEndpoints = NetEvolve.Pulse.CommandDeadLetterInspectorEndpoints;
 
 [TestGroup("AspNetCore")]
 public sealed class CommandDeadLetterInspectorEndpointsTests

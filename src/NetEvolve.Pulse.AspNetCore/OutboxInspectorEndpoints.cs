@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+namespace NetEvolve.Pulse;
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
-using NetEvolve.Pulse.AspNetCore.Internals;
+using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 

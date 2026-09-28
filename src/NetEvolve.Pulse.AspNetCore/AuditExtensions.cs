@@ -1,8 +1,9 @@
-namespace NetEvolve.Pulse.Audit;
+namespace NetEvolve.Pulse;
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NetEvolve.Pulse.Audit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Audit;
 

@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Audit;
+namespace NetEvolve.Pulse;
 
 /// <summary>
 /// Provides configuration options for the audit inspector endpoints mapped via

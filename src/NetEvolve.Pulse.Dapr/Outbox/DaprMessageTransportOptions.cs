@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.OutBox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Configuration options for <see cref="DaprMessageTransport"/>.

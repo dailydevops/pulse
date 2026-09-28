@@ -2,7 +2,7 @@ namespace NetEvolve.Pulse.Tests.Unit.Dapr;
 
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.OutBox;
+using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
 [TestGroup("Dapr")]

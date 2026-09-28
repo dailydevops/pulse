@@ -15,10 +15,9 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.Audit;
 using NetEvolve.Pulse.Extensibility.Audit;
 using TUnit.Core;
-using PulseEndpoints = NetEvolve.Pulse.Audit.AuditInspectorEndpoints;
+using PulseEndpoints = NetEvolve.Pulse.AuditInspectorEndpoints;
 
 [TestGroup("AspNetCore")]
 public sealed class AuditInspectorEndpointsTests
