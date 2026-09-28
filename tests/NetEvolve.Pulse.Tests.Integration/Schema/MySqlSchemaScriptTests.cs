@@ -43,6 +43,8 @@ public sealed class MySqlSchemaScriptTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString = await CreateDatabaseAsync(cancellationToken).ConfigureAwait(false);
 
         await MySqlScriptRunner
@@ -62,6 +64,8 @@ public sealed class MySqlSchemaScriptTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString = await CreateDatabaseAsync(cancellationToken).ConfigureAwait(false);
 
         await MySqlScriptRunner
@@ -95,6 +99,8 @@ public sealed class MySqlSchemaScriptTests
 
     private async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = $"pulse{Guid.NewGuid():N}";
 
 #pragma warning disable CA2100, S2077 // databaseName is test-controlled, not user input
@@ -111,6 +117,8 @@ public sealed class MySqlSchemaScriptTests
 
     private static async Task ExecuteAsync(string connectionString, string sql, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(connectionString);
         await using (connection.ConfigureAwait(false))
         {
@@ -132,6 +140,8 @@ public sealed class MySqlSchemaScriptTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var indexes = new List<string>();
 
         var connection = new MySqlConnection(connectionString);

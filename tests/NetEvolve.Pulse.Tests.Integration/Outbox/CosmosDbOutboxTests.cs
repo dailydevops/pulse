@@ -19,6 +19,8 @@ public class CosmosDbOutboxTests(IServiceFixture databaseServiceFixture, IServic
     [Test]
     public async Task Should_Reject_Container_With_Unsupported_PartitionKeyPath(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var testableCodeRan = false;
 
         var exception = await Assert

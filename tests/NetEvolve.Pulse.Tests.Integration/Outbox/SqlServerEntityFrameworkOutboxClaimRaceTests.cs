@@ -24,6 +24,8 @@ public class SqlServerEntityFrameworkOutboxClaimRaceTests(
     /// <inheritdoc />
     protected override async Task PrepareDatabaseAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString = DatabaseServiceFixture.ConnectionString;
 
         // ALTER DATABASE ... SET READ_COMMITTED_SNAPSHOT needs the database to itself, so drop the

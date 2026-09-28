@@ -26,6 +26,8 @@ public sealed class PulseStreamHubIntegrationTests
     [Test]
     public async Task StreamAsync_ThroughSignalR_StreamsAllItemsInOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(cancellationToken).ConfigureAwait(false);
         var connection = await ConnectAsync(host, cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -47,6 +49,8 @@ public sealed class PulseStreamHubIntegrationTests
     [Test]
     public async Task StreamAsync_ThroughSignalR_ClientCancellationStopsHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var probe = new CancellationProbe();
         using var host = await CreateHostAsync(cancellationToken, probe).ConfigureAwait(false);
         var connection = await ConnectAsync(host, cancellationToken).ConfigureAwait(false);
@@ -109,6 +113,8 @@ public sealed class PulseStreamHubIntegrationTests
 
     private static async Task<HubConnection> ConnectAsync(IHost host, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var server = host.GetTestServer();
         var connection = new HubConnectionBuilder()
             .WithUrl(
@@ -126,6 +132,8 @@ public sealed class PulseStreamHubIntegrationTests
         CancellationProbe? probe = null
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -184,6 +192,11 @@ public sealed class PulseStreamHubIntegrationTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+
             try
             {
                 for (var i = 0; request.Count is null || i < request.Count; i++)

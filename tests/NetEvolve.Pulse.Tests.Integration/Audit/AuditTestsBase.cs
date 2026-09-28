@@ -397,6 +397,8 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = services.GetRequiredService<IAuditStore>();
         var management = services.GetRequiredService<IAuditManagement>();
 

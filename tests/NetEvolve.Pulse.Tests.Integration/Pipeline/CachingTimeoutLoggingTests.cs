@@ -610,6 +610,8 @@ public sealed class CachingTimeoutLoggingTests
     {
         public async Task<string> HandleAsync(SlowTimeoutCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Only ever completes through cancellation, so the outcome does not depend on which of two
             // due timers (deadline vs. a fixed handler delay) the thread pool happens to run first.
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);

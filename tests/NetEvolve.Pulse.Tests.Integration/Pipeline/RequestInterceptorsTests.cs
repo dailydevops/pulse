@@ -402,6 +402,8 @@ public sealed class RequestInterceptorsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateHostAsync(
                 mediatorBuilder =>
                     mediatorBuilder
@@ -720,6 +722,8 @@ public sealed class RequestInterceptorsTests
 
         public async Task<int> HandleAsync(OrderedGuardedCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var current = Interlocked.Increment(ref _currentConcurrent);
             var max = _maxConcurrent;
             while (current > max)

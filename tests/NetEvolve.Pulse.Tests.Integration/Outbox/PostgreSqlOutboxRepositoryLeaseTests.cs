@@ -186,6 +186,8 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
         var (repository, _) = await CreateRepositoryAsync(TimeSpan.FromMinutes(5), cancellationToken, timeProvider)
             .ConfigureAwait(false);
