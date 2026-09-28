@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
@@ -39,7 +40,8 @@ public sealed class AuditRequestInterceptorTests
                     Options.Create(new AuditOptions()),
                     DefaultSerializer,
                     new FakeAuditUserAccessor(),
-                    new FakeTimeProvider()
+                    new FakeTimeProvider(),
+                    Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
                 )
             )
             .Throws<ArgumentNullException>();
@@ -53,7 +55,8 @@ public sealed class AuditRequestInterceptorTests
                     null!,
                     DefaultSerializer,
                     new FakeAuditUserAccessor(),
-                    new FakeTimeProvider()
+                    new FakeTimeProvider(),
+                    Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
                 )
             )
             .Throws<ArgumentNullException>();
@@ -67,7 +70,8 @@ public sealed class AuditRequestInterceptorTests
                     Options.Create(new AuditOptions()),
                     null!,
                     new FakeAuditUserAccessor(),
-                    new FakeTimeProvider()
+                    new FakeTimeProvider(),
+                    Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
                 )
             )
             .Throws<ArgumentNullException>();
@@ -81,7 +85,8 @@ public sealed class AuditRequestInterceptorTests
                     Options.Create(new AuditOptions()),
                     DefaultSerializer,
                     null!,
-                    new FakeTimeProvider()
+                    new FakeTimeProvider(),
+                    Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
                 )
             )
             .Throws<ArgumentNullException>();
@@ -95,6 +100,22 @@ public sealed class AuditRequestInterceptorTests
                     Options.Create(new AuditOptions()),
                     DefaultSerializer,
                     new FakeAuditUserAccessor(),
+                    null!,
+                    Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
+                )
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Constructor_NullLogger_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new AuditRequestInterceptor<TestCommand, string>(
+                    new ServiceCollection().BuildServiceProvider(),
+                    Options.Create(new AuditOptions()),
+                    DefaultSerializer,
+                    new FakeAuditUserAccessor(),
+                    new FakeTimeProvider(),
                     null!
                 )
             )
@@ -287,7 +308,8 @@ public sealed class AuditRequestInterceptorTests
             Options.Create(new AuditOptions()),
             DefaultSerializer,
             new FakeAuditUserAccessor(),
-            new FakeTimeProvider()
+            new FakeTimeProvider(),
+            Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
         );
         var command = new TestCommand { Value = "no-store" };
 
@@ -311,7 +333,8 @@ public sealed class AuditRequestInterceptorTests
             Options.Create(new AuditOptions()),
             DefaultSerializer,
             new FakeAuditUserAccessor(),
-            new FakeTimeProvider()
+            new FakeTimeProvider(),
+            Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
         );
         var command = new TestCommand { Value = "no-store" };
         var thrown = new InvalidOperationException("handler failed without store");
@@ -370,14 +393,21 @@ public sealed class AuditRequestInterceptorTests
         _ = store
             .RecordAsync(Arg.Any<AuditRecord>(), Arg.Any<CancellationToken>())
             .Throws(new TimeoutException("store timed out"));
-        var interceptor = CreateInterceptor(store.Object);
+        var logger = Mock.Logger<AuditRequestInterceptor<TestCommand, string>>();
+        var interceptor = CreateInterceptor(store.Object, logger: logger);
         var command = new TestCommand { Value = "ok" };
 
         var result = await interceptor
             .HandleAsync(command, (_, _) => Task.FromResult("response"), cancellationToken)
             .ConfigureAwait(false);
 
-        _ = await Assert.That(result).IsEqualTo("response");
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo("response");
+            _ = await Assert.That(logger.Entries.Count).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Error);
+            _ = await Assert.That(logger.Entries[0].Exception).IsTypeOf<TimeoutException>();
+        }
         store
             .RecordAsync(
                 Arg.Is<AuditRecord>(r => r is not null && r.Result == AuditResult.Success),
@@ -429,7 +459,8 @@ public sealed class AuditRequestInterceptorTests
         _ = store
             .RecordAsync(Arg.Any<AuditRecord>(), Arg.Any<CancellationToken>())
             .Throws(new TimeoutException("store timed out"));
-        var interceptor = CreateInterceptor(store.Object);
+        var logger = Mock.Logger<AuditRequestInterceptor<TestCommand, string>>();
+        var interceptor = CreateInterceptor(store.Object, logger: logger);
         var command = new TestCommand { Value = "fail" };
         var thrown = new InvalidOperationException("handler failed");
 
@@ -450,6 +481,12 @@ public sealed class AuditRequestInterceptorTests
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(logger.Entries.Count).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Error);
+            _ = await Assert.That(logger.Entries[0].Exception).IsTypeOf<TimeoutException>();
+        }
     }
 
     [Test]
@@ -585,7 +622,8 @@ public sealed class AuditRequestInterceptorTests
         IAuditStore store,
         AuditOptions? options = null,
         IPayloadSerializer? payloadSerializer = null,
-        IAuditUserAccessor? userAccessor = null
+        IAuditUserAccessor? userAccessor = null,
+        ILogger<AuditRequestInterceptor<TestCommand, string>>? logger = null
     )
     {
         var services = new ServiceCollection();
@@ -597,7 +635,8 @@ public sealed class AuditRequestInterceptorTests
             Options.Create(options ?? new AuditOptions()),
             payloadSerializer ?? DefaultSerializer,
             userAccessor ?? new FakeAuditUserAccessor(),
-            new FakeTimeProvider()
+            new FakeTimeProvider(),
+            logger ?? Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
         );
     }
 
@@ -617,7 +656,8 @@ public sealed class AuditRequestInterceptorTests
             Options.Create(options),
             DefaultSerializer,
             userAccessor ?? new FakeAuditUserAccessor(),
-            timeProvider ?? new FakeTimeProvider()
+            timeProvider ?? new FakeTimeProvider(),
+            Mock.Logger<AuditRequestInterceptor<TestCommand, string>>()
         );
 
         return (interceptor, store);
@@ -638,7 +678,8 @@ public sealed class AuditRequestInterceptorTests
             Options.Create(options),
             DefaultSerializer,
             new FakeAuditUserAccessor(),
-            new FakeTimeProvider()
+            new FakeTimeProvider(),
+            Mock.Logger<AuditRequestInterceptor<TestQuery, string>>()
         );
 
         return (interceptor, store);
