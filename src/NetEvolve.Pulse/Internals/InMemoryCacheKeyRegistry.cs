@@ -14,7 +14,7 @@ using System.Collections.Generic;
 /// </remarks>
 internal sealed class InMemoryCacheKeyRegistry : ICacheKeyRegistry
 {
-    // ponytail: one global lock; Register runs only on cache-miss writes. Switch to per-type locks if contention shows up.
+    // One global lock: Register runs only on cache-miss writes. Switch to per-type locks if contention shows up.
     private readonly object _sync = new();
     private readonly Dictionary<Type, HashSet<string>> _keysByQueryType = [];
 
@@ -36,7 +36,15 @@ internal sealed class InMemoryCacheKeyRegistry : ICacheKeyRegistry
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets a snapshot of the cache keys currently registered for the specified query type.
+    /// </summary>
+    /// <remarks>
+    /// Diagnostic and test use only. Must not be used for eviction: keys registered after the snapshot would
+    /// be lost when the type is cleared afterwards. Use <see cref="RemoveType(Type)"/> instead.
+    /// </remarks>
+    /// <param name="queryType">The query type to look up.</param>
+    /// <returns>The registered cache keys, or an empty list when none are registered.</returns>
     public IReadOnlyList<string> GetKeysForType(Type queryType)
     {
         ArgumentNullException.ThrowIfNull(queryType);

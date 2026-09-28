@@ -624,8 +624,6 @@ public class DistributedCacheQueryInterceptorTests
 
         public void Register(Type queryType, string cacheKey) => RegisteredCalls.Add((queryType, cacheKey));
 
-        public IReadOnlyList<string> GetKeysForType(Type queryType) => [];
-
         public IReadOnlyList<string> RemoveType(Type queryType) => [];
     }
 
