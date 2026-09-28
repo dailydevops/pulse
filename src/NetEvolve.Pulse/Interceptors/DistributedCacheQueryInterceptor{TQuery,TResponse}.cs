@@ -37,6 +37,8 @@ using NetEvolve.Pulse.Internals;
 /// invalidation evicts only entries this process cached since it started. Entries cached by other
 /// instances or before a restart, and entries written by a query that raced with the invalidating command,
 /// are removed only when they expire. Setting an expiry is therefore recommended when invalidation is used.
+/// The registry holds each distinct cache key once per query type; keys of expired entries are dropped only
+/// when an invalidation of their query type runs.
 /// <para><strong>Expiry:</strong></para>
 /// The effective expiry is determined by first checking <see cref="ICacheableQuery{TResponse}.Expiry"/>;
 /// when it is <see langword="null"/>, <see cref="QueryCachingOptions.DefaultExpiry"/> is used as a fallback.
