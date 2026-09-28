@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Tests.Unit.DeadLetter;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     [Test]
     public async Task ReplayAsync_WithVoidCommand_DispatchesToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new VoidCommandHandler();
 
         await ReplayAsync<VoidCommand, Extensibility.Void>(
@@ -30,6 +33,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     [Test]
     public async Task ReplayAsync_WithValueTypeResponse_DispatchesToHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new ValueTypeCommandHandler();
 
         await ReplayAsync<ValueTypeCommand, int>(handler, new ValueTypeCommand { Value = 21 }, cancellationToken)
@@ -41,6 +46,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     [Test]
     public async Task ReplayAsync_WhenHandlerThrows_RethrowsOriginalException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new ThrowingCommandHandler();
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -56,6 +63,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
@@ -92,6 +101,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     [Test]
     public async Task ReplayAsync_MarksReplayedCommandDuringDispatch(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new ReplayObservingCommandHandler();
 
         await ReplayAsync<VoidCommand, Extensibility.Void>(
@@ -111,6 +122,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     )
         where TCommand : ICommand<TResponse>
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
@@ -149,9 +162,15 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     {
         public string? LastValue { get; private set; }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task<Extensibility.Void> HandleAsync(VoidCommand command, CancellationToken cancellationToken = default)
         {
             LastValue = command.Value;
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Extensibility.Void.Completed);
         }
     }
@@ -160,9 +179,15 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     {
         public bool WasReplayedDuringDispatch { get; private set; }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task<Extensibility.Void> HandleAsync(VoidCommand command, CancellationToken cancellationToken = default)
         {
             WasReplayedDuringDispatch = CommandDeadLetterReplayDispatcher.IsReplayedCommand(command);
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Extensibility.Void.Completed);
         }
     }
@@ -179,9 +204,15 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     {
         public int LastValue { get; private set; }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task<int> HandleAsync(ValueTypeCommand command, CancellationToken cancellationToken = default)
         {
             LastValue = command.Value;
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(command.Value * 2);
         }
     }

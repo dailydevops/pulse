@@ -379,6 +379,8 @@ public sealed class ConcurrentCommandGuardExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services
             .AddLogging()
@@ -450,6 +452,8 @@ public sealed class ConcurrentCommandGuardExtensionsTests
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var current = Interlocked.Increment(ref _current);
             int max;
             while (current > (max = Volatile.Read(ref _max)))
@@ -472,6 +476,8 @@ public sealed class ConcurrentCommandGuardExtensionsTests
     {
         public async Task<string> HandleAsync(ExclusiveCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await tracker.RunAsync(cancellationToken).ConfigureAwait(false);
             return "done";
         }

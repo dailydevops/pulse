@@ -102,6 +102,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {

@@ -280,6 +280,8 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
     [Test]
     public async Task ExistsAsync_With_validFrom_and_unparsable_value_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, capture) = BuildFakes();
         capture.Storage["pulse:IdempotencyKey:k1"] = "not-a-timestamp";
         var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
@@ -293,6 +295,8 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
     [Test]
     public async Task ExistsAsync_With_validFrom_equal_to_creation_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, _) = BuildFakes();
         var createdAt = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
         var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
@@ -306,6 +310,8 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
     [Test]
     public async Task ExistsAsync_Reads_key_prefixed_with_schema_and_table(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, capture) = BuildFakes();
         capture.Storage["tenant1:idem:k1"] = "2025-01-01T10:00:00.0000000+00:00";
         capture.Storage["k2"] = "2025-01-01T10:00:00.0000000+00:00";
@@ -326,6 +332,8 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, capture) = BuildFakes();
         var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
 

@@ -101,6 +101,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendAsync_Writes_all_envelope_properties(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient);
         var message = CreateOutboxMessage();
@@ -132,6 +134,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(
             fakeClient,
@@ -155,6 +159,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(
             fakeClient,
@@ -178,6 +184,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(
             fakeClient,
@@ -199,6 +207,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(
             fakeClient,
@@ -220,6 +230,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(
             fakeClient,
@@ -243,6 +255,8 @@ public sealed class AzureQueueStorageMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(
             fakeClient,
@@ -266,6 +280,8 @@ public sealed class AzureQueueStorageMessageTransportTests
     [Test]
     public async Task SendAsync_With_write_indented_writes_compact_envelope(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeQueueClient();
         using var transport = CreateTransport(fakeClient, new JsonSerializerOptions { WriteIndented = true });
         var message = CreateOutboxMessage();

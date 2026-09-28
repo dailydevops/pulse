@@ -291,6 +291,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_WithEqualOccurredAt_OrdersByIdDescending(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_WithEqualOccurredAt_OrdersByIdDescending));
         await using (context.ConfigureAwait(false))
         {
@@ -327,6 +329,8 @@ public sealed class EntityFrameworkAuditManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(
             $"{nameof(QueryAsync_WithInvalidTakeOrSkip_ThrowsArgumentOutOfRangeException)}_{take}_{skip}"
         );
@@ -433,6 +437,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task GetByIdAsync_WithExistingId_ReturnsUntrackedRecord(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string databaseName = nameof(GetByIdAsync_WithExistingId_ReturnsUntrackedRecord);
         var now = DateTimeOffset.UtcNow;
         var match = CreateRecord(now, commandType: "Match.Command", userId: "user-1");
@@ -466,6 +472,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task GetByIdAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetByIdAsync_WithUnknownId_ReturnsNull));
         await using (context.ConfigureAwait(false))
         {

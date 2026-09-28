@@ -31,6 +31,8 @@ public sealed class PulseStreamHubTests
     [Test]
     public async Task StreamAsync_WithItems_YieldsAllItemsInOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -46,6 +48,8 @@ public sealed class PulseStreamHubTests
     [Test]
     public async Task StreamAsync_WithEmptyStream_YieldsNothing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -59,8 +63,10 @@ public sealed class PulseStreamHubTests
     }
 
     [Test]
-    public async Task StreamAsync_ForwardsCancellationTokenToMediator()
+    public async Task StreamAsync_ForwardsCancellationTokenToMediator(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
@@ -77,6 +83,8 @@ public sealed class PulseStreamHubTests
     [Test]
     public async Task StreamAsync_WhenHandlerThrows_PropagatesException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -92,6 +100,8 @@ public sealed class PulseStreamHubTests
     [Test]
     public async Task StreamAsync_WhenForeignCancellationThrown_PropagatesAsError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -107,8 +117,10 @@ public sealed class PulseStreamHubTests
     // INVARIANT: SignalR cancels the token passed to a streaming hub method when the client
     // unsubscribes; the hub must then end the stream without surfacing an exception.
     [Test]
-    public async Task StreamAsync_WhenClientCancels_CompletesWithoutException()
+    public async Task StreamAsync_WhenClientCancels_CompletesWithoutException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
@@ -134,8 +146,12 @@ public sealed class PulseStreamHubTests
     // GetAsyncEnumerator(token); that token must reach the real stream handler through
     // the mediator so the handler stops producing items.
     [Test]
-    public async Task StreamAsync_WithRealMediator_EnumeratorCancellationReachesHandler()
+    public async Task StreamAsync_WithRealMediator_EnumeratorCancellationReachesHandler(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new InfiniteStreamQueryHandler();
         var services = new ServiceCollection().AddLogging();
         _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(handler);
@@ -235,6 +251,11 @@ public sealed class PulseStreamHubTests
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            yield break;
+        }
+
         var counter = 0;
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -258,6 +279,11 @@ public sealed class PulseStreamHubTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+
             var counter = 0;
             while (!cancellationToken.IsCancellationRequested)
             {

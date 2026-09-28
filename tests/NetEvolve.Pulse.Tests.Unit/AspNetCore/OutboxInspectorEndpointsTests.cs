@@ -344,6 +344,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<OutboxMessage>());
@@ -366,6 +368,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetMessages_WithoutQuery_UsesDefaultsAndReturnsMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var messages = new[]
         {
@@ -418,6 +422,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetMessagesAsync(
                 Arg.Any<int>(),
@@ -455,6 +461,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Arguments("status=Unknown")]
     public async Task GetMessages_WithInvalidQuery_ReturnsBadRequest(string query, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -487,6 +495,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetMessagesAsync(
                 Arg.Any<int>(),
@@ -522,6 +532,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<OutboxMessage>());
@@ -554,6 +566,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -579,6 +593,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetMessage_WhenFound_ReturnsOkWithMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var message = new OutboxMessage
         {
@@ -613,6 +629,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetMessage_WhenNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((OutboxMessage?)null);
 
@@ -629,6 +647,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetMessage_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -654,6 +674,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
 
         var mock = Mock.Of<IOutboxManagement>();
@@ -686,6 +708,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
 
         var mock = Mock.Of<IOutboxManagement>();
@@ -710,6 +734,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task DismissMessage_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -815,6 +841,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterMessages_WithoutQuery_UsesDefaultPaging(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<OutboxMessage>());
@@ -834,6 +862,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterMessages_WithPagingQuery_PassesValuesThrough(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<OutboxMessage>());
@@ -855,6 +885,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task GetDeadLetterMessage_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -872,6 +904,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task ReplayMessage_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -895,6 +929,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task ReplayAllDeadLetter_ReturnsCountOnlyBody(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.ReplayAllDeadLetterAsync(Arg.Any<CancellationToken>()).Returns(7);
 
@@ -921,6 +957,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new OutboxStatistics
         {
             Pending = 1,
@@ -963,6 +1001,8 @@ public sealed class OutboxInspectorEndpointsTests
     [Test]
     public async Task MessageEndpoints_WithConcurrentRequests_AllReturnOk(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
@@ -1023,6 +1063,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var message = new OutboxMessage
         {
@@ -1068,6 +1110,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         var message = new OutboxMessage
         {
@@ -1100,6 +1144,8 @@ public sealed class OutboxInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = new[]
         {
             new OutboxMessage

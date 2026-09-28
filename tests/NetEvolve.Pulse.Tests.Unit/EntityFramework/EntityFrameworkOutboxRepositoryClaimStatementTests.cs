@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit.EntityFramework;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,8 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var claim = await CaptureClaimUpdateAsync(
                 nameof(GetPendingAsync_ClaimUpdate_FiltersTargetRowsWithoutLimitedSubquery),
                 OutboxMessageStatus.Pending,
@@ -53,6 +56,8 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var claim = await CaptureClaimUpdateAsync(
                 nameof(GetFailedForRetryAsync_ClaimUpdate_FiltersTargetRowsWithoutLimitedSubquery),
                 OutboxMessageStatus.Failed,
@@ -88,6 +93,8 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString = $"Data Source={databaseName};Mode=Memory;Cache=Shared;Pooling=False";
 
         var keeperConnection = new SqliteConnection(connectionString);
@@ -136,6 +143,11 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
     {
         public List<string> Commands { get; } = [];
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
             DbCommand command,
             CommandEventData eventData,
@@ -144,6 +156,7 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
         )
         {
             Commands.Add(command.CommandText.Trim());
+            cancellationToken.ThrowIfCancellationRequested();
             return ValueTask.FromResult(result);
         }
     }

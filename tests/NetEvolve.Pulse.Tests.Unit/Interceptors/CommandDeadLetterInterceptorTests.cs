@@ -172,6 +172,8 @@ public sealed class CommandDeadLetterInterceptorTests
     [Test]
     public async Task HandleAsync_FailingReplayedCommand_SkipsStoreAndRethrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = Mock.Of<ICommandDeadLetterStore>();
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -199,6 +201,8 @@ public sealed class CommandDeadLetterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = Mock.Of<ICommandDeadLetterStore>();
         var calls = new StrongBox<int>();
         var services = new ServiceCollection();
@@ -237,6 +241,8 @@ public sealed class CommandDeadLetterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = Mock.Of<ICommandDeadLetterStore>();
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -285,6 +291,8 @@ public sealed class CommandDeadLetterInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var scope = provider.CreateAsyncScope();
         await using (scope.ConfigureAwait(false))
         {
@@ -333,9 +341,15 @@ public sealed class CommandDeadLetterInterceptorTests
         public Task<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
             Task.FromResult(_keys.ContainsKey(idempotencyKey));
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
         {
             _ = _keys.TryAdd(idempotencyKey, 0);
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.CompletedTask;
         }
     }

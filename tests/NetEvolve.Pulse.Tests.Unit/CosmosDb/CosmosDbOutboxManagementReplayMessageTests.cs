@@ -117,6 +117,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
     [Test]
     public async Task ReplayMessageAsync_WithTtlEnabled_PatchesTtlToNeverExpire(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
         var container = new FakeCosmosContainer
@@ -147,6 +149,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
     [Test]
     public async Task ReplayMessageAsync_WithTtlDisabled_DoesNotPatchTtl(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
         var container = new FakeCosmosContainer

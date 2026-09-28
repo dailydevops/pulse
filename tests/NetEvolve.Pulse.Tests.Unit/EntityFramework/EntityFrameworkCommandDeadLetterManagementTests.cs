@@ -232,6 +232,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetPendingAsync_WithNegativeSkip_ThrowsArgumentOutOfRangeException));
         await using (context.ConfigureAwait(false))
         {
@@ -251,6 +253,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task GetEntryAsync_WithExistingId_ReturnsEntry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetEntryAsync_WithExistingId_ReturnsEntry));
         await using (context.ConfigureAwait(false))
         {
@@ -279,6 +283,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task GetEntryAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetEntryAsync_WithUnknownId_ReturnsNull));
         await using (context.ConfigureAwait(false))
         {
@@ -303,6 +309,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(
             $"{nameof(GetPendingAsync_WithNonPositiveCount_ThrowsArgumentOutOfRangeException)}{count}"
         );
@@ -332,6 +340,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException));
         await using (context.ConfigureAwait(false))
         {
@@ -442,6 +452,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_WithResolvedEntry_ReplaysAgain(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestReplayCommandHandler();
         var databaseName = nameof(ReplayAsync_WithResolvedEntry_ReplaysAgain);
 
@@ -466,6 +478,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_WhenHandlerThrows_ResetsEntryToNew(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerThrows_ResetsEntryToNew);
 
         var entryId = await ReplayWithHandlerAsync(
@@ -488,6 +502,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_WhenHandlerThrows_RecordsFailureOnEntry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerThrows_RecordsFailureOnEntry);
         var failedAt = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
 
@@ -521,6 +537,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task ReplayAsync_WhenCancelledDuringDispatch_ResetsEntryToNew(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenCancelledDuringDispatch_ResetsEntryToNew);
         using var replayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -548,6 +566,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerThrowsWithPendingChanges_DiscardsHandlerChanges);
         var handlerEntry = CreateEntry(CommandDeadLetterStatus.New, DateTimeOffset.UtcNow);
 
@@ -588,6 +608,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerThrowsAndResetFails_RethrowsHandlerException);
 
         _ = await ReplayWithHandlerAsync(
@@ -609,6 +631,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerThrows_KeepsCallerTrackedEntitiesAttached);
         var callerEntry = CreateEntry(CommandDeadLetterStatus.Resolved, DateTimeOffset.UtcNow);
         TestCommandDeadLetterDbContext sharedContext = null!;
@@ -641,6 +665,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerModifiesAndDeletesTrackedEntities_RevertsHandlerChanges);
         var modifiedEntry = CreateEntry(CommandDeadLetterStatus.Resolved, DateTimeOffset.UtcNow);
         var deletedEntry = CreateEntry(CommandDeadLetterStatus.Resolved, DateTimeOffset.UtcNow);
@@ -691,6 +717,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseName = nameof(ReplayAsync_WhenHandlerClearsChangeTrackerAndThrows_ResetsEntryToNew);
 
         var entryId = await ReplayWithHandlerAsync(
@@ -713,6 +741,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(DismissAsync_WithUnknownId_ThrowsEntryNotFoundException));
         await using (context.ConfigureAwait(false))
         {
@@ -834,6 +864,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         TimeProvider? timeProvider = null
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(databaseName);
         await using (context.ConfigureAwait(false))
         {
@@ -891,6 +923,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(databaseName);
         await using (context.ConfigureAwait(false))
         {
@@ -915,6 +949,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             modifiedEntry.Status = CommandDeadLetterStatus.Dismissed;
             _ = context.CommandDeadLetterEntries.Remove(deletedEntry);
             throw new InvalidOperationException("replay failed");
@@ -926,6 +962,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             context.ChangeTracker.Clear();
             throw new InvalidOperationException("replay failed");
         }
@@ -936,6 +974,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public async Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var context = CreateContext(databaseName);
             await using (context.ConfigureAwait(false))
             {
@@ -956,6 +996,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public async Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _ = await context.CommandDeadLetterEntries.AddAsync(handlerEntry, cancellationToken).ConfigureAwait(false);
             throw new InvalidOperationException("replay failed");
         }
@@ -966,6 +1008,8 @@ public sealed class EntityFrameworkCommandDeadLetterManagementTests
     {
         public async Task<string> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await replayCancellation.CancelAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             return "handled";

@@ -432,6 +432,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         _ = client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", accept);
@@ -451,6 +453,8 @@ public sealed class EndpointRouteBuilderExtensionsTests
     [Arguments("application/x-ndjson")]
     public async Task MapStreamQuery_WithAccept_SetsVaryAcceptHeader(string accept, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
         var client = host.GetTestClient();
         _ = client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", accept);

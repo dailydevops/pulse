@@ -690,6 +690,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true };
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -717,6 +719,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true, MaxMessagesPerBatch = 2 };
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -751,6 +755,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true };
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -779,6 +785,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         _ = fakeClient.RejectMultiMessageBatchesByTopic.Add(nameof(AlphaEvent));
         await using (fakeClient.ConfigureAwait(false))
@@ -811,6 +819,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true };
         await using (fakeClient.ConfigureAwait(false))
         {
@@ -834,6 +844,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient
         {
             RejectMultiMessageBatches = true,
@@ -862,6 +874,8 @@ public sealed class AzureServiceBusMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeClient = new FakeServiceBusClient();
         fakeClient.FailuresByTopic["orders"] = new ObjectDisposedException(nameof(ServiceBusSender));
         await using (fakeClient.ConfigureAwait(false))

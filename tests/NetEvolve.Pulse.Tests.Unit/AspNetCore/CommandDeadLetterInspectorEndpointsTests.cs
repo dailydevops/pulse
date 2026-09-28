@@ -201,6 +201,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetPendingEntries_WithoutQueryParameters_UsesDefaults(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<CommandDeadLetterEntry>());
@@ -224,6 +226,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<CommandDeadLetterEntry>());
@@ -245,6 +249,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetPendingEntries_WithNegativeSkip_ReturnsBadRequest(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -264,6 +270,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetEntry_WhenFound_ReturnsOkWithEntry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
         var entry = new CommandDeadLetterEntry
         {
@@ -298,6 +306,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetEntry_WhenNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetEntryAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((CommandDeadLetterEntry?)null);
 
@@ -316,6 +326,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetEntry_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -340,6 +352,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -359,6 +373,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetPendingEntries_WithCountAboveMaximum_ReturnsBadRequest(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -378,6 +394,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task GetPendingEntries_WithMaximumCount_PassesThrough(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetPendingAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<CommandDeadLetterEntry>());
@@ -399,6 +417,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task ReplayEntry_WhenEntryNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.ReplayAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Throws<CommandDeadLetterEntryNotFoundException>();
@@ -424,6 +444,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task ReplayEntry_WhenEntryRemovedBeforeReplay_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -461,6 +483,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -487,6 +511,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task ReplayEntry_WhenEntryDismissed_ReturnsConflict(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -514,6 +540,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -540,6 +568,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
     [Test]
     public async Task DismissEntry_WhenEntryNotFound_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.DismissAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Throws<CommandDeadLetterEntryNotFoundException>();
@@ -565,6 +595,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
 
         var mock = Mock.Of<ICommandDeadLetterManagement>();
@@ -626,6 +658,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new CommandDeadLetterStatistics(
             NewCount: 1,
             ReplayingCount: 2,
@@ -663,6 +697,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
         var entry = new CommandDeadLetterEntry
         {
@@ -709,6 +745,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entryId = Guid.NewGuid();
         var entry = new CommandDeadLetterEntry
         {

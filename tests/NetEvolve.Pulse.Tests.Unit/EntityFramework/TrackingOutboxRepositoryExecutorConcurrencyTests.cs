@@ -149,6 +149,8 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseRoot = new InMemoryDatabaseRoot();
         var databaseName = nameof(FetchAndMarkAsync_WhenLoadedRowWasClaimedAndFailedAgain_DoesNotReclaimRow);
 

@@ -130,6 +130,8 @@ public sealed class SQLiteAuditTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = new SQLiteAuditManagement(
             Options.Create(new AuditStoreOptions { ConnectionString = ValidConnectionString })
         );
