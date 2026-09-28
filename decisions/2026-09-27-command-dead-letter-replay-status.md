@@ -7,11 +7,11 @@ applyTo:
   - "src/**/DeadLetter/*CommandDeadLetterManagement.cs"
   - "src/NetEvolve.Pulse.AspNetCore/DeadLetter/**/*.cs"
 
-created: 2026-09-24
+created: 2026-09-27
 
-lastModified: 2026-09-27
+lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST reject ICommandDeadLetterManagement.ReplayAsync for Dismissed entries with CommandDeadLetterEntryDismissedException before changing the status or dispatching; the inspector endpoint MUST map it to 409 Conflict.
@@ -45,9 +45,9 @@ Issue #788 describes two status bugs that every provider shared:
 
 - Dismissed commands are never re-executed through the management API or the inspector.
 - A failed replay leaves no entry out of sight. Operators can retry it from the pending list.
-- Failure details of the replay (exception type and message, attempt count, time) are recorded on the entry, as defined in [Command Dead Letter Replay Attempt Tracking](./2026-09-24-command-dead-letter-replay-attempt-tracking.md).
+- Failure details of the replay (exception type and message, attempt count, time) are recorded on the entry, as defined in [Command Dead Letter Replay Attempt Tracking](./2026-09-27-command-dead-letter-replay-attempt-tracking.md).
 - The status check and the `Replaying` write are separate statements, so a concurrent `DismissAsync` between them is not detected. This is acceptable for an administrative operation.
-- When the command dead letter interceptor (`AddCommandDeadLetter`) is registered, a failed replay does not store a new dead letter entry. See [Command Dead Letter Replay Attempt Tracking](./2026-09-24-command-dead-letter-replay-attempt-tracking.md).
+- When the command dead letter interceptor (`AddCommandDeadLetter`) is registered, a failed replay does not store a new dead letter entry. See [Command Dead Letter Replay Attempt Tracking](./2026-09-27-command-dead-letter-replay-attempt-tracking.md).
 
 ## Alternatives Considered
 
@@ -59,5 +59,5 @@ Issue #788 describes two status bugs that every provider shared:
 ## Related Decisions
 
 - [Outbox Inspection and Dead-Letter Dismissal](./2026-09-24-outbox-inspection-and-dead-letter-dismissal.md) - Defines the comparable replay and dismissal semantics for the outbox.
-- [Command Dead Letter Replay Attempt Tracking](./2026-09-24-command-dead-letter-replay-attempt-tracking.md) - Records failed replays on the replayed entry instead of adding a new one.
+- [Command Dead Letter Replay Attempt Tracking](./2026-09-27-command-dead-letter-replay-attempt-tracking.md) - Records failed replays on the replayed entry instead of adding a new one.
 - [Extensibility Interface Evolution Pre-1.0](./2026-09-24-extensibility-interface-evolution-pre-1-0.md) - The documented behavior change of `ICommandDeadLetterManagement.ReplayAsync` affects external implementers.

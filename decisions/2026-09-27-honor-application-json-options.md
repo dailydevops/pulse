@@ -6,11 +6,11 @@ applyTo:
   - "src/NetEvolve.Pulse.AspNetCore/**"
   - "src/NetEvolve.Pulse.AzureQueueStorage/**"
 
-created: 2026-09-24
+created: 2026-09-27
 
-lastModified: 2026-09-24
+lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST serialize Pulse-owned models that are written through an application-facing channel (inspector HTTP responses, transport envelopes) with the application's configured JSON options, not with a Pulse-only context.
