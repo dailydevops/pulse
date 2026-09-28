@@ -1430,6 +1430,56 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
+    public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAtFromInjectedTimeProvider(
+        bool enableBatchSending,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var timeProvider = new TimerSignalingTimeProvider();
+        using var repository = new InMemoryOutboxRepository(timeProvider);
+        var transport = new TimedFailingMessageTransport(timeProvider);
+        var baseRetryDelay = TimeSpan.FromSeconds(10);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromSeconds(5),
+                MaxRetryCount = 3,
+                EnableBatchSending = enableBatchSending,
+                EnableExponentialBackoff = true,
+                BaseRetryDelay = baseRetryDelay,
+                AddJitter = false,
+            }
+        );
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            CreateLogger(),
+            timeProvider
+        );
+
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        var failedAt = timeProvider.GetUtcNow();
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.Failed);
+            _ = await Assert.That(message.NextRetryAt).IsEqualTo(failedAt + baseRetryDelay);
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
     public async Task ExecuteAsync_WithExponentialBackoffDisabled_RetriesOncePerPollingInterval(
         bool enableBatchSending,
         CancellationToken cancellationToken

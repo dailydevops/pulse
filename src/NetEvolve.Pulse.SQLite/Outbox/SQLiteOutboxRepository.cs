@@ -178,7 +178,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             SET "{OutboxMessageSchema.Columns.Status}" = 2,
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc
-            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId;
+            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId
+              AND "{OutboxMessageSchema.Columns.Status}" = 1;
             """;
 
         _markFailedSql = $"""
@@ -187,7 +188,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error,
                 "{OutboxMessageSchema.Columns.RetryCount}" = "{OutboxMessageSchema.Columns.RetryCount}" + 1
-            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId;
+            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId
+              AND "{OutboxMessageSchema.Columns.Status}" = 1;
             """;
 
         _markFailedWithRetrySql = $"""
@@ -197,7 +199,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.Error}" = @error,
                 "{OutboxMessageSchema.Columns.RetryCount}" = "{OutboxMessageSchema.Columns.RetryCount}" + 1,
                 "{OutboxMessageSchema.Columns.NextRetryAt}" = @nextRetryAt
-            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId;
+            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId
+              AND "{OutboxMessageSchema.Columns.Status}" = 1;
             """;
 
         _markDeadLetterSql = $"""
@@ -206,7 +209,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error
-            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId;
+            WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId
+              AND "{OutboxMessageSchema.Columns.Status}" = 1;
             """;
 
         _markCompletedBatchSql = $"""
@@ -214,7 +218,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             SET "{OutboxMessageSchema.Columns.Status}" = 2,
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc
-            WHERE "{OutboxMessageSchema.Columns.Id}" IN
+            WHERE "{OutboxMessageSchema.Columns.Status}" = 1
+              AND "{OutboxMessageSchema.Columns.Id}" IN
             """;
 
         _markFailedBatchSql = $"""
@@ -223,7 +228,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error,
                 "{OutboxMessageSchema.Columns.RetryCount}" = "{OutboxMessageSchema.Columns.RetryCount}" + 1
-            WHERE "{OutboxMessageSchema.Columns.Id}" IN
+            WHERE "{OutboxMessageSchema.Columns.Status}" = 1
+              AND "{OutboxMessageSchema.Columns.Id}" IN
             """;
 
         _markDeadLetterBatchSql = $"""
@@ -232,7 +238,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error
-            WHERE "{OutboxMessageSchema.Columns.Id}" IN
+            WHERE "{OutboxMessageSchema.Columns.Status}" = 1
+              AND "{OutboxMessageSchema.Columns.Id}" IN
             """;
 
         _deleteCompletedSql = $"""

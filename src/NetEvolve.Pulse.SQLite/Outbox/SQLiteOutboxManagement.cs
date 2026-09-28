@@ -80,7 +80,7 @@ internal sealed class SQLiteOutboxManagement : IOutboxManagement
                 "{OutboxMessageSchema.Columns.Status}"
             FROM {table}
             WHERE "{OutboxMessageSchema.Columns.Status}" = 4
-            ORDER BY "{OutboxMessageSchema.Columns.UpdatedAt}" DESC
+            ORDER BY "{OutboxMessageSchema.Columns.UpdatedAt}" DESC, "{OutboxMessageSchema.Columns.Id}" DESC
             LIMIT @pageSize OFFSET @offset;
             """;
 

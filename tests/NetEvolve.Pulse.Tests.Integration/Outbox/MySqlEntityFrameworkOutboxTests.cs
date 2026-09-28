@@ -14,4 +14,9 @@ using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 public class MySqlEntityFrameworkOutboxTests(
     IServiceFixture databaseServiceFixture,
     IServiceInitializer databaseInitializer
-) : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
+) : OutboxTestsBase(databaseServiceFixture, databaseInitializer)
+{
+    /// <inheritdoc />
+    protected override IComparer<Guid> IdComparer { get; } =
+        Comparer<Guid>.Create((x, y) => x.ToByteArray().AsSpan().SequenceCompareTo(y.ToByteArray()));
+}

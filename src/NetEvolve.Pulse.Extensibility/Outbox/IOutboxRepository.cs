@@ -15,6 +15,11 @@
 /// <item><description><see cref="AddAsync"/> SHOULD participate in ambient transactions when available</description></item>
 /// <item><description>Other methods are typically called outside transaction scope by the background processor</description></item>
 /// </list>
+/// <para><strong>Status Updates:</strong></para>
+/// The <c>MarkAs*</c> methods MUST change a message only while it is in <see cref="OutboxMessageStatus.Processing"/>.
+/// A call for a message in any other status, or for an unknown message, MUST be a silent no-op. This keeps a
+/// stalled worker, whose claim expired and was taken over by another worker, from overwriting a message that the
+/// other worker already completed, failed or moved to the dead-letter state.
 /// </remarks>
 public interface IOutboxRepository
 {
@@ -48,6 +53,9 @@ public interface IOutboxRepository
     /// <param name="messageId">The ID of the message to mark as completed.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// Only a message in <see cref="OutboxMessageStatus.Processing"/> is changed; otherwise the call is a silent no-op.
+    /// </remarks>
     Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -57,6 +65,7 @@ public interface IOutboxRepository
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
+    /// Only messages in <see cref="OutboxMessageStatus.Processing"/> are changed; all other identifiers are skipped silently.
     /// The default implementation calls <see cref="MarkAsCompletedAsync(Guid, CancellationToken)"/>
     /// once per id sequentially, resulting in one storage round trip per message. Implementations
     /// SHOULD override this overload with a single set-based storage operation
@@ -82,6 +91,7 @@ public interface IOutboxRepository
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
     /// Implementations SHOULD increment the retry count and update the status accordingly.
+    /// Only a message in <see cref="OutboxMessageStatus.Processing"/> is changed; otherwise the call is a silent no-op.
     /// </remarks>
     Task MarkAsFailedAsync(Guid messageId, string errorMessage, CancellationToken cancellationToken = default);
 
@@ -95,6 +105,7 @@ public interface IOutboxRepository
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
     /// Implementations SHOULD increment the retry count and update the status accordingly.
+    /// Only a message in <see cref="OutboxMessageStatus.Processing"/> is changed; otherwise the call is a silent no-op.
     /// The processor always supplies a retry time (the backoff schedule, or one polling interval
     /// when exponential backoff is disabled). Implementations SHOULD store this value and exclude the
     /// message from <see cref="GetFailedForRetryAsync"/> until that time.
@@ -115,6 +126,7 @@ public interface IOutboxRepository
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
     /// Implementations SHOULD increment the retry count and update the status accordingly.
+    /// Only messages in <see cref="OutboxMessageStatus.Processing"/> are changed; all other identifiers are skipped silently.
     /// The default implementation calls <see cref="MarkAsFailedAsync(Guid, string, CancellationToken)"/>
     /// once per id sequentially, resulting in one storage round trip per message. Implementations
     /// SHOULD override this overload with a single set-based storage operation
@@ -142,6 +154,9 @@ public interface IOutboxRepository
     /// <param name="errorMessage">The final error message.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>
+    /// Only a message in <see cref="OutboxMessageStatus.Processing"/> is changed; otherwise the call is a silent no-op.
+    /// </remarks>
     Task MarkAsDeadLetterAsync(Guid messageId, string errorMessage, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -152,6 +167,7 @@ public interface IOutboxRepository
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
+    /// Only messages in <see cref="OutboxMessageStatus.Processing"/> are changed; all other identifiers are skipped silently.
     /// The default implementation calls <see cref="MarkAsDeadLetterAsync(Guid, string, CancellationToken)"/>
     /// once per id sequentially, resulting in one storage round trip per message. Implementations
     /// SHOULD override this overload with a single set-based storage operation
