@@ -18,7 +18,7 @@ using TUnit.Core;
 public class ReadmeDiagnosticsTests
 {
     [Test]
-    public async Task WhenReadmeIsReadThenEveryDiagnosticHasARowWithItsSeverity(
+    public async Task WhenReadmeIsReadThenDiagnosticRowsMatchTheDescriptors(
         CancellationToken cancellationToken = default
     )
     {
@@ -30,14 +30,25 @@ public class ReadmeDiagnosticsTests
             )
             .ConfigureAwait(false);
 
-        var missingRows = typeof(DiagnosticDescriptors)
+        var expectedRows = typeof(DiagnosticDescriptors)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(field => field.FieldType == typeof(DiagnosticDescriptor))
             .Select(field => (DiagnosticDescriptor)field.GetValue(null)!)
-            .Select(descriptor => $"| {descriptor.Id} | {descriptor.DefaultSeverity} |")
-            .Where(row => !readme.Any(line => line.StartsWith(row, StringComparison.Ordinal)))
+            .Select(descriptor => $"{descriptor.Id} | {descriptor.DefaultSeverity}")
+            .Order(StringComparer.Ordinal)
             .ToArray();
 
-        _ = await Assert.That(missingRows).IsEmpty();
+        var readmeRows = readme
+            .Where(line => line.StartsWith("| PULSE", StringComparison.Ordinal))
+            .Select(line => line.Split('|', StringSplitOptions.TrimEntries))
+            .Select(cells => $"{cells[1]} | {cells[2]}")
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(expectedRows).IsNotEmpty();
+            _ = await Assert.That(readmeRows).IsEquivalentTo(expectedRows);
+        }
     }
 }
