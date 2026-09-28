@@ -261,6 +261,19 @@ processorOptions.EventTypeOverrides[typeof(BulkEvent)] = new OutboxEventTypeOpti
 
 See [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) or [NetEvolve.Pulse.SqlServer](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) for persistence provider setup.
 
+#### Outbox and Handlers Sharing the Caller's Scope
+
+`PublishAsync` resolves event handlers from the caller's scope, so scoped handlers get the same `DbContext` or connection as the publishing code and the outbox. Since EF Core does not support concurrent operations on one `DbContext`, the mediator always runs the outbox handler first and on its own. Only the remaining handlers go to the configured dispatcher, so the outbox write never overlaps another handler, even under the default `ParallelEventDispatcher`.
+
+If two or more of your own handlers for the same event use the same scoped `DbContext` or connection, the parallel default still runs them concurrently. Switch to sequential dispatch for these events:
+
+```csharp
+services.AddPulse(config => config
+    .AddOutbox()
+    .UseDefaultEventDispatcher<SequentialEventDispatcher>()
+);
+```
+
 ### Payload Serialization
 
 Pulse uses `IPayloadSerializer` (from `NetEvolve.Pulse.Extensibility`) for all internal serialization needs, including outbox message payloads, distributed cache entries, and audit trail data. A default implementation based on System.Text.Json is registered automatically when you call `AddPulse()`.

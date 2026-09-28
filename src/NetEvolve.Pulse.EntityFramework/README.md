@@ -154,6 +154,13 @@ public class OrderService
 }
 ```
 
+### Event Handlers Sharing the DbContext
+
+When you publish through `IMediator.PublishAsync`, the outbox writes through the caller's scoped `DbContext`. That is the same instance your scoped event handlers get. The mediator always runs the outbox handler first and on its own, so it never uses the context concurrently with one of your handlers.
+
+- If two or more of your own handlers for the same event use the context, register `UseDefaultEventDispatcher<SequentialEventDispatcher>()`. The default `ParallelEventDispatcher` runs them concurrently, which EF Core does not support.
+- Storing an outbox message calls `SaveChangesAsync` on the shared context. This also saves any changes the caller has made but not yet saved. Wrap the business changes and `PublishAsync` in one transaction (see above) if they must commit or roll back together.
+
 ## Multi-Provider Support
 
 `OutboxMessageConfigurationFactory.Create(this)` automatically picks the right column types
