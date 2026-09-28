@@ -165,7 +165,7 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
         CancellationToken cancellationToken
     ) =>
         UpdateByQueryAsync(
-            context.OutboxMessages.Where(m => ids.Contains(m.Id)),
+            context.OutboxMessages.Where(m => ids.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing),
             updatedAt,
             processedAt,
             nextRetryAt,
