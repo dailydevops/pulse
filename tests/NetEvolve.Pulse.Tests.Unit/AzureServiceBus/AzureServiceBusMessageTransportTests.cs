@@ -832,6 +832,19 @@ public sealed class AzureServiceBusMessageTransportTests
                 _ = await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                     transport.SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
                 );
+
+                var sender = fakeClient.GetSender("orders")!;
+                sender.FailureToRaise = null;
+
+                await transport
+                    .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                    .ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(sender.BatchedMessages.Count).IsEqualTo(1);
+                    _ = await Assert.That(sender.SentMessages.Count).IsEqualTo(0);
+                }
             }
         }
     }
