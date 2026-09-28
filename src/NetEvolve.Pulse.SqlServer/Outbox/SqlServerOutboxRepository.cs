@@ -209,7 +209,11 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
                 var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
-                return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+                return await this.DeadLetterUnresolvableAsync(
+                        [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
         }
     }
@@ -238,7 +242,11 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
                 var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
-                return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+                return await this.DeadLetterUnresolvableAsync(
+                        [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
             }
         }
     }

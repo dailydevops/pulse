@@ -311,7 +311,11 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         var messages = await ClaimPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
 
         // Dead-letter after the claim transaction has committed, because BEGIN IMMEDIATE holds the write lock.
-        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(
+                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -325,7 +329,11 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             .ConfigureAwait(false);
 
         // Dead-letter after the claim transaction has committed, because BEGIN IMMEDIATE holds the write lock.
-        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(
+                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <summary>

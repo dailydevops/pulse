@@ -160,6 +160,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 `{{OutboxMessageSchema.Columns.Status}}`
             FROM {{tableName}}
             WHERE `{{OutboxMessageSchema.Columns.Id}}` IN ({0})
+            ORDER BY `{{OutboxMessageSchema.Columns.CreatedAt}}`, `{{OutboxMessageSchema.Columns.Id}}`
             """;
 
         _markCompletedSql = $"""
@@ -289,7 +290,11 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
             )
             .ConfigureAwait(false);
 
-        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(
+                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -308,7 +313,11 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
             )
             .ConfigureAwait(false);
 
-        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(
+                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
