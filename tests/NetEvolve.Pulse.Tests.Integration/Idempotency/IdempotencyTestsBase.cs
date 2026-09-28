@@ -327,7 +327,10 @@ public abstract class IdempotencyTestsBase(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically (tracked in #907).");
+        Skip.When(
+            !SupportsAtomicReservation,
+            "The provider does not reserve idempotency keys atomically (tracked in #907)."
+        );
 
         await RunAndVerify(
                 async (services, token) =>
@@ -377,7 +380,10 @@ public abstract class IdempotencyTestsBase(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically (tracked in #907).");
+        Skip.When(
+            !SupportsAtomicReservation,
+            "The provider does not reserve idempotency keys atomically (tracked in #907)."
+        );
 
         var counter = new InvocationCounter();
 
@@ -471,6 +477,72 @@ public abstract class IdempotencyTestsBase(
                         {
                             _ = await Assert.That(third).IsFalse();
                         }
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(fakeTime)
+                        .Configure<IdempotencyKeyOptions>(o => o.TimeToLive = TimeSpan.FromHours(1))
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_Reserve_Logically_Expired_Key_Exactly_Once_When_Reserving_Concurrently(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        Skip.When(
+            !SupportsAtomicReservation,
+            "The provider does not reserve idempotency keys atomically (tracked in #907)."
+        );
+
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var first = await services
+                        .GetRequiredService<IIdempotencyStore>()
+                        .TryReserveAsync("concurrent-expired-key", token)
+                        .ConfigureAwait(false);
+
+                    // Past the logical TTL, but within the physical expiry (TTL + 1h) of providers that have one.
+                    fakeTime.Advance(TimeSpan.FromMinutes(90));
+
+                    var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+
+                    var results = await Task.WhenAll(
+                            Enumerable
+                                .Range(0, ConcurrentCalls)
+                                .Select(_ =>
+                                    Task.Run(
+                                        async () =>
+                                        {
+                                            var scope = scopeFactory.CreateAsyncScope();
+                                            await using (scope.ConfigureAwait(false))
+                                            {
+                                                var store =
+                                                    scope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
+                                                return await store
+                                                    .TryReserveAsync("concurrent-expired-key", token)
+                                                    .ConfigureAwait(false);
+                                            }
+                                        },
+                                        token
+                                    )
+                                )
+                        )
+                        .ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(first).IsTrue();
+                        _ = await Assert.That(results.Count(reserved => reserved)).IsEqualTo(1);
                     }
                 },
                 cancellationToken,
