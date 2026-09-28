@@ -640,6 +640,215 @@ public sealed class AzureServiceBusMessageTransportTests
         }
     }
 
+    // ── SendBatchAsync – partitioned entities with duplicate detection ────────
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Partitioned_entity_delivers_every_message_with_own_MessageId(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true };
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
+
+                await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+                var sender = fakeClient.GetSender("orders")!;
+                _ = await Assert.That(sender.BatchedMessages.Count).IsEqualTo(0);
+                _ = await Assert
+                    .That(sender.SentMessages.Select(m => m.MessageId).ToArray())
+                    .IsEquivalentTo(messages.Select(m => m.Id.ToString("D", CultureInfo.InvariantCulture)).ToArray());
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Partitioned_entity_sends_remaining_chunks_individually(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true, MaxMessagesPerBatch = 2 };
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[]
+                {
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                    CreateOutboxMessage(),
+                };
+
+                await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+                var sender = fakeClient.GetSender("orders")!;
+                _ = await Assert.That(sender.RejectedBatchCount).IsEqualTo(1);
+                _ = await Assert
+                    .That(sender.SentMessages.Select(m => m.MessageId).ToArray())
+                    .IsEquivalentTo(messages.Select(m => m.Id.ToString("D", CultureInfo.InvariantCulture)).ToArray());
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Partitioned_entity_skips_batch_attempt_on_later_calls(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true };
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                await transport
+                    .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                    .ConfigureAwait(false);
+                await transport
+                    .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                    .ConfigureAwait(false);
+
+                var sender = fakeClient.GetSender("orders")!;
+                _ = await Assert.That(sender.RejectedBatchCount).IsEqualTo(1);
+                _ = await Assert.That(sender.SentMessages.Count).IsEqualTo(4);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Partitioned_entity_keeps_batching_other_topics(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient();
+        _ = fakeClient.RejectMultiMessageBatchesByTopic.Add(nameof(AlphaEvent));
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new TopicPerEventTypeResolver();
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                var messages = new[]
+                {
+                    CreateOutboxMessage(typeof(AlphaEvent)),
+                    CreateOutboxMessage(typeof(AlphaEvent)),
+                    CreateOutboxMessage(typeof(BetaEvent)),
+                    CreateOutboxMessage(typeof(BetaEvent)),
+                };
+
+                await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+                _ = await Assert.That(fakeClient.GetSender(nameof(AlphaEvent))!.SentMessages.Count).IsEqualTo(2);
+                _ = await Assert.That(fakeClient.GetSender(nameof(BetaEvent))!.BatchedMessages.Count).IsEqualTo(1);
+                _ = await Assert.That(fakeClient.GetSender(nameof(BetaEvent))!.SentMessages.Count).IsEqualTo(0);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Partitioned_entity_single_message_is_sent_as_batch(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient { RejectMultiMessageBatches = true };
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                await transport.SendBatchAsync([CreateOutboxMessage()], cancellationToken).ConfigureAwait(false);
+
+                var sender = fakeClient.GetSender("orders")!;
+                _ = await Assert.That(sender.BatchedMessages.Count).IsEqualTo(1);
+                _ = await Assert.That(sender.SentMessages.Count).IsEqualTo(0);
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_Partitioned_entity_when_individual_send_fails_propagates_exception(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient
+        {
+            RejectMultiMessageBatches = true,
+            SingleSendFailure = new ServiceBusException(
+                "broker unavailable",
+                ServiceBusFailureReason.ServiceCommunicationProblem
+            ),
+        };
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                _ = await Assert.ThrowsAsync<ServiceBusException>(() =>
+                    transport.SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                );
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_BatchingEnabled_When_sender_is_disposed_propagates_ObjectDisposedException(
+        CancellationToken cancellationToken
+    )
+    {
+        var fakeClient = new FakeServiceBusClient();
+        fakeClient.FailuresByTopic["orders"] = new ObjectDisposedException(nameof(ServiceBusSender));
+        await using (fakeClient.ConfigureAwait(false))
+        {
+            var resolver = new FakeTopicNameResolver("orders");
+            var options = Options.Create(new AzureServiceBusTransportOptions { EnableBatching = true });
+
+            var transport = new AzureServiceBusMessageTransport(fakeClient, resolver, options);
+            await using (transport.ConfigureAwait(false))
+            {
+                _ = await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                    transport.SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                );
+
+                var sender = fakeClient.GetSender("orders")!;
+                sender.FailureToRaise = null;
+
+                await transport
+                    .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+                    .ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(sender.BatchedMessages.Count).IsEqualTo(1);
+                    _ = await Assert.That(sender.SentMessages.Count).IsEqualTo(0);
+                }
+            }
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static OutboxMessage CreateOutboxMessage(Type? eventType = null) =>
@@ -722,6 +931,12 @@ public sealed class AzureServiceBusMessageTransportTests
 
         public int MaxMessagesPerBatch { get; init; } = int.MaxValue;
 
+        public bool RejectMultiMessageBatches { get; init; }
+
+        public HashSet<string> RejectMultiMessageBatchesByTopic { get; } = new(StringComparer.Ordinal);
+
+        public Exception? SingleSendFailure { get; init; }
+
         public FakeServiceBusSender? GetSender(string name) => _senders.TryGetValue(name, out var s) ? s : null;
 
         public override ServiceBusSender CreateSender(string queueOrTopicName)
@@ -733,6 +948,9 @@ public sealed class AzureServiceBusMessageTransportTests
             {
                 MaxMessagesPerBatch = MaxMessagesPerBatch,
                 RejectedMessageIds = RejectedMessageIds,
+                RejectMultiMessageBatches =
+                    RejectMultiMessageBatches || RejectMultiMessageBatchesByTopic.Contains(queueOrTopicName),
+                SingleSendFailure = SingleSendFailure,
             };
             if (FailuresByTopic.TryGetValue(queueOrTopicName, out var failure))
             {
@@ -766,11 +984,23 @@ public sealed class AzureServiceBusMessageTransportTests
 
         public HashSet<string> RejectedMessageIds { get; init; } = new(StringComparer.Ordinal);
 
+        // Simulates a partitioned entity with duplicate detection: each message carries its own MessageId,
+        // which is the effective partition key, so the service rejects every batch with more than one message.
+        public bool RejectMultiMessageBatches { get; init; }
+
+        public int RejectedBatchCount { get; private set; }
+
+        public Exception? SingleSendFailure { get; init; }
+
         public override Task SendMessageAsync(ServiceBusMessage message, CancellationToken cancellationToken = default)
         {
             if (FailureToRaise is not null)
             {
                 return Task.FromException(FailureToRaise);
+            }
+            if (SingleSendFailure is not null)
+            {
+                return Task.FromException(SingleSendFailure);
             }
             SentMessages.Add(message);
             return Task.CompletedTask;
@@ -797,6 +1027,15 @@ public sealed class AzureServiceBusMessageTransportTests
             if (FailureToRaise is not null)
             {
                 return Task.FromException(FailureToRaise);
+            }
+            if (RejectMultiMessageBatches && messageBatch.Count > 1)
+            {
+                RejectedBatchCount++;
+                return Task.FromException(
+                    new InvalidOperationException(
+                        "Batching brokered messages with distinct SessionId, PartitionKey, or MessageId is not supported for an entity with partitioning and duplicate detection enabled."
+                    )
+                );
             }
             BatchedMessages.Add([.. _batchStores[messageBatch]]);
             return Task.CompletedTask;
