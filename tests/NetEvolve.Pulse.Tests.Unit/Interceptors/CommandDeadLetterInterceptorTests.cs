@@ -205,7 +205,7 @@ public sealed class CommandDeadLetterInterceptorTests
     }
 
     [Test]
-    public async Task HandleAsync_CancelledHandlerAndStoreThrowsCancellation_RethrowsOriginalCancellation(
+    public async Task HandleAsync_CancelledHandlerAndStoreThrowsCancellation_RethrowsOriginalCancellationAndLogsWarning(
         CancellationToken cancellationToken
     )
     {
@@ -237,7 +237,8 @@ public sealed class CommandDeadLetterInterceptorTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(exception).IsSameReferenceAs(thrown);
-            _ = await Assert.That(logger.Entries.Count(e => e.LogLevel == LogLevel.Error)).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries.Count(e => e.LogLevel == LogLevel.Error)).IsEqualTo(0);
+            _ = await Assert.That(logger.Entries.Count(e => e.LogLevel == LogLevel.Warning)).IsEqualTo(1);
         }
     }
 
