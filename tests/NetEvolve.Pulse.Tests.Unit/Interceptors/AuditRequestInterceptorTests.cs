@@ -430,10 +430,12 @@ public sealed class AuditRequestInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var store = new FakeAuditStore();
+        var logger = Mock.Logger<AuditRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(
             store,
             new AuditOptions { CapturePayload = true },
-            new ThrowingPayloadSerializer()
+            new ThrowingPayloadSerializer(),
+            logger: logger
         );
         var command = new TestCommand { Value = "ok" };
 
@@ -445,6 +447,37 @@ public sealed class AuditRequestInterceptorTests
         {
             _ = await Assert.That(result).IsEqualTo("response");
             _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+            _ = await Assert.That(logger.Entries.Count).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Error);
+            _ = await Assert.That(logger.Entries[0].Exception).IsTypeOf<NotSupportedException>();
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_SuccessfulCommand_UserAccessorThrows_ReturnsResponse(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var userAccessor = Mock.Of<IAuditUserAccessor>();
+        _ = userAccessor.GetCurrentUser().Throws(new InvalidCastException("claims broken"));
+        var store = new FakeAuditStore();
+        var logger = Mock.Logger<AuditRequestInterceptor<TestCommand, string>>();
+        var interceptor = CreateInterceptor(store, userAccessor: userAccessor.Object, logger: logger);
+        var command = new TestCommand { Value = "ok" };
+
+        var result = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("response"), cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo("response");
+            _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+            _ = await Assert.That(logger.Entries.Count).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Error);
+            _ = await Assert.That(logger.Entries[0].Exception).IsTypeOf<InvalidCastException>();
         }
     }
 
@@ -497,10 +530,12 @@ public sealed class AuditRequestInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var store = new FakeAuditStore();
+        var logger = Mock.Logger<AuditRequestInterceptor<TestCommand, string>>();
         var interceptor = CreateInterceptor(
             store,
             new AuditOptions { CapturePayload = true },
-            new ThrowingPayloadSerializer()
+            new ThrowingPayloadSerializer(),
+            logger: logger
         );
         var command = new TestCommand { Value = "fail" };
         var thrown = new InvalidOperationException("handler failed");
@@ -517,6 +552,9 @@ public sealed class AuditRequestInterceptorTests
         {
             _ = await Assert.That(exception).IsSameReferenceAs(thrown);
             _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+            _ = await Assert.That(logger.Entries.Count).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Error);
+            _ = await Assert.That(logger.Entries[0].Exception).IsTypeOf<NotSupportedException>();
         }
     }
 
@@ -530,7 +568,8 @@ public sealed class AuditRequestInterceptorTests
         var userAccessor = Mock.Of<IAuditUserAccessor>();
         _ = userAccessor.GetCurrentUser().Throws(new InvalidCastException("claims broken"));
         var store = new FakeAuditStore();
-        var interceptor = CreateInterceptor(store, userAccessor: userAccessor.Object);
+        var logger = Mock.Logger<AuditRequestInterceptor<TestCommand, string>>();
+        var interceptor = CreateInterceptor(store, userAccessor: userAccessor.Object, logger: logger);
         var command = new TestCommand { Value = "fail" };
         var thrown = new InvalidOperationException("handler failed");
 
@@ -546,6 +585,9 @@ public sealed class AuditRequestInterceptorTests
         {
             _ = await Assert.That(exception).IsSameReferenceAs(thrown);
             _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+            _ = await Assert.That(logger.Entries.Count).IsEqualTo(1);
+            _ = await Assert.That(logger.Entries[0].LogLevel).IsEqualTo(LogLevel.Error);
+            _ = await Assert.That(logger.Entries[0].Exception).IsTypeOf<InvalidCastException>();
         }
     }
 
