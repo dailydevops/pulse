@@ -1,4 +1,4 @@
-﻿# NetEvolve.Pulse.AzureServiceBus
+# NetEvolve.Pulse.AzureServiceBus
 
 [![NuGet Version](https://img.shields.io/nuget/v/NetEvolve.Pulse.AzureServiceBus.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.AzureServiceBus/)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.AzureServiceBus.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.AzureServiceBus/)
@@ -79,7 +79,21 @@ services.AddSingleton<ITopicNameResolver, CustomTopicNameResolver>();
 |---|---|
 | `ConnectionString` | Connection string for the Service Bus namespace. Required when `FullyQualifiedNamespace` is not set. |
 | `FullyQualifiedNamespace` | FQDN (e.g., `contoso.servicebus.windows.net`) used with managed identity (`DefaultAzureCredential`). |
-| `EnableBatching` | Enables batch sending per outbox batch. Messages are grouped by resolved topic name for efficient batching. Defaults to `true`. |
+| `EnableBatching` | Enables batch sending per outbox batch. Messages are grouped by resolved topic name for efficient batching. Defaults to `true`. See "Partitioned Entities with Duplicate Detection" below. |
+
+### Partitioned Entities with Duplicate Detection
+
+If a queue or topic is partitioned and has duplicate detection enabled, Service Bus uses the `MessageId` as the partition key. In a partitioned Premium namespace every entity is partitioned, but duplicate detection is still set per entity. Each outbox message has its own `MessageId`, and the service rejects a batch whose messages have different partition keys ([Microsoft Learn](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-partitioning#use-of-partition-keys)).
+
+When the service rejects a batch for this reason, the transport sends the messages of that batch one at a time. Every later message for that entity is also sent individually, for as long as the transport lives. No message is lost, and each message keeps its own `MessageId`. This costs one rejected request per entity. To avoid it, set `EnableBatching = false` for namespaces with such entities:
+
+```csharp
+services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
+{
+    options.FullyQualifiedNamespace = "contoso.servicebus.windows.net";
+    options.EnableBatching = false;
+}));
+```
 
 ## Health Checks
 
