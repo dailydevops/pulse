@@ -307,7 +307,7 @@ BEGIN
         om."Status"
     FROM ":schema_name".":table_name" om
     WHERE om."Status" = 4 -- DeadLetter
-    ORDER BY om."UpdatedAt" DESC
+    ORDER BY om."UpdatedAt" DESC, om."Id" DESC
     LIMIT page_size
     OFFSET (page * page_size);
 END;

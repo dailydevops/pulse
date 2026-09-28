@@ -9,7 +9,8 @@ internal interface IOutboxManagementExecutor
 {
     /// <summary>
     /// Returns a paged, non-tracking query of dead-letter messages ordered by
-    /// <see cref="OutboxMessage.UpdatedAt"/> descending.
+    /// <see cref="OutboxMessage.UpdatedAt"/> descending, then by <see cref="OutboxMessage.Id"/>
+    /// descending, so paging is stable.
     /// </summary>
     /// <param name="skip">The number of messages to skip (offset).</param>
     /// <param name="take">The maximum number of messages to return (page size).</param>

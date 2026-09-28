@@ -15,6 +15,18 @@ using TUnit.Assertions.Enums;
 public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IServiceInitializer databaseInitializer)
     : PulseTestsBase(databaseServiceFixture, databaseInitializer)
 {
+    /// <summary>
+    /// Gets the comparer that mirrors how the store orders its native <c>Id</c> column.
+    /// Defaults to ordinal text order of the canonical Guid string (TEXT, UUID, CHAR(36), BSON string).
+    /// </summary>
+    protected virtual IComparer<Guid> IdComparer { get; } =
+        Comparer<Guid>.Create((x, y) => string.CompareOrdinal(x.ToString(), y.ToString()));
+
+    /// <summary>
+    /// Gets a value indicating whether the store orders dead-letter messages with equal <c>UpdatedAt</c> by <c>Id</c> descending.
+    /// </summary>
+    protected virtual bool OrdersDeadLettersById => true;
+
     [Test]
     public async Task Should_Persist_ExpectedMessageCount(CancellationToken cancellationToken) =>
         await RunAndVerify(
@@ -991,6 +1003,58 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
 
                     _ = await Assert.That(result.Select(m => m.Id)).IsEquivalentTo([firstCreated, secondCreated]);
                     _ = await Assert.That(result[0].Id).IsEqualTo(firstCreated);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_GetDeadLetterMessages_Page_Equal_UpdatedAt_Stably(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Skip.When(!OrdersDeadLettersById, "This store has no Id tie-breaker for dead-letter paging.");
+
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    const int messageCount = 7;
+                    const int pageSize = 3;
+
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await PublishEventsAsync(mediator, messageCount, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var ids = pending.Select(m => m.Id).ToArray();
+                    await outbox.MarkAsDeadLetterAsync(ids, "Fatal error", token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var paged = new List<Guid>();
+                    for (var page = 0; page * pageSize < messageCount; page++)
+                    {
+                        var result = await management
+                            .GetDeadLetterMessagesAsync(pageSize, page, token)
+                            .ConfigureAwait(false);
+                        paged.AddRange(result.Select(m => m.Id));
+                    }
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(paged.Count).IsEqualTo(messageCount);
+                        _ = await Assert.That(paged).IsEquivalentTo(ids);
+                        _ = await Assert
+                            .That(paged)
+                            .IsEquivalentTo(ids.OrderDescending(IdComparer), CollectionOrdering.Matching);
+                    }
                 },
                 cancellationToken,
                 configureServices: services =>
