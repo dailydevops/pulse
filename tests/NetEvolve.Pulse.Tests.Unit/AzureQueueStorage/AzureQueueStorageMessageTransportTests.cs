@@ -556,7 +556,3 @@ public sealed class AzureQueueStorageMessageTransportTests
             writer.WriteNumberValue(value.ToUnixTimeSeconds());
     }
 }
-
-// An application context that knows nothing about the transport envelope.
-[JsonSerializable(typeof(int))]
-internal sealed partial class UnrelatedJsonSerializerContext : JsonSerializerContext;
