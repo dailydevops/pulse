@@ -113,6 +113,67 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
     }
 
     [Test]
+    public async Task GetPendingAsync_WhenLaterPatchIsThrottled_ReturnsMessagesClaimedSoFar(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var claimedId = Guid.NewGuid();
+        var throttledId = Guid.NewGuid();
+        var first = CreateDocument(claimedId, status: 0);
+        var second = CreateDocument(throttledId, status: 0);
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [first, second],
+                ]),
+            OnPatchItem = (id, _, _, _) =>
+                id == claimedId.ToString()
+                    ? new FakeItemResponse<CosmosDbOutboxDocument>(CreateDocument(claimedId, status: 1))
+                    : throw new CosmosException("throttled", HttpStatusCode.TooManyRequests, 0, "activity", 0),
+        };
+
+        var repository = CreateRepository(container);
+
+        var claimed = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(claimed.Count).IsEqualTo(1);
+            _ = await Assert.That(claimed[0].Id).IsEqualTo(claimedId);
+        }
+    }
+
+    [Test]
+    public async Task GetPendingAsync_WhenFirstPatchIsThrottled_ThrowsCosmosException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var document = CreateDocument(Guid.NewGuid(), status: 0);
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, _, _) =>
+                new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [document],
+                ]),
+            OnPatchItem = (_, _, _, _) =>
+                throw new CosmosException("throttled", HttpStatusCode.TooManyRequests, 0, "activity", 0),
+        };
+
+        var repository = CreateRepository(container);
+
+        _ = await Assert
+            .That(async () => await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false))
+            .Throws<CosmosException>();
+    }
+
+    [Test]
     public async Task GetFailedForRetryAsync_WithCandidates_ClaimsAndReturnsMessages(
         CancellationToken cancellationToken
     )
