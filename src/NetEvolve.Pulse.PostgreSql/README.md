@@ -89,6 +89,8 @@ Every timestamp the outbox functions write (including `UpdatedAt`) is passed in 
 
 When upgrading from an earlier version, **re-run `OutboxMessage.sql`** against every database that hosts the outbox. The script is idempotent: it keeps the table and its data, drops the outdated function overloads and recreates the functions. Deploy the script together with the package upgrade, because the old and new package versions call different function signatures.
 
+The idempotency store reserves keys through `fn_reserve_idempotency_key` (`ON CONFLICT ... DO UPDATE ... WHERE`), which also refreshes the `created_at` of a key that has outlived `IdempotencyKeyOptions.TimeToLive`. **Re-run `IdempotencyKey.sql`** together with the package upgrade; it keeps the table and its data and creates the new function.
+
 ## Quick Start
 
 ```csharp

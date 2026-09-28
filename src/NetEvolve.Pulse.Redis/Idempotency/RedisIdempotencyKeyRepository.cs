@@ -26,6 +26,24 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
 {
     private const int DefaultDatabase = -1;
 
+    /// <summary>
+    /// Sets the key (ARGV[1] = UTC "O" timestamp, ARGV[3] = expiry in milliseconds or empty) unless it
+    /// holds a timestamp at or after the cutoff (ARGV[2], UTC "O"). Values that are not timestamps are
+    /// treated as present, matching <see cref="ExistsAsync"/>. Returns 1 when the key was set, otherwise 0.
+    /// </summary>
+    private const string ReserveScript = """
+        local current = redis.call('GET', KEYS[1])
+        if current and (not string.match(current, '^%d%d%d%d%-') or current >= ARGV[2]) then
+            return 0
+        end
+        if ARGV[3] == '' then
+            redis.call('SET', KEYS[1], ARGV[1])
+        else
+            redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[3])
+        end
+        return 1
+        """;
+
     private readonly IConnectionMultiplexer _multiplexer;
     private readonly IOptions<IdempotencyKeyOptions> _options;
 
@@ -88,9 +106,28 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
     }
 
     /// <inheritdoc />
-    public async Task StoreAsync(
+    public Task StoreAsync(
         string idempotencyKey,
         DateTimeOffset createdAt,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return TryReserveAsync(idempotencyKey, createdAt, null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Without <paramref name="validFrom"/> this is a plain <c>SET NX</c>. With it, a Lua script replaces an
+    /// expired value and resets its expiry atomically on the server.
+    /// </remarks>
+    public async Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -104,16 +141,33 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
         // Logical expiry is handled by the IdempotencyStore wrapper via TimeProvider.
         var physicalTtl = _options.Value.TimeToLive + TimeSpan.FromHours(1);
 
-        var timestamp = createdAt.ToString("O", CultureInfo.InvariantCulture);
+        var key = GetPrefixedKey(idempotencyKey);
+        var timestamp = FormatTimestamp(createdAt);
 
-        // Returns true when the key was set; false when the key already existed.
-        // Both outcomes are valid — no exception is thrown for duplicates.
         cancellationToken.ThrowIfCancellationRequested();
 
-        _ = await database
-            .StringSetAsync(GetPrefixedKey(idempotencyKey), timestamp, physicalTtl, When.NotExists)
+        if (!validFrom.HasValue)
+        {
+            // Returns true when the key was set; false when the key already existed.
+            return await database.StringSetAsync(key, timestamp, physicalTtl, When.NotExists).ConfigureAwait(false);
+        }
+
+        var expiry = physicalTtl.HasValue
+            ? ((long)physicalTtl.Value.TotalMilliseconds).ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+
+        var result = await database
+            .ScriptEvaluateAsync(ReserveScript, [key], [timestamp, FormatTimestamp(validFrom.Value), expiry])
             .ConfigureAwait(false);
+
+        return (long)result == 1;
     }
+
+    /// <summary>
+    /// Formats a timestamp as UTC round-trip text, so that stored values compare lexicographically.
+    /// </summary>
+    private static string FormatTimestamp(DateTimeOffset value) =>
+        value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 
     private string GetPrefixedKey(string idempotencyKey) =>
         $"{_options.Value.Schema}:{_options.Value.TableName}:{idempotencyKey}";

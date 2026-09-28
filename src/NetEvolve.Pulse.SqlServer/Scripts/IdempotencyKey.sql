@@ -105,6 +105,36 @@ BEGIN
 END
 GO
 
+-- usp_ReserveIdempotencyKey: Atomically inserts an idempotency key or refreshes an expired one.
+-- Returns 1 when the key was inserted or refreshed, 0 when a key that has not expired already exists.
+-- HOLDLOCK makes the MERGE serializable for the key range, so concurrent reservations cannot both win.
+IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_ReserveIdempotencyKey]') AND [type] = N'P')
+BEGIN
+    DROP PROCEDURE [$(SchemaName)].[usp_ReserveIdempotencyKey];
+END
+GO
+
+CREATE PROCEDURE [$(SchemaName)].[usp_ReserveIdempotencyKey]
+    @idempotencyKey NVARCHAR(500),
+    @createdAt      DATETIMEOFFSET,
+    @validFrom      DATETIMEOFFSET = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    MERGE INTO [$(SchemaName)].[$(TableName)] WITH (HOLDLOCK) AS target
+    USING (SELECT @idempotencyKey AS [IdempotencyKey], @createdAt AS [CreatedAt]) AS source
+    ON (target.[IdempotencyKey] = source.[IdempotencyKey])
+    WHEN MATCHED AND @validFrom IS NOT NULL AND target.[CreatedAt] < @validFrom THEN
+        UPDATE SET [CreatedAt] = source.[CreatedAt]
+    WHEN NOT MATCHED THEN
+        INSERT ([IdempotencyKey], [CreatedAt])
+        VALUES (source.[IdempotencyKey], source.[CreatedAt]);
+
+    SELECT CAST(CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END AS BIT) AS [Reserved];
+END
+GO
+
 -- usp_DeleteExpiredIdempotencyKeys: Removes expired idempotency keys (cleanup maintenance)
 IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_DeleteExpiredIdempotencyKeys]') AND [type] = N'P')
 BEGIN

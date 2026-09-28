@@ -53,4 +53,32 @@ public interface IIdempotencyKeyRepository
     /// a successful (idempotent) store operation.
     /// </remarks>
     Task StoreAsync(string idempotencyKey, DateTimeOffset createdAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically reserves an idempotency key: inserts it when absent, or refreshes its creation
+    /// timestamp when the stored key has expired.
+    /// </summary>
+    /// <param name="idempotencyKey">The idempotency key to reserve.</param>
+    /// <param name="createdAt">The timestamp to associate with the reserved key.</param>
+    /// <param name="validFrom">
+    /// When set, a stored key created before this timestamp is expired and is overwritten with
+    /// <paramref name="createdAt"/>. When <see langword="null"/>, keys never expire and an existing
+    /// key is never modified.
+    /// </param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// <see langword="true"/> if the key was inserted or an expired key was refreshed;
+    /// <see langword="false"/> if a key that has not expired already exists (duplicate submission).
+    /// </returns>
+    /// <remarks>
+    /// Implementations MUST perform the check and the write as one atomic operation, so that exactly
+    /// one of several concurrent callers for the same key receives <see langword="true"/>, and MUST NOT
+    /// modify a key that has not expired.
+    /// </remarks>
+    Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    );
 }

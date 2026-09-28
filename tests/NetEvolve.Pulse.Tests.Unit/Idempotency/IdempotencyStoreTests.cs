@@ -19,7 +19,12 @@ public sealed class IdempotencyStoreTests
         IIdempotencyKeyRepository repository,
         IdempotencyKeyOptions? options = null,
         TimeProvider? timeProvider = null
-    ) => new(repository, Options.Create(options ?? new IdempotencyKeyOptions()), timeProvider ?? TimeProvider.System);
+    ) =>
+        new IdempotencyStore(
+            repository,
+            Options.Create(options ?? new IdempotencyKeyOptions()),
+            timeProvider ?? TimeProvider.System
+        );
 
     [Test]
     public async Task Constructor_WithNullRepository_ThrowsArgumentNullException() =>
@@ -146,6 +151,7 @@ public sealed class IdempotencyStoreTests
     {
         public DateTimeOffset? CapturedValidFrom { get; private set; } = DateTimeOffset.MaxValue;
         public DateTimeOffset CapturedCreatedAt { get; private set; }
+        public int ReserveCount { get; private set; }
 
         public Task<bool> ExistsAsync(
             string idempotencyKey,
@@ -169,6 +175,21 @@ public sealed class IdempotencyStoreTests
 
             CapturedCreatedAt = createdAt;
             return Task.CompletedTask;
+        }
+
+        public Task<bool> TryReserveAsync(
+            string idempotencyKey,
+            DateTimeOffset createdAt,
+            DateTimeOffset? validFrom = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            ReserveCount++;
+            CapturedCreatedAt = createdAt;
+            CapturedValidFrom = validFrom;
+            return Task.FromResult(true);
         }
     }
 }

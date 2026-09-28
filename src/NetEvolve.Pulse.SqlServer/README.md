@@ -152,7 +152,11 @@ sqlcmd -S your-server -d your-database -i IdempotencyKey.sql
 
 The script creates:
 - The `[IdempotencyKey]` table with `IdempotencyKey` (PK) and `CreatedAt` columns
-- Stored procedures: `usp_ExistsIdempotencyKey`, `usp_InsertIdempotencyKey`, `usp_DeleteExpiredIdempotencyKeys`
+- Stored procedures: `usp_ExistsIdempotencyKey`, `usp_InsertIdempotencyKey`, `usp_ReserveIdempotencyKey`, `usp_DeleteExpiredIdempotencyKeys`
+
+`usp_ReserveIdempotencyKey` reserves a key atomically (`MERGE ... WITH (HOLDLOCK)`). When `IdempotencyKeyOptions.TimeToLive` is set, it also refreshes the `CreatedAt` of an expired key, so duplicates are rejected again for the new window.
+
+**Upgrading:** re-run `IdempotencyKey.sql` together with the package upgrade. The script keeps the table and its data and recreates the stored procedures; the new package version calls `usp_ReserveIdempotencyKey`, which older scripts do not create.
 
 #### Using Idempotent Commands
 

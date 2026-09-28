@@ -79,6 +79,30 @@ BEGIN
 END;
 $$;
 
+-- fn_reserve_idempotency_key: Atomically inserts an idempotency key or refreshes an expired one.
+-- Returns TRUE when the key was inserted or refreshed, FALSE when a key that has not expired already exists.
+CREATE OR REPLACE FUNCTION ":schema_name".fn_reserve_idempotency_key(
+    p_idempotency_key VARCHAR(500),
+    p_created_at      TIMESTAMP WITH TIME ZONE,
+    p_valid_from      TIMESTAMP WITH TIME ZONE DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected_count INTEGER;
+BEGIN
+    INSERT INTO ":schema_name".":table_name" AS t ("idempotency_key", "created_at")
+    VALUES (p_idempotency_key, p_created_at)
+    ON CONFLICT ("idempotency_key") DO UPDATE
+        SET "created_at" = EXCLUDED."created_at"
+        WHERE p_valid_from IS NOT NULL AND t."created_at" < p_valid_from;
+
+    GET DIAGNOSTICS affected_count = ROW_COUNT;
+    RETURN affected_count > 0;
+END;
+$$;
+
 -- fn_delete_expired_idempotency_keys: Removes expired idempotency keys (cleanup maintenance)
 CREATE OR REPLACE FUNCTION ":schema_name".fn_delete_expired_idempotency_keys(
     p_valid_from TIMESTAMP WITH TIME ZONE
