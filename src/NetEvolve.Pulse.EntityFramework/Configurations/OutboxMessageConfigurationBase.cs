@@ -133,7 +133,14 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         _ = builder.Property(m => m.CreatedAt).HasColumnName(OutboxMessageSchema.Columns.CreatedAt).IsRequired();
 
         // UpdatedAt column
-        _ = builder.Property(m => m.UpdatedAt).HasColumnName(OutboxMessageSchema.Columns.UpdatedAt).IsRequired();
+        // Every status transition writes UpdatedAt, so it acts as a second concurrency token next to
+        // Status: a row that went Failed -> Processing -> Failed between a poller's load and save still
+        // has the same Status but a newer UpdatedAt, and the stale claim is rejected.
+        _ = builder
+            .Property(m => m.UpdatedAt)
+            .HasColumnName(OutboxMessageSchema.Columns.UpdatedAt)
+            .IsConcurrencyToken()
+            .IsRequired();
 
         // ProcessedAt column
         _ = builder.Property(m => m.ProcessedAt).HasColumnName(OutboxMessageSchema.Columns.ProcessedAt);
