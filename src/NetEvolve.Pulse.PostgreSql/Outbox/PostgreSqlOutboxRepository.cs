@@ -504,7 +504,7 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="command">The <see cref="NpgsqlCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
+    /// <returns>A read-only list of <see cref="OutboxMessage"/> records, ordered by <see cref="OutboxMessage.CreatedAt"/> then <see cref="OutboxMessage.Id"/>.</returns>
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         NpgsqlCommand command,
         CancellationToken cancellationToken
@@ -554,7 +554,8 @@ internal sealed class PostgreSqlOutboxRepository : IOutboxRepository
                 );
             } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 
-            return messages;
+            // Claim statements return rows in no guaranteed order; the outbox contract requires CreatedAt order.
+            return [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
         }
     }
 

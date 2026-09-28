@@ -8,6 +8,7 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using TUnit.Assertions.Enums;
 
 [TestGroup("Outbox")]
 [Timeout(300_000)] // Increased timeout to accommodate potential delays in CI environments, especially when using SQL Server or MySQL containers that can take a long time to cold-start.
@@ -120,6 +121,53 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                     services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_GetPendingAsync_Return_Messages_In_CreatedAt_Order(CancellationToken cancellationToken)
+    {
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    // Each Id repeats one byte that decreases as CreatedAt increases, so the Id order is the
+                    // reverse of the CreatedAt order under every provider's Guid comparison.
+                    var messages = new OutboxMessage[5];
+                    for (var i = 0; i < messages.Length; i++)
+                    {
+                        timeProvider.Advance(TimeSpan.FromMinutes(1));
+                        var createdAt = timeProvider.GetUtcNow();
+                        messages[i] = new OutboxMessage
+                        {
+                            Id = new Guid([.. Enumerable.Repeat((byte)(0x10 * (messages.Length - i)), 16)]),
+                            EventType = typeof(TestEvent),
+                            Payload = $$"""{"Id":"Test{{i:D3}}"}""",
+                            CreatedAt = createdAt,
+                            UpdatedAt = createdAt,
+                        };
+                    }
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    foreach (var index in (int[])[2, 4, 0, 3, 1])
+                    {
+                        await outbox.AddAsync(messages[index], token).ConfigureAwait(false);
+                    }
+
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert
+                        .That(pending.Select(x => x.Id))
+                        .IsEquivalentTo(messages.Select(x => x.Id), CollectionOrdering.Matching);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
 
     [Test]
     public async Task Should_Mark_Single_Message_AsCompleted(CancellationToken cancellationToken) =>

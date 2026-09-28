@@ -425,7 +425,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             }
         }
 
-        return claimed;
+        // Candidates arrive in _ts order; the outbox contract requires CreatedAt order.
+        return [.. claimed.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
     }
 
     /// <summary>
