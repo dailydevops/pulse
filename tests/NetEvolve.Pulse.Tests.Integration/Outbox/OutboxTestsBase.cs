@@ -389,6 +389,220 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_Not_MarkAsFailed_Completed_Message(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var messageId = await ClaimAndCompleteSingleAsync(services, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    await outbox.MarkAsFailedAsync(messageId, "Stale error", token).ConfigureAwait(false);
+
+                    await AssertStillCompletedAsync(services, messageId, token).ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Not_MarkAsFailed_WithRetry_Completed_Message(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var messageId = await ClaimAndCompleteSingleAsync(services, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    await outbox
+                        .MarkAsFailedAsync(messageId, "Stale error", TestDateTime.AddHours(1), token)
+                        .ConfigureAwait(false);
+
+                    await AssertStillCompletedAsync(services, messageId, token).ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Not_MarkAsDeadLetter_Completed_Message(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var messageId = await ClaimAndCompleteSingleAsync(services, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    await outbox.MarkAsDeadLetterAsync(messageId, "Stale error", token).ConfigureAwait(false);
+
+                    await AssertStillCompletedAsync(services, messageId, token).ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Not_MarkAsCompleted_DeadLetter_Message(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(1);
+
+                    await outbox.MarkAsDeadLetterAsync(pending[0].Id, "Fatal error", token).ConfigureAwait(false);
+                    await outbox.MarkAsCompletedAsync(pending[0].Id, token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var message = await management.GetMessageAsync(pending[0].Id, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(message).IsNotNull();
+                    _ = await Assert.That(message!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_MarkAsCompleted_Batch_Only_Processing(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var (processingId, settledId, pendingId) = await PrepareMixedStatusBatchAsync(
+                            services,
+                            (id, t) => outbox.MarkAsDeadLetterAsync(id, "Fatal error", t),
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    await outbox
+                        .MarkAsCompletedAsync([processingId, settledId, pendingId], token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var statistics = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(statistics.Completed).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.DeadLetter).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Pending).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Processing).IsEqualTo(0L);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_MarkAsFailed_Batch_Only_Processing(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var (processingId, settledId, pendingId) = await PrepareMixedStatusBatchAsync(
+                            services,
+                            (id, t) => outbox.MarkAsCompletedAsync(id, t),
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    await outbox
+                        .MarkAsFailedAsync([processingId, settledId, pendingId], "Batch error", token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var statistics = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+                    var settled = await management.GetMessageAsync(settledId, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(statistics.Failed).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Completed).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Pending).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Processing).IsEqualTo(0L);
+                        _ = await Assert.That(settled!.RetryCount).IsEqualTo(0);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_MarkAsDeadLetter_Batch_Only_Processing(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var (processingId, settledId, pendingId) = await PrepareMixedStatusBatchAsync(
+                            services,
+                            (id, t) => outbox.MarkAsCompletedAsync(id, t),
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    await outbox
+                        .MarkAsDeadLetterAsync([processingId, settledId, pendingId], "Fatal error", token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var statistics = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(statistics.DeadLetter).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Completed).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Pending).IsEqualTo(1L);
+                        _ = await Assert.That(statistics.Processing).IsEqualTo(0L);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Ignore_Mark_For_Unknown_Message(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var unknownId = Guid.NewGuid();
+
+                    await outbox.MarkAsCompletedAsync(unknownId, token).ConfigureAwait(false);
+                    await outbox.MarkAsFailedAsync(unknownId, "Error", token).ConfigureAwait(false);
+                    await outbox
+                        .MarkAsFailedAsync(unknownId, "Error", TestDateTime.AddHours(1), token)
+                        .ConfigureAwait(false);
+                    await outbox.MarkAsDeadLetterAsync(unknownId, "Error", token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var statistics = await management.GetStatisticsAsync(token).ConfigureAwait(false);
+
+                    _ = await Assert.That(statistics.Total).IsEqualTo(0L);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_GetFailedForRetry_ExcludesScheduledMessages(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1546,6 +1760,82 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                     services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
             )
             .ConfigureAwait(false);
+
+    /// <summary>
+    /// Publishes one message, claims it and marks it as completed, as the worker that won a lease race would.
+    /// </summary>
+    private static async Task<Guid> ClaimAndCompleteSingleAsync(
+        IServiceProvider services,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var mediator = services.GetRequiredService<IMediator>();
+        await mediator.PublishAsync(new TestEvent { Id = "Test001" }, cancellationToken).ConfigureAwait(false);
+
+        var outbox = services.GetRequiredService<IOutboxRepository>();
+        var pending = await outbox.GetPendingAsync(50, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(pending.Count).IsEqualTo(1);
+
+        await outbox.MarkAsCompletedAsync(pending[0].Id, cancellationToken).ConfigureAwait(false);
+
+        return pending[0].Id;
+    }
+
+    private static async Task AssertStillCompletedAsync(
+        IServiceProvider services,
+        Guid messageId,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var management = services.GetRequiredService<IOutboxManagement>();
+        var message = await management.GetMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(message).IsNotNull();
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(message!.Status).IsEqualTo(OutboxMessageStatus.Completed);
+            _ = await Assert.That(message.RetryCount).IsEqualTo(0);
+        }
+    }
+
+    /// <summary>
+    /// Publishes three messages and claims two of them. One claimed message is settled with
+    /// <paramref name="settle"/>, the other stays <see cref="OutboxMessageStatus.Processing"/>,
+    /// and the unclaimed message stays <see cref="OutboxMessageStatus.Pending"/>.
+    /// </summary>
+    private static async Task<(Guid ProcessingId, Guid SettledId, Guid PendingId)> PrepareMixedStatusBatchAsync(
+        IServiceProvider services,
+        Func<Guid, CancellationToken, Task> settle,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var mediator = services.GetRequiredService<IMediator>();
+        await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, cancellationToken)
+            .ConfigureAwait(false);
+
+        var outbox = services.GetRequiredService<IOutboxRepository>();
+        var claimed = await outbox.GetPendingAsync(2, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(claimed.Count).IsEqualTo(2);
+
+        await settle(claimed[1].Id, cancellationToken).ConfigureAwait(false);
+
+        var management = services.GetRequiredService<IOutboxManagement>();
+        var pending = await management
+            .GetMessagesAsync(status: OutboxMessageStatus.Pending, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(pending.Count).IsEqualTo(1);
+
+        return (claimed[0].Id, claimed[1].Id, pending[0].Id);
+    }
 
     /// <summary>
     /// Persists an outbox message whose stored event type name cannot be resolved by the reading application,
