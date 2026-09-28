@@ -110,6 +110,15 @@ public sealed class CosmosDbOutboxOptions
             : $"{nameof(CosmosDbOutboxOptions)}.{nameof(PartitionKeyPath)} '{PartitionKeyPath}' is not supported. The only supported value is '{DefaultPartitionKeyPath}', and the container must be partitioned on '{DefaultPartitionKeyPath}'.";
 
     /// <summary>
+    /// Gets the validation error for <see cref="ProcessingLeaseTimeout"/>, or <see langword="null"/> when it is
+    /// greater than <see cref="TimeSpan.Zero"/>.
+    /// </summary>
+    internal string? ProcessingLeaseTimeoutError =>
+        ProcessingLeaseTimeout > TimeSpan.Zero
+            ? null
+            : $"{nameof(CosmosDbOutboxOptions)}.{nameof(ProcessingLeaseTimeout)} must be greater than zero, but was '{ProcessingLeaseTimeout}'.";
+
+    /// <summary>
     /// Throws when <see cref="PartitionKeyPath"/> is not <see cref="DefaultPartitionKeyPath"/>.
     /// </summary>
     /// <remarks>

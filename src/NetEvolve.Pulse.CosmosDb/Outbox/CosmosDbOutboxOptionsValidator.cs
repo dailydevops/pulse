@@ -9,5 +9,7 @@ internal sealed class CosmosDbOutboxOptionsValidator : IValidateOptions<CosmosDb
 {
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, CosmosDbOutboxOptions options) =>
-        options.PartitionKeyPathError is { } error ? ValidateOptionsResult.Fail(error) : ValidateOptionsResult.Success;
+        (options.PartitionKeyPathError ?? options.ProcessingLeaseTimeoutError) is { } error
+            ? ValidateOptionsResult.Fail(error)
+            : ValidateOptionsResult.Success;
 }
