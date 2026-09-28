@@ -87,6 +87,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var message in messages)
         {
             await sender.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
@@ -181,6 +183,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);

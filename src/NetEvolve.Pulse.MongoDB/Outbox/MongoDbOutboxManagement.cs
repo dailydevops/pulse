@@ -175,6 +175,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
             throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = status is { } value
             ? Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)value)
             : Builders<OutboxDocument>.Filter.Empty;
@@ -194,6 +196,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
 
         var doc = await GetCollection().Find(filter).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
@@ -204,6 +208,8 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = Builders<OutboxDocument>.Filter.And(
             Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter),
             Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId)

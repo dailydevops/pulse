@@ -282,6 +282,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
             throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = (
             status is { } value
                 ? new QueryDefinition(
@@ -298,6 +300,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = messageId.ToString();
 
         try
@@ -317,6 +321,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
 
