@@ -25,15 +25,19 @@ internal sealed class EntityFrameworkCommandDeadLetterStore<TContext> : ICommand
     where TContext : DbContext, ICommandDeadLetterDbContext
 {
     private readonly TContext _context;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkCommandDeadLetterStore{TContext}"/> class.
     /// </summary>
     /// <param name="context">The DbContext for database operations.</param>
-    public EntityFrameworkCommandDeadLetterStore(TContext context)
+    /// <param name="timeProvider">The time provider used to stamp <see cref="CommandDeadLetterEntry.OccurredAt"/>.</param>
+    public EntityFrameworkCommandDeadLetterStore(TContext context, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         _context = context;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -57,7 +61,7 @@ internal sealed class EntityFrameworkCommandDeadLetterStore<TContext> : ICommand
             Payload = payload,
             ExceptionType = exception.GetType().AssemblyQualifiedName,
             ExceptionMessage = exception.Message,
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = _timeProvider.GetUtcNow(),
             AttemptCount = 1,
             Status = CommandDeadLetterStatus.New,
         };
