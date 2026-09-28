@@ -8,9 +8,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   PrioritizedEventDispatcher MUST execute handlers one at a time, ordered by ascending Priority, with equal-priority handlers in registration (enumeration) order; non-prioritized handlers count as int.MaxValue.
