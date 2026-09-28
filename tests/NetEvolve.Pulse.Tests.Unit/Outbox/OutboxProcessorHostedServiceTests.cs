@@ -1507,6 +1507,44 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    public async Task ExecuteAsync_WhenCycleThrows_RetriesAfterBackoffAndResumesProcessing(
+        CancellationToken cancellationToken
+    )
+    {
+        using var repository = new InMemoryOutboxRepository { ThrowOnIsHealthy = true };
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        var logger = Mock.Logger<OutboxProcessorHostedService>();
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
+
+        await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForHealthChecksAsync(2, timeoutCts.Token).ConfigureAwait(false);
+
+        repository.ThrowOnIsHealthy = false;
+
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        var errorLogs = logger.Entries.Where(e => e.LogLevel == LogLevel.Error && e.Exception is not null).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(errorLogs.Count).IsGreaterThanOrEqualTo(2);
+            _ = await Assert.That(transport.SentMessages).HasSingleItem();
+            _ = await Assert.That(service.ExecuteTask!.IsCompletedSuccessfully).IsTrue();
+        }
+    }
+
+    [Test]
     public async Task ExecuteAsync_WhenGetPendingCountThrows_StillProcessesPendingMessages(
         CancellationToken cancellationToken
     )
