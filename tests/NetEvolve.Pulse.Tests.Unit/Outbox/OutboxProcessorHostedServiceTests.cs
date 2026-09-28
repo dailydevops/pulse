@@ -1180,7 +1180,14 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StartAsync(cts.Token).ConfigureAwait(false);
         using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
-        await repository.WaitForPollAsync(2, timeoutCts.Token).ConfigureAwait(false);
+
+        // The duration is recorded after ProcessBatchAsync returns; the pending-count refresh also signals a
+        // poll, so wait for further polls until the measurement arrived instead of counting signals.
+        while (!collector.For("pulse.outbox.processing.duration").Any(m => m.Unit == "s"))
+        {
+            await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        }
+
         await cts.CancelAsync().ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
