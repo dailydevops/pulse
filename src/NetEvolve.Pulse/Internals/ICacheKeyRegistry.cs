@@ -27,8 +27,12 @@ internal interface ICacheKeyRegistry
     IReadOnlyList<string> GetKeysForType(Type queryType);
 
     /// <summary>
-    /// Removes all cache keys registered for the specified query type.
+    /// Atomically removes and returns all cache keys registered for the specified query type.
     /// </summary>
     /// <param name="queryType">The query type whose registered cache keys should be removed.</param>
-    void RemoveType(Type queryType);
+    /// <returns>
+    /// The cache keys that were registered for <paramref name="queryType"/>, or an empty list when none were
+    /// registered. Never <see langword="null"/>. Keys registered after this call are kept for the next call.
+    /// </returns>
+    IReadOnlyList<string> RemoveType(Type queryType);
 }

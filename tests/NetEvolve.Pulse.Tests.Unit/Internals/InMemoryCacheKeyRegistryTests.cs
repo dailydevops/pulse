@@ -77,10 +77,11 @@ public class InMemoryCacheKeyRegistryTests
         registry.Register(typeof(SampleQueryA), "key-2");
         registry.Register(typeof(SampleQueryB), "other-key");
 
-        registry.RemoveType(typeof(SampleQueryA));
+        var removed = registry.RemoveType(typeof(SampleQueryA));
 
         using (Assert.Multiple())
         {
+            _ = await Assert.That(removed.Order(StringComparer.Ordinal)).IsEquivalentTo(["key-1", "key-2"]);
             _ = await Assert.That(registry.GetKeysForType(typeof(SampleQueryA))).IsEmpty();
             _ = await Assert.That(registry.GetKeysForType(typeof(SampleQueryB))).IsEquivalentTo(["other-key"]);
         }

@@ -626,7 +626,7 @@ public class DistributedCacheQueryInterceptorTests
 
         public IReadOnlyList<string> GetKeysForType(Type queryType) => [];
 
-        public void RemoveType(Type queryType) { }
+        public IReadOnlyList<string> RemoveType(Type queryType) => [];
     }
 
     [Test]
