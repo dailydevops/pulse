@@ -14,7 +14,7 @@ using NetEvolve.Pulse.Idempotency;
 public static class RedisIdempotencyMediatorBuilderExtensions
 {
     /// <summary>
-    /// Adds a Redis-backed idempotency store using atomic <c>SET NX EX</c> operations.
+    /// Adds a Redis-backed idempotency store that reserves keys atomically with <c>SET NX</c> and a physical expiry.
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">An optional action to configure <see cref="IdempotencyKeyOptions"/>.</param>
@@ -34,6 +34,10 @@ public static class RedisIdempotencyMediatorBuilderExtensions
     /// <para><strong>Key layout:</strong></para>
     /// Keys are stored as <c>{Schema}:{TableName}:{idempotencyKey}</c> with a physical Redis expiry of
     /// <see cref="IdempotencyKeyOptions.TimeToLive"/> plus one hour, or without any expiry when no TTL is configured.
+    /// <para><strong>Reservation:</strong></para>
+    /// Of several concurrent reservations for the same key exactly one succeeds. A key that is logically expired
+    /// (older than <see cref="IdempotencyKeyOptions.TimeToLive"/>) but still physically present is replaced with a
+    /// compare-and-set transaction. Without a TTL an existing key is never reserved again.
     /// <para><strong>Note:</strong></para>
     /// Core idempotency services are registered automatically; calling
     /// <see cref="IdempotencyExtensions.AddIdempotency"/> before this method is optional but harmless.

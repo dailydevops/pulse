@@ -4,11 +4,12 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.Redis.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.Redis/)
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/blob/main/LICENSE)
 
-Redis idempotency provider for Pulse using `StackExchange.Redis`. Implements `IIdempotencyKeyRepository` with atomic `SET NX` operations (with expiry) for high-throughput, distributed idempotency enforcement without read-before-write round-trips.
+Redis idempotency provider for Pulse using `StackExchange.Redis`. Implements `IIdempotencyKeyRepository` with atomic `SET NX` reservations (with expiry) for high-throughput, distributed idempotency enforcement.
 
 ## Features
 
-- Atomic `SET key value NX` with expiry — single round-trip, no race conditions
+- Atomic reservation with `SET key value NX` and expiry: of several concurrent submissions of the same key exactly one wins
+- A logically expired key that is still physically present is replaced with a compare-and-set transaction (`WATCH`/`MULTI`); without a `TimeToLive` an existing key is never reserved again
 - Keys namespaced as `{Schema}:{TableName}:{idempotencyKey}` (default `pulse:IdempotencyKey:{idempotencyKey}`)
 - Logical TTL evaluated through `TimeProvider`, plus a physical Redis expiry for automatic cleanup
 - Startup validation via `ValidateOnStart()`

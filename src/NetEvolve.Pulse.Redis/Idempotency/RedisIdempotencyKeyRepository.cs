@@ -18,6 +18,10 @@ using StackExchange.Redis;
 /// without a Redis expiry and are only removed if the server's <c>maxmemory-policy</c> evicts non-volatile
 /// keys (<c>allkeys-*</c>), which breaks duplicate detection. TTL-based logical expiry is handled by the <see cref="IdempotencyStore"/>
 /// wrapper using the injected <see cref="TimeProvider"/>, which makes it testable with fake clocks.
+/// <para><strong>Reservation:</strong></para>
+/// <see cref="TryStoreAsync"/> reserves a key atomically with <c>SET NX</c>. A key that is logically expired but
+/// still physically present is replaced through a compare-and-set transaction, so of several concurrent
+/// reservations for the same key exactly one succeeds.
 /// <para><strong>Prerequisites:</strong></para>
 /// <see cref="IConnectionMultiplexer"/> must be registered in the DI container by the caller
 /// before using this provider.
@@ -70,26 +74,16 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
             return true;
         }
 
-        // Parse the stored creation timestamp and check it is within the TTL window.
-        if (
-            DateTimeOffset.TryParse(
-                value.ToString(),
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
-                out var createdAt
-            )
-        )
-        {
-            return createdAt >= validFrom.Value;
-        }
-
-        // If the value cannot be parsed (e.g. legacy entry), treat it as present.
-        return true;
+        // An unparseable value (e.g. legacy entry) is not expired and therefore treated as present.
+        return !IsExpired(value, validFrom.Value);
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// Composes <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> and is therefore not atomic.
+    /// Reserves the key with an atomic <c>SET NX</c>. When the key already exists and <paramref name="validFrom"/>
+    /// is set, a stored timestamp older than <paramref name="validFrom"/> is replaced through a transaction that
+    /// only commits while the key still holds the observed value, so of several concurrent calls at most one
+    /// returns <see langword="true"/>.
     /// </remarks>
     public async Task<bool> TryStoreAsync(
         string idempotencyKey,
@@ -100,13 +94,45 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (await ExistsAsync(idempotencyKey, validFrom, cancellationToken).ConfigureAwait(false))
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        var database = _multiplexer.GetDatabase(DefaultDatabase);
+        var key = GetPrefixedKey(idempotencyKey);
+        var timestamp = createdAt.ToString("O", CultureInfo.InvariantCulture);
+        var physicalTtl = GetPhysicalTimeToLive();
+
+        if (await database.StringSetAsync(key, timestamp, physicalTtl, When.NotExists).ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        // Without a TTL an existing key never expires logically, so it is never reservable again.
+        if (!validFrom.HasValue)
         {
             return false;
         }
 
-        await StoreAsync(idempotencyKey, createdAt, cancellationToken).ConfigureAwait(false);
-        return true;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var existing = await database.StringGetAsync(key).ConfigureAwait(false);
+
+        if (!existing.HasValue)
+        {
+            // The key expired physically between SET NX and GET; try the plain reservation once more.
+            return await database.StringSetAsync(key, timestamp, physicalTtl, When.NotExists).ConfigureAwait(false);
+        }
+
+        if (!IsExpired(existing, validFrom.Value))
+        {
+            return false;
+        }
+
+        // Compare-and-set: replace the expired value only if no concurrent call changed it meanwhile.
+        var transaction = database.CreateTransaction();
+        _ = transaction.AddCondition(Condition.StringEqual(key, existing));
+        _ = transaction.StringSetAsync(key, timestamp, physicalTtl, When.Always);
+
+        return await transaction.ExecuteAsync().ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -122,9 +148,7 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
 
         var database = _multiplexer.GetDatabase(DefaultDatabase);
 
-        // Physical expiry is TTL + 1h headroom; a null TTL means "never expire", so no expiry is set.
-        // Logical expiry is handled by the IdempotencyStore wrapper via TimeProvider.
-        var physicalTtl = _options.Value.TimeToLive + TimeSpan.FromHours(1);
+        var physicalTtl = GetPhysicalTimeToLive();
 
         var timestamp = createdAt.ToString("O", CultureInfo.InvariantCulture);
 
@@ -136,6 +160,21 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
             .StringSetAsync(GetPrefixedKey(idempotencyKey), timestamp, physicalTtl, When.NotExists)
             .ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Returns the physical Redis expiry: TTL plus one hour headroom, or <see langword="null"/> (no expiry)
+    /// when no TTL is configured. Logical expiry is handled by the IdempotencyStore wrapper via TimeProvider.
+    /// </summary>
+    private TimeSpan? GetPhysicalTimeToLive() => _options.Value.TimeToLive + TimeSpan.FromHours(1);
+
+    private static bool IsExpired(RedisValue value, DateTimeOffset validFrom) =>
+        DateTimeOffset.TryParse(
+            value.ToString(),
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind,
+            out var createdAt
+        )
+        && createdAt < validFrom;
 
     private string GetPrefixedKey(string idempotencyKey) =>
         $"{_options.Value.Schema}:{_options.Value.TableName}:{idempotencyKey}";
