@@ -207,12 +207,12 @@ public sealed class AuditInspectorEndpointsTests
 
         mock.QueryAsync(
                 Arg.Is<AuditFilter>(f =>
-                    f != null
-                    && f.CommandType == null
-                    && f.UserId == null
+                    f is not null
+                    && f.CommandType is null
+                    && f.UserId is null
                     && f.From == null
                     && f.To == null
-                    && f.Result == null
+                    && f.Result is null
                     && f.Take == 50
                     && f.Skip == 0
                 ),
@@ -238,7 +238,7 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         mock.QueryAsync(
-                Arg.Is<AuditFilter>(f => f != null && f.CommandType == "MyCommand"),
+                Arg.Is<AuditFilter>(f => f is not null && f.CommandType == "MyCommand"),
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);
@@ -260,7 +260,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.UserId == "alice"), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.UserId == "alice"), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
@@ -285,7 +285,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.From == from), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.From == from), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
@@ -310,7 +310,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.To == to), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.To == to), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
@@ -331,7 +331,7 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         mock.QueryAsync(
-                Arg.Is<AuditFilter>(f => f != null && f.Result == AuditResult.Failure),
+                Arg.Is<AuditFilter>(f => f is not null && f.Result == AuditResult.Failure),
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);
@@ -353,7 +353,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.Take == 10), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.Take == 10), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
@@ -373,7 +373,7 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.Skip == 20), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.Skip == 20), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
@@ -400,7 +400,7 @@ public sealed class AuditInspectorEndpointsTests
 
         mock.QueryAsync(
                 Arg.Is<AuditFilter>(f =>
-                    f != null
+                    f is not null
                     && f.CommandType == "MyCommand"
                     && f.UserId == "alice"
                     && f.From == from
@@ -487,7 +487,7 @@ public sealed class AuditInspectorEndpointsTests
 
         var expected = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         mock.QueryAsync(
-                Arg.Is<AuditFilter>(f => f != null && f.From == expected && f.To == expected),
+                Arg.Is<AuditFilter>(f => f is not null && f.From == expected && f.To == expected),
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);

@@ -141,9 +141,11 @@ public sealed class OutboxEventTypeResolverTests
         _ = await Assert.That(result).IsEquivalentTo([first, last], CollectionOrdering.Matching);
         repository
             .MarkAsDeadLetterAsync(
-                Arg.Is<IReadOnlyCollection<Guid>>(ids => ids != null && ids.SequenceEqual(new[] { unresolvable.Id })),
+                Arg.Is<IReadOnlyCollection<Guid>>(ids =>
+                    ids is not null && ids.SequenceEqual(new[] { unresolvable.Id })
+                ),
                 Arg.Is<string>(error =>
-                    error != null && error.Contains(UnresolvableTypeName, StringComparison.Ordinal)
+                    error is not null && error.Contains(UnresolvableTypeName, StringComparison.Ordinal)
                 ),
                 Arg.Any<CancellationToken>()
             )
@@ -173,7 +175,7 @@ public sealed class OutboxEventTypeResolverTests
             repository
                 .MarkAsDeadLetterAsync(
                     Arg.Is<IReadOnlyCollection<Guid>>(ids =>
-                        ids != null && ids.Count == 2 && ids.Contains(first.Id) && ids.Contains(second.Id)
+                        ids is not null && ids.Count == 2 && ids.Contains(first.Id) && ids.Contains(second.Id)
                     ),
                     Arg.Any<string>(),
                     Arg.Any<CancellationToken>()
