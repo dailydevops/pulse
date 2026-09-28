@@ -11,7 +11,7 @@ Dapr pub/sub transport for the Pulse outbox pattern. Publishes outbox messages t
 - **Dapr pub/sub**: Publish outbox messages to any Dapr-supported message broker
 - **CloudEvents**: Payload is forwarded as CloudEvent data via `DaprClient.PublishEventAsync`
 - **Health checks**: Delegates to `DaprClient.CheckHealthAsync` for readiness probing
-- **Configurable topic resolution**: Map event types to topic names via a custom resolver function
+- **Configurable topic resolution**: Map event types to topic names by registering a custom `ITopicNameResolver`
 - **Broker-agnostic**: Switch brokers by changing the Dapr component configuration — no code changes required
 
 ## Installation
@@ -186,34 +186,32 @@ spec:
 
 ### `DaprMessageTransportOptions`
 
-| Property            | Type                          | Default           | Description                                    |
-| ------------------- | ----------------------------- | ----------------- | ---------------------------------------------- |
-| `PubSubName`        | `string`                      | `"pubsub"`        | Name of the Dapr pub/sub component             |
-| `TopicNameResolver` | `Func<OutboxMessage, string>` | Simple class name | Resolves the topic name from an outbox message |
+| Property     | Type     | Default    | Description                        |
+| ------------ | -------- | ---------- | ---------------------------------- |
+| `PubSubName` | `string` | `"pubsub"` | Name of the Dapr pub/sub component |
 
 ### Topic Name Resolution
 
-By default, the simple class name of the event type is used as the topic name. The assembly qualifier and namespace are stripped automatically.
+Topic names are resolved by the registered `ITopicNameResolver`. By default, the `Type.Name` of `OutboxMessage.EventType` (a `System.Type`) is used as the topic name.
 
-| `EventType`                            | Resolved topic     |
-| -------------------------------------- | ------------------ |
-| `MyApp.Events.OrderCreated, MyApp`     | `OrderCreated`     |
-| `MyApp.Events.PaymentProcessed, MyApp` | `PaymentProcessed` |
+| `EventType`                     | Resolved topic     |
+| ------------------------------- | ------------------ |
+| `MyApp.Events.OrderCreated`     | `OrderCreated`     |
+| `MyApp.Events.PaymentProcessed` | `PaymentProcessed` |
 
 Override the resolver for custom naming strategies:
 
 ```csharp
-.UseDaprTransport(options =>
+public class FullNameTopicNameResolver : ITopicNameResolver
 {
-    options.PubSubName = "servicebus-pubsub";
-    options.TopicNameResolver = msg =>
-    {
-        // Use the full namespace-qualified type name as topic (without assembly)
-        var typeName = msg.EventType;
-        var commaIndex = typeName.IndexOf(',', StringComparison.Ordinal);
-        return commaIndex > 0 ? typeName[..commaIndex] : typeName;
-    };
-});
+    // Use the namespace-qualified type name as topic
+    public string Resolve(OutboxMessage message) => message.EventType.FullName ?? message.EventType.Name;
+}
+
+services.AddSingleton<ITopicNameResolver, FullNameTopicNameResolver>();
+services.AddPulse(config => config
+    .AddOutbox()
+    .UseDaprTransport(options => options.PubSubName = "servicebus-pubsub"));
 ```
 
 ## Dapr Component Examples

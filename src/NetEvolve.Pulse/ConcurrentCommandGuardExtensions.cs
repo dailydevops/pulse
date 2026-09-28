@@ -85,7 +85,7 @@ public static class ConcurrentCommandGuardExtensions
     /// to the concrete interceptor. It is added alongside any other interceptor already registered for the
     /// same <typeparamref name="TRequest"/> / <typeparamref name="TResponse"/> pair, so the guard is registered
     /// whatever the registration order. The registration order still decides the guard's position in the
-    /// interceptor pipeline, because interceptors are applied in reverse registration order.
+    /// interceptor pipeline, because interceptors are applied in registration order (the first registered is outermost).
     /// </description>
     /// </item>
     /// </list>

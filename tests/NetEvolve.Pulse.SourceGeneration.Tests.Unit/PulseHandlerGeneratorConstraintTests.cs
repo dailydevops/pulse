@@ -1,12 +1,8 @@
 namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 /// <summary>
@@ -710,65 +706,5 @@ public class PulseHandlerGeneratorConstraintTests
         }
     }
 
-    private static GeneratorResult RunGenerator(string declarations)
-    {
-        var references = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string)!
-            .Split(Path.PathSeparator)
-            .Where(path =>
-            {
-                var fileName = Path.GetFileName(path);
-                return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || fileName.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal)
-                    || string.Equals(fileName, "NetEvolve.Pulse.Extensibility.dll", StringComparison.Ordinal)
-                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(path => MetadataReference.CreateFromFile(path));
-
-        var inputTree = CSharpSyntaxTree.ParseText(
-            Preamble + declarations,
-            new CSharpParseOptions(LanguageVersion.Latest)
-        );
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            [inputTree],
-            references,
-            new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable
-            )
-        );
-
-        _ = CSharpGeneratorDriver
-            .Create(
-                generators: [new PulseHandlerGenerator().AsSourceGenerator()],
-                optionsProvider: new TestAnalyzerConfigOptionsProvider("TestAssembly")
-            )
-            .RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
-
-        var pulseDiagnostics = generatorDiagnostics
-            .Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))
-            .ToArray();
-        var errors = outputCompilation
-            .GetDiagnostics()
-            .Where(d => d.Severity == DiagnosticSeverity.Error && d.Location.SourceTree is not null)
-            .ToArray();
-        var generatedSource = string.Concat(
-            outputCompilation.SyntaxTrees.Where(tree => tree != inputTree).Select(tree => tree.ToString())
-        );
-
-        return new GeneratorResult(
-            pulseDiagnostics,
-            [.. errors.Where(d => d.Location.SourceTree == inputTree)],
-            [.. errors.Where(d => d.Location.SourceTree != inputTree)],
-            generatedSource
-        );
-    }
-
-    private sealed record GeneratorResult(
-        Diagnostic[] PulseDiagnostics,
-        Diagnostic[] InputErrors,
-        Diagnostic[] GeneratedErrors,
-        string GeneratedSource
-    );
+    private static GeneratorRun RunGenerator(string declarations) => GeneratorHarness.Run(Preamble + declarations);
 }

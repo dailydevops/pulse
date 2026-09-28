@@ -450,7 +450,7 @@ public static class AssemblyScanningExtensions
         /// <item><description><see cref="IEventInterceptor{TEvent}"/></description></item>
         /// </list>
         /// <para><strong>Execution Order:</strong></para>
-        /// Interceptors execute in reverse order of registration (LIFO). Be mindful of registration order.
+        /// Interceptors execute in registration order; the first registered interceptor is outermost. Be mindful of registration order.
         /// </remarks>
         /// <example>
         /// <code>

@@ -1,13 +1,8 @@
 namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 /// <summary>
@@ -223,52 +218,7 @@ public class PulseHandlerGeneratorRegistrationTests
 
     private static object InvokeProbe(string methodName, params object[] arguments)
     {
-        var assembly = CompileWithGeneratedRegistrations();
-        return assembly.GetType("Probe", throwOnError: true)!.GetMethod(methodName)!.Invoke(null, arguments)!;
-    }
-
-    private static Assembly CompileWithGeneratedRegistrations()
-    {
-        var references = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string)!
-            .Split(Path.PathSeparator)
-            .Where(path =>
-            {
-                var fileName = Path.GetFileName(path);
-                return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || fileName.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal)
-                    || string.Equals(fileName, "NetEvolve.Pulse.dll", StringComparison.Ordinal)
-                    || string.Equals(fileName, "NetEvolve.Pulse.Extensibility.dll", StringComparison.Ordinal)
-                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(path => MetadataReference.CreateFromFile(path));
-
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            [CSharpSyntaxTree.ParseText(Source, new CSharpParseOptions(LanguageVersion.Latest))],
-            references,
-            new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable
-            )
-        );
-
-        _ = CSharpGeneratorDriver
-            .Create(
-                generators: [new PulseHandlerGenerator().AsSourceGenerator()],
-                optionsProvider: new TestAnalyzerConfigOptionsProvider("TestAssembly")
-            )
-            .RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
-
-        using var stream = new MemoryStream();
-        var result = outputCompilation.Emit(stream);
-        if (!result.Success)
-        {
-            throw new InvalidOperationException(
-                string.Join(Environment.NewLine, result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
-            );
-        }
-
-        return Assembly.Load(stream.ToArray());
+        using var assembly = GeneratorHarness.Run(Source, referencePulse: true).EnsureCompiles().Load();
+        return assembly.GetTypeByName("Probe").GetMethod(methodName)!.Invoke(null, arguments)!;
     }
 }
