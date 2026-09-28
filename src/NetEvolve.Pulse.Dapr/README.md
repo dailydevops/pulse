@@ -11,7 +11,7 @@ Dapr pub/sub transport for the Pulse outbox pattern. Publishes outbox messages t
 - **Dapr pub/sub**: Publish outbox messages to any Dapr-supported message broker
 - **CloudEvents**: Payload is forwarded as CloudEvent data via `DaprClient.PublishEventAsync`
 - **Health checks**: Delegates to `DaprClient.CheckHealthAsync` for readiness probing
-- **Configurable topic resolution**: Map event types to topic names via a custom resolver function
+- **Configurable topic resolution**: Map event types to topic names by registering a custom `ITopicNameResolver`
 - **Broker-agnostic**: Switch brokers by changing the Dapr component configuration — no code changes required
 
 ## Installation
