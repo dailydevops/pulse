@@ -4,10 +4,11 @@
 /// Defines a base interceptor for requests of type <typeparamref name="TRequest"/> that produce responses of type <typeparamref name="TResponse"/>.
 /// Request interceptors enable cross-cutting concerns to be applied to both commands and queries in a unified manner.
 /// Common use cases include logging, validation, metrics collection, and exception handling.
-/// Multiple interceptors can be registered and will be executed in reverse order of registration (last registered runs first).
+/// Multiple interceptors can be registered and will be executed in registration order (the first registered interceptor is outermost).
 /// </summary>
 /// <typeparam name="TRequest">The type of request to intercept, which must implement <see cref="IRequest{TResponse}"/>.</typeparam>
-/// <typeparam name="TResponse">The type of response produced by the request.</typeparam>/// <remarks>
+/// <typeparam name="TResponse">The type of response produced by the request.</typeparam>
+/// <remarks>
 /// <para><strong>Execution Pipeline:</strong></para>
 /// Interceptors form a chain of responsibility where each interceptor can:
 /// <list type="bullet">
@@ -17,8 +18,8 @@
 /// <item><description>Short-circuit the pipeline by not calling the handler</description></item>
 /// <item><description>Transform the request or response</description></item>
 /// </list>
-/// <para><strong>⚠️ WARNING:</strong> Interceptors execute in reverse order of registration (LIFO - Last In, First Out).
-/// The last registered interceptor runs first. This allows outer interceptors (e.g., logging) to wrap inner ones (e.g., validation).</para>
+/// <para><strong>⚠️ WARNING:</strong> Interceptors execute in registration order. The first registered interceptor is outermost:
+/// it runs first before the handler and last after it. Register outer interceptors (e.g., logging) before inner ones (e.g., validation).</para>
 /// <para><strong>Common Use Cases:</strong></para>
 /// <list type="bullet">
 /// <item><description>Logging and auditing</description></item>
@@ -160,12 +161,12 @@
 /// </code>
 /// <para><strong>Register interceptors:</strong></para>
 /// <code>
-/// // Register interceptors (executed in reverse order)
+/// // Register interceptors (executed in registration order, the first registered is outermost)
 /// services.AddScoped(typeof(IRequestInterceptor&lt;,&gt;), typeof(LoggingInterceptor&lt;,&gt;));
 /// services.AddScoped(typeof(IRequestInterceptor&lt;,&gt;), typeof(ValidationInterceptor&lt;,&gt;));
 /// services.AddScoped(typeof(IRequestInterceptor&lt;,&gt;), typeof(RetryInterceptor&lt;,&gt;));
 ///
-/// // Execution order: RetryInterceptor -&gt; ValidationInterceptor -&gt; LoggingInterceptor -&gt; Handler
+/// // Execution order: LoggingInterceptor -&gt; ValidationInterceptor -&gt; RetryInterceptor -&gt; Handler
 /// </code>
 /// </example>
 /// <seealso cref="ICommandInterceptor{TCommand, TResponse}" />
