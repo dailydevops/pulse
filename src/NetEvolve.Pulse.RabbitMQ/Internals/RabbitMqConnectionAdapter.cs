@@ -27,6 +27,7 @@ internal sealed class RabbitMqConnectionAdapter : IRabbitMqConnectionAdapter
     /// Every channel is created with publisher confirmations and confirmation tracking enabled, so
     /// <c>BasicPublishAsync</c> completes only after the broker acknowledged the message and throws
     /// <see cref="RabbitMQ.Client.Exceptions.PublishException"/> on a <c>basic.nack</c> or <c>basic.return</c>.
+    /// No outstanding-confirms rate limiter is set, so a batch publish is never rejected or throttled by the client.
     /// </remarks>
     public async Task<IRabbitMqChannelAdapter> CreateChannelAsync(CancellationToken cancellationToken = default)
     {
@@ -34,7 +35,9 @@ internal sealed class RabbitMqConnectionAdapter : IRabbitMqConnectionAdapter
 
         var options = new CreateChannelOptions(
             publisherConfirmationsEnabled: true,
-            publisherConfirmationTrackingEnabled: true
+            publisherConfirmationTrackingEnabled: true,
+            // No client-side limiter: in-flight confirms per channel are bounded by the outbox batch size.
+            outstandingPublisherConfirmationsRateLimiter: null
         );
         var channel = await _connection.CreateChannelAsync(options, cancellationToken).ConfigureAwait(false);
         return new RabbitMqChannelAdapter(channel);
