@@ -503,6 +503,168 @@ public class PulseHandlerGeneratorConstraintTests
         }
     }
 
+    [Test]
+    [Arguments(
+        "ConcreteHandlerWithTwoCommandsOfSameResultType",
+        """
+            public sealed record CmdA : RequestBase, ICommand<string>;
+            public sealed record CmdB : RequestBase, ICommand<string>;
+
+            [PulseHandler<CmdA>]
+            [PulseHandler<CmdB>]
+            public sealed class Multi : ICommandHandler<CmdA, string>, ICommandHandler<CmdB, string>
+            {
+                public Task<string> HandleAsync(CmdA command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                public Task<string> HandleAsync(CmdB command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+            }
+            """,
+        "ICommandHandler<global::CmdA, string>>(",
+        "ICommandHandler<global::CmdB, string>>("
+    )]
+    [Arguments(
+        "ConcreteHandlerWithTwoQueries",
+        """
+            public sealed record QryA : RequestBase, IQuery<string>;
+            public sealed record QryB : RequestBase, IQuery<int>;
+
+            [PulseHandler<QryA>]
+            [PulseHandler<QryB>]
+            public sealed class Multi : IQueryHandler<QryA, string>, IQueryHandler<QryB, int>
+            {
+                public Task<string> HandleAsync(QryA query, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                public Task<int> HandleAsync(QryB query, CancellationToken cancellationToken = default) => Task.FromResult(0);
+            }
+            """,
+        "IQueryHandler<global::QryA, string>>(",
+        "IQueryHandler<global::QryB, int>>("
+    )]
+    [Arguments(
+        "ConcreteHandlerWithTwoStreamQueries",
+        """
+            public sealed record SqA : RequestBase, IStreamQuery<string>;
+            public sealed record SqB : RequestBase, IStreamQuery<string>;
+
+            [PulseHandler<SqA>]
+            [PulseHandler<SqB>]
+            public sealed class Multi : IStreamQueryHandler<SqA, string>, IStreamQueryHandler<SqB, string>
+            {
+                public IAsyncEnumerable<string> HandleAsync(SqA request, CancellationToken cancellationToken = default) => Empty();
+                public IAsyncEnumerable<string> HandleAsync(SqB request, CancellationToken cancellationToken = default) => Empty();
+
+                private static async IAsyncEnumerable<string> Empty()
+                {
+                    await Task.CompletedTask;
+                    yield break;
+                }
+            }
+            """,
+        "IStreamQueryHandler<global::SqA, string>>(",
+        "IStreamQueryHandler<global::SqB, string>>("
+    )]
+    [Arguments(
+        "GenericHandlerWithOpenAndClosedCommandInterface",
+        """
+            public sealed record StrCmd : RequestBase, ICommand<string>;
+            public sealed record Fixed : RequestBase, ICommand<int>;
+
+            [PulseHandler<StrCmd>]
+            public sealed class G<T> : ICommandHandler<T, string>, ICommandHandler<Fixed, int>
+                where T : ICommand<string>
+            {
+                public Task<string> HandleAsync(T command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                public Task<int> HandleAsync(Fixed command, CancellationToken cancellationToken = default) => Task.FromResult(0);
+            }
+            """,
+        "ICommandHandler<global::StrCmd, string>, global::G<global::StrCmd>>",
+        null
+    )]
+    public async Task WhenHandlerImplementsSameHandlerInterfaceForSeveralMessagesThenEachExplicitMessageTypeIsRegistered(
+        string scenario,
+        string declarations,
+        string expectedRegistration,
+        string? secondExpectedRegistration
+    )
+    {
+        var result = RunGenerator(declarations);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.InputErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.PulseDiagnostics).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedSource).Contains(expectedRegistration).Because(scenario);
+            if (secondExpectedRegistration is not null)
+            {
+                _ = await Assert.That(result.GeneratedSource).Contains(secondExpectedRegistration).Because(scenario);
+            }
+        }
+    }
+
+    [Test]
+    [Arguments(
+        "GenericHandlerWhereOnlyClosedInterfaceMatches",
+        """
+            public sealed record Fixed : RequestBase, ICommand<int>;
+
+            [PulseHandler<Fixed>]
+            public sealed class G<T> : ICommandHandler<T, string>, ICommandHandler<Fixed, int>
+                where T : ICommand<string>
+            {
+                public Task<string> HandleAsync(T command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                public Task<int> HandleAsync(Fixed command, CancellationToken cancellationToken = default) => Task.FromResult(0);
+            }
+            """,
+        "ICommandHandler<global::Fixed, string>"
+    )]
+    [Arguments(
+        "GenericHandlerWithOpenInterfaceOfOtherResultTypeAndMessageWithSeveralResults",
+        """
+            public sealed record Both : RequestBase, ICommand<string>, ICommand<int>;
+
+            [PulseHandler<Both>]
+            public sealed class G<T> : ICommandHandler<T, int>, ICommandHandler<Both, string>
+                where T : ICommand<int>
+            {
+                public Task<int> HandleAsync(T command, CancellationToken cancellationToken = default) => Task.FromResult(0);
+                public Task<string> HandleAsync(Both command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+            }
+            """,
+        "ICommandHandler<global::Both, int>"
+    )]
+    [Arguments(
+        "ConcreteHandlerWithoutInterfaceForMessage",
+        """
+            public sealed record CmdA : RequestBase, ICommand<string>;
+            public sealed record CmdB : RequestBase, ICommand<string>;
+
+            [PulseHandler<CmdB>]
+            public sealed class H1 : ICommandHandler<CmdA, string>
+            {
+                public Task<string> HandleAsync(CmdA command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+            }
+            """,
+        "global::CmdB"
+    )]
+    public async Task WhenNoImplementedHandlerInterfaceFitsMessageAndResultTypeThenPulse006Reported(
+        string scenario,
+        string declarations,
+        string forbiddenRegistration
+    )
+    {
+        var result = RunGenerator(declarations);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.InputErrors).IsEmpty().Because(scenario);
+            _ = await Assert
+                .That(result.PulseDiagnostics.Select(d => d.Id))
+                .IsEquivalentTo(["PULSE006"])
+                .Because(scenario);
+            _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
+            _ = await Assert.That(result.GeneratedSource).DoesNotContain(forbiddenRegistration).Because(scenario);
+        }
+    }
+
     private static GeneratorResult RunGenerator(string declarations)
     {
         var references = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string)!
