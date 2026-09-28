@@ -21,6 +21,13 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
     protected IServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
     protected IServiceInitializer DatabaseInitializer { get; } = databaseInitializer;
 
+    /// <summary>
+    /// Gets the comparer that mirrors how the store orders its native <c>Id</c> column.
+    /// Defaults to ordinal text order of the canonical Guid string (TEXT, UUID, CHAR(36)).
+    /// </summary>
+    protected virtual IComparer<Guid> IdComparer { get; } =
+        Comparer<Guid>.Create((x, y) => string.CompareOrdinal(x.ToString(), y.ToString()));
+
     protected async ValueTask RunAndVerify(
         Func<IServiceProvider, CancellationToken, Task> testableCode,
         CancellationToken cancellationToken,
@@ -434,6 +441,12 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
                     {
                         _ = await Assert.That(paged).IsEquivalentTo(records.Select(r => r.Id));
                         _ = await Assert.That(paged).IsEquivalentTo(all.Select(r => r.Id), CollectionOrdering.Matching);
+                        _ = await Assert
+                            .That(paged)
+                            .IsEquivalentTo(
+                                records.Select(r => r.Id).OrderDescending(IdComparer),
+                                CollectionOrdering.Matching
+                            );
                     }
                 },
                 cancellationToken
