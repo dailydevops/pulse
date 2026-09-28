@@ -22,7 +22,7 @@ public sealed class CommandDeadLetterMediatorBuilderExtensionsTests
             .Throws<ArgumentNullException>();
 
     [Test]
-    public async Task AddCommandDeadLetter_RegistersRequestInterceptorAsSingleton()
+    public async Task AddCommandDeadLetter_RegistersRequestInterceptorAsScoped()
     {
         var services = new ServiceCollection();
         var builder = new MediatorBuilder(services);
@@ -39,7 +39,7 @@ public sealed class CommandDeadLetterMediatorBuilderExtensionsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(descriptor).IsNotNull();
-            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+            _ = await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
         }
     }
 
