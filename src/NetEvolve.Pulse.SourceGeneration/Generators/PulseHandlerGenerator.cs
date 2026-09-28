@@ -1003,7 +1003,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Determines whether every type argument satisfies the constraints of its type parameter
-    /// (C# specification §8.4.5), so the constructed handler type compiles. A <c>notnull</c> constraint is
+    /// (C# specification §8.4.5), so the constructed handler type compiles. A <see langword="notnull"/> constraint is
     /// not checked because the compiler only warns (CS8714) when it is violated.
     /// </summary>
     private static bool SatisfiesConstraints(
