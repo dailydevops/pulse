@@ -6,11 +6,11 @@ applyTo:
   - "src/NetEvolve.Pulse.EntityFramework/Outbox/*.cs"
   - "src/NetEvolve.Pulse.EntityFramework/Configurations/OutboxMessageConfigurationBase.cs"
 
-created: 2026-09-24
+created: 2026-09-28
 
-lastModified: 2026-09-24
+lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST claim Entity Framework outbox messages in bulk executors with a single-table ExecuteUpdate over context.OutboxMessages filtered by the complete eligibility predicate (status, NextRetryAt, RetryCount) plus the candidate ids; MUST NOT run ExecuteUpdate on the ordered/limited candidate query.

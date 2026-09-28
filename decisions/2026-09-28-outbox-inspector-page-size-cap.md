@@ -9,7 +9,7 @@ created: 2026-09-28
 
 lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST reject pageSize values outside 1..1000 on GET {BasePath}/messages and GET {BasePath}/dead-letters of MapOutboxInspector with 400 Bad Request and a validation problem body keyed "pageSize", before IOutboxManagement is called.

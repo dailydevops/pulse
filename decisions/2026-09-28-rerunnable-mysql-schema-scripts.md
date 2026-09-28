@@ -9,7 +9,7 @@ created: 2026-09-28
 
 lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST keep every MySQL provider script safe to run repeatedly against the same database; re-running the script is the supported upgrade path.
