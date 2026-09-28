@@ -79,6 +79,11 @@ public abstract class PulseGrpcStreamService<TQuery, TResponse>
         "S8949:Pass the cancellation token",
         Justification = "IAsyncStreamWriter.WriteAsync(T, CancellationToken) throws NotSupportedException for writers that only implement WriteAsync(T); the token is checked before each write and a pending write is abandoned through WaitAsync instead."
     )]
+    [SuppressMessage(
+        "Usage",
+        "NE0010:Method returns Task and should accept a CancellationToken parameter",
+        Justification = "Protected API with a fixed signature; the cancellation token is the ambient ServerCallContext.CancellationToken of the gRPC call."
+    )]
     protected async Task StreamAsync<TMessage>(
         [NotNull] TQuery query,
         [NotNull] IServerStreamWriter<TMessage> responseStream,
