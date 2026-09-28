@@ -46,17 +46,23 @@ internal sealed class MySqlCommandDeadLetterStore : ICommandDeadLetterStore
     /// <summary>Cached SQL statement for inserting a command dead letter entry.</summary>
     private readonly string _insertSql;
 
+    /// <summary>The time provider used to stamp new entries.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MySqlCommandDeadLetterStore"/> class.
     /// </summary>
     /// <param name="options">The command dead letter configuration options.</param>
-    public MySqlCommandDeadLetterStore(IOptions<CommandDeadLetterOptions> options)
+    /// <param name="timeProvider">The time provider used to stamp <see cref="CommandDeadLetterEntry.OccurredAt"/>.</param>
+    public MySqlCommandDeadLetterStore(IOptions<CommandDeadLetterOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
 
         var opts = options.Value;
         _connectionString = opts.ConnectionString;
+        _timeProvider = timeProvider;
 
         SqlIdentifier.Validate(opts.TableName, nameof(opts.TableName));
         var table = $"`{opts.TableName}`";
@@ -101,7 +107,7 @@ internal sealed class MySqlCommandDeadLetterStore : ICommandDeadLetterStore
                 _ = command.Parameters.AddWithValue("@payload", payload);
                 _ = command.Parameters.AddWithValue("@exceptionType", exception.GetType().AssemblyQualifiedName);
                 _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
-                _ = command.Parameters.AddWithValue("@occurredAtTicks", DateTimeOffset.UtcNow.UtcTicks);
+                _ = command.Parameters.AddWithValue("@occurredAtTicks", _timeProvider.GetUtcNow().UtcTicks);
                 _ = command.Parameters.AddWithValue("@attemptCount", 1);
                 _ = command.Parameters.AddWithValue("@status", (int)CommandDeadLetterStatus.New);
 

@@ -39,16 +39,22 @@ internal sealed class PostgreSqlCommandDeadLetterStore : ICommandDeadLetterStore
     /// <summary>Cached SQL for inserting a command dead letter entry.</summary>
     private readonly string _insertSql;
 
+    /// <summary>The time provider used to stamp new entries.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlCommandDeadLetterStore"/> class.
     /// </summary>
     /// <param name="options">The command dead letter configuration options.</param>
-    public PostgreSqlCommandDeadLetterStore(IOptions<CommandDeadLetterOptions> options)
+    /// <param name="timeProvider">The time provider used to stamp <see cref="CommandDeadLetterEntry.OccurredAt"/>.</param>
+    public PostgreSqlCommandDeadLetterStore(IOptions<CommandDeadLetterOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
 
         _connectionString = options.Value.ConnectionString;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? CommandDeadLetterSchema.DefaultSchema
@@ -98,7 +104,7 @@ internal sealed class PostgreSqlCommandDeadLetterStore : ICommandDeadLetterStore
                     (object?)exception.GetType().AssemblyQualifiedName ?? DBNull.Value
                 );
                 _ = command.Parameters.AddWithValue("exception_message", (object?)exception.Message ?? DBNull.Value);
-                _ = command.Parameters.AddWithValue("occurred_at", DateTimeOffset.UtcNow);
+                _ = command.Parameters.AddWithValue("occurred_at", _timeProvider.GetUtcNow().ToUniversalTime());
                 _ = command.Parameters.AddWithValue("attempt_count", 1);
                 _ = command.Parameters.AddWithValue("status", (short)CommandDeadLetterStatus.New);
 
