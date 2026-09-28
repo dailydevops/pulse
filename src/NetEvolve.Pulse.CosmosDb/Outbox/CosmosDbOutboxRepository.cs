@@ -451,7 +451,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// </summary>
     /// <remarks>
     /// A document that is no longer <see cref="OutboxMessageStatus.Processing"/> (412 Precondition Failed)
-    /// or no longer exists (404 Not Found) is skipped silently, as in the relational providers.
+    /// or no longer exists (404 Not Found, sub-status 0) is skipped silently, as in the relational providers.
+    /// Any other 404, such as a missing container or database (sub-status 1003), is rethrown.
     /// </remarks>
     /// <param name="id">The document identifier.</param>
     /// <param name="partitionKey">The partition key of the document.</param>
@@ -479,7 +480,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
                 )
                 .ConfigureAwait(false);
         }
-        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound)
+        catch (CosmosException ex)
+            when (ex.StatusCode == HttpStatusCode.PreconditionFailed
+                || (ex.StatusCode == HttpStatusCode.NotFound && ex.SubStatusCode == 0)
+            )
         {
             // The message was settled by another worker or deleted meanwhile — nothing to update.
         }
