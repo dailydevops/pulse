@@ -463,6 +463,95 @@ public sealed class CommandDeadLetterInterceptorTests
             .WasCalled(Times.Once);
     }
 
+    [Test]
+    public async Task SendAsync_FailingCommandWithScopedStoreAndValidateScopes_StoresEntryAndRethrowsOriginal(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddPulse(builder => builder.AddCommandDeadLetter());
+        _ = services.AddScoped<ICommandDeadLetterStore, FakeCommandDeadLetterStore>();
+        _ = services.AddScoped<ICommandHandler<TestCommand, string>, FailingTestCommandHandler>();
+        var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
+        );
+        await using (provider.ConfigureAwait(false))
+        {
+            var scope = provider.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+
+                var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await mediator
+                        .SendAsync<TestCommand, string>(new TestCommand { Value = "scoped" }, cancellationToken)
+                        .ConfigureAwait(false)
+                );
+
+                var store = (FakeCommandDeadLetterStore)
+                    scope.ServiceProvider.GetRequiredService<ICommandDeadLetterStore>();
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(exception!.Message).IsEqualTo(FailingTestCommandHandler.ErrorMessage);
+                    _ = await Assert.That(store.StoreCallCount).IsEqualTo(1);
+                    _ = await Assert.That(store.LastException).IsSameReferenceAs(exception);
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_FailingCommandsInTwoScopes_UseTheStoreOfTheirOwnScope(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddPulse(builder => builder.AddCommandDeadLetter());
+        _ = services.AddScoped<ICommandDeadLetterStore, FakeCommandDeadLetterStore>();
+        _ = services.AddScoped<ICommandHandler<TestCommand, string>, FailingTestCommandHandler>();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var first = await SendFailingCommandInNewScopeAsync(provider, cancellationToken).ConfigureAwait(false);
+            var second = await SendFailingCommandInNewScopeAsync(provider, cancellationToken).ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(first).IsNotSameReferenceAs(second);
+                _ = await Assert.That(first.StoreCallCount).IsEqualTo(1);
+                _ = await Assert.That(second.StoreCallCount).IsEqualTo(1);
+            }
+        }
+    }
+
+    private static async Task<FakeCommandDeadLetterStore> SendFailingCommandInNewScopeAsync(
+        IServiceProvider provider,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var scope = provider.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await mediator
+                    .SendAsync<TestCommand, string>(new TestCommand { Value = "scoped" }, cancellationToken)
+                    .ConfigureAwait(false)
+            );
+
+            return (FakeCommandDeadLetterStore)scope.ServiceProvider.GetRequiredService<ICommandDeadLetterStore>();
+        }
+    }
+
     private static CommandDeadLetterInterceptor<TestCommand, string> CreateInterceptor(
         ICommandDeadLetterStore store,
         IPayloadSerializer serializer,
