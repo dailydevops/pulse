@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -107,6 +108,46 @@ public sealed class ActivityMetricsExtensionsTests
         {
             _ = await Assert.That(result).IsSameReferenceAs(builder);
             _ = await Assert.That(result).IsTypeOf<IMediatorBuilder>();
+        }
+    }
+
+    [Test]
+    public async Task AddActivityAndMetrics_WithNullConfigure_ThrowsArgumentNullException()
+    {
+        var builder = new MediatorBuilder(new ServiceCollection());
+
+        _ = await Assert.That(() => builder.AddActivityAndMetrics(configure: null!)).Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task AddActivityAndMetrics_WithoutConfigure_DefaultsToLegacyUnits()
+    {
+        var services = new ServiceCollection();
+        _ = new MediatorBuilder(services).AddActivityAndMetrics();
+
+        await using var provider = services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<IOptions<ActivityAndMetricsOptions>>().Value;
+
+        _ = await Assert.That(options.UseSemanticConventionUnits).IsFalse();
+    }
+
+    [Test]
+    public async Task AddActivityAndMetrics_WithConfigure_AppliesOptions()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        var result = builder.AddActivityAndMetrics(options => options.UseSemanticConventionUnits = true);
+
+        await using var provider = services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<IOptions<ActivityAndMetricsOptions>>().Value;
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsSameReferenceAs(builder);
+            _ = await Assert.That(options.UseSemanticConventionUnits).IsTrue();
         }
     }
 }

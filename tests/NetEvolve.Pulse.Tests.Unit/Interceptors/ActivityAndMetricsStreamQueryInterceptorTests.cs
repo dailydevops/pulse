@@ -2,6 +2,8 @@ namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -579,6 +581,93 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
             _ = await Assert
                 .That(capturedActivity.GetTagItem("error.type"))
                 .IsEqualTo("System.InvalidOperationException");
+        }
+    }
+
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WithSemanticConventionUnits_RecordsSecondsAndUcumUnits(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var timeProvider = new FakeTimeProvider();
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(
+            timeProvider,
+            Options.Create(new ActivityAndMetricsOptions { UseSemanticConventionUnits = true })
+        );
+
+        await foreach (
+            var _ in interceptor
+                .HandleAsync(new MeasuredStreamQuery(), (_, ct) => Items([1, 2], ct), cancellationToken)
+                .ConfigureAwait(false)
+        )
+        {
+            timeProvider.Advance(TimeSpan.FromSeconds(1));
+        }
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(
+                        new MeasuredStreamQuery(),
+                        (_, ct) => ThrowingItems(new InvalidOperationException("boom"), ct),
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            {
+                // consume items until exception
+            }
+        });
+
+        var durations = collector.For("pulse.stream_query.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(2);
+            _ = await Assert.That(durations[0].Unit).IsEqualTo("s");
+            _ = await Assert.That(durations[0].Value).IsEqualTo(2d);
+            _ = await Assert.That(collector.For("pulse.stream_query.total")[0].Unit).IsEqualTo("{query}");
+            _ = await Assert.That(collector.For("pulse.stream_query.errors")[0].Unit).IsEqualTo("{error}");
+        }
+    }
+
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WithDefaultOptions_KeepsLegacyUnits(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(
+            new FakeTimeProvider()
+        );
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(
+                        new MeasuredStreamQuery(),
+                        (_, ct) => ThrowingItems(new InvalidOperationException("boom"), ct),
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            {
+                // consume items until exception
+            }
+        });
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(collector.For("pulse.stream_query.duration")[0].Unit).IsEqualTo("ms");
+            _ = await Assert.That(collector.For("pulse.stream_query.total")[0].Unit).IsEqualTo("queries");
+            _ = await Assert.That(collector.For("pulse.stream_query.errors")[0].Unit).IsEqualTo("errors");
         }
     }
 

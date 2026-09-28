@@ -1,6 +1,8 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -412,6 +414,97 @@ public class ActivityAndMetricsRequestInterceptorTests
             _ = await Assert.That(durations).Count().IsEqualTo(1);
             _ = await Assert.That(durations[0].Tags.ContainsKey("error.type")).IsFalse();
             _ = await Assert.That(collector.For("pulse.request.errors")).IsEmpty();
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithSemanticConventionUnits_RecordsSecondsAndUcumUnits(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredCommand));
+        var timeProvider = new FakeTimeProvider();
+        var interceptor = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(
+            timeProvider,
+            Options.Create(new ActivityAndMetricsOptions { UseSemanticConventionUnits = true })
+        );
+
+        _ = await interceptor
+            .HandleAsync(
+                new MeasuredCommand(),
+                (_, _) =>
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(1500));
+                    return Task.FromResult("ok");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredCommand(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        var durations = collector.For("pulse.request.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(2);
+            _ = await Assert.That(durations[0].Unit).IsEqualTo("s");
+            _ = await Assert.That(durations[0].Value).IsEqualTo(1.5);
+            _ = await Assert.That(collector.For("pulse.requests.total")[0].Unit).IsEqualTo("{request}");
+            _ = await Assert.That(collector.For("pulse.request.errors")[0].Unit).IsEqualTo("{error}");
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithDefaultOptions_KeepsLegacyUnits(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredCommand));
+        var timeProvider = new FakeTimeProvider();
+        var interceptor = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(timeProvider);
+
+        _ = await interceptor
+            .HandleAsync(
+                new MeasuredCommand(),
+                (_, _) =>
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(1500));
+                    return Task.FromResult("ok");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredCommand(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        var durations = collector.For("pulse.request.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(2);
+            _ = await Assert.That(durations[0].Unit).IsEqualTo("ms");
+            _ = await Assert.That(durations[0].Value).IsEqualTo(1500d);
+            _ = await Assert.That(collector.For("pulse.requests.total")[0].Unit).IsEqualTo("requests");
+            _ = await Assert.That(collector.For("pulse.request.errors")[0].Unit).IsEqualTo("errors");
         }
     }
 

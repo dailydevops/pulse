@@ -8,16 +8,17 @@ using System.Linq;
 
 /// <summary>
 /// Collects measurements of the <c>NetEvolve.Pulse</c> meter that carry a specific tag value, so tests
-/// running in parallel with other Pulse telemetry only see their own measurements.
+/// running in parallel with other Pulse telemetry only see their own measurements. Without a tag filter,
+/// all measurements are collected.
 /// </summary>
 internal sealed class PulseMeasurementCollector : IDisposable
 {
     private readonly MeterListener _listener = new();
     private readonly ConcurrentQueue<Measurement> _measurements = new();
-    private readonly string _tagKey;
-    private readonly string _tagValue;
+    private readonly string? _tagKey;
+    private readonly string? _tagValue;
 
-    public PulseMeasurementCollector(string tagKey, string tagValue)
+    public PulseMeasurementCollector(string? tagKey = null, string? tagValue = null)
     {
         _tagKey = tagKey;
         _tagValue = tagValue;
@@ -48,8 +49,11 @@ internal sealed class PulseMeasurementCollector : IDisposable
         }
 
         if (
-            tagMap.TryGetValue(_tagKey, out var actual)
-            && string.Equals(actual as string, _tagValue, StringComparison.Ordinal)
+            _tagKey is null
+            || (
+                tagMap.TryGetValue(_tagKey, out var actual)
+                && string.Equals(actual as string, _tagValue, StringComparison.Ordinal)
+            )
         )
         {
             _measurements.Enqueue(new Measurement(instrument.Name, instrument.Unit, value, tagMap));

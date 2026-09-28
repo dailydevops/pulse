@@ -1,6 +1,8 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -367,6 +369,84 @@ public class ActivityAndMetricsEventInterceptorTests
             _ = await Assert.That(durations).Count().IsEqualTo(1);
             _ = await Assert.That(durations[0].Tags.ContainsKey("error.type")).IsFalse();
             _ = await Assert.That(collector.For("pulse.event.errors")).IsEmpty();
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithSemanticConventionUnits_RecordsSecondsAndUcumUnits(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.event.name", nameof(MeasuredEvent));
+        var timeProvider = new FakeTimeProvider();
+        var interceptor = new ActivityAndMetricsEventInterceptor<MeasuredEvent>(
+            timeProvider,
+            Options.Create(new ActivityAndMetricsOptions { UseSemanticConventionUnits = true })
+        );
+
+        await interceptor
+            .HandleAsync(
+                new MeasuredEvent(),
+                (_, _) =>
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(250));
+                    return Task.CompletedTask;
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredEvent(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        var durations = collector.For("pulse.event.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(2);
+            _ = await Assert.That(durations[0].Unit).IsEqualTo("s");
+            _ = await Assert.That(durations[0].Value).IsEqualTo(0.25);
+            _ = await Assert.That(collector.For("pulse.events.total")[0].Unit).IsEqualTo("{event}");
+            _ = await Assert.That(collector.For("pulse.event.errors")[0].Unit).IsEqualTo("{error}");
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithDefaultOptions_KeepsLegacyUnits(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.event.name", nameof(MeasuredEvent));
+        var interceptor = new ActivityAndMetricsEventInterceptor<MeasuredEvent>(new FakeTimeProvider());
+
+        await interceptor
+            .HandleAsync(new MeasuredEvent(), (_, _) => Task.CompletedTask, cancellationToken)
+            .ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredEvent(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(collector.For("pulse.event.duration")[0].Unit).IsEqualTo("ms");
+            _ = await Assert.That(collector.For("pulse.events.total")[0].Unit).IsEqualTo("events");
+            _ = await Assert.That(collector.For("pulse.event.errors")[0].Unit).IsEqualTo("errors");
         }
     }
 

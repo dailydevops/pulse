@@ -11,7 +11,9 @@ using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.Tests.Unit.Interceptors;
 using TUnit.Core;
 using TUnit.Mocks;
 
@@ -1148,6 +1150,47 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
         _ = await Assert.That(Volatile.Read(ref durationRecorded)).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_WithSemanticConventionUnits_RecordsSecondsAndMessageUnits(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector();
+
+        using var repository = new InMemoryOutboxRepository();
+        await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            CreateLogger(),
+            TimeProvider.System,
+            Options.Create(new ActivityAndMetricsOptions { UseSemanticConventionUnits = true })
+        );
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await repository.WaitForPollAsync(2, timeoutCts.Token).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(collector.For("pulse.outbox.processing.duration").Any(m => m.Unit == "s")).IsTrue();
+            _ = await Assert
+                .That(collector.For("pulse.outbox.processed.total").Any(m => m.Unit == "{message}"))
+                .IsTrue();
+        }
     }
 
     [Test]
