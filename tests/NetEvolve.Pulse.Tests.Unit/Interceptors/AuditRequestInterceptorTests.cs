@@ -16,6 +16,8 @@ using NetEvolve.Pulse.Serialization;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
+using TUnit.Mocks;
+using TUnit.Mocks.Arguments;
 
 [SuppressMessage(
     "IDisposableAnalyzers.Correctness",
@@ -357,6 +359,248 @@ public sealed class AuditRequestInterceptorTests
         _ = await Assert.That(store.LastRecord!.Payload).IsNull();
     }
 
+    [Test]
+    public async Task HandleAsync_SuccessfulCommand_StoreThrows_ReturnsResponseWithoutFailureRecord(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var store = Mock.Of<IAuditStore>();
+        _ = store
+            .RecordAsync(Arg.Any<AuditRecord>(), Arg.Any<CancellationToken>())
+            .Throws(new TimeoutException("store timed out"));
+        var interceptor = CreateInterceptor(store.Object);
+        var command = new TestCommand { Value = "ok" };
+
+        var result = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("response"), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("response");
+        store
+            .RecordAsync(
+                Arg.Is<AuditRecord>(r => r is not null && r.Result == AuditResult.Success),
+                Arg.Any<CancellationToken>()
+            )
+            .WasCalled(Times.Once);
+        store
+            .RecordAsync(
+                Arg.Is<AuditRecord>(r => r is not null && r.Result == AuditResult.Failure),
+                Arg.Any<CancellationToken>()
+            )
+            .WasCalled(Times.Never);
+    }
+
+    [Test]
+    public async Task HandleAsync_SuccessfulCommand_SerializerThrows_ReturnsResponse(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var store = new FakeAuditStore();
+        var interceptor = CreateInterceptor(
+            store,
+            new AuditOptions { CapturePayload = true },
+            new ThrowingPayloadSerializer()
+        );
+        var command = new TestCommand { Value = "ok" };
+
+        var result = await interceptor
+            .HandleAsync(command, (_, _) => Task.FromResult("response"), cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo("response");
+            _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_FailingCommand_StoreThrows_RethrowsOriginalException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var store = Mock.Of<IAuditStore>();
+        _ = store
+            .RecordAsync(Arg.Any<AuditRecord>(), Arg.Any<CancellationToken>())
+            .Throws(new TimeoutException("store timed out"));
+        var interceptor = CreateInterceptor(store.Object);
+        var command = new TestCommand { Value = "fail" };
+        var thrown = new InvalidOperationException("handler failed");
+
+        var exception = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(command, (_, _) => Task.FromException<string>(thrown), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<InvalidOperationException>();
+
+        _ = await Assert.That(exception).IsSameReferenceAs(thrown);
+        store
+            .RecordAsync(
+                Arg.Is<AuditRecord>(r =>
+                    r is not null && r.Result == AuditResult.Failure && r.ExceptionMessage == "handler failed"
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .WasCalled(Times.Once);
+    }
+
+    [Test]
+    public async Task HandleAsync_FailingCommand_SerializerThrows_RethrowsOriginalException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var store = new FakeAuditStore();
+        var interceptor = CreateInterceptor(
+            store,
+            new AuditOptions { CapturePayload = true },
+            new ThrowingPayloadSerializer()
+        );
+        var command = new TestCommand { Value = "fail" };
+        var thrown = new InvalidOperationException("handler failed");
+
+        var exception = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(command, (_, _) => Task.FromException<string>(thrown), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<InvalidOperationException>();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception).IsSameReferenceAs(thrown);
+            _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_FailingCommand_UserAccessorThrows_RethrowsOriginalException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var userAccessor = Mock.Of<IAuditUserAccessor>();
+        _ = userAccessor.GetCurrentUser().Throws(new InvalidCastException("claims broken"));
+        var store = new FakeAuditStore();
+        var interceptor = CreateInterceptor(store, userAccessor: userAccessor.Object);
+        var command = new TestCommand { Value = "fail" };
+        var thrown = new InvalidOperationException("handler failed");
+
+        var exception = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(command, (_, _) => Task.FromException<string>(thrown), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<InvalidOperationException>();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception).IsSameReferenceAs(thrown);
+            _ = await Assert.That(store.RecordCallCount).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_CallerCancelsAfterHandlerCompleted_RecordsSuccessAndReturnsResponse(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var store = new FakeAuditStore();
+        var interceptor = CreateInterceptor(store);
+        var command = new TestCommand { Value = "ok" };
+
+        var result = await interceptor
+            .HandleAsync(
+                command,
+                async (_, _) =>
+                {
+                    await cts.CancelAsync().ConfigureAwait(false);
+                    return "response";
+                },
+                cts.Token
+            )
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsEqualTo("response");
+            _ = await Assert.That(store.RecordCallCount).IsEqualTo(1);
+            _ = await Assert.That(store.LastRecord!.Result).IsEqualTo(AuditResult.Success);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_CallerCancelsAfterHandlerFailed_RecordsFailureAndRethrowsOriginalException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var store = new FakeAuditStore();
+        var interceptor = CreateInterceptor(store);
+        var command = new TestCommand { Value = "fail" };
+        var thrown = new InvalidOperationException("handler failed");
+
+        var exception = await Assert
+            .That(async () =>
+                await interceptor
+                    .HandleAsync(
+                        command,
+                        async (_, _) =>
+                        {
+                            await cts.CancelAsync().ConfigureAwait(false);
+                            throw thrown;
+                        },
+                        cts.Token
+                    )
+                    .ConfigureAwait(false)
+            )
+            .Throws<InvalidOperationException>();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception).IsSameReferenceAs(thrown);
+            _ = await Assert.That(store.RecordCallCount).IsEqualTo(1);
+            _ = await Assert.That(store.LastRecord!.Result).IsEqualTo(AuditResult.Failure);
+        }
+    }
+
+    private static AuditRequestInterceptor<TestCommand, string> CreateInterceptor(
+        IAuditStore store,
+        AuditOptions? options = null,
+        IPayloadSerializer? payloadSerializer = null,
+        IAuditUserAccessor? userAccessor = null
+    )
+    {
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(store);
+        var provider = services.BuildServiceProvider();
+
+        return new AuditRequestInterceptor<TestCommand, string>(
+            provider,
+            Options.Create(options ?? new AuditOptions()),
+            payloadSerializer ?? DefaultSerializer,
+            userAccessor ?? new FakeAuditUserAccessor(),
+            new FakeTimeProvider()
+        );
+    }
+
     private static (AuditRequestInterceptor<TestCommand, string> Interceptor, FakeAuditStore Store) CreateInterceptor(
         AuditOptions options,
         TimeProvider? timeProvider = null,
@@ -418,6 +662,19 @@ public sealed class AuditRequestInterceptorTests
         public string? CurrentUser { get; set; }
 
         public string? GetCurrentUser() => CurrentUser;
+    }
+
+    private sealed class ThrowingPayloadSerializer : IPayloadSerializer
+    {
+        public string Serialize<T>(T value) => throw new NotSupportedException("serializer failed");
+
+        public string Serialize(object value, Type type) => throw new NotSupportedException("serializer failed");
+
+        public byte[] SerializeToBytes<T>(T value) => throw new NotSupportedException("serializer failed");
+
+        public T? Deserialize<T>(string payload) => throw new NotSupportedException("serializer failed");
+
+        public T? Deserialize<T>(byte[] payload) => throw new NotSupportedException("serializer failed");
     }
 
     private sealed class FakeAuditStore : IAuditStore
