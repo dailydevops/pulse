@@ -32,5 +32,6 @@
 
   <ItemGroup>
     <Compile Include="..\..\templates\Predefined.cs" Link="Predefined.cs" />
+    <None Include="..\..\src\NetEvolve.Pulse.SourceGeneration\README.md" Link="SourceGeneration.README.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

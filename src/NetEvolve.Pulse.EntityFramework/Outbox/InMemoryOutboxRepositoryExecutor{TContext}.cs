@@ -30,7 +30,7 @@ internal sealed class InMemoryOutboxRepositoryExecutor<TContext>(TContext contex
         CancellationToken cancellationToken
     ) =>
         UpdateByQueryAsync(
-            _context.OutboxMessages.Where(m => ids.Contains(m.Id)),
+            _context.OutboxMessages.Where(m => ids.Contains(m.Id) && m.Status == OutboxMessageStatus.Processing),
             updatedAt,
             processedAt,
             nextRetryAt,

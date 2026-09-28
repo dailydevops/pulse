@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
+using TUnit.Assertions.Enums;
 using TUnit.Core;
 
 /// <summary>
@@ -68,13 +69,15 @@ public class PrioritizedEventDispatcherTests
             _ = await Assert.That(order).Count().IsEqualTo(4);
             _ = await Assert.That(order[0]).IsEqualTo(1); // Priority 0 first
             _ = await Assert.That(order[1]).IsEqualTo(2); // Priority 500 second
-            // Non-prioritized handlers execute last (order among them is not guaranteed due to parallel execution)
-            _ = await Assert.That(order.Skip(2)).IsEquivalentTo([3, 4]);
+            _ = await Assert.That(order[2]).IsEqualTo(3); // Non-prioritized, registered first
+            _ = await Assert.That(order[3]).IsEqualTo(4); // Non-prioritized, registered second
         }
     }
 
     [Test]
-    public async Task DispatchAsync_WithEqualPriority_PreservesRegistrationOrder(CancellationToken cancellationToken)
+    public async Task DispatchAsync_WithEqualPriority_ExecutesSequentiallyInRegistrationOrder(
+        CancellationToken cancellationToken
+    )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -83,23 +86,16 @@ public class PrioritizedEventDispatcherTests
         var executionOrder = new ConcurrentQueue<int>();
         var handlers = new List<IEventHandler<TestEvent>>
         {
-            new PrioritizedTestHandler(1, 100, executionOrder),
-            new PrioritizedTestHandler(2, 200, executionOrder),
-            new PrioritizedTestHandler(3, 300, executionOrder),
+            new DelayedPrioritizedTestHandler(1, 100, TimeSpan.FromMilliseconds(100), executionOrder),
+            new DelayedPrioritizedTestHandler(2, 100, TimeSpan.FromMilliseconds(50), executionOrder),
+            new DelayedPrioritizedTestHandler(3, 100, TimeSpan.Zero, executionOrder),
         };
 
         await dispatcher
             .DispatchAsync(message, handlers, (handler, msg, ct) => handler.HandleAsync(msg, ct), cancellationToken)
             .ConfigureAwait(false);
 
-        var order = executionOrder.ToArray();
-        using (Assert.Multiple())
-        {
-            _ = await Assert.That(order).Count().IsEqualTo(3);
-            _ = await Assert.That(order[0]).IsEqualTo(1);
-            _ = await Assert.That(order[1]).IsEqualTo(2);
-            _ = await Assert.That(order[2]).IsEqualTo(3);
-        }
+        _ = await Assert.That(executionOrder.ToArray()).IsEquivalentTo([1, 2, 3], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -215,6 +211,32 @@ public class PrioritizedEventDispatcherTests
 
             _executionOrder.Enqueue(_id);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class DelayedPrioritizedTestHandler : IPrioritizedEventHandler<TestEvent>
+    {
+        private readonly int _id;
+        private readonly TimeSpan _delay;
+        private readonly ConcurrentQueue<int> _executionOrder;
+
+        public DelayedPrioritizedTestHandler(int id, int priority, TimeSpan delay, ConcurrentQueue<int> executionOrder)
+        {
+            _id = id;
+            Priority = priority;
+            _delay = delay;
+            _executionOrder = executionOrder;
+        }
+
+        public int Priority { get; }
+
+        public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
+
+            _executionOrder.Enqueue(_id);
         }
     }
 

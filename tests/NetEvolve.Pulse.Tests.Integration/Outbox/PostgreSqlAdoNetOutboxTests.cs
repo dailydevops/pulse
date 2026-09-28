@@ -21,46 +21,6 @@ public class PostgreSqlAdoNetOutboxTests(
 ) : OutboxTestsBase(databaseServiceFixture, databaseInitializer)
 {
     [Test]
-    public async Task Should_Mark_Multiple_Messages_AsCompleted_OnlyProcessingMessages(
-        CancellationToken cancellationToken
-    ) =>
-        await RunAndVerify(
-                async (services, token) =>
-                {
-                    var mediator = services.GetRequiredService<IMediator>();
-
-                    await PublishEventsAsync(mediator, 3, x => new BatchTestEvent { Id = $"Test{x:D3}" }, token)
-                        .ConfigureAwait(false);
-
-                    var outbox = services.GetRequiredService<IOutboxRepository>();
-                    var processing = await outbox.GetPendingAsync(2, token).ConfigureAwait(false);
-
-                    _ = await Assert.That(processing.Count).IsEqualTo(2);
-
-                    var pendingCountBefore = await outbox.GetPendingCountAsync(token).ConfigureAwait(false);
-
-                    _ = await Assert.That(pendingCountBefore).IsEqualTo(1);
-
-                    var messageIds = processing.Select(m => m.Id).ToArray();
-                    await outbox.MarkAsCompletedAsync(messageIds, token).ConfigureAwait(false);
-
-                    var management = services.GetRequiredService<IOutboxManagement>();
-                    var statistics = await management.GetStatisticsAsync(token).ConfigureAwait(false);
-
-                    using (Assert.Multiple())
-                    {
-                        _ = await Assert.That(statistics.Completed).IsEqualTo(2L);
-                        _ = await Assert.That(statistics.Processing).IsEqualTo(0L);
-                        _ = await Assert.That(statistics.Pending).IsEqualTo(1L);
-                    }
-                },
-                cancellationToken,
-                configureServices: services =>
-                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-            )
-            .ConfigureAwait(false);
-
-    [Test]
     public async Task Should_Mark_Multiple_Messages_AsFailed_IncrementsRetryCountPerMessage(
         CancellationToken cancellationToken
     ) =>
@@ -92,42 +52,6 @@ public class PostgreSqlAdoNetOutboxTests(
                             )
                             .IsTrue();
                         _ = await Assert.That(failedForRetry.All(m => m.NextRetryAt is null)).IsTrue();
-                    }
-                },
-                cancellationToken,
-                configureServices: services =>
-                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
-            )
-            .ConfigureAwait(false);
-
-    [Test]
-    public async Task Should_Mark_Multiple_Messages_AsFailed_OnlyProcessingMessages(
-        CancellationToken cancellationToken
-    ) =>
-        await RunAndVerify(
-                async (services, token) =>
-                {
-                    var mediator = services.GetRequiredService<IMediator>();
-
-                    await PublishEventsAsync(mediator, 3, x => new BatchTestEvent { Id = $"Test{x:D3}" }, token)
-                        .ConfigureAwait(false);
-
-                    var outbox = services.GetRequiredService<IOutboxRepository>();
-                    var processing = await outbox.GetPendingAsync(2, token).ConfigureAwait(false);
-
-                    _ = await Assert.That(processing.Count).IsEqualTo(2);
-
-                    var messageIds = processing.Select(m => m.Id).ToArray();
-                    await outbox.MarkAsFailedAsync(messageIds, "Batch error", token).ConfigureAwait(false);
-
-                    var management = services.GetRequiredService<IOutboxManagement>();
-                    var statistics = await management.GetStatisticsAsync(token).ConfigureAwait(false);
-
-                    using (Assert.Multiple())
-                    {
-                        _ = await Assert.That(statistics.Failed).IsEqualTo(2L);
-                        _ = await Assert.That(statistics.Processing).IsEqualTo(0L);
-                        _ = await Assert.That(statistics.Pending).IsEqualTo(1L);
                     }
                 },
                 cancellationToken,

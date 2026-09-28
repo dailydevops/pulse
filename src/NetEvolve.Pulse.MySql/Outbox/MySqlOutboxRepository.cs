@@ -168,6 +168,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 `{OutboxMessageSchema.Columns.UpdatedAt}` = @nowTicks,
                 `{OutboxMessageSchema.Columns.ProcessedAt}` = @nowTicks
             WHERE `{OutboxMessageSchema.Columns.Id}` = @messageId
+              AND `{OutboxMessageSchema.Columns.Status}` = 1
             """;
 
         _markFailedSql = $"""
@@ -177,6 +178,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 `{OutboxMessageSchema.Columns.Error}` = @error,
                 `{OutboxMessageSchema.Columns.RetryCount}` = `{OutboxMessageSchema.Columns.RetryCount}` + 1
             WHERE `{OutboxMessageSchema.Columns.Id}` = @messageId
+              AND `{OutboxMessageSchema.Columns.Status}` = 1
             """;
 
         _markFailedWithRetrySql = $"""
@@ -187,6 +189,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 `{OutboxMessageSchema.Columns.RetryCount}` = `{OutboxMessageSchema.Columns.RetryCount}` + 1,
                 `{OutboxMessageSchema.Columns.NextRetryAt}` = @nextRetryAtTicks
             WHERE `{OutboxMessageSchema.Columns.Id}` = @messageId
+              AND `{OutboxMessageSchema.Columns.Status}` = 1
             """;
 
         _markDeadLetterSql = $"""
@@ -196,6 +199,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 `{OutboxMessageSchema.Columns.ProcessedAt}` = @nowTicks,
                 `{OutboxMessageSchema.Columns.Error}` = @error
             WHERE `{OutboxMessageSchema.Columns.Id}` = @messageId
+              AND `{OutboxMessageSchema.Columns.Status}` = 1
             """;
 
         _deleteCompletedSql = $"""
