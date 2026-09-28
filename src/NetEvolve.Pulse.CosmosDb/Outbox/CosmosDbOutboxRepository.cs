@@ -165,9 +165,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             patches.Add(PatchOperation.Set("/ttl", _ttlSeconds));
         }
 
-        _ = await _container
-            .PatchItemAsync<CosmosDbOutboxDocument>(id, partitionKey, patches, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        await PatchProcessingMessageAsync(id, partitionKey, patches, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -191,9 +189,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             PatchOperation.Increment("/retryCount", 1),
         };
 
-        _ = await _container
-            .PatchItemAsync<CosmosDbOutboxDocument>(id, partitionKey, patches, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        await PatchProcessingMessageAsync(id, partitionKey, patches, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -219,9 +215,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             PatchOperation.Set("/nextRetryAt", nextRetryAt),
         };
 
-        _ = await _container
-            .PatchItemAsync<CosmosDbOutboxDocument>(id, partitionKey, patches, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        await PatchProcessingMessageAsync(id, partitionKey, patches, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -250,9 +244,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             patches.Add(PatchOperation.Set("/ttl", _ttlSeconds));
         }
 
-        _ = await _container
-            .PatchItemAsync<CosmosDbOutboxDocument>(id, partitionKey, patches, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        await PatchProcessingMessageAsync(id, partitionKey, patches, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -451,6 +443,46 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
 
         // Candidates arrive in _ts order; the outbox contract requires CreatedAt order.
         return [.. claimed.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
+    }
+
+    /// <summary>
+    /// Applies <paramref name="patches"/> only while the document is still <see cref="OutboxMessageStatus.Processing"/>,
+    /// so a late status update from a stalled worker cannot overwrite a message that is already settled.
+    /// </summary>
+    /// <remarks>
+    /// A document that is no longer <see cref="OutboxMessageStatus.Processing"/> (412 Precondition Failed)
+    /// or no longer exists (404 Not Found) is skipped silently, as in the relational providers.
+    /// </remarks>
+    /// <param name="id">The document identifier.</param>
+    /// <param name="partitionKey">The partition key of the document.</param>
+    /// <param name="patches">The patch operations to apply.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task PatchProcessingMessageAsync(
+        string id,
+        PartitionKey partitionKey,
+        IReadOnlyList<PatchOperation> patches,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            _ = await _container
+                .PatchItemAsync<CosmosDbOutboxDocument>(
+                    id,
+                    partitionKey,
+                    patches,
+                    new PatchItemRequestOptions { FilterPredicate = "FROM c WHERE c.status = 1" },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound)
+        {
+            // The message was settled by another worker or deleted meanwhile — nothing to update.
+        }
     }
 
     /// <summary>
