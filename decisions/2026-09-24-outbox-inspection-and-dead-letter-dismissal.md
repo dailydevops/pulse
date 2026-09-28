@@ -40,6 +40,7 @@ The following constraints apply:
 ## Decision
 
 - Add `GetMessagesAsync(int pageSize = 50, int page = 0, OutboxMessageStatus? status = null, CancellationToken cancellationToken = default)`. It returns messages in any status, or only messages in `status` when set. Results are ordered by `UpdatedAt` descending. Where the store supports it cheaply, providers add `Id` descending as a tie-breaker. The method never changes message state.
+- `GetDeadLetterMessagesAsync` uses the same order, `UpdatedAt` descending and then `Id` descending, in every provider. Cosmos DB is the exception and orders by `UpdatedAt` only; the tie-breaker there is tracked in #793.
 - Add `GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)`. It returns the message in any status, or `null` when it does not exist.
 - Add `DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)`. It permanently deletes the message only if its status is `DeadLetter`. It returns `true` when a dead letter was deleted and `false` otherwise, so the endpoint can answer `404 Not Found`.
 - Validate paging the same way in every provider, following the existing Entity Framework guard. `pageSize` must be greater than zero, `page` must not be negative, and `page * pageSize` must not exceed `int.MaxValue`. Violations throw `ArgumentOutOfRangeException`.

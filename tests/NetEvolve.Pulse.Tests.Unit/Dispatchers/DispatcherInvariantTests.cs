@@ -246,6 +246,71 @@ public sealed class DispatcherInvariantTests
         }
     }
 
+    // ----- Caller cancellation (all dispatchers) -----
+
+    [Test]
+    [Arguments(nameof(ParallelEventDispatcher))]
+    [Arguments(nameof(SequentialEventDispatcher))]
+    [Arguments(nameof(PrioritizedEventDispatcher))]
+    [Arguments(nameof(RateLimitedEventDispatcher))]
+    public async Task DispatchAsync_SingleHandlerObservesCallerCancellation_ThrowsOperationCanceledException(
+        string dispatcherName,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var dispatcher = CreateDispatcher(dispatcherName);
+        var msg = new TestEvent();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        IEventHandler<TestEvent>[] handlers = [new CancellingPrioritizedHandler(0, cts)];
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await dispatcher
+                .DispatchAsync(msg, handlers, (h, m, ct) => h.HandleAsync(m, ct), cts.Token)
+                .ConfigureAwait(false)
+        );
+    }
+
+    [Test]
+    [Arguments(nameof(ParallelEventDispatcher))]
+    [Arguments(nameof(SequentialEventDispatcher))]
+    [Arguments(nameof(PrioritizedEventDispatcher))]
+    [Arguments(nameof(RateLimitedEventDispatcher))]
+    public async Task DispatchAsync_LastHandlerObservesCallerCancellation_ThrowsOperationCanceledException(
+        string dispatcherName,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var dispatcher = CreateDispatcher(dispatcherName);
+        var msg = new TestEvent();
+        var executedIds = new ConcurrentBag<int>();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        IEventHandler<TestEvent>[] handlers =
+        [
+            new RecordingPrioritizedHandler(1, 0, executedIds),
+            new CancellingPrioritizedHandler(100, cts),
+        ];
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await dispatcher
+                .DispatchAsync(msg, handlers, (h, m, ct) => h.HandleAsync(m, ct), cts.Token)
+                .ConfigureAwait(false)
+        );
+    }
+
+    private static IEventDispatcher CreateDispatcher(string dispatcherName) =>
+        dispatcherName switch
+        {
+            nameof(ParallelEventDispatcher) => new ParallelEventDispatcher(),
+            nameof(SequentialEventDispatcher) => new SequentialEventDispatcher(),
+            nameof(PrioritizedEventDispatcher) => new PrioritizedEventDispatcher(),
+            nameof(RateLimitedEventDispatcher) => new RateLimitedEventDispatcher(maxConcurrency: 2),
+            _ => throw new ArgumentOutOfRangeException(nameof(dispatcherName), dispatcherName, null),
+        };
+
     // ----- Test fixtures -----
 
     private sealed class TestEvent : IEvent
@@ -390,6 +455,27 @@ public sealed class DispatcherInvariantTests
 
             _executedIds.Add(_id);
             throw _exceptionFactory();
+        }
+    }
+
+    private sealed class CancellingPrioritizedHandler : IPrioritizedEventHandler<TestEvent>
+    {
+        private readonly CancellationTokenSource _cts;
+
+        public CancellingPrioritizedHandler(int priority, CancellationTokenSource cts)
+        {
+            Priority = priority;
+            _cts = cts;
+        }
+
+        public int Priority { get; }
+
+        public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await _cts.CancelAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
         }
     }
 }

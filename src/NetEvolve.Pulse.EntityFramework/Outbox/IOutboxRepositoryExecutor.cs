@@ -94,6 +94,8 @@ internal interface IOutboxRepositoryExecutor : IDisposable
     /// Semantically equivalent to <see cref="UpdateByQueryAsync"/> but targets messages by ID
     /// rather than by an arbitrary query. Used for bulk outcome reporting when the caller already
     /// holds a collection of message identifiers.
+    /// Implementations MUST update only messages that are still in <see cref="OutboxMessageStatus.Processing"/>;
+    /// identifiers of messages in any other status, or of unknown messages, are skipped silently.
     /// Implementations may issue a single bulk statement or iterate per ID, depending on what the
     /// underlying EF Core provider supports.
     /// </remarks>

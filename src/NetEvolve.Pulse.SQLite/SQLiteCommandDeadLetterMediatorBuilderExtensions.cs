@@ -27,6 +27,7 @@ public static class SQLiteCommandDeadLetterMediatorBuilderExtensions
     /// <list type="bullet">
     /// <item><description><see cref="ICommandDeadLetterStore"/> as <see cref="SQLiteCommandDeadLetterStore"/> (Scoped)</description></item>
     /// <item><description><see cref="ICommandDeadLetterManagement"/> as <see cref="SQLiteCommandDeadLetterManagement"/> (Scoped)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// </remarks>
     /// <example>

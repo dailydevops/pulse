@@ -7,6 +7,11 @@ namespace NetEvolve.Pulse.Extensibility.Audit;
 /// <para><strong>Implementation Guidelines:</strong></para>
 /// Implementations MUST persist the given <see cref="AuditRecord"/> as a new row, without
 /// modifying any of its property values.
+/// <para><strong>Failure Semantics:</strong></para>
+/// The audit interceptor calls <see cref="RecordAsync"/> after the handler has finished, with
+/// <see cref="CancellationToken.None"/>. Implementations MUST bound their own execution time, for example with
+/// command or connection timeouts, because a hanging call blocks the audited request. Exceptions thrown by
+/// <see cref="RecordAsync"/> are logged by the interceptor and do not fail the request.
 /// </remarks>
 public interface IAuditStore
 {
