@@ -157,7 +157,7 @@ public sealed class EntityFrameworkOutboxInitializer : IServiceInitializer
         }
     }
 
-    private sealed class TestDbContext : DbContext, IOutboxDbContext
+    internal sealed class TestDbContext : DbContext, IOutboxDbContext
     {
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 

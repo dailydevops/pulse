@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -13,7 +14,9 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// mutations, and flush via <c>SaveChangesAsync</c>. <see cref="DeleteByQueryAsync"/> projects
 /// only the entity keys and deletes through key stubs, avoiding materialization of payloads.
 /// Rows claimed by a competing poller between load and save are detected through the
-/// <see cref="OutboxMessage.Status"/> concurrency token and skipped instead of overwritten.
+/// <see cref="OutboxMessage.Status"/> and <see cref="OutboxMessage.UpdatedAt"/> concurrency tokens
+/// and skipped instead of overwritten. The claim filter passed to <see cref="FetchAndMarkAsync"/> is
+/// not needed here, because the concurrency tokens already reject any row changed since it was loaded.
 /// Derived classes only need to implement <see cref="UpdateByIdsAsync"/>, which varies by provider.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
@@ -34,6 +37,7 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
     /// <inheritdoc />
     public async Task<OutboxMessage[]> FetchAndMarkAsync(
         IQueryable<OutboxMessage> baseQuery,
+        Expression<Func<OutboxMessage, bool>> claimFilter,
         DateTimeOffset updatedAt,
         OutboxMessageStatus newStatus,
         CancellationToken cancellationToken
@@ -129,10 +133,15 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
         await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // Project only the key (plus status) instead of materializing full entities —
+            // Project only the key (plus the concurrency tokens) instead of materializing full entities —
             // deleting does not need the potentially large payload column in memory.
             var rows = await query
-                .Select(m => new { m.Id, m.Status })
+                .Select(m => new
+                {
+                    m.Id,
+                    m.Status,
+                    m.UpdatedAt,
+                })
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -149,7 +158,12 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
                 var row = rows[i];
                 entities[i] = tracked.TryGetValue(row.Id, out var entity)
                     ? entity
-                    : new OutboxMessage { Id = row.Id, Status = row.Status };
+                    : new OutboxMessage
+                    {
+                        Id = row.Id,
+                        Status = row.Status,
+                        UpdatedAt = row.UpdatedAt,
+                    };
             }
 
             _context.OutboxMessages.RemoveRange(entities);

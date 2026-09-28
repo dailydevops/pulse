@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -28,6 +29,7 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
     /// <inheritdoc />
     public async Task<OutboxMessage[]> FetchAndMarkAsync(
         IQueryable<OutboxMessage> baseQuery,
+        Expression<Func<OutboxMessage, bool>> claimFilter,
         DateTimeOffset updatedAt,
         OutboxMessageStatus newStatus,
         CancellationToken cancellationToken
@@ -45,7 +47,12 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
 
             var ids = Array.ConvertAll(entities, m => m.Id);
 
-            var claimed = await baseQuery
+            // Claim through the plain table with the full eligibility predicate instead of the ordered,
+            // limited baseQuery: EF Core would join the target back to a limited subquery, leaving the
+            // predicate off the updated row. PostgreSQL READ COMMITTED re-evaluates only the target
+            // row's WHERE clause after waiting on a competing claim, so the predicate must live there.
+            var claimed = await context
+                .OutboxMessages.Where(claimFilter)
                 .Where(m => ids.Contains(m.Id))
                 .ExecuteUpdateAsync(
                     m => m.SetProperty(m => m.Status, newStatus).SetProperty(m => m.UpdatedAt, updatedAt),
@@ -55,9 +62,10 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
 
             if (claimed == entities.Length)
             {
-                // Uncontended fast path: every selected row was transitioned by this caller,
-                // so the already loaded entities can be patched in memory instead of paying
-                // a third database round trip for a re-fetch.
+                // Uncontended fast path: the claim re-checks the eligibility predicate on every
+                // target row, so the affected-row count only includes rows this caller transitioned.
+                // All selected rows were claimed, and the loaded entities can be patched in memory
+                // instead of paying a third database round trip for a re-fetch.
                 foreach (var entity in entities)
                 {
                     entity.Status = newStatus;
@@ -75,11 +83,25 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
             // A competing poller claimed part of the candidate set; re-fetch only the rows
             // this caller actually transitioned, identified by the new status and this
             // caller's UpdatedAt stamp.
-            return await context
+            // Known limit: UpdatedAt doubles as the claim token, so two claimers writing an identical
+            // stamp (e.g. a shared fake clock) cannot be told apart; see
+            // decisions/2026-09-24-entityframework-outbox-claim-concurrency.md.
+            var claimedIds = await context
                 .OutboxMessages.AsNoTracking()
                 .Where(m => ids.Contains(m.Id) && m.Status == newStatus && m.UpdatedAt == updatedAt)
-                .ToArrayAsync(cancellationToken)
+                .Select(m => m.Id)
+                .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            // Keep the batch order of the candidate query.
+            var result = Array.FindAll(entities, e => claimedIds.Contains(e.Id));
+            foreach (var entity in result)
+            {
+                entity.Status = newStatus;
+                entity.UpdatedAt = updatedAt;
+            }
+
+            return result;
         }
         finally
         {

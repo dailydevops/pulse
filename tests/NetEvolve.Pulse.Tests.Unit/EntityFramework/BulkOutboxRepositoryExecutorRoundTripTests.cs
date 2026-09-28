@@ -66,6 +66,7 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
                             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending)
                             .OrderBy(m => m.CreatedAt)
                             .Take(10),
+                        m => m.Status == OutboxMessageStatus.Pending,
                         updatedAt,
                         OutboxMessageStatus.Processing,
                         cancellationToken
@@ -95,6 +96,76 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
     }
 
     [Test]
+    public async Task FetchAndMarkAsync_WhenPartOfBatchWasClaimed_ReturnsOnlyOwnClaimsInBatchOrder(
+        CancellationToken cancellationToken
+    )
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            var options = new DbContextOptionsBuilder<TestDbContext>().UseSqlite(connection).Options;
+            var context = new TestDbContext(options);
+            await using (context.ConfigureAwait(false))
+            {
+                _ = await context.Database.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
+
+                var createdAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+                var competitorStamp = createdAt.AddMinutes(1);
+                var messageIds = new List<Guid>();
+                for (var i = 0; i < 3; i++)
+                {
+                    var alreadyClaimed = i == 1;
+                    var message = new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        EventType = typeof(string),
+                        Payload = $"{{\"index\":{i}}}",
+                        CreatedAt = createdAt.AddSeconds(i),
+                        UpdatedAt = alreadyClaimed ? competitorStamp : createdAt.AddSeconds(i),
+                        Status = alreadyClaimed ? OutboxMessageStatus.Processing : OutboxMessageStatus.Pending,
+                    };
+                    messageIds.Add(message.Id);
+                    _ = await context.OutboxMessages.AddAsync(message, cancellationToken).ConfigureAwait(false);
+                }
+                _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                context.ChangeTracker.Clear();
+
+                using var executor = new BulkOutboxRepositoryExecutor<TestDbContext>(context, 1);
+
+                var updatedAt = DateTimeOffset.UtcNow;
+
+                // The candidate query still sees the row a competing poller already claimed.
+                var result = await executor
+                    .FetchAndMarkAsync(
+                        context.OutboxMessages.OrderBy(m => m.CreatedAt),
+                        m => m.Status == OutboxMessageStatus.Pending,
+                        updatedAt,
+                        OutboxMessageStatus.Processing,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+
+                var competitorRow = await context
+                    .OutboxMessages.AsNoTracking()
+                    .SingleAsync(m => m.Id == messageIds[1], cancellationToken)
+                    .ConfigureAwait(false);
+
+                using (Assert.Multiple())
+                {
+                    _ = await Assert.That(result.Select(m => m.Id)).IsEquivalentTo([messageIds[0], messageIds[2]]);
+                    _ = await Assert.That(result[0].Id).IsEqualTo(messageIds[0]);
+                    _ = await Assert
+                        .That(result.All(m => m.Status == OutboxMessageStatus.Processing && m.UpdatedAt == updatedAt))
+                        .IsTrue();
+                    _ = await Assert.That(competitorRow.UpdatedAt).IsEqualTo(competitorStamp);
+                }
+            }
+        }
+    }
+
+    [Test]
     public async Task FetchAndMarkAsync_WithoutPendingMessages_ReturnsEmpty(CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
@@ -113,6 +184,7 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
                 var result = await executor
                     .FetchAndMarkAsync(
                         context.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending),
+                        m => m.Status == OutboxMessageStatus.Pending,
                         DateTimeOffset.UtcNow,
                         OutboxMessageStatus.Processing,
                         cancellationToken

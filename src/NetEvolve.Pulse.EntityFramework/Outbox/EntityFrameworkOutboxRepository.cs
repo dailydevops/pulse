@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse.Outbox;
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -13,7 +14,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <para><strong>Transaction Support:</strong></para>
 /// Operations participate in the ambient <see cref="DbContext"/> transaction when one is active.
 /// <para><strong>Concurrency:</strong></para>
-/// Uses optimistic concurrency with status checks. For high-throughput scenarios,
+/// Bulk executors re-check the full eligibility predicate on every claimed row; change-tracking
+/// executors rely on optimistic concurrency tokens. For high-throughput scenarios,
 /// consider using the SQL Server ADO.NET provider with explicit locking.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
@@ -76,15 +78,13 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        var baseQuery = _context
-            .OutboxMessages.Where(m =>
-                m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now)
-            )
-            .OrderBy(m => m.CreatedAt)
-            .Take(batchSize);
+        Expression<Func<OutboxMessage, bool>> claimFilter = m =>
+            m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now);
+
+        var baseQuery = _context.OutboxMessages.Where(claimFilter).OrderBy(m => m.CreatedAt).Take(batchSize);
 
         var messages = await _executor
-            .FetchAndMarkAsync(baseQuery, now, OutboxMessageStatus.Processing, cancellationToken)
+            .FetchAndMarkAsync(baseQuery, claimFilter, now, OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
 
         return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
@@ -109,17 +109,15 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     {
         var now = _timeProvider.GetUtcNow();
 
-        var baseQuery = _context
-            .OutboxMessages.Where(m =>
-                m.Status == OutboxMessageStatus.Failed
-                && m.RetryCount < maxRetryCount
-                && (m.NextRetryAt == null || m.NextRetryAt <= now)
-            )
-            .OrderBy(m => m.UpdatedAt)
-            .Take(batchSize);
+        Expression<Func<OutboxMessage, bool>> claimFilter = m =>
+            m.Status == OutboxMessageStatus.Failed
+            && m.RetryCount < maxRetryCount
+            && (m.NextRetryAt == null || m.NextRetryAt <= now);
+
+        var baseQuery = _context.OutboxMessages.Where(claimFilter).OrderBy(m => m.UpdatedAt).Take(batchSize);
 
         var messages = await _executor
-            .FetchAndMarkAsync(baseQuery, now, OutboxMessageStatus.Processing, cancellationToken)
+            .FetchAndMarkAsync(baseQuery, claimFilter, now, OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
 
         return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
