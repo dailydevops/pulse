@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using static Internals.Defaults.Tags;
@@ -21,33 +22,6 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     where TQuery : IStreamQuery<TResponse>
 {
     /// <summary>
-    /// Counter tracking the total number of stream queries processed, tagged by query type.
-    /// </summary>
-    private static readonly Counter<long> StreamQueryCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.stream_query.total",
-        "queries",
-        "Total number of stream queries processed."
-    );
-
-    /// <summary>
-    /// Counter tracking the total number of stream query errors, tagged by query type.
-    /// </summary>
-    private static readonly Counter<long> ErrorsCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.stream_query.errors",
-        "errors",
-        "Total number of stream query errors."
-    );
-
-    /// <summary>
-    /// Histogram measuring stream query processing duration in milliseconds, with percentile distributions.
-    /// </summary>
-    private static readonly Histogram<double> StreamQueryDurationHistogram = Defaults.Meter.CreateHistogram<double>(
-        "pulse.stream_query.duration",
-        "ms",
-        "Duration of stream query processing in milliseconds."
-    );
-
-    /// <summary>
     /// Cached query name derived from the generic type parameter.
     /// Static fields in generic types are per type instantiation, so this is computed once per <typeparamref name="TQuery"/>.
     /// </summary>
@@ -60,6 +34,26 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     private static readonly string ResponseTypeName = typeof(TResponse).Name;
 
     /// <summary>
+    /// Counter <c>pulse.stream_query.total</c>, tagged by type.
+    /// </summary>
+    private readonly Counter<long> _streamQueryCounter;
+
+    /// <summary>
+    /// Counter <c>pulse.stream_query.errors</c>, tagged by type.
+    /// </summary>
+    private readonly Counter<long> _errorsCounter;
+
+    /// <summary>
+    /// Histogram <c>pulse.stream_query.duration</c> in milliseconds, or in seconds when semantic convention units are enabled.
+    /// </summary>
+    private readonly Histogram<double> _streamQueryDurationHistogram;
+
+    /// <summary>
+    /// Whether the metrics use the units of the OpenTelemetry semantic conventions.
+    /// </summary>
+    private readonly bool _useSemanticConventionUnits;
+
+    /// <summary>
     /// Time provider for consistent timestamp generation, supporting testability.
     /// </summary>
     private readonly TimeProvider _timeProvider;
@@ -68,7 +62,37 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     /// Initializes a new instance of the <see cref="ActivityAndMetricsStreamQueryInterceptor{TQuery, TResponse}"/> class.
     /// </summary>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    public ActivityAndMetricsStreamQueryInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    /// <param name="options">The telemetry options; <see langword="null"/> keeps the legacy units.</param>
+    public ActivityAndMetricsStreamQueryInterceptor(
+        TimeProvider timeProvider,
+        IOptions<ActivityAndMetricsOptions>? options = null
+    )
+    {
+        _timeProvider = timeProvider;
+        _useSemanticConventionUnits = options?.Value.UseSemanticConventionUnits ?? false;
+        _streamQueryCounter = TelemetryUnits.CreateCounter(
+            Defaults.Meter,
+            "pulse.stream_query.total",
+            "queries",
+            "{query}",
+            "Total number of stream queries processed.",
+            _useSemanticConventionUnits
+        );
+        _errorsCounter = TelemetryUnits.CreateCounter(
+            Defaults.Meter,
+            "pulse.stream_query.errors",
+            "errors",
+            "{error}",
+            "Total number of stream query errors.",
+            _useSemanticConventionUnits
+        );
+        _streamQueryDurationHistogram = TelemetryUnits.CreateDurationHistogram(
+            Defaults.Meter,
+            "pulse.stream_query.duration",
+            "stream query processing",
+            _useSemanticConventionUnits
+        );
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -122,7 +146,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
             .SetTag(RequestCorrelationId, request.CorrelationId)
             .SetTag(StreamQueryCausationId, request.CausationId)
             .SetTag(RequestTimestamp, startTime);
-        StreamQueryCounter.Add(1, tags);
+        _streamQueryCounter.Add(1, tags);
 
         // yield return is not allowed inside a try/catch block, so we capture any exception
         // from the handler or the inner enumerator and re-throw it after the finally block ran.
@@ -200,7 +224,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     )
     {
         var endTime = _timeProvider.GetUtcNow();
-        var duration = (endTime - startTime).TotalMilliseconds;
+        var duration = TelemetryUnits.ToDuration(endTime - startTime, _useSemanticConventionUnits);
         _ = activity?.SetEndTime(endTime.UtcDateTime);
 
         if (exception is not null)
@@ -217,22 +241,22 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
                 .SetTag(ExceptionTimestamp, endTime)
                 .SetTag(Success, value: false);
 
-            ErrorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
-            StreamQueryDurationHistogram.Record(duration, [.. tags, new(Success, false), new(ErrorType, errorType)]);
+            _errorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
+            _streamQueryDurationHistogram.Record(duration, [.. tags, new(Success, false), new(ErrorType, errorType)]);
         }
         else if (completed)
         {
             // Status stays Unset on success, as required by the OpenTelemetry Trace API.
             _ = activity?.SetTag(ResponseTimestamp, endTime).SetTag(Success, value: true);
 
-            StreamQueryDurationHistogram.Record(duration, [.. tags, new(Success, true)]);
+            _streamQueryDurationHistogram.Record(duration, [.. tags, new(Success, true)]);
         }
         else
         {
             // The consumer stopped early: not an error, so the status stays Unset.
             _ = activity?.SetTag(StreamCompleted, value: false);
 
-            StreamQueryDurationHistogram.Record(duration, [.. tags, new(StreamCompleted, false)]);
+            _streamQueryDurationHistogram.Record(duration, [.. tags, new(StreamCompleted, false)]);
         }
     }
 }

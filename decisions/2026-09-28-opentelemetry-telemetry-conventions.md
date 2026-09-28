@@ -6,7 +6,7 @@ applyTo:
   - "src/NetEvolve.Pulse/Interceptors/ActivityAndMetrics*.cs"
   - "src/NetEvolve.Pulse/Outbox/OutboxProcessorHostedService.cs"
   - "src/NetEvolve.Pulse/Internals/Defaults.cs"
-  - "src/NetEvolve.Pulse/Internals/OperationInstruments.cs"
+  - "src/NetEvolve.Pulse/Internals/TelemetryUnits.cs"
 
 created: 2026-09-28
 

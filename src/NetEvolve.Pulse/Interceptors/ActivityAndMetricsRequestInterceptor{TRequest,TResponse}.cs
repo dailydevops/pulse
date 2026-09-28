@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using static Internals.Defaults.Tags;
@@ -18,31 +19,24 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     /// <summary>
-    /// Counter tracking the total number of requests processed, tagged by request type.
+    /// Counter <c>pulse.requests.total</c>, tagged by type.
     /// </summary>
-    private static readonly Counter<long> RequestCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.requests.total",
-        "requests",
-        "Total number of requests processed."
-    );
+    private readonly Counter<long> _requestCounter;
 
     /// <summary>
-    /// Counter tracking the total number of request errors, tagged by request type.
+    /// Counter <c>pulse.request.errors</c>, tagged by type.
     /// </summary>
-    private static readonly Counter<long> ErrorsCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.request.errors",
-        "errors",
-        "Total number of request errors."
-    );
+    private readonly Counter<long> _errorsCounter;
 
     /// <summary>
-    /// Histogram measuring request processing duration in milliseconds, with percentile distributions.
+    /// Histogram <c>pulse.request.duration</c> in milliseconds, or in seconds when semantic convention units are enabled.
     /// </summary>
-    private static readonly Histogram<double> RequestDurationHistogram = Defaults.Meter.CreateHistogram<double>(
-        "pulse.request.duration",
-        "ms",
-        "Duration of request processing in milliseconds."
-    );
+    private readonly Histogram<double> _requestDurationHistogram;
+
+    /// <summary>
+    /// Whether the metrics use the units of the OpenTelemetry semantic conventions.
+    /// </summary>
+    private readonly bool _useSemanticConventionUnits;
 
     /// <summary>
     /// Time provider for consistent timestamp generation, supporting testability.
@@ -53,7 +47,37 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// Initializes a new instance of the <see cref="ActivityAndMetricsRequestInterceptor{TRequest, TResponse}"/> class.
     /// </summary>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    public ActivityAndMetricsRequestInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    /// <param name="options">The telemetry options; <see langword="null"/> keeps the legacy units.</param>
+    public ActivityAndMetricsRequestInterceptor(
+        TimeProvider timeProvider,
+        IOptions<ActivityAndMetricsOptions>? options = null
+    )
+    {
+        _timeProvider = timeProvider;
+        _useSemanticConventionUnits = options?.Value.UseSemanticConventionUnits ?? false;
+        _requestCounter = TelemetryUnits.CreateCounter(
+            Defaults.Meter,
+            "pulse.requests.total",
+            "requests",
+            "{request}",
+            "Total number of requests processed.",
+            _useSemanticConventionUnits
+        );
+        _errorsCounter = TelemetryUnits.CreateCounter(
+            Defaults.Meter,
+            "pulse.request.errors",
+            "errors",
+            "{error}",
+            "Total number of request errors.",
+            _useSemanticConventionUnits
+        );
+        _requestDurationHistogram = TelemetryUnits.CreateDurationHistogram(
+            Defaults.Meter,
+            "pulse.request.duration",
+            "request processing",
+            _useSemanticConventionUnits
+        );
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -104,7 +128,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
             .SetTag(RequestCorrelationId, request.CorrelationId)
             .SetTag(RequestCausationId, request.CausationId)
             .SetTag(RequestTimestamp, startTime);
-        RequestCounter.Add(1, tags);
+        _requestCounter.Add(1, tags);
 
         try
         {
@@ -120,7 +144,10 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
                 .SetTag(Success, value: true);
 
             // Record successful execution duration
-            RequestDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
+            _requestDurationHistogram.Record(
+                TelemetryUnits.ToDuration(endTime - startTime, _useSemanticConventionUnits),
+                [.. tags, new(Success, true)]
+            );
 
             return response;
         }
@@ -141,9 +168,9 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
                 .SetTag(Success, value: false);
 
             // Increment error counters and record failed execution duration
-            ErrorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
-            RequestDurationHistogram.Record(
-                (errorTime - startTime).TotalMilliseconds,
+            _errorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
+            _requestDurationHistogram.Record(
+                TelemetryUnits.ToDuration(errorTime - startTime, _useSemanticConventionUnits),
                 [.. tags, new(Success, false), new(ErrorType, errorType)]
             );
 
