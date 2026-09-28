@@ -1,10 +1,12 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
+using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
@@ -1280,28 +1282,77 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
-    public async Task ExecuteAsync_WithExponentialBackoffDisabled_DoesNotSetNextRetryAt(
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ExecuteAsync_WithExponentialBackoffDisabled_SetsNextRetryAtOnePollingIntervalAhead(
+        bool enableBatchSending,
         CancellationToken cancellationToken
     )
     {
-        using var repository = new InMemoryOutboxRepository();
-        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        using var timeProvider = new TimerSignalingTimeProvider();
+        using var repository = new InMemoryOutboxRepository(timeProvider);
+        var transport = new TimedFailingMessageTransport(timeProvider);
+        var pollingInterval = TimeSpan.FromSeconds(5);
         var options = Options.Create(
             new OutboxProcessorOptions
             {
-                PollingInterval = TimeSpan.FromMilliseconds(50),
+                PollingInterval = pollingInterval,
                 MaxRetryCount = 3,
-                EnableExponentialBackoff = false, // Disabled
+                EnableBatchSending = enableBatchSending,
             }
         );
-        var logger = CreateLogger();
         using var service = new OutboxProcessorHostedService(
             CreateScopeFactory(repository),
             transport,
             CreateLifetime(),
             options,
-            logger,
-            TimeProvider.System
+            CreateLogger(),
+            timeProvider
+        );
+
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        var failedAt = timeProvider.GetUtcNow();
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.Failed);
+            _ = await Assert.That(message.NextRetryAt).IsEqualTo(failedAt + pollingInterval);
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ExecuteAsync_WithExponentialBackoffDisabled_RetriesOncePerPollingInterval(
+        bool enableBatchSending,
+        CancellationToken cancellationToken
+    )
+    {
+        using var timeProvider = new TimerSignalingTimeProvider();
+        using var repository = new InMemoryOutboxRepository(timeProvider);
+        var transport = new TimedFailingMessageTransport(timeProvider);
+        var pollingInterval = TimeSpan.FromSeconds(5);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = pollingInterval,
+                MaxRetryCount = 3,
+                EnableBatchSending = enableBatchSending,
+            }
+        );
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            CreateLogger(),
+            timeProvider
         );
 
         var message = CreateMessage();
@@ -1310,15 +1361,72 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
         using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await timeProvider.WaitForTimerAsync(timeoutCts.Token).ConfigureAwait(false);
+        var attemptsWithinFirstInterval = transport.Attempts.Count;
+        var statusWithinFirstInterval = message.Status;
+
+        timeProvider.Advance(pollingInterval);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await timeProvider.WaitForTimerAsync(timeoutCts.Token).ConfigureAwait(false);
+
+        timeProvider.Advance(pollingInterval);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
-        // Get the failed message from the repository
-        var failedMessage = repository._messages.Find(m => m.Status == OutboxMessageStatus.Failed);
-
-        // If a message was processed and failed, it should not have NextRetryAt set
-        if (failedMessage is not null)
+        var attempts = transport.Attempts.ToArray();
+        using (Assert.Multiple())
         {
-            _ = await Assert.That(failedMessage.NextRetryAt).IsNull();
+            _ = await Assert.That(attemptsWithinFirstInterval).IsEqualTo(1);
+            _ = await Assert.That(statusWithinFirstInterval).IsEqualTo(OutboxMessageStatus.Failed);
+            _ = await Assert.That(attempts.Length).IsEqualTo(3);
+            _ = await Assert.That(attempts[1] - attempts[0]).IsGreaterThanOrEqualTo(pollingInterval);
+            _ = await Assert.That(attempts[2] - attempts[1]).IsGreaterThanOrEqualTo(pollingInterval);
+            _ = await Assert.That(repository.DeadLetterMessageIds).IsEquivalentTo([message.Id]);
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ExecuteAsync_WhenEveryFetchedMessageFails_WaitsForPollingIntervalBeforeNextCycle(
+        bool enableBatchSending,
+        CancellationToken cancellationToken
+    )
+    {
+        using var timeProvider = new TimerSignalingTimeProvider();
+        using var repository = new InMemoryOutboxRepository(timeProvider) { IgnoreNextRetryAt = true };
+        var transport = new TimedFailingMessageTransport(timeProvider);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromSeconds(5),
+                MaxRetryCount = 3,
+                EnableBatchSending = enableBatchSending,
+            }
+        );
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            CreateLogger(),
+            timeProvider
+        );
+
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await timeProvider.WaitForTimerAsync(timeoutCts.Token).ConfigureAwait(false);
+        var attemptsBeforeDelay = transport.Attempts.Count;
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(attemptsBeforeDelay).IsEqualTo(1);
+            _ = await Assert.That(repository.DeadLetterMessageIds).IsEmpty();
         }
     }
 
@@ -2311,6 +2419,47 @@ public sealed class OutboxProcessorHostedServiceTests
             BatchSendCallCount++;
             SentMessages.AddRange(messages);
             return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// A <see cref="FakeTimeProvider"/> that signals every timer it creates, so a test can advance the clock only
+    /// after the processor has started its polling delay.
+    /// </summary>
+    private sealed class TimerSignalingTimeProvider : FakeTimeProvider, IDisposable
+    {
+        private readonly SemaphoreSlim _timerCreated = new(0, int.MaxValue);
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = base.CreateTimer(callback, state, dueTime, period);
+            _ = _timerCreated.Release();
+            return timer;
+        }
+
+        public Task WaitForTimerAsync(CancellationToken cancellationToken) =>
+            _timerCreated.WaitAsync(cancellationToken);
+
+        public void Dispose() => _timerCreated.Dispose();
+    }
+
+    /// <summary>
+    /// A transport whose single and batch sends always fail and record the time of every attempt.
+    /// </summary>
+    private sealed class TimedFailingMessageTransport(TimeProvider timeProvider) : IMessageTransport
+    {
+        public ConcurrentQueue<DateTimeOffset> Attempts { get; } = new();
+
+        public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            Attempts.Enqueue(timeProvider.GetUtcNow());
+            throw new InvalidOperationException("Simulated transport failure");
+        }
+
+        public Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
+        {
+            Attempts.Enqueue(timeProvider.GetUtcNow());
+            throw new InvalidOperationException("Simulated batch transport failure");
         }
     }
 
