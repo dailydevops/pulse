@@ -5,9 +5,9 @@ authors:
 applyTo:
   - "src/NetEvolve.Pulse.AspNetCore/Outbox/**/*.cs"
 
-created: 2026-09-24
+created: 2026-09-28
 
-lastModified: 2026-09-24
+lastModified: 2026-09-28
 
 state: proposed
 

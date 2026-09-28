@@ -74,4 +74,4 @@ The following constraints apply:
 
 - [DateTimeOffset and TimeProvider Usage](./2026-01-21-datetimeoffset-and-timeprovider-usage.md) - Timestamps written by management operations use `TimeProvider`.
 - [GitVersion Automated Semantic Versioning](./2025-07-10-gitversion-automated-semantic-versioning.md) - Explains why the interface addition is released as a regular feature below 1.0.
-- [Outbox Inspector Page Size Cap](./2026-09-24-outbox-inspector-page-size-cap.md) - Adds an upper bound of 1000 for `pageSize` on the inspector listing endpoints.
+- [Outbox Inspector Page Size Cap](./2026-09-28-outbox-inspector-page-size-cap.md) - Adds an upper bound of 1000 for `pageSize` on the inspector listing endpoints.
