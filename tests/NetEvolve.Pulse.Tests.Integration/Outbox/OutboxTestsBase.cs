@@ -577,6 +577,37 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_MarkAsDeadLetter_Batch_Keep_RetryCount(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(1);
+
+                    await outbox.MarkAsDeadLetterAsync([pending[0].Id], "Fatal error", token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var message = await management.GetMessageAsync(pending[0].Id, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(message).IsNotNull();
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(message!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                        _ = await Assert.That(message.RetryCount).IsEqualTo(0);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_Ignore_Mark_For_Unknown_Message(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
