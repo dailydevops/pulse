@@ -163,6 +163,33 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     }
 
     [Test]
+    public async Task SendBatchAsync_With_more_messages_than_default_confirm_limiter_publishes_all(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // More than the 256 permits plus queue slots of the client's default ThrottlingRateLimiter(128).
+        const int messageCount = 300;
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var queueName = await BindQueueAsync(adminChannel, cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter);
+        var messages = Enumerable.Range(0, messageCount).Select(_ => CreateOutboxMessage()).ToList();
+
+        await transport
+            .SendBatchAsync(messages, cancellationToken)
+            .WaitAsync(PublishTimeout, cancellationToken)
+            .ConfigureAwait(false);
+
+        var receivedMessages = await ConsumeManyMessagesAsync(adminChannel, queueName, messageCount, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(receivedMessages.Count).IsEqualTo(messageCount);
+    }
+
+    [Test]
     public async Task IsHealthyAsync_When_connection_open_returns_true(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

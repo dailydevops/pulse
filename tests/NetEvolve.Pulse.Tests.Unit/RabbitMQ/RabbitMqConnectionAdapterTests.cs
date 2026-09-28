@@ -44,4 +44,31 @@ public sealed class RabbitMqConnectionAdapterTests
             )
             .WasCalled(Times.Once);
     }
+
+    [Test]
+    public async Task CreateChannelAsync_Disables_outstanding_confirmations_rate_limiter(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var channel = Mock.Of<IChannel>();
+        var connection = Mock.Of<IConnection>();
+        _ = connection
+            .CreateChannelAsync(Arg.Any<CreateChannelOptions?>(), Arg.Any<CancellationToken>())
+            .Returns(channel.Object);
+        var adapter = new RabbitMqConnectionAdapter(connection.Object);
+
+        using var created = await adapter.CreateChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(created).IsNotNull();
+        connection
+            .CreateChannelAsync(
+                Arg.Is<CreateChannelOptions?>(o =>
+                    o is not null && o.OutstandingPublisherConfirmationsRateLimiter is null
+                ),
+                Arg.Any<CancellationToken>()
+            )
+            .WasCalled(Times.Once);
+    }
 }
