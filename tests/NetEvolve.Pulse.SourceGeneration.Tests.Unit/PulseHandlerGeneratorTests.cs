@@ -957,8 +957,12 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedSources) = RunGenerator(source, assemblyName: "");
-        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+        var run = GeneratorHarness.Run(source, assemblyName: "");
+
+        // An empty assembly name is invalid for the compilation itself (CS8203), the generated code must still compile.
+        _ = await Assert.That(run.InputErrors.Select(d => d.Id)).IsEquivalentTo(["CS8203"]);
+        _ = await Assert.That(run.GeneratedErrors).IsEmpty();
+        await VerifySources(run.PulseDiagnostics, run.Sources).ConfigureAwait(false);
     }
 
     [Test]

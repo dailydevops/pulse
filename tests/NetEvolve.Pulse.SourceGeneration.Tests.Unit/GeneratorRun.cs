@@ -19,12 +19,12 @@ internal sealed class GeneratorRun
         PulseDiagnostics = [.. generatorDiagnostics.Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))];
         Sources = [.. driver.GetRunResult().Results.Single().GeneratedSources.Select(x => x.SourceText.ToString())];
 
-        var errors = outputCompilation
-            .GetDiagnostics()
-            .Where(d => d.Severity == DiagnosticSeverity.Error && d.Location.SourceTree is not null)
-            .ToArray();
-        InputErrors = [.. errors.Where(d => d.Location.SourceTree == inputTree)];
-        GeneratedErrors = [.. errors.Where(d => d.Location.SourceTree != inputTree)];
+        var errors = outputCompilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToArray();
+        InputErrors = [.. errors.Where(d => d.Location.SourceTree is null || d.Location.SourceTree == inputTree)];
+        GeneratedErrors =
+        [
+            .. errors.Where(d => d.Location.SourceTree is not null && d.Location.SourceTree != inputTree),
+        ];
     }
 
     /// <summary>The driver after the run, for incremental follow-up runs.</summary>
@@ -39,7 +39,10 @@ internal sealed class GeneratorRun
     /// <summary>The generated source texts.</summary>
     public ImmutableArray<string> Sources { get; }
 
-    /// <summary>Compilation errors located in the input source.</summary>
+    /// <summary>
+    /// Compilation errors located in the input source, plus errors without a source location (for example a broken
+    /// reference set), because those come from the test setup and not from the generator.
+    /// </summary>
     public Diagnostic[] InputErrors { get; }
 
     /// <summary>Compilation errors located in the generated sources.</summary>
