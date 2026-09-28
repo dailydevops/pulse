@@ -65,6 +65,8 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// <item>Measures and records execution duration</item>
     /// <item>Captures exception details on failure</item>
     /// <item>Marks success/failure status in both activity and metrics</item>
+    /// <item>Leaves the activity status <see cref="ActivityStatusCode.Unset"/> unless the handler fails</item>
+    /// <item>Sets <c>error.type</c> on the activity, the error counter and the duration histogram on failure</item>
     /// </list>
     /// </remarks>
     public async Task<TResponse> HandleAsync(
@@ -111,10 +113,9 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
 
             var endTime = _timeProvider.GetUtcNow();
 
-            // Mark activity as successful
+            // Status stays Unset on success, as required by the OpenTelemetry Trace API.
             _ = activity
-                ?.SetStatus(ActivityStatusCode.Ok)
-                .SetEndTime(endTime.UtcDateTime)
+                ?.SetEndTime(endTime.UtcDateTime)
                 .SetTag(ResponseTimestamp, endTime)
                 .SetTag(Success, value: true);
 
@@ -126,20 +127,25 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
         catch (Exception ex)
         {
             var errorTime = _timeProvider.GetUtcNow();
+            var errorType = ex.GetType().FullName;
 
             // Capture comprehensive exception details in the activity
             _ = activity
                 ?.SetStatus(ActivityStatusCode.Error, ex.Message)
                 .SetEndTime(errorTime.UtcDateTime)
-                .SetTag(ExceptionType, ex.GetType().FullName)
+                .SetTag(ErrorType, errorType)
+                .SetTag(ExceptionType, errorType)
                 .SetTag(ExceptionMessage, ex.Message)
                 .SetTag(ExceptionStackTrace, ex.StackTrace)
                 .SetTag(ExceptionTimestamp, errorTime)
                 .SetTag(Success, value: false);
 
             // Increment error counters and record failed execution duration
-            ErrorsCounter.Add(1, tags);
-            RequestDurationHistogram.Record((errorTime - startTime).TotalMilliseconds, [.. tags, new(Success, false)]);
+            ErrorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
+            RequestDurationHistogram.Record(
+                (errorTime - startTime).TotalMilliseconds,
+                [.. tags, new(Success, false), new(ErrorType, errorType)]
+            );
 
             throw;
         }
