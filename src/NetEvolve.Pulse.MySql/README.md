@@ -26,6 +26,26 @@ mysql -u <user> -p <database> < OutboxMessage.sql
 mysql -u <user> -p <database> < IdempotencyKey.sql
 ```
 
+### Upgrading an existing schema
+
+The scripts are safe to re-run. Every index is guarded by an `information_schema.statistics` check, because MySQL 8.0 has no `CREATE INDEX IF NOT EXISTS`. Re-running a script after upgrading the package is the supported way to apply indexes added in later releases. Existing tables and indexes are left unchanged.
+
+For example, deployments created before `IX_OutboxMessage_Status_UpdatedAt` existed can re-run `OutboxMessage.sql`. They can also apply the index on its own:
+
+```sql
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'OutboxMessage' AND INDEX_NAME = 'IX_OutboxMessage_Status_UpdatedAt') = 0,
+    'CREATE INDEX `IX_OutboxMessage_Status_UpdatedAt` ON `OutboxMessage` (`Status`, `UpdatedAt`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
+```
+
+The scripts use a session user variable (`@pulse_sql`). To execute them through MySql.Data instead of the `mysql` client, set `AllowUserVariables=True` in the connection string.
+
 ### 2. Register services
 
 **Outbox:**

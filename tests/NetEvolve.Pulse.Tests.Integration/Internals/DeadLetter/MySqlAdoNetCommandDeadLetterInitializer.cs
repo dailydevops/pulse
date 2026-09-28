@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse.Tests.Integration.Internals.DeadLetter;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using MySql.Data.MySqlClient;
 using NetEvolve.Pulse.DeadLetter;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
@@ -11,20 +10,8 @@ using NetEvolve.Pulse.Extensibility.DeadLetter;
 /// Configures the MySQL ADO.NET command dead letter store provider for integration tests.
 /// Executes <c>Scripts/MySql/CommandDeadLetter.sql</c> to create the required table before each test.
 /// </summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Security",
-    "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "SQL is read from a script file with table name substituted from validated CommandDeadLetterOptions properties."
-)]
 public sealed class MySqlAdoNetCommandDeadLetterInitializer : IServiceInitializer
 {
-    private static readonly string _scriptPath = Path.Combine(
-        AppContext.BaseDirectory,
-        "Scripts",
-        "MySql",
-        "CommandDeadLetter.sql"
-    );
-
     /// <inheritdoc />
     public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
@@ -47,66 +34,20 @@ public sealed class MySqlAdoNetCommandDeadLetterInitializer : IServiceInitialize
             ? CommandDeadLetterSchema.DefaultTableName
             : options.TableName;
 
-        var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
-
-        // Replace only the table name occurrences (CREATE TABLE and ON clauses),
-        // not the identically-named column definition.
-        script = script
-            .Replace(
-                $"TABLE IF NOT EXISTS `{CommandDeadLetterSchema.DefaultTableName}`",
-                $"TABLE IF NOT EXISTS `{tableName}`",
-                StringComparison.Ordinal
+        await MySqlScriptRunner
+            .ExecuteAsync(
+                connectionString,
+                "CommandDeadLetter.sql",
+                CommandDeadLetterSchema.DefaultTableName,
+                tableName,
+                cancellationToken
             )
-            .Replace(
-                $"\n    ON `{CommandDeadLetterSchema.DefaultTableName}`",
-                $"\n    ON `{tableName}`",
-                StringComparison.Ordinal
-            );
-
-        var connection = new MySqlConnection(connectionString);
-        await using (connection.ConfigureAwait(false))
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-            // Execute each SQL statement individually (CREATE TABLE, CREATE INDEX)
-            foreach (
-                var statement in script.Split(
-                    ';',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                )
-            )
-            {
-                if (IsCommentOrEmpty(statement))
-                {
-                    continue;
-                }
-
-                var command = new MySqlCommand(statement, connection);
-                await using (command.ConfigureAwait(false))
-                {
-                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
-            }
-        }
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public void Initialize(IServiceCollection services, IServiceFixture serviceFixture)
     {
         // No additional service initialization required for ADO.NET command dead letter tests.
-    }
-
-    private static bool IsCommentOrEmpty(string statement)
-    {
-        foreach (var line in statement.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var trimmed = line.Trim();
-            if (trimmed.Length > 0 && !trimmed.StartsWith("--", StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
