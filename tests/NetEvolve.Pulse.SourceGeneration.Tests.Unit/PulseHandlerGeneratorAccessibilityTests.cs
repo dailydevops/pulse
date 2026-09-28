@@ -1,12 +1,12 @@
 namespace NetEvolve.Pulse.SourceGeneration.Tests.Unit;
 
-using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 /// <summary>
@@ -183,6 +183,90 @@ public class PulseHandlerGeneratorAccessibilityTests
             }
             """
     )]
+    [Arguments(
+        "InternalHandlerForPrivateNestedMessage",
+        """
+            public class Outer
+            {
+                private sealed record Cmd : RequestBase, ICommand<string>;
+
+                [PulseHandler]
+                internal sealed class Blocked : ICommandHandler<Cmd, string>
+                {
+                    Task<string> ICommandHandler<Cmd, string>.HandleAsync(Cmd command, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+                }
+            }
+            """
+    )]
+    [Arguments(
+        "InternalHandlerForPrivateNestedResponse",
+        """
+            public class Outer
+            {
+                private sealed record Res;
+
+                public sealed record Cmd : RequestBase, ICommand<Res>;
+
+                [PulseHandler]
+                internal sealed class Blocked : ICommandHandler<Cmd, Res>
+                {
+                    Task<Res> ICommandHandler<Cmd, Res>.HandleAsync(Cmd command, CancellationToken cancellationToken) => Task.FromResult(new Res());
+                }
+            }
+            """
+    )]
+    [Arguments(
+        "InternalHandlerForPrivateTypeArgumentOfResponse",
+        """
+            public class Outer
+            {
+                private sealed record Item;
+
+                public sealed record Cmd : RequestBase, ICommand<System.Collections.Generic.List<Item>>;
+
+                [PulseHandler]
+                internal sealed class Blocked : ICommandHandler<Cmd, System.Collections.Generic.List<Item>>
+                {
+                    Task<System.Collections.Generic.List<Item>> ICommandHandler<Cmd, System.Collections.Generic.List<Item>>.HandleAsync(Cmd command, CancellationToken cancellationToken) => Task.FromResult(new System.Collections.Generic.List<Item>());
+                }
+            }
+            """
+    )]
+    [Arguments(
+        "InternalHandlerForPrivateNestedEvent",
+        """
+            public class Outer
+            {
+                private sealed record Evt : RequestBase, IEvent
+                {
+                    public string Id { get; init; } = string.Empty;
+                    public DateTimeOffset? PublishedAt { get; set; }
+                }
+
+                [PulseHandler]
+                internal sealed class Blocked : IEventHandler<Evt>
+                {
+                    Task IEventHandler<Evt>.HandleAsync(Evt message, CancellationToken cancellationToken) => Task.CompletedTask;
+                }
+            }
+            """
+    )]
+    [Arguments(
+        "ExplicitGenericHandlerForPrivateNestedMessage",
+        """
+            public class Outer
+            {
+                private sealed record Cmd : RequestBase, ICommand<string>;
+
+                [PulseHandler<Cmd>]
+                internal sealed class Blocked<TCmd> : ICommandHandler<TCmd, string>
+                    where TCmd : ICommand<string>
+                {
+                    public Task<string> HandleAsync(TCmd command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                }
+            }
+            """
+    )]
     public async Task WhenHandlerCannotBeRegisteredThenPulse007Reported(string scenario, string declarations)
     {
         var result = RunGenerator(declarations);
@@ -196,6 +280,7 @@ public class PulseHandlerGeneratorAccessibilityTests
                 .Because(scenario);
             _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
             _ = await Assert.That(result.GeneratedSource).DoesNotContain("Blocked").Because(scenario);
+            _ = await Assert.That(IsReportedOnBlockedDeclaration(result)).IsTrue().Because(scenario);
         }
     }
 
@@ -237,6 +322,7 @@ public class PulseHandlerGeneratorAccessibilityTests
                 .Because(scenario);
             _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
             _ = await Assert.That(result.GeneratedSource).DoesNotContain("Blocked").Because(scenario);
+            _ = await Assert.That(IsReportedOnBlockedDeclaration(result)).IsTrue().Because(scenario);
         }
     }
 
@@ -310,6 +396,15 @@ public class PulseHandlerGeneratorAccessibilityTests
                 .Because(scenario);
             _ = await Assert.That(result.GeneratedErrors).IsEmpty().Because(scenario);
             _ = await Assert.That(result.GeneratedSource).DoesNotContain("Blocked").Because(scenario);
+            _ = await Assert.That(IsReportedOnBlockedDeclaration(result)).IsTrue().Because(scenario);
+            _ = await Assert
+                .That(result.PulseDiagnostics.Select(d => d.GetMessage(CultureInfo.InvariantCulture)))
+                .All(message => message.Contains("nested in a generic type", StringComparison.Ordinal))
+                .Because(scenario);
+            _ = await Assert
+                .That(result.PulseDiagnostics.Select(d => d.GetMessage(CultureInfo.InvariantCulture)))
+                .All(message => !message.Contains("[PulseHandler]", StringComparison.Ordinal))
+                .Because(scenario);
         }
     }
 
@@ -377,6 +472,22 @@ public class PulseHandlerGeneratorAccessibilityTests
             }
             """,
         "global::Allowed"
+    )]
+    [Arguments(
+        "InternalHandlerForInternalNestedMessage",
+        """
+            public class Outer
+            {
+                internal sealed record Cmd : RequestBase, ICommand<string>;
+
+                [PulseHandler]
+                internal sealed class Allowed : ICommandHandler<Cmd, string>
+                {
+                    public Task<string> HandleAsync(Cmd command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+                }
+            }
+            """,
+        "global::Outer.Allowed"
     )]
     public async Task WhenHandlerIsAccessibleConcreteClassThenRegistered(
         string scenario,
@@ -447,6 +558,20 @@ public class PulseHandlerGeneratorAccessibilityTests
             }
             """
     )]
+    [Arguments(
+        "InternalHandlerForPrivateNestedMessage",
+        """
+            public class Outer
+            {
+                private sealed record Cmd : RequestBase, ICommand<string>;
+
+                internal sealed class Skipped : ICommandHandler<Cmd, string>
+                {
+                    Task<string> ICommandHandler<Cmd, string>.HandleAsync(Cmd command, CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+                }
+            }
+            """
+    )]
     public async Task WhenUnannotatedHandlerCannotBeRegisteredThenNoPulse003(string scenario, string declarations)
     {
         var result = RunGenerator(declarations);
@@ -458,66 +583,24 @@ public class PulseHandlerGeneratorAccessibilityTests
         }
     }
 
-    private static GeneratorResult RunGenerator(string declarations)
+    private static GeneratorRun RunGenerator(string declarations) =>
+        GeneratorHarness.Run(
+            CSharpSyntaxTree.ParseText(Preamble + declarations, GeneratorHarness.DefaultParseOptions, path: "Input.cs")
+        );
+
+    private static bool IsReportedOnBlockedDeclaration(GeneratorRun result)
     {
-        var references = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string)!
-            .Split(Path.PathSeparator)
-            .Where(path =>
-            {
-                var fileName = Path.GetFileName(path);
-                return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || fileName.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal)
-                    || string.Equals(fileName, "NetEvolve.Pulse.Extensibility.dll", StringComparison.Ordinal)
-                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(path => MetadataReference.CreateFromFile(path));
+        var inputTree = result.OutputCompilation.SyntaxTrees.Single(tree => tree.FilePath == "Input.cs");
+        var blockedSpan = inputTree
+            .GetRoot()
+            .DescendantNodes()
+            .OfType<TypeDeclarationSyntax>()
+            .Single(declaration => declaration.Identifier.ValueText == "Blocked")
+            .Span;
 
-        var inputTree = CSharpSyntaxTree.ParseText(
-            Preamble + declarations,
-            new CSharpParseOptions(LanguageVersion.Latest),
-            path: "Input.cs"
-        );
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            [inputTree],
-            references,
-            new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable
-            )
-        );
-
-        _ = CSharpGeneratorDriver
-            .Create(
-                generators: [new PulseHandlerGenerator().AsSourceGenerator()],
-                optionsProvider: new TestAnalyzerConfigOptionsProvider("TestAssembly")
-            )
-            .RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
-
-        var pulseDiagnostics = generatorDiagnostics
-            .Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))
-            .ToArray();
-        var errors = outputCompilation
-            .GetDiagnostics()
-            .Where(d => d.Severity == DiagnosticSeverity.Error && d.Location.SourceTree is not null)
-            .ToArray();
-        var generatedSource = string.Concat(
-            outputCompilation.SyntaxTrees.Where(tree => tree != inputTree).Select(tree => tree.ToString())
-        );
-
-        return new GeneratorResult(
-            pulseDiagnostics,
-            [.. errors.Where(d => d.Location.SourceTree == inputTree)],
-            [.. errors.Where(d => d.Location.SourceTree != inputTree)],
-            generatedSource
+        return result.PulseDiagnostics.All(diagnostic =>
+            string.Equals(diagnostic.Location.GetLineSpan().Path, inputTree.FilePath, StringComparison.Ordinal)
+            && blockedSpan.Contains(diagnostic.Location.SourceSpan)
         );
     }
-
-    private sealed record GeneratorResult(
-        Diagnostic[] PulseDiagnostics,
-        Diagnostic[] InputErrors,
-        Diagnostic[] GeneratedErrors,
-        string GeneratedSource
-    );
 }
