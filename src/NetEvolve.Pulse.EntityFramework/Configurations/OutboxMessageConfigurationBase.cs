@@ -135,7 +135,8 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         // UpdatedAt column
         // Every status transition writes UpdatedAt, so it acts as a second concurrency token next to
         // Status: a row that went Failed -> Processing -> Failed between a poller's load and save still
-        // has the same Status but a newer UpdatedAt, and the stale claim is rejected.
+        // has the same Status but a newer UpdatedAt, and the stale claim is rejected. See
+        // decisions/2026-09-24-entityframework-outbox-claim-concurrency.md.
         _ = builder
             .Property(m => m.UpdatedAt)
             .HasColumnName(OutboxMessageSchema.Columns.UpdatedAt)
@@ -159,8 +160,10 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
         _ = builder.Property(m => m.Error).HasColumnName(OutboxMessageSchema.Columns.Error);
 
         // Status column
-        // The status acts as an optimistic concurrency token so that change-tracking based
-        // executors detect competing pollers that claimed the same row after it was loaded.
+        // Together with UpdatedAt, the status acts as an optimistic concurrency token so that
+        // change-tracking based executors detect competing pollers that changed the row after it
+        // was loaded. Status alone misses ABA round trips; both tokens are required, see
+        // decisions/2026-09-24-entityframework-outbox-claim-concurrency.md.
         _ = builder
             .Property(m => m.Status)
             .HasColumnName(OutboxMessageSchema.Columns.Status)
