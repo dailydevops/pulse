@@ -13,12 +13,7 @@
         Title: {}
       },
       Id: PULSE002,
-      IsSuppressed: false,
-      IsWarningAsError: false,
-      Location: {
-        IsInMetadata: false,
-        IsInSource: false
-      },
+      Location: {},
       Severity: Warning,
       WarningLevel: 1
     }

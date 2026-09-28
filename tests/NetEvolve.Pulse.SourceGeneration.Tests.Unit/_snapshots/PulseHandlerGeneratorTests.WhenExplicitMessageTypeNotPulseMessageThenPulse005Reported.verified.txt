@@ -13,11 +13,7 @@
         Title: {}
       },
       Id: PULSE005,
-      IsSuppressed: false,
-      IsWarningAsError: false,
       Location: {
-        IsInMetadata: false,
-        IsInSource: false,
         Kind: ExternalFile,
         SourceSpan: {
           Start: 140,
