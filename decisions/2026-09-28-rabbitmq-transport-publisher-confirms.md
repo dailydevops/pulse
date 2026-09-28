@@ -33,7 +33,7 @@ In RabbitMQ.Client 7.x, `CreateChannelOptions(publisherConfirmationsEnabled: tru
 
 ## Decision
 
-- Every pooled channel is created with publisher confirmations and confirmation tracking enabled. The client's default outstanding-confirms rate limiter is kept.
+- Every pooled channel is created with publisher confirmations and confirmation tracking enabled. No outstanding-confirms rate limiter is applied (`outstandingPublisherConfirmationsRateLimiter: null`, which is also what the public `CreateChannelOptions` constructor defaults to). A batch therefore has at most `OutboxProcessorOptions.BatchSize` publishes in flight on its channel, and is never rejected or throttled by the client's `ThrottlingRateLimiter`.
 - Every message is published with `Persistent = true` (delivery mode 2) and `mandatory: true`.
 - `SendBatchAsync` keeps one rented channel per batch. It starts every publish of the batch before awaiting any of them, following the client's `PublishMessagesInBatchAsync` sample. It rethrows the first failure only after all publishes have settled, and only then returns the channel to the pool.
 - A channel closed by the broker (for example after `404 NOT_FOUND` for a missing exchange) is discarded by `RabbitMqChannelPool.Return`, which already checks `IsOpen`.
@@ -44,6 +44,7 @@ In RabbitMQ.Client 7.x, `CreateChannelOptions(publisherConfirmationsEnabled: tru
 - Outbox messages are marked `Completed` only after the broker has accepted, routed and, for durable queues, persisted them. Failures go through the existing outbox retry and dead-letter path.
 - Each `SendAsync` waits one broker round trip for the confirm. Batches overlap their confirms, so the added latency is paid once per batch rather than once per message.
 - A message whose routing key matches no binding now fails and retries, and is dead-lettered after the retry limit instead of being dropped silently. Deployments that publish event types nobody subscribes to must add a binding, for example to a catch-all queue or through an alternate exchange.
+- A failed batch is retried as a whole. `SendBatchAsync` publishes every message of the batch even after one fails, so every message the broker already confirmed is delivered again on each retry, up to the retry limit. With mandatory routing, one unroutable message in a batch is the typical trigger. Consumers must be idempotent; `MessageId` carries the outbox message id for de-duplication.
 - The client adds the `x-dotnet-pub-seq-no` header (`Constants.PublishSequenceNumberHeader`) to every message. Consumers can see it.
 
 ## Alternatives Considered

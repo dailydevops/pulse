@@ -194,6 +194,8 @@ Trade-offs:
 
 - Each `SendAsync` waits one broker round trip for its confirmation. `SendBatchAsync` starts all publishes of a batch before awaiting them, so a batch pays that latency roughly once.
 - A routing key that matches no binding now fails. The message is retried and eventually dead-lettered by the outbox. Bind every published event type to a queue, or configure an [alternate exchange](https://www.rabbitmq.com/docs/ae) as a catch-all.
+- With batch sending enabled, a failed batch is retried as a whole. Every other message of the batch has already been published, so all confirmed messages are delivered again on each retry, up to the retry limit. One unroutable message is enough to trigger this. Consumers must be idempotent; de-duplicate on `MessageId`, which is the outbox message id.
+- No outstanding-confirms rate limiter is configured on the channels, so `SendBatchAsync` keeps every message of a batch in flight at once. The number of in-flight publishes is bounded by `OutboxProcessorOptions.BatchSize`.
 - With confirmation tracking on, RabbitMQ.Client adds the `x-dotnet-pub-seq-no` header to every message. Consumers see this header.
 
 These settings are always on and cannot be configured.
