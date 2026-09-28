@@ -268,6 +268,31 @@ public sealed class CosmosDbOutboxRepositoryMarkAsTests
     }
 
     [Test]
+    [Arguments(MarkOperation.Completed)]
+    [Arguments(MarkOperation.Failed)]
+    [Arguments(MarkOperation.FailedWithRetry)]
+    [Arguments(MarkOperation.DeadLetter)]
+    public async Task MarkAsAsync_WhenContainerNotFound_Throws(
+        MarkOperation operation,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var container = new FakeCosmosContainer
+        {
+            OnPatchItem = (_, _, _, _) =>
+                throw new CosmosException("owner resource not found", HttpStatusCode.NotFound, 1003, "activity", 0),
+        };
+
+        var repository = CreateRepository(container, enableTtl: false);
+
+        _ = await Assert
+            .That(async () => await InvokeAsync(repository, operation, Guid.NewGuid(), cancellationToken))
+            .ThrowsExactly<CosmosException>();
+    }
+
+    [Test]
     public async Task MarkAsCompletedAsync_WhenPatchFailsOtherwise_Throws(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
