@@ -240,7 +240,18 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var handlerTypeName = GetFullyQualifiedName(classSymbol);
         var location = LocationInfo.CreateFrom(ctx.TargetNode);
 
-        var blocker = GetRegistrationBlocker(classSymbol);
+        // A generic handler is closed over the attribute's message type, so that type must be
+        // referenceable as well.
+        var blocker =
+            GetRegistrationBlocker(classSymbol)
+            ?? (
+                ctx.Attributes.Any(attr =>
+                    attr.AttributeClass?.TypeArguments.Length == 1
+                    && !IsReferenceableFromGeneratedCode(attr.AttributeClass.TypeArguments[0])
+                )
+                    ? DiagnosticDescriptors.UnregistrableHandler
+                    : null
+            );
         if (blocker is not null)
         {
             return new ExplicitHandlerResult(new HandlerInfo(handlerTypeName, [], location), [], blocker);
@@ -453,8 +464,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <param name="classSymbol">The handler type.</param>
     /// <returns>
     /// PULSE004 when a containing type is generic (the generated code cannot name its type
-    /// arguments), PULSE007 when the generated code cannot reference the type or the DI container
-    /// cannot instantiate it, or <see langword="null"/> when the type can be registered.
+    /// arguments), PULSE007 when the generated code cannot reference the type or the message and
+    /// response types of its handler interfaces, or the DI container cannot instantiate it, or <see langword="null"/> when the type can be registered.
     /// </returns>
     private static DiagnosticDescriptor? GetRegistrationBlocker(INamedTypeSymbol classSymbol)
     {
@@ -471,17 +482,19 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return DiagnosticDescriptors.UnregistrableHandler;
         }
 
-        // The generated registration class lives in the same assembly but neither derives from a
-        // containing type nor shares the source file, so only internal, protected internal and
-        // public types along the whole containing chain are accessible.
-        for (var type = classSymbol; type is not null; type = type.ContainingType)
+        if (!IsReferenceableFromGeneratedCode(classSymbol))
+        {
+            return DiagnosticDescriptors.UnregistrableHandler;
+        }
+
+        // The generated registrations also name the message and response types of every handler
+        // interface, so these must be referenceable as well.
+        foreach (var iface in classSymbol.AllInterfaces)
         {
             if (
-                type.IsFileLocal
-                || type.DeclaredAccessibility
-                    is Accessibility.Private
-                        or Accessibility.Protected
-                        or Accessibility.ProtectedAndInternal
+                IsKnownHandlerInterfaceSimpleName(iface.Name)
+                && TryGetHandlerKind(GetFullMetadataName(iface.OriginalDefinition), out _)
+                && !IsReferenceableFromGeneratedCode(iface)
             )
             {
                 return DiagnosticDescriptors.UnregistrableHandler;
@@ -489,6 +502,44 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Determines whether the generated registration class can name <paramref name="type"/>. It lives in
+    /// the same assembly but neither derives from a containing type nor shares the source file, so only
+    /// types that are internal, protected internal or public along the whole containing chain, and whose
+    /// type arguments are referenceable too, are accessible. Type parameters are always referenceable.
+    /// </summary>
+    /// <param name="type">The type to check.</param>
+    /// <returns><see langword="true"/> when generated code can reference the type.</returns>
+    private static bool IsReferenceableFromGeneratedCode(ITypeSymbol type)
+    {
+        switch (type)
+        {
+            case IArrayTypeSymbol array:
+                return IsReferenceableFromGeneratedCode(array.ElementType);
+            case IPointerTypeSymbol pointer:
+                return IsReferenceableFromGeneratedCode(pointer.PointedAtType);
+            case INamedTypeSymbol named:
+                for (var current = named; current is not null; current = current.ContainingType)
+                {
+                    if (
+                        current.IsFileLocal
+                        || current.DeclaredAccessibility
+                            is Accessibility.Private
+                                or Accessibility.Protected
+                                or Accessibility.ProtectedAndInternal
+                        || !current.TypeArguments.All(IsReferenceableFromGeneratedCode)
+                    )
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            default:
+                return true;
+        }
     }
 
     /// <summary>

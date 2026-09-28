@@ -44,12 +44,13 @@ internal static class DiagnosticDescriptors
     );
 
     /// <summary>
-    /// PULSE004 – the annotated type is an open generic type that cannot be automatically registered.
+    /// PULSE004 – the annotated type is an open generic type or is nested in a generic type, so it cannot be
+    /// automatically registered.
     /// </summary>
     public static readonly DiagnosticDescriptor OpenGenericHandlerNotSupported = new(
         id: "PULSE004",
-        title: "Open generic type cannot be automatically registered",
-        messageFormat: "Type '{0}' is an open generic type and cannot be automatically registered by [PulseHandler]",
+        title: "Open generic or generic-nested type cannot be automatically registered",
+        messageFormat: "Type '{0}' is an open generic type or is nested in a generic type and cannot be automatically registered",
         category: "Usage",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
@@ -85,14 +86,15 @@ internal static class DiagnosticDescriptors
 
     /// <summary>
     /// PULSE007 – the annotated type cannot be registered because the generated registration code cannot
-    /// reference it (the type or a containing type is <see langword="private"/>, <see langword="protected"/>,
-    /// <see langword="private protected"/> or <see langword="file"/>-local) or the DI container cannot instantiate it (the type is
+    /// reference it (the type, a containing type or a message or response type of its handler interfaces is
+    /// <see langword="private"/>, <see langword="protected"/>, <see langword="private protected"/> or
+    /// <see langword="file"/>-local) or the DI container cannot instantiate it (the type is
     /// <see langword="abstract"/>, <see langword="static"/> or a value type).
     /// </summary>
     public static readonly DiagnosticDescriptor UnregistrableHandler = new(
         id: "PULSE007",
         title: "Handler type cannot be registered",
-        messageFormat: "Type '{0}' cannot be registered as a Pulse handler: it must be a non-abstract, non-static class that is not file-local and neither it nor any containing type is private, protected or private protected",
+        messageFormat: "Type '{0}' cannot be registered as a Pulse handler: it must be a non-abstract, non-static class that is not file-local, and neither it, any containing type nor any message or response type it handles is private, protected, private protected or file-local",
         category: "Usage",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
