@@ -48,7 +48,7 @@ The change-tracking executors, used for the EF InMemory provider and Oracle's My
 
 ## Consequences
 
-- Duplicate claims across overlapping pollers are prevented on PostgreSQL, SQL Server (with or without RCSI), SQLite, MySQL and InMemory. Shared integration tests cover this in `EntityFrameworkOutboxClaimRaceTestsBase`.
+- Duplicate claims across overlapping pollers are prevented. The shared integration tests in `EntityFrameworkOutboxClaimRaceTestsBase` run on PostgreSQL, SQL Server with `READ_COMMITTED_SNAPSHOT` enabled, MySQL and SQLite. SQL Server with default locking READ COMMITTED is not exercised by a race test. The InMemory provider is covered only by the tracking-executor unit tests (`TrackingOutboxRepositoryExecutorConcurrencyTests`), because the race needs a real transaction.
 - The schema does not change. `UpdatedAt` now appears in the `WHERE` clause of change-tracking `UPDATE`/`DELETE` statements for outbox rows. Applications that use EF Core migrations will see `IsConcurrencyToken()` on `UpdatedAt` in their next model snapshot. It produces no migration operation.
 - `UpdatedAt` still serves as the claim token on the partial-claim path. Two claimers that write an identical timestamp, for example with a shared fake clock, cannot be told apart there. A dedicated claim-token column would remove that limit, at the cost of a schema change.
 - Blocked pollers still wait on each other's row locks and do not skip them. That keeps behavior correct, but contention is higher than with lock skipping.
