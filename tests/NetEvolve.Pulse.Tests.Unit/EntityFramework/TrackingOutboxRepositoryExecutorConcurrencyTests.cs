@@ -105,6 +105,7 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                         _ = await winnerExecutor
                             .FetchAndMarkAsync(
                                 winnerContext.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending),
+                                m => m.Status == OutboxMessageStatus.Pending,
                                 winnerTimestamp,
                                 OutboxMessageStatus.Processing,
                                 cancellationToken
@@ -115,6 +116,7 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                 var loserResult = await loserExecutor
                     .FetchAndMarkAsync(
                         interleavedQuery,
+                        m => m.Status == OutboxMessageStatus.Pending,
                         loserTimestamp,
                         OutboxMessageStatus.Processing,
                         cancellationToken
@@ -195,6 +197,7 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                         _ = await winnerExecutor
                             .FetchAndMarkAsync(
                                 winnerContext.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Failed),
+                                m => m.Status == OutboxMessageStatus.Failed,
                                 claimedAt,
                                 OutboxMessageStatus.Processing,
                                 cancellationToken
@@ -218,6 +221,7 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                 var loserResult = await loserExecutor
                     .FetchAndMarkAsync(
                         interleavedQuery,
+                        m => m.Status == OutboxMessageStatus.Failed,
                         claimedAt.AddMilliseconds(50),
                         OutboxMessageStatus.Processing,
                         cancellationToken

@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
+using System.Linq.Expressions;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
@@ -20,6 +21,11 @@ internal interface IOutboxRepositoryExecutor : IDisposable
     /// <param name="baseQuery">
     /// A pre-filtered, pre-ordered, and already-limited query that selects the candidate messages.
     /// </param>
+    /// <param name="claimFilter">
+    /// The complete eligibility predicate that <paramref name="baseQuery"/> is filtered with. Bulk
+    /// implementations re-apply it to the claiming statement so that a row which a competing poller
+    /// changed after the candidate query ran is no longer claimed.
+    /// </param>
     /// <param name="updatedAt">
     /// The timestamp written to <see cref="OutboxMessage.UpdatedAt"/> for every updated message.
     /// </param>
@@ -30,6 +36,7 @@ internal interface IOutboxRepositoryExecutor : IDisposable
     /// <returns>The messages that were fetched and marked, in the order returned by the database.</returns>
     Task<OutboxMessage[]> FetchAndMarkAsync(
         IQueryable<OutboxMessage> baseQuery,
+        Expression<Func<OutboxMessage, bool>> claimFilter,
         DateTimeOffset updatedAt,
         OutboxMessageStatus newStatus,
         CancellationToken cancellationToken

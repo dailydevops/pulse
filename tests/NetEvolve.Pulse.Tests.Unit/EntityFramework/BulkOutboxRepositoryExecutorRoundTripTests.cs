@@ -66,6 +66,7 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
                             .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending)
                             .OrderBy(m => m.CreatedAt)
                             .Take(10),
+                        m => m.Status == OutboxMessageStatus.Pending,
                         updatedAt,
                         OutboxMessageStatus.Processing,
                         cancellationToken
@@ -113,6 +114,7 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
                 var result = await executor
                     .FetchAndMarkAsync(
                         context.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending),
+                        m => m.Status == OutboxMessageStatus.Pending,
                         DateTimeOffset.UtcNow,
                         OutboxMessageStatus.Processing,
                         cancellationToken

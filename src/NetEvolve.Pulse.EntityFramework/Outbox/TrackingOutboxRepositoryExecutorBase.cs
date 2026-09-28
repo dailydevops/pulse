@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -34,6 +35,7 @@ internal abstract class TrackingOutboxRepositoryExecutorBase<TContext>(TContext 
     /// <inheritdoc />
     public async Task<OutboxMessage[]> FetchAndMarkAsync(
         IQueryable<OutboxMessage> baseQuery,
+        Expression<Func<OutboxMessage, bool>> claimFilter,
         DateTimeOffset updatedAt,
         OutboxMessageStatus newStatus,
         CancellationToken cancellationToken
