@@ -766,6 +766,7 @@ public static class AssemblyScanningExtensions
         }
     }
 
+    [RequiresUnreferencedCode("Enumerating all types of an assembly is not compatible with IL trimming.")]
     private static Type[] GetAllTypesFromAssembly(Assembly assembly)
     {
         try

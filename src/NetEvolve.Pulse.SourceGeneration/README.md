@@ -8,12 +8,12 @@ NetEvolve.Pulse.SourceGeneration is a Roslyn source generator for the Pulse CQRS
 
 ## Features
 
-- **Compile-Time Code Generation**: Emits `IServiceCollection` extension methods with `TryAdd*` registrations for all annotated handlers
+- **Compile-Time Code Generation**: Emits `IServiceCollection` extension methods with `TryAdd*` registrations for command, query and stream query handlers and `TryAddEnumerable` registrations for event handlers
 - **Closed Open-Generic Handler Support**: `[PulseHandler<TMessage>]` closes open-generic handler classes for specific message types at compile time; multiple attributes on the same class register it for multiple message types
 - **Pure Open-Generic Handler Support**: `[PulseGenericHandler]` registers an open-generic handler class directly as an open-generic DI service (e.g. `services.TryAddScoped(typeof(ICommandHandler<,>), typeof(MyHandler<,>))`), allowing the DI container to resolve any closed variant at runtime
 - **Incremental Generator**: Uses `ForAttributeWithMetadataName` for fast, IDE-friendly discovery
 - **Configurable Lifetimes**: Supports `Singleton`, `Scoped` (default), and `Transient` via `PulseServiceLifetime` enum
-- **Assembly-Derived Method Name**: Generated method name is derived from `AssemblyName` with dots removed and `PulseHandlers` appended (e.g., `MyProject` → `AddMyProjectPulseHandlers`)
+- **Assembly-Derived Method Name**: Generated method name is `Add` + `AssemblyName` + `PulseHandlers`. Dots are removed and every other character that is not valid in a C# identifier (for example `-`, space or `+`) is replaced with `_` (e.g., `MyProject` → `AddMyProjectPulseHandlers`, `My.Project` → `AddMyProjectPulseHandlers`, `my-service` → `Addmy_servicePulseHandlers`)
 - **Root Namespace Support**: Generated namespace uses the consuming project's `RootNamespace`
 - **Multi-Interface Instance Sharing**: Handlers implementing multiple interfaces are registered as the concrete type once; each interface resolves via a factory delegate so all share the same instance within the configured lifetime
 - **Diagnostics**: PULSE001–PULSE006 covering missing handler interfaces, duplicate registrations, open-generic type annotations, and invalid or incompatible explicit message type arguments
@@ -65,7 +65,9 @@ services.AddMyProjectPulseHandlers();
 
 ### Handler Registration
 
-Annotate handler classes with `[PulseHandler]` and the generator emits `TryAddScoped`, `TryAddSingleton`, or `TryAddTransient` calls based on the configured lifetime:
+Annotate handler classes with `[PulseHandler]` and the generator emits `TryAddScoped`, `TryAddSingleton`, or `TryAddTransient` calls based on the configured lifetime. Command, query and stream query handlers have exactly one handler per message type, so an existing registration wins.
+
+An event can have several handlers. For `IEventHandler<TEvent>` the generator emits `TryAddEnumerable` with a `ServiceDescriptor` of the configured lifetime, for example `services.TryAddEnumerable(ServiceDescriptor.Transient<IEventHandler<OrderCreatedEvent>, NotificationHandler>())`. Every annotated event handler is registered next to handlers from `AddEventHandler` and `AddOutbox`, and calling the generated method twice does not register a handler twice.
 
 ```csharp
 [PulseHandler] // Scoped (default)
@@ -129,8 +131,8 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
         Task.CompletedTask;
 }
 
-// Generated: services.TryAddSingleton(
-//     typeof(IEventHandler<>), typeof(GenericAuditEventHandler<>));
+// Generated: services.TryAddEnumerable(ServiceDescriptor.Singleton(
+//     typeof(IEventHandler<>), typeof(GenericAuditEventHandler<>)));
 ```
 
 > **Note:** `[PulseHandler]` on an open-generic class produces a **PULSE004** error — use `[PulseGenericHandler]` instead when you need a true open-generic DI registration.
@@ -142,7 +144,7 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 | `ICommandHandler<TCommand>` | Void command handler (single type parameter) |
 | `ICommandHandler<TCommand, TResponse>` | Command handler with response |
 | `IQueryHandler<TQuery, TResponse>` | Query handler |
-| `IEventHandler<TEvent>` | Event handler (multiple handlers per event are valid) |
+| `IEventHandler<TEvent>` | Event handler (multiple handlers per event are valid, all of them are registered) |
 | `IStreamQueryHandler<TQuery, TResponse>` | Streaming query handler |
 
 ## Diagnostics
@@ -153,7 +155,24 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 | PULSE002 | Warning | Multiple `[PulseHandler]` types implement the same command or query handler contract. Events are excluded — multiple event handlers are valid. |
 | PULSE004 | Error | Type annotated with `[PulseHandler]` is an open generic type and cannot be automatically registered. Use `[PulseHandler<TMessage>]` for closed registrations or `[PulseGenericHandler]` for open-generic DI registrations. |
 | PULSE005 | Error | The type argument `T` passed to `[PulseHandler<T>]` does not implement any known Pulse message interface (`ICommand`, `ICommand<T>`, `IQuery<T>`, `IEvent`, or `IStreamQuery<T>`). |
-| PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type. |
+| PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type, or the inferred type arguments do not satisfy the handler's generic constraints. |
+
+## NativeAOT and Trimming
+
+The generated registration method only emits generic `TryAdd*<TService, TImplementation>()` and `ServiceDescriptor.{Lifetime}<TService, TImplementation>()` calls and `typeof(...)` literals for open-generic handlers. Both satisfy the `[DynamicallyAccessedMembers(PublicConstructors)]` annotations of `Microsoft.Extensions.DependencyInjection`, so the trimmer keeps every registered handler and its constructor without an `ILLink.Descriptors.xml` file or `[DynamicDependency]` attributes. The `samples/NetEvolve.Pulse.Xample.Aot` smoke application verifies this with a NativeAOT publish on every pull request.
+
+Open-generic handlers registered with `[PulseGenericHandler]` are closed by the DI container at runtime. Under NativeAOT this only works for reference-type type arguments.
+
+### Interceptors for Value-Type Requests
+
+The DI container also cannot close the open-generic interceptors of `NetEvolve.Pulse` over value types under NativeAOT. When the project references `NetEvolve.Pulse`, the generated method therefore ends with one `NativeAotInterceptorExtensions` call per registered command, query or stream query handler whose request or response type is a value type, including `Void`:
+
+```csharp
+global::NetEvolve.Pulse.NativeAotInterceptorExtensions.AddNativeAotCommandInterceptors<global::MyProject.AddNumbersCommand, int>(services);
+global::NetEvolve.Pulse.NativeAotInterceptorExtensions.AddNativeAotCommandInterceptors<global::MyProject.PingCommand, global::NetEvolve.Pulse.Extensibility.Void>(services);
+```
+
+Under NativeAOT, each call registers closed variants of the built-in interceptors that are registered at that time, so call the generated method after `AddPulse(...)` and after every other interceptor registration, such as closed application interceptors or Polly policies added by a later `AddPulse(...)` call. When an interceptor for such a request is registered, replaced or removed afterwards, the mediator throws an `InvalidOperationException` for that request instead of skipping the interceptor. Exclusive commands, queries and stream queries use the matching `AddNativeAotExclusiveCommandInterceptors`, `AddNativeAotQueryInterceptors` and `AddNativeAotStreamQueryInterceptors` methods. Projects that only reference `NetEvolve.Pulse.Extensibility`, and handlers with reference-type requests and responses, generate no calls. See "Value-Type Requests Under NativeAOT" in the `NetEvolve.Pulse` README for the covered interceptors.
 
 ## Requirements
 

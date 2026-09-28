@@ -22,10 +22,17 @@
 --   ExceptionMessage LONGTEXT      -- message of the exception that caused the failure (nullable)
 --
 -- Usage:
---   Run this script in the target MySQL database once before deploying the application:
+--   Run this script in the target MySQL database before deploying the application:
 --     mysql -u <user> -p <database> < AuditEntry.sql
 --
---   If you need a custom table name, replace all occurrences of `AuditEntry`
+--   The script is safe to re-run. MySQL 8.0 has no CREATE INDEX IF NOT EXISTS, so every index
+--   is guarded by an information_schema.statistics lookup executed through PREPARE / EXECUTE.
+--   Re-run the script after upgrading the package to apply indexes added in later releases.
+--   Existing tables and indexes are left unchanged. When executing it through MySql.Data
+--   instead of the mysql client, set AllowUserVariables=True (the guards use @pulse_sql).
+--
+--   If you need a custom table name, replace every table reference to AuditEntry
+--   (CREATE TABLE IF NOT EXISTS `AuditEntry`, ON `AuditEntry` and TABLE_NAME = 'AuditEntry')
 --   and update AuditStoreOptions.TableName in your application configuration accordingly.
 --
 -- Note on schema:
@@ -48,9 +55,23 @@ CREATE TABLE IF NOT EXISTS `AuditEntry` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Index to efficiently order and range-filter entries by occurrence time
-CREATE INDEX `IX_AuditEntry_OccurredAt`
-    ON `AuditEntry` (`OccurredAt`);
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'AuditEntry' AND INDEX_NAME = 'IX_AuditEntry_OccurredAt') = 0,
+    'CREATE INDEX `IX_AuditEntry_OccurredAt` ON `AuditEntry` (`OccurredAt`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
 
 -- Index to efficiently filter entries by request type
-CREATE INDEX `IX_AuditEntry_CommandType`
-    ON `AuditEntry` (`CommandType`);
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'AuditEntry' AND INDEX_NAME = 'IX_AuditEntry_CommandType') = 0,
+    'CREATE INDEX `IX_AuditEntry_CommandType` ON `AuditEntry` (`CommandType`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;

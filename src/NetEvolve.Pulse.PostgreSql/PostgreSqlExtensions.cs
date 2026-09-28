@@ -1,5 +1,6 @@
 ﻿namespace NetEvolve.Pulse;
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -184,7 +185,9 @@ public static class PostgreSqlExtensions
     /// );
     /// </code>
     /// </example>
-    public static IMediatorBuilder AddPostgreSqlOutboxTransactionScope<TUnitOfWork>(this IMediatorBuilder configurator)
+    public static IMediatorBuilder AddPostgreSqlOutboxTransactionScope<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TUnitOfWork
+    >(this IMediatorBuilder configurator)
         where TUnitOfWork : class, IOutboxTransactionScope
     {
         ArgumentNullException.ThrowIfNull(configurator);

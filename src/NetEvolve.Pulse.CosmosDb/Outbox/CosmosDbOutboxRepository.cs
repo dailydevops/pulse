@@ -62,6 +62,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         var opts = options.Value;
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.DatabaseName);
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.ContainerName);
+        opts.ThrowIfPartitionKeyPathIsNotSupported();
 
         _container = cosmosClient.GetContainer(opts.DatabaseName, opts.ContainerName);
         _timeProvider = timeProvider;
@@ -105,8 +106,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             return [];
         }
 
-        return await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
+        var messages = await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -135,8 +138,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             return [];
         }
 
-        return await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
+        var messages = await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -444,7 +449,8 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             }
         }
 
-        return claimed;
+        // Candidates arrive in _ts order; the outbox contract requires CreatedAt order.
+        return [.. claimed.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
     }
 
     /// <summary>

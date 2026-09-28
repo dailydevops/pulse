@@ -62,7 +62,9 @@ public sealed class MySqlOutboxRepositoryLeaseTests
             StringComparison.Ordinal
         );
 
-        await CreateSchemaAsync(connectionString, tableName, cancellationToken).ConfigureAwait(false);
+        await MySqlScriptRunner
+            .ExecuteAsync(connectionString, "OutboxMessage.sql", "OutboxMessage", tableName, cancellationToken)
+            .ConfigureAwait(false);
 
         var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
         var options = Options.Create(
@@ -76,61 +78,6 @@ public sealed class MySqlOutboxRepositoryLeaseTests
 
         var repository = new MySqlOutboxRepository(options, timeProvider);
         return (repository, timeProvider);
-    }
-
-    private static async Task CreateSchemaAsync(
-        string connectionString,
-        string tableName,
-        CancellationToken cancellationToken
-    )
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var scriptPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Scripts", "MySql", "OutboxMessage.sql");
-        var script = await System.IO.File.ReadAllTextAsync(scriptPath, cancellationToken).ConfigureAwait(false);
-
-        script = script.Replace("`OutboxMessage`", $"`{tableName}`", StringComparison.Ordinal);
-
-        var connection = new MySqlConnection(connectionString);
-        await using (connection.ConfigureAwait(false))
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-            foreach (
-                var statement in script.Split(
-                    ';',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                )
-            )
-            {
-                if (IsCommentOrEmpty(statement))
-                {
-                    continue;
-                }
-
-#pragma warning disable CA2100, S2077 // statement originates from the checked-in provider script, not user input
-                var command = new MySqlCommand(statement, connection);
-#pragma warning restore CA2100, S2077
-                await using (command.ConfigureAwait(false))
-                {
-                    _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
-            }
-        }
-    }
-
-    private static bool IsCommentOrEmpty(string statement)
-    {
-        foreach (var line in statement.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var trimmed = line.Trim();
-            if (trimmed.Length > 0 && !trimmed.StartsWith("--", StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     [Test]

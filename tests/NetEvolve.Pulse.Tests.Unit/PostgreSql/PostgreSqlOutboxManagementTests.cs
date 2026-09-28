@@ -15,32 +15,59 @@ public sealed class PostgreSqlOutboxManagementTests
     [Test]
     public async Task Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new PostgreSqlOutboxManagement(Options.Create(new OutboxOptions { ConnectionString = null })))
+            .That(() =>
+                new PostgreSqlOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = null }),
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Constructor_WithEmptyConnectionString_ThrowsArgumentException() =>
         _ = await Assert
             .That(() =>
-                new PostgreSqlOutboxManagement(Options.Create(new OutboxOptions { ConnectionString = string.Empty }))
+                new PostgreSqlOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
+                )
             )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task Constructor_WithWhitespaceConnectionString_ThrowsArgumentException() =>
         _ = await Assert
-            .That(() => new PostgreSqlOutboxManagement(Options.Create(new OutboxOptions { ConnectionString = "   " })))
+            .That(() =>
+                new PostgreSqlOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = "   " }),
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentException>();
 
     [Test]
     public async Task Constructor_WithNullOptions_ThrowsArgumentNullException() =>
-        _ = await Assert.That(() => new PostgreSqlOutboxManagement(null!)).Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(() => new PostgreSqlOutboxManagement(null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new PostgreSqlOutboxManagement(
+                    Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         var management = new PostgreSqlOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert.That(management).IsNotNull();
@@ -51,7 +78,7 @@ public sealed class PostgreSqlOutboxManagementTests
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString, Schema = null });
 
-        var management = new PostgreSqlOutboxManagement(options);
+        var management = new PostgreSqlOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -63,7 +90,7 @@ public sealed class PostgreSqlOutboxManagementTests
             new OutboxOptions { ConnectionString = ValidConnectionString, Schema = string.Empty }
         );
 
-        var management = new PostgreSqlOutboxManagement(options);
+        var management = new PostgreSqlOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -73,7 +100,7 @@ public sealed class PostgreSqlOutboxManagementTests
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "   " });
 
-        var management = new PostgreSqlOutboxManagement(options);
+        var management = new PostgreSqlOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -83,7 +110,7 @@ public sealed class PostgreSqlOutboxManagementTests
     {
         var options = Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString, Schema = "custom" });
 
-        var management = new PostgreSqlOutboxManagement(options);
+        var management = new PostgreSqlOutboxManagement(options, TimeProvider.System);
 
         _ = await Assert.That(management).IsNotNull();
     }
@@ -92,7 +119,8 @@ public sealed class PostgreSqlOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new PostgreSqlOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert
@@ -104,7 +132,8 @@ public sealed class PostgreSqlOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
     {
         var management = new PostgreSqlOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert
@@ -116,7 +145,8 @@ public sealed class PostgreSqlOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException()
     {
         var management = new PostgreSqlOutboxManagement(
-            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert

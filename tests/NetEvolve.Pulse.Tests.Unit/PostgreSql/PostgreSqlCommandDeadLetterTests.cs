@@ -93,7 +93,14 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var serializer = Mock.Of<IPayloadSerializer>();
 
         _ = await Assert
-            .That(() => new PostgreSqlCommandDeadLetterManagement(null!, mediator.Object, serializer.Object))
+            .That(() =>
+                new PostgreSqlCommandDeadLetterManagement(
+                    null!,
+                    mediator.Object,
+                    serializer.Object,
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentNullException>();
     }
 
@@ -104,7 +111,9 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var serializer = Mock.Of<IPayloadSerializer>();
 
         _ = await Assert
-            .That(() => new PostgreSqlCommandDeadLetterManagement(options, null!, serializer.Object))
+            .That(() =>
+                new PostgreSqlCommandDeadLetterManagement(options, null!, serializer.Object, TimeProvider.System)
+            )
             .Throws<ArgumentNullException>();
     }
 
@@ -115,7 +124,25 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var mediator = Mock.Of<IMediatorSendOnly>();
 
         _ = await Assert
-            .That(() => new PostgreSqlCommandDeadLetterManagement(options, mediator.Object, null!))
+            .That(() => new PostgreSqlCommandDeadLetterManagement(options, mediator.Object, null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+    }
+
+    [Test]
+    public async Task Management_Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        var options = Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString });
+        var mediator = Mock.Of<IMediatorSendOnly>();
+
+        _ = await Assert
+            .That(() =>
+                new PostgreSqlCommandDeadLetterManagement(
+                    options,
+                    mediator.Object,
+                    Mock.Of<IPayloadSerializer>().Object,
+                    null!
+                )
+            )
             .Throws<ArgumentNullException>();
     }
 
@@ -127,7 +154,14 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var serializer = Mock.Of<IPayloadSerializer>();
 
         _ = await Assert
-            .That(() => new PostgreSqlCommandDeadLetterManagement(options, mediator.Object, serializer.Object))
+            .That(() =>
+                new PostgreSqlCommandDeadLetterManagement(
+                    options,
+                    mediator.Object,
+                    serializer.Object,
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentNullException>();
     }
 
@@ -139,7 +173,14 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var serializer = Mock.Of<IPayloadSerializer>();
 
         _ = await Assert
-            .That(() => new PostgreSqlCommandDeadLetterManagement(options, mediator.Object, serializer.Object))
+            .That(() =>
+                new PostgreSqlCommandDeadLetterManagement(
+                    options,
+                    mediator.Object,
+                    serializer.Object,
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentException>();
     }
 
@@ -151,7 +192,14 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var serializer = Mock.Of<IPayloadSerializer>();
 
         _ = await Assert
-            .That(() => new PostgreSqlCommandDeadLetterManagement(options, mediator.Object, serializer.Object))
+            .That(() =>
+                new PostgreSqlCommandDeadLetterManagement(
+                    options,
+                    mediator.Object,
+                    serializer.Object,
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentException>();
     }
 
@@ -162,7 +210,12 @@ public sealed class PostgreSqlCommandDeadLetterTests
         var mediator = Mock.Of<IMediatorSendOnly>();
         var serializer = Mock.Of<IPayloadSerializer>();
 
-        var management = new PostgreSqlCommandDeadLetterManagement(options, mediator.Object, serializer.Object);
+        var management = new PostgreSqlCommandDeadLetterManagement(
+            options,
+            mediator.Object,
+            serializer.Object,
+            TimeProvider.System
+        );
 
         _ = await Assert.That(management).IsNotNull();
     }

@@ -52,6 +52,8 @@ public static class SqlServerCommandDeadLetterMediatorBuilderExtensions
 
         _ = services.Configure(configureOptions);
 
+        services.TryAddSingleton(TimeProvider.System);
+
         _ = services
             .RemoveAll<ICommandDeadLetterStore>()
             .AddScoped<ICommandDeadLetterStore, SqlServerCommandDeadLetterStore>();

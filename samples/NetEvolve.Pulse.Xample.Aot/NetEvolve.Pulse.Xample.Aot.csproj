@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Report every trim/AOT warning per call site instead of a single IL2104 per assembly. -->
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <!-- NetEvolve.Defaults enables package generation for non-test projects; NativeAOT publish does not support it. -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.Extensibility\NetEvolve.Pulse.Extensibility.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.SourceGeneration\NetEvolve.Pulse.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

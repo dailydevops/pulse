@@ -30,7 +30,7 @@ using Polly;
 /// <code>
 /// config
 ///     .AddCommandHandler&lt;CreateOrder, Result, CreateOrderHandler&gt;()
-///     .AddValidationInterceptor&lt;CreateOrder, Result&gt;()  // Executes third (innermost)
+///     .AddCommandInterceptor&lt;CreateOrder, Result, ValidationInterceptor&gt;() // Executes third (innermost)
 ///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)       // Executes second
 ///     .AddActivityAndMetrics();                            // Executes first (outermost)
 /// </code>
@@ -80,7 +80,7 @@ public static class PollyExtensions
     /// <para><strong>Simple retry policy:</strong></para>
     /// <code>
     /// config.AddPollyRequestPolicies&lt;CreateOrderCommand, OrderResult&gt;(pipeline => pipeline
-    ///     .AddRetry(new RetryStrategyOptions
+    ///     .AddRetry(new RetryStrategyOptions&lt;OrderResult&gt;
     ///     {
     ///         MaxRetryAttempts = 3,
     ///         Delay = TimeSpan.FromSeconds(1),
@@ -91,13 +91,13 @@ public static class PollyExtensions
     /// <code>
     /// config.AddPollyRequestPolicies&lt;GetUserQuery, User&gt;(pipeline => pipeline
     ///     .AddTimeout(TimeSpan.FromSeconds(30))
-    ///     .AddRetry(new RetryStrategyOptions
+    ///     .AddRetry(new RetryStrategyOptions&lt;User&gt;
     ///     {
     ///         MaxRetryAttempts = 3,
     ///         Delay = TimeSpan.FromSeconds(2),
     ///         BackoffType = DelayBackoffType.Exponential
     ///     })
-    ///     .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+    ///     .AddCircuitBreaker(new CircuitBreakerStrategyOptions&lt;User&gt;
     ///     {
     ///         FailureRatio = 0.5,
     ///         MinimumThroughput = 10,
@@ -186,7 +186,7 @@ public static class PollyExtensions
     /// <example>
     /// <code>
     /// config.AddPollyCommandPolicies&lt;CreateOrderCommand, OrderResult&gt;(pipeline => pipeline
-    ///     .AddRetry(new RetryStrategyOptions
+    ///     .AddRetry(new RetryStrategyOptions&lt;OrderResult&gt;
     ///     {
     ///         MaxRetryAttempts = 3,
     ///         Delay = TimeSpan.FromSeconds(1),
@@ -220,8 +220,10 @@ public static class PollyExtensions
     /// </remarks>
     /// <example>
     /// <code>
+    /// using Void = NetEvolve.Pulse.Extensibility.Void;
+    ///
     /// config.AddPollyCommandPolicies&lt;DeleteOrderCommand&gt;(pipeline => pipeline
-    ///     .AddRetry(new RetryStrategyOptions
+    ///     .AddRetry(new RetryStrategyOptions&lt;Void&gt;
     ///     {
     ///         MaxRetryAttempts = 2,
     ///         Delay = TimeSpan.FromSeconds(1)
@@ -255,7 +257,7 @@ public static class PollyExtensions
     /// <example>
     /// <code>
     /// config.AddPollyQueryPolicies&lt;GetOrderQuery, OrderResult&gt;(pipeline => pipeline
-    ///     .AddRetry(new RetryStrategyOptions
+    ///     .AddRetry(new RetryStrategyOptions&lt;OrderResult&gt;
     ///     {
     ///         MaxRetryAttempts = 3,
     ///         Delay = TimeSpan.FromSeconds(1)

@@ -65,6 +65,18 @@ public sealed class PollyRequestInterceptorTests
     }
 
     [Test]
+    public async Task Constructor_OnlyStringKeyedPipeline_ThrowsInvalidOperationException()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddKeyedSingleton("critical", (_, _) => new ResiliencePipelineBuilder<string>().Build());
+        var serviceProvider = services.BuildServiceProvider();
+
+        _ = await Assert
+            .That(() => new PollyRequestInterceptor<TestCommand, string>(serviceProvider))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
     public async Task Constructor_WithKeyedPipeline_ResolvesSuccessfully()
     {
         // Arrange

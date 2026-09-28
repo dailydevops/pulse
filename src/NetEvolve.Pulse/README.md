@@ -187,6 +187,38 @@ Behavior summary:
 | `ExpirationMode = Absolute` (default) | `Expiry` (or `DefaultExpiry`) is applied as absolute expiry relative to now |
 | `ExpirationMode = Sliding` | `Expiry` (or `DefaultExpiry`) window resets on each cache access |
 
+### Request Timeouts
+
+Enforce a per-request deadline for commands and queries that implement `ITimeoutRequest` (from `NetEvolve.Pulse.Extensibility`). All other requests pass through unchanged.
+
+```csharp
+// Optional global fallback for ITimeoutRequest implementations that return a null Timeout
+services.AddPulse(config => config.AddRequestTimeout(TimeSpan.FromSeconds(30)));
+
+public record ProcessOrderCommand(string OrderId) : ICommand<OrderResult>, ITimeoutRequest
+{
+    public string? CorrelationId { get; set; }
+    public string? CausationId { get; set; }
+
+    public TimeSpan? Timeout => TimeSpan.FromSeconds(10);
+}
+```
+
+Behavior summary:
+
+| Scenario | Result |
+| --- | --- |
+| Handler completes within the deadline | Result returned |
+| Handler observes the cancelled token after the deadline | `TimeoutException` |
+| Handler ignores the token and returns after the deadline | `TimeoutException`; the late result is discarded |
+| Caller cancels the `CancellationToken` | `OperationCanceledException` (never `TimeoutException`) |
+| `Timeout` and `GlobalTimeout` are `null`, or `Timeout` is `Timeout.InfiniteTimeSpan` | Pass-through without deadline |
+| Request does **not** implement `ITimeoutRequest` | Pass-through without deadline |
+
+The deadline is scheduled and measured with the registered `TimeProvider`, so it can be controlled in tests.
+
+> **Side effects:** the interceptor cannot undo work. A command handler that finished after the deadline may already have written data, published events or called external systems before the `TimeoutException` is thrown. Any retry policy that reacts to a `TimeoutException` must therefore be idempotent (for example by combining it with `IIdempotentCommand<TResponse>` or natural idempotency keys).
+
 ### Outbox Pattern Configuration
 
 The outbox pattern ensures reliable event delivery by persisting events before dispatching:
@@ -199,7 +231,7 @@ services.AddPulse(config => config
         {
             processorOptions.BatchSize = 100;              // Messages per batch (default: 100)
             processorOptions.PollingInterval = TimeSpan.FromSeconds(5);  // Poll delay (default: 5s)
-            processorOptions.MaxRetryCount = 3;            // Max retries before dead letter (default: 3)
+            processorOptions.MaxRetryCount = 3;            // Max delivery attempts incl. the first before dead letter (default: 3, min: 1)
             processorOptions.ProcessingTimeout = TimeSpan.FromSeconds(30); // Per-message timeout (default: 30s)
             processorOptions.EnableBatchSending = false;   // Use batch transport (default: false)
         })
@@ -211,18 +243,18 @@ services.AddPulse(config => config
 
 #### Per-Event-Type Overrides
 
-You can tune processing behaviour for individual event types using `EventTypeOverrides`. The dictionary key matches the `EventType` field of stored outbox messages. Any `null` property falls back to the global default:
+You can tune processing behaviour for individual event types using `EventTypeOverrides`. The dictionary key is the event `Type` and matches the `EventType` of stored outbox messages. Any `null` property falls back to the global default:
 
 ```csharp
-processorOptions.EventTypeOverrides["MyNamespace.CriticalEvent"] = new OutboxEventTypeOptions
+processorOptions.EventTypeOverrides[typeof(CriticalEvent)] = new OutboxEventTypeOptions
 {
-    MaxRetryCount = 10,                         // More retries for critical events
+    MaxRetryCount = 10,                         // More delivery attempts for critical events
     ProcessingTimeout = TimeSpan.FromSeconds(10), // Tighter timeout
 };
 
-processorOptions.EventTypeOverrides["MyNamespace.BulkEvent"] = new OutboxEventTypeOptions
+processorOptions.EventTypeOverrides[typeof(BulkEvent)] = new OutboxEventTypeOptions
 {
-    MaxRetryCount = 1,                          // Fewer retries for low-priority bulk events
+    MaxRetryCount = 1,                          // Single attempt, no retries for low-priority bulk events
     ProcessingTimeout = TimeSpan.FromMinutes(2), // Longer timeout for large payloads
 };
 ```
@@ -235,7 +267,7 @@ Pulse uses `IPayloadSerializer` (from `NetEvolve.Pulse.Extensibility`) for all i
 
 #### Default Behavior
 
-No configuration is required — the built-in `SystemTextJsonPayloadSerializer` uses `JsonSerializerOptions.Default`:
+No configuration is required — the built-in `SystemTextJsonPayloadSerializer` uses default `JsonSerializerOptions`:
 
 ```csharp
 services.AddPulse();
@@ -292,6 +324,72 @@ public sealed class NewtonsoftJsonPayloadSerializer : IPayloadSerializer
 ```
 
 The custom serializer will be used for all payload operations within Pulse. Ensure your implementation is thread-safe, as the same instance may be accessed concurrently from multiple pipeline stages.
+
+## NativeAOT and Trimming
+
+All Pulse runtime packages are built with `IsAotCompatible` enabled, so the trim and NativeAOT analyzers run on every build. The core mediator pipeline (`AddPulse`, handler registration through `NetEvolve.Pulse.SourceGeneration` or the generic `Add*Handler<,>` methods, `SendAsync`, `QueryAsync`, `StreamQueryAsync` and `PublishAsync`) is trim- and NativeAOT-safe. This is verified on every pull request by publishing and running the `samples/NetEvolve.Pulse.Xample.Aot` smoke application with NativeAOT for `net8.0`, `net9.0` and `net10.0`. It covers commands, queries, stream queries and events, open-generic handlers and interceptors, value-type and `Void` requests through the built-in interceptors, the outbox event type round-trip and the payload serializer setup below.
+
+### Value-Type Requests Under NativeAOT
+
+The DI container cannot close open-generic services over value types under NativeAOT. For every handled command, query or stream query with a value-type request or response type, including `Void`, the method generated by `NetEvolve.Pulse.SourceGeneration` therefore calls `NativeAotInterceptorExtensions` when the application references `NetEvolve.Pulse`. Under NativeAOT, these calls register closed variants of the built-in open-generic interceptors that are registered at that time, together with closed interceptors for the same request type, and the mediator resolves them for these requests. Call the generated method after `AddPulse` and after every other interceptor registration, such as closed application interceptors or Polly policies added by a later `AddPulse` call:
+
+```csharp
+services.AddPulse(config => config.AddActivityAndMetrics().AddLogging());
+services.AddScoped<IRequestInterceptor<GetStockQuery, int>, StockAuditInterceptor>();
+services.AddMyProjectPulseHandlers(); // after every interceptor registration
+```
+
+* When an interceptor for such a request is registered, replaced or removed after the generated method ran, the mediator throws an `InvalidOperationException` for that request under NativeAOT instead of skipping the interceptor. Request types without any interceptor registration at that time are not affected.
+
+* The closed registrations cover the built-in interceptors of `NetEvolve.Pulse`: activity and metrics, audit, cache invalidation, command dead letters, concurrent command guard, DataAnnotations, idempotency, logging, query caching and timeouts.
+* When another open-generic interceptor is registered, for example by `AddFluentValidation`, `AddHttpCorrelationEnrichment` or the application, nothing is closed for the request type and its resolution keeps failing, instead of silently skipping that interceptor.
+* Handlers registered without the source generator can call `services.AddNativeAotCommandInterceptors<TCommand, TResponse>()`, `AddNativeAotExclusiveCommandInterceptors`, `AddNativeAotQueryInterceptors` or `AddNativeAotStreamQueryInterceptors` after `AddPulse` and after every other interceptor registration.
+* Outside NativeAOT, these methods register nothing, because the DI container closes open-generic services over value types itself.
+
+### Payload Serialization Under NativeAOT
+
+`SystemTextJsonPayloadSerializer` resolves contracts through `JsonSerializerOptions.GetTypeInfo`. Reflection-based serialization is disabled by default in trimmed and NativeAOT applications, so register a source-generated `JsonSerializerContext` for your payload types (outbox events, cached query responses, audited and dead-lettered commands):
+
+```csharp
+[JsonSerializable(typeof(OrderCreatedEvent))]
+[JsonSerializable(typeof(OrderDto))]
+internal sealed partial class AppJsonContext : JsonSerializerContext;
+
+services.Configure<JsonSerializerOptions>(options => options.TypeInfoResolverChain.Insert(0, AppJsonContext.Default));
+services.AddPulse();
+```
+
+Pulse never falls back to reflection in these applications. Serializing a type that no registered context covers throws a `NotSupportedException`.
+
+The Azure Queue Storage transport writes its envelope with the same `JsonSerializerOptions` and appends an internal source-generated context for the envelope, so no application contract is needed for it.
+
+### APIs That Are Not Trim- or NativeAOT-Safe
+
+The following public APIs carry `[RequiresUnreferencedCode]` (and `[RequiresDynamicCode]` where noted), so the compiler warns when a trimmed or NativeAOT application calls them:
+
+| API | Package | Annotations | Reason |
+| --- | --- | --- | --- |
+| `AddHandlersFromAssembly`, `AddHandlersFromAssemblies`, `AddInterceptorsFromAssembly` and the other assembly scanning methods | `NetEvolve.Pulse` | RUC, RDC | Enumerate assembly types and close generic types at runtime. Use the source generator instead. |
+| `AddDataAnnotations` | `NetEvolve.Pulse` | RUC | `Validator.TryValidateObject` reflects over the properties and attributes of the validated types. |
+| `ICommandDeadLetterManagement.ReplayAsync` and `CommandDeadLetterReplayDispatcher.ReplayAsync` (all providers) | `NetEvolve.Pulse.Extensibility`, providers | RUC, RDC | Resolve the persisted command type by name and dispatch it through `MakeGenericMethod`. |
+| `MapCommand`, `MapQuery`, `MapStreamQuery` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory` over the application's request types. |
+| `MapOutboxInspector`, `MapAuditInspector`, `MapCommandDeadLetterInspector` | `NetEvolve.Pulse.AspNetCore` | RUC, RDC | Build request delegates with `RequestDelegateFactory`. Their responses use the application's `HttpJsonOptions` with the internal source-generated `PulseInspectorJsonSerializerContext` appended as fallback resolver, so they need no reflection. Enums are written as numbers unless the application registers a converter such as `JsonStringEnumConverter<TEnum>`. |
+
+### Justified Suppressions
+
+Pulse suppresses a trim warning only where the reflected value is used safely:
+
+* The outbox repositories and management implementations (SQL Server, PostgreSQL, MySQL, SQLite, MongoDB, Cosmos DB and Entity Framework Core) resolve the persisted event type through `OutboxEventTypeResolver` in `NetEvolve.Pulse.Extensibility`, which calls `Type.GetType` and holds the only suppression (IL2057). The resolved type is only used for its identity. This works for every event type that is compiled into the application reading the outbox, for example because the application publishes it. The NativeAOT smoke application verifies the round-trip for an event type that is only published and never named through `typeof`. A separate outbox processor that never references an event type MUST root it, for example with `typeof(OrderCreatedEvent)` or `[DynamicDependency]`, otherwise the trimmer removes it and its messages are dead-lettered. A message whose event type cannot be resolved does not fail the fetch: the repositories move it to the dead-letter state with the error `Cannot resolve event type '<stored name>'.` and process the remaining messages ([#772](https://github.com/dailydevops/pulse/issues/772)). The management API and the outbox inspector still list such a message with its stored type name, so it can be replayed once the type is available again, or dismissed.
+* The DataAnnotations interceptors (IL2026) are only registered through the annotated `AddDataAnnotations`. `NativeAotInterceptorExtensions` only closes them when that open-generic registration exists.
+* `XmlDocumentationReader` in `NetEvolve.Pulse.AspNetCore` reads `Assembly.Location` (IL3000) and already returns no summary when the location is empty in single-file applications.
+* `SystemTextJsonPayloadSerializer` adds the reflection resolver only while the `JsonSerializer.IsReflectionEnabledByDefault` feature switch is enabled, which is never the case in trimmed or NativeAOT applications.
+
+### Known Limitations
+
+* The DI container cannot close open-generic services over value types under NativeAOT, so requests with a value-type request or response type, including `Void` for commands without a result, cannot resolve open-generic interceptors directly. For handlers registered by `NetEvolve.Pulse.SourceGeneration`, the generated method registers closed variants of the built-in interceptors of `NetEvolve.Pulse` (see [Value-Type Requests Under NativeAOT](#value-type-requests-under-nativeaot)). Open-generic interceptors of other packages, such as `AddFluentValidation` or `AddHttpCorrelationEnrichment`, or of the application still fail for these requests. Use reference-type responses for such requests, or register closed interceptor implementations.
+* `MapStreamQueryHub` and `PulseStreamHub<TQuery, TResponse>` build without trim or AOT warnings, but SignalR itself is not supported under NativeAOT on .NET 8 and only partially supported on .NET 9 and later. Under NativeAOT, register a source-generated `JsonSerializerContext` for `TQuery` and `TResponse` with the JSON hub protocol, for example `services.AddSignalR().AddJsonProtocol(o => o.PayloadSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default))`, and observe the [SignalR NativeAOT restrictions](https://learn.microsoft.com/aspnet/core/release-notes/aspnetcore-9.0#signalr).
+* `NetEvolve.Pulse.AspNetCore.Grpc` is trim- and NativeAOT-compatible, like gRPC for ASP.NET Core itself. `MapStreamQueryGrpc` carries the `DynamicallyAccessedMembers` requirement of `MapGrpcService`.
+* Provider packages inherit the NativeAOT support of their dependencies. Entity Framework Core, the MongoDB and Cosmos DB drivers, MySql.Data and the Dapr client are not fully NativeAOT-compatible.
 
 ## Requirements
 

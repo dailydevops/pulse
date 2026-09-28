@@ -8,7 +8,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// SQL Server implementation of <see cref="IOutboxManagement"/> using ADO.NET.
-/// Provides dead-letter inspection, replay, and statistics queries via optimized T-SQL stored procedures.
+/// Provides message and dead-letter inspection, replay, dismissal, and statistics queries via optimized T-SQL stored procedures.
 /// </summary>
 /// <remarks>
 /// <para><strong>Prerequisites:</strong></para>
@@ -51,6 +51,15 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <summary>Cached stored procedure name for retrieving outbox statistics.</summary>
     private readonly string _getStatisticsSql;
 
+    /// <summary>Cached stored procedure name for retrieving messages in any status (paginated).</summary>
+    private readonly string _getMessagesSql;
+
+    /// <summary>Cached stored procedure name for retrieving a single message in any status.</summary>
+    private readonly string _getMessageSql;
+
+    /// <summary>Cached stored procedure name for dismissing (deleting) a single dead-letter message.</summary>
+    private readonly string _dismissMessageSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerOutboxManagement"/> class.
     /// </summary>
@@ -75,6 +84,9 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         _replayMessageSql = $"[{schema}].[usp_ReplayOutboxMessage]";
         _replayAllDeadLetterSql = $"[{schema}].[usp_ReplayAllDeadLetterOutboxMessages]";
         _getStatisticsSql = $"[{schema}].[usp_GetOutboxStatistics]";
+        _getMessagesSql = $"[{schema}].[usp_GetOutboxMessages]";
+        _getMessageSql = $"[{schema}].[usp_GetOutboxMessage]";
+        _dismissMessageSql = $"[{schema}].[usp_DismissOutboxMessage]";
     }
 
     /// <inheritdoc />
@@ -88,6 +100,10 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
 
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -201,6 +217,78 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqlCommand(_getMessagesSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@pageSize", pageSize);
+                _ = command.Parameters.AddWithValue("@page", page);
+                _ = command.Parameters.Add(
+                    new SqlParameter("@status", SqlDbType.Int)
+                    {
+                        Value = status is { } value ? (int)value : DBNull.Value,
+                    }
+                );
+
+                return await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqlCommand(_getMessageSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId);
+
+                var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
+                return messages.Count > 0 ? messages[0] : null;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqlCommand(_dismissMessageSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@messageId", messageId);
+
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                var deleted = result is int count
+                    ? count
+                    : Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture);
+                return deleted > 0;
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -286,6 +374,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
             var ordRetryCount = reader.GetOrdinal(OutboxMessageSchema.Columns.RetryCount);
             var ordError = reader.GetOrdinal(OutboxMessageSchema.Columns.Error);
             var ordStatus = reader.GetOrdinal(OutboxMessageSchema.Columns.Status);
+            var ordNextRetryAt = reader.GetOrdinal(OutboxMessageSchema.Columns.NextRetryAt);
 
             var messages = new List<OutboxMessage>();
             do
@@ -303,7 +392,8 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
                         ordProcessedAt,
                         ordRetryCount,
                         ordError,
-                        ordStatus
+                        ordStatus,
+                        ordNextRetryAt
                     )
                 );
             } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
@@ -328,6 +418,7 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
     /// <param name="ordRetryCount">Pre-resolved ordinal for the RetryCount column.</param>
     /// <param name="ordError">Pre-resolved ordinal for the Error column.</param>
     /// <param name="ordStatus">Pre-resolved ordinal for the Status column.</param>
+    /// <param name="ordNextRetryAt">Pre-resolved ordinal for the NextRetryAt column.</param>
     /// <returns>A populated <see cref="OutboxMessage"/>.</returns>
     private static OutboxMessage MapToMessage(
         SqlDataReader reader,
@@ -341,16 +432,13 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
         int ordProcessedAt,
         int ordRetryCount,
         int ordError,
-        int ordStatus
+        int ordStatus,
+        int ordNextRetryAt
     ) =>
         new OutboxMessage
         {
             Id = reader.GetGuid(ordId),
-            EventType =
-                OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType))
-                ?? throw new InvalidOperationException(
-                    $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                ),
+            EventType = OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType)),
             Payload = reader.GetString(ordPayload),
             CorrelationId = reader.IsDBNull(ordCorrelationId) ? null : reader.GetString(ordCorrelationId),
             CausationId = reader.IsDBNull(ordCausationId) ? null : reader.GetString(ordCausationId),
@@ -360,5 +448,6 @@ internal sealed class SqlServerOutboxManagement : IOutboxManagement
             RetryCount = reader.GetInt32(ordRetryCount),
             Error = reader.IsDBNull(ordError) ? null : reader.GetString(ordError),
             Status = (OutboxMessageStatus)reader.GetInt32(ordStatus),
+            NextRetryAt = reader.IsDBNull(ordNextRetryAt) ? null : reader.GetDateTimeOffset(ordNextRetryAt),
         };
 }

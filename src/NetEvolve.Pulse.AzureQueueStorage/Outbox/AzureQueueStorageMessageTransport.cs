@@ -2,6 +2,9 @@ namespace NetEvolve.Pulse.Outbox;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Azure.Identity;
 using Azure.Storage.Queues;
 using Microsoft.Extensions.Options;
@@ -15,7 +18,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// The <see cref="QueueClient"/> is lazily initialized on first use. If
 /// <see cref="AzureQueueStorageTransportOptions.CreateQueueIfNotExists"/> is <see langword="true"/>,
 /// the queue is created automatically during initialization.
-/// Messages are JSON-serialized and Base64-encoded before sending.
+/// Messages are wrapped in an envelope, JSON-serialized with the configured <see cref="JsonSerializerOptions"/> and
+/// Base64-encoded before sending. The envelope property names are fixed, see <see cref="AzureQueueStorageEnvelope"/>.
 /// Raw message size must not exceed 48 KB (the Azure Queue Storage Base64-encoded limit of 64 KB).
 /// </remarks>
 public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisposable
@@ -23,7 +27,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     internal const int MaxMessageSizeInBytes = 48 * 1024; // Raw 48 KB limit (64 KB after Base64 encoding)
 
     private readonly AzureQueueStorageTransportOptions _options;
-    private readonly IPayloadSerializer _payloadSerializer;
+    private readonly JsonTypeInfo<AzureQueueStorageEnvelope> _envelopeTypeInfo;
     private readonly QueueClient? _queueClientOverride;
     private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
     private QueueClient? _queueClient;
@@ -32,16 +36,15 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// Initializes a new instance of the <see cref="AzureQueueStorageMessageTransport"/> class.
     /// </summary>
     /// <param name="options">The configured transport options.</param>
-    /// <param name="payloadSerializer">The serializer used to serialize the outbox message envelope.</param>
+    /// <param name="jsonSerializerOptions">The configured JSON serializer options, or <see langword="null"/> for the defaults.</param>
     internal AzureQueueStorageMessageTransport(
         IOptions<AzureQueueStorageTransportOptions> options,
-        IPayloadSerializer payloadSerializer
+        IOptions<JsonSerializerOptions>? jsonSerializerOptions = null
     )
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
         _options = options.Value;
-        _payloadSerializer = payloadSerializer;
+        _envelopeTypeInfo = CreateEnvelopeTypeInfo(jsonSerializerOptions?.Value);
     }
 
     /// <summary>
@@ -49,20 +52,19 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// with a pre-built queue client. Used for testing.
     /// </summary>
     /// <param name="options">The configured transport options.</param>
-    /// <param name="payloadSerializer">The serializer used to serialize the outbox message envelope.</param>
     /// <param name="queueClient">A pre-built queue client to use instead of creating one from options.</param>
+    /// <param name="jsonSerializerOptions">The configured JSON serializer options, or <see langword="null"/> for the defaults.</param>
     internal AzureQueueStorageMessageTransport(
         IOptions<AzureQueueStorageTransportOptions> options,
-        IPayloadSerializer payloadSerializer,
-        QueueClient queueClient
+        QueueClient queueClient,
+        IOptions<JsonSerializerOptions>? jsonSerializerOptions = null
     )
     {
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(payloadSerializer);
         ArgumentNullException.ThrowIfNull(queueClient);
         _options = options.Value;
-        _payloadSerializer = payloadSerializer;
         _queueClientOverride = queueClient;
+        _envelopeTypeInfo = CreateEnvelopeTypeInfo(jsonSerializerOptions?.Value);
     }
 
     /// <inheritdoc />
@@ -75,8 +77,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
 
         ArgumentNullException.ThrowIfNull(message);
 
-        var json = SerializeMessage(_payloadSerializer, message);
-        var rawBytes = Encoding.UTF8.GetBytes(json);
+        var rawBytes = SerializeMessage(message);
 
         if (rawBytes.Length > MaxMessageSizeInBytes)
         {
@@ -109,18 +110,46 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
         }
     }
 
-    private static string SerializeMessage(IPayloadSerializer payloadSerializer, OutboxMessage message) =>
-        payloadSerializer.Serialize(
-            new
-            {
-                id = message.Id,
-                eventType = message.EventType.ToOutboxEventTypeName(),
-                payload = message.Payload,
-                correlationId = message.CorrelationId,
-                causationId = message.CausationId,
-                createdAt = message.CreatedAt,
-            }
+    private byte[] SerializeMessage(OutboxMessage message) =>
+        JsonSerializer.SerializeToUtf8Bytes(
+            new AzureQueueStorageEnvelope(
+                message.Id,
+                message.EventType.ToOutboxEventTypeName(),
+                message.Payload,
+                message.CorrelationId,
+                message.CausationId,
+                message.CreatedAt
+            ),
+            _envelopeTypeInfo
         );
+
+    /// <summary>
+    /// Creates the envelope contract from a copy of the configured <see cref="JsonSerializerOptions"/>, with
+    /// <see cref="AzureQueueStorageJsonSerializerContext"/> appended as fallback resolver, so converters, encoder and
+    /// other settings apply while the envelope stays serializable without reflection.
+    /// <see cref="JsonSerializerOptions.DefaultIgnoreCondition"/>, <see cref="JsonSerializerOptions.ReferenceHandler"/>
+    /// and <see cref="JsonSerializerOptions.WriteIndented"/> are reset, so they cannot change the envelope shape or size.
+    /// </summary>
+    /// <param name="configured">The configured options, or <see langword="null"/> to use the internal defaults.</param>
+    /// <returns>The contract used to write the envelope.</returns>
+    private static JsonTypeInfo<AzureQueueStorageEnvelope> CreateEnvelopeTypeInfo(JsonSerializerOptions? configured)
+    {
+        if (configured is null)
+        {
+            return AzureQueueStorageJsonSerializerContext.Default.AzureQueueStorageEnvelope;
+        }
+
+        // Copy instead of mutating, the configured instance is shared and may already be read-only.
+        // Settings that change the envelope shape or size are pinned, the wire format stays stable.
+        var options = new JsonSerializerOptions(configured)
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            ReferenceHandler = null,
+            WriteIndented = false,
+        };
+        options.TypeInfoResolverChain.Add(AzureQueueStorageJsonSerializerContext.Default);
+        return (JsonTypeInfo<AzureQueueStorageEnvelope>)options.GetTypeInfo(typeof(AzureQueueStorageEnvelope));
+    }
 
     [SuppressMessage(
         "Maintainability",

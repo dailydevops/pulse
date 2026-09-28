@@ -114,7 +114,7 @@ When making code changes, follow this workflow:
 - Commit message MUST follow Conventional Commits 1.0.0 format
 - Commit message MUST be in English
 - Type MUST be one of: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert
-- Breaking changes MUST be indicated with `!` or `BREAKING CHANGE:` footer
+- Breaking changes MUST be indicated with `!` or `BREAKING CHANGE:` footer, except for public extensibility interface changes during `0.x` (see `2026-09-24-extensibility-interface-evolution-pre-1-0.md`)
 
 ## Related Decisions Handling
 

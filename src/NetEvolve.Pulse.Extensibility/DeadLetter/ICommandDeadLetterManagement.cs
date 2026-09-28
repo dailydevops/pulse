@@ -1,5 +1,7 @@
 namespace NetEvolve.Pulse.Extensibility.DeadLetter;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Defines the contract for managing commands stored in the dead letter store.
 /// </summary>
@@ -8,16 +10,30 @@ public interface ICommandDeadLetterManagement
     /// <summary>
     /// Retrieves the pending dead letter entries, i.e. entries with <see cref="CommandDeadLetterStatus.New"/> status.
     /// </summary>
-    /// <param name="count">The maximum number of entries to return. Default: <c>50</c>.</param>
+    /// <param name="count">The maximum number of entries to return. Must be greater than zero. Default: <c>50</c>.</param>
+    /// <param name="skip">The number of entries to skip before returning results. Must not be negative. Default: <c>0</c>.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A read-only list of at most <paramref name="count"/> entries with <see cref="CommandDeadLetterStatus.New"/> status,
-    /// ordered by <see cref="CommandDeadLetterEntry.OccurredAt"/> ascending (oldest first).
+    /// ordered by <see cref="CommandDeadLetterEntry.OccurredAt"/> ascending (oldest first), after skipping the first
+    /// <paramref name="skip"/> entries.
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="count"/> is less than or equal to zero, or <paramref name="skip"/> is negative.
+    /// </exception>
     Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Retrieves the dead letter entry identified by <paramref name="id"/>, regardless of its status.
+    /// </summary>
+    /// <param name="id">The identifier of the dead letter entry to retrieve.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The matching <see cref="CommandDeadLetterEntry"/>, or <see langword="null"/> if no entry exists.</returns>
+    Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Replays the command stored in the dead letter entry identified by <paramref name="id"/>.
@@ -31,7 +47,55 @@ public interface ICommandDeadLetterManagement
     /// <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.Resolved"/> on success.
     /// Implementations should use the shared <see cref="CommandDeadLetterReplayDispatcher"/> to perform the
     /// type resolution and dispatch, rather than reimplementing the reflection dispatch.
+    /// <para><strong>Status Rules:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// Entries with <see cref="CommandDeadLetterStatus.Dismissed"/> status MUST be rejected with
+    /// <see cref="CommandDeadLetterEntryDismissedException"/> before the status is changed or the command is dispatched.
+    /// </description></item>
+    /// <item><description>
+    /// Entries with <see cref="CommandDeadLetterStatus.Resolved"/> status stay replayable on purpose, so an operator
+    /// can deliberately re-run a command. Entries left in <see cref="CommandDeadLetterStatus.Replaying"/> status,
+    /// for example by a crashed process, stay replayable as well.
+    /// </description></item>
+    /// <item><description>
+    /// When deserialization or dispatch throws, or the operation is cancelled, implementations MUST reset
+    /// <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.New"/> without observing
+    /// <paramref name="cancellationToken"/> and rethrow the original exception, so the entry shows up in
+    /// <see cref="GetPendingAsync"/> again instead of staying in <see cref="CommandDeadLetterStatus.Replaying"/>.
+    /// This also applies to a failed re-run of a <see cref="CommandDeadLetterStatus.Resolved"/> entry.
+    /// When the reset itself fails, implementations MUST still rethrow the original exception; the entry then
+    /// stays in <see cref="CommandDeadLetterStatus.Replaying"/> and remains replayable.
+    /// </description></item>
+    /// <item><description>
+    /// The reset after a failed or cancelled replay MUST also record the attempt on the same entry: increment
+    /// <see cref="CommandDeadLetterEntry.AttemptCount"/> by one, set <see cref="CommandDeadLetterEntry.ExceptionType"/>
+    /// and <see cref="CommandDeadLetterEntry.ExceptionMessage"/> from the new exception, and set
+    /// <see cref="CommandDeadLetterEntry.OccurredAt"/> to the current time of the injected <see cref="TimeProvider"/>.
+    /// A failed replay never creates a new entry: the command dead letter interceptor skips the command that
+    /// <see cref="CommandDeadLetterReplayDispatcher"/> is replaying (see
+    /// <see cref="CommandDeadLetterReplayDispatcher.IsReplayedCommand"/>). A successful replay does not change
+    /// <see cref="CommandDeadLetterEntry.AttemptCount"/>.
+    /// </description></item>
+    /// <item><description>
+    /// An <c>IIdempotentCommand</c> keeps its idempotency key reserved after the failed attempt that created the
+    /// entry, whatever the registration order of the idempotency and dead letter interceptors. Its replay therefore
+    /// fails with an idempotency conflict, which is recorded on the entry like any other failure, until the key is
+    /// removed from the idempotency store. Dismiss such an entry if the command must not run again.
+    /// </description></item>
+    /// </list>
+    /// <para><strong>NativeAOT and Trimming:</strong></para>
+    /// Replay is reflection-based and therefore annotated with <see cref="RequiresUnreferencedCodeAttribute"/> and
+    /// <see cref="RequiresDynamicCodeAttribute"/>. Implementations MUST carry the same annotations.
     /// </remarks>
+    /// <exception cref="CommandDeadLetterEntryNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
+    /// <exception cref="CommandDeadLetterEntryDismissedException">The entry with the given <paramref name="id"/> has been dismissed.</exception>
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     Task ReplayAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -43,6 +107,7 @@ public interface ICommandDeadLetterManagement
     /// <remarks>
     /// Implementations set <see cref="CommandDeadLetterEntry.Status"/> to <see cref="CommandDeadLetterStatus.Dismissed"/>.
     /// </remarks>
+    /// <exception cref="CommandDeadLetterEntryNotFoundException">No entry with the given <paramref name="id"/> exists.</exception>
     Task DismissAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>

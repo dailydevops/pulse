@@ -57,13 +57,18 @@ WHERE "Status" = 2;
 -- Also reclaims messages stuck in Processing whose lease (based on UpdatedAt) has expired,
 -- e.g. after a worker crash, cancellation, or unhandled exception during dispatch.
 -- Uses FOR UPDATE SKIP LOCKED for concurrent polling safety.
--- The single-argument overload from earlier versions of this script is dropped first: PostgreSQL
--- overloads functions by argument types, so CREATE OR REPLACE with an added parameter would
--- otherwise leave both signatures behind and make a one-argument call ambiguous.
+--
+-- All timestamps are passed in by the caller (from the application's TimeProvider) instead of
+-- being taken from the database clock, so the lease comparison and UpdatedAt share one clock.
+-- Overloads from earlier versions of this script are dropped first: PostgreSQL overloads
+-- functions by argument types, so CREATE OR REPLACE with changed parameters would otherwise
+-- leave the old signatures behind and make calls ambiguous.
 DROP FUNCTION IF EXISTS ":schema_name".get_pending_outbox_messages(INTEGER);
+DROP FUNCTION IF EXISTS ":schema_name".get_pending_outbox_messages(INTEGER, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION ":schema_name".get_pending_outbox_messages(
     batch_size INTEGER,
-    lease_expired_before TIMESTAMPTZ DEFAULT NULL
+    lease_expired_before TIMESTAMPTZ,
+    now_utc TIMESTAMPTZ
 )
 RETURNS TABLE (
     "Id"            UUID,
@@ -99,7 +104,7 @@ BEGIN
     UPDATE ":schema_name".":table_name" msg
     SET
         "Status" = 1, -- Processing
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = now_utc
     FROM cte
     WHERE msg."Id" = cte."Id"
     RETURNING
@@ -119,6 +124,7 @@ END;
 $$;
 
 -- get_failed_outbox_messages_for_retry: Retrieves failed messages eligible for retry
+DROP FUNCTION IF EXISTS ":schema_name".get_failed_outbox_messages_for_retry(INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION ":schema_name".get_failed_outbox_messages_for_retry(
     max_retry_count INTEGER,
     batch_size INTEGER,
@@ -155,7 +161,7 @@ BEGIN
     UPDATE ":schema_name".":table_name" msg
     SET
         "Status" = 1, -- Processing
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = now_utc
     FROM cte
     WHERE msg."Id" = cte."Id"
     RETURNING
@@ -175,6 +181,7 @@ END;
 $$;
 
 -- mark_outbox_message_completed: Marks a message as successfully processed
+DROP FUNCTION IF EXISTS ":schema_name".mark_outbox_message_completed(UUID);
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_completed(
     message_id UUID,
     processed_at TIMESTAMPTZ,
@@ -195,10 +202,12 @@ END;
 $$;
 
 -- mark_outbox_message_failed: Marks a message as failed with error details
+DROP FUNCTION IF EXISTS ":schema_name".mark_outbox_message_failed(UUID, TEXT, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_failed(
     message_id UUID,
     error TEXT,
-    next_retry_at TIMESTAMPTZ
+    next_retry_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -210,16 +219,18 @@ BEGIN
         "RetryCount" = "RetryCount" + 1,
         "Error" = error,
         "NextRetryAt" = next_retry_at,
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = updated_at
     WHERE "Id" = message_id
       AND "Status" = 1; -- Processing
 END;
 $$;
 
 -- mark_outbox_message_dead_letter: Moves a message to dead letter status
+DROP FUNCTION IF EXISTS ":schema_name".mark_outbox_message_dead_letter(UUID, TEXT);
 CREATE OR REPLACE FUNCTION ":schema_name".mark_outbox_message_dead_letter(
     message_id UUID,
-    error TEXT
+    error TEXT,
+    updated_at TIMESTAMPTZ
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -229,7 +240,7 @@ BEGIN
     SET
         "Status" = 4, -- DeadLetter
         "Error" = error,
-        "UpdatedAt" = NOW()
+        "UpdatedAt" = updated_at
     WHERE "Id" = message_id
       AND "Status" = 1; -- Processing
 END;
@@ -358,8 +369,10 @@ END;
 $$;
 
 -- replay_outbox_message: Resets a dead-letter message to Pending for reprocessing
+DROP FUNCTION IF EXISTS ":schema_name".replay_outbox_message(UUID);
 CREATE OR REPLACE FUNCTION ":schema_name".replay_outbox_message(
-    message_id UUID
+    message_id UUID,
+    updated_at TIMESTAMPTZ
 )
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -373,7 +386,7 @@ BEGIN
         "RetryCount" = 0,
         "Error"      = NULL,
         "NextRetryAt" = NULL,
-        "UpdatedAt"  = NOW()
+        "UpdatedAt"  = updated_at
     WHERE "Id" = message_id
       AND "Status" = 4; -- DeadLetter
 
@@ -383,7 +396,10 @@ END;
 $$;
 
 -- replay_all_dead_letter_outbox_messages: Resets all dead-letter messages to Pending
-CREATE OR REPLACE FUNCTION ":schema_name".replay_all_dead_letter_outbox_messages()
+DROP FUNCTION IF EXISTS ":schema_name".replay_all_dead_letter_outbox_messages();
+CREATE OR REPLACE FUNCTION ":schema_name".replay_all_dead_letter_outbox_messages(
+    updated_at TIMESTAMPTZ
+)
 RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
@@ -396,11 +412,117 @@ BEGIN
         "RetryCount" = 0,
         "Error"      = NULL,
         "NextRetryAt" = NULL,
-        "UpdatedAt"  = NOW()
+        "UpdatedAt"  = updated_at
     WHERE "Status" = 4; -- DeadLetter
 
     GET DIAGNOSTICS updated_count = ROW_COUNT;
     RETURN updated_count;
+END;
+$$;
+
+-- get_outbox_messages: Returns a paginated, read-only list of messages, optionally filtered by status
+CREATE OR REPLACE FUNCTION ":schema_name".get_outbox_messages(
+    page_size INTEGER,
+    page INTEGER,
+    message_status INTEGER
+)
+RETURNS TABLE (
+    "Id"            UUID,
+    "EventType"     VARCHAR(500),
+    "Payload"       TEXT,
+    "CorrelationId" VARCHAR(100),
+    "CausationId"   VARCHAR(100),
+    "CreatedAt"     TIMESTAMPTZ,
+    "UpdatedAt"     TIMESTAMPTZ,
+    "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
+    "RetryCount"    INTEGER,
+    "Error"         TEXT,
+    "Status"        INTEGER
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        om."Id",
+        om."EventType",
+        om."Payload",
+        om."CorrelationId",
+        om."CausationId",
+        om."CreatedAt",
+        om."UpdatedAt",
+        om."ProcessedAt",
+        om."NextRetryAt",
+        om."RetryCount",
+        om."Error",
+        om."Status"
+    FROM ":schema_name".":table_name" om
+    WHERE message_status IS NULL OR om."Status" = message_status
+    ORDER BY om."UpdatedAt" DESC, om."Id" DESC
+    LIMIT page_size
+    OFFSET (page * page_size);
+END;
+$$;
+
+-- get_outbox_message: Returns a single message by Id, regardless of its status
+CREATE OR REPLACE FUNCTION ":schema_name".get_outbox_message(
+    message_id UUID
+)
+RETURNS TABLE (
+    "Id"            UUID,
+    "EventType"     VARCHAR(500),
+    "Payload"       TEXT,
+    "CorrelationId" VARCHAR(100),
+    "CausationId"   VARCHAR(100),
+    "CreatedAt"     TIMESTAMPTZ,
+    "UpdatedAt"     TIMESTAMPTZ,
+    "ProcessedAt"   TIMESTAMPTZ,
+    "NextRetryAt"   TIMESTAMPTZ,
+    "RetryCount"    INTEGER,
+    "Error"         TEXT,
+    "Status"        INTEGER
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        om."Id",
+        om."EventType",
+        om."Payload",
+        om."CorrelationId",
+        om."CausationId",
+        om."CreatedAt",
+        om."UpdatedAt",
+        om."ProcessedAt",
+        om."NextRetryAt",
+        om."RetryCount",
+        om."Error",
+        om."Status"
+    FROM ":schema_name".":table_name" om
+    WHERE om."Id" = message_id;
+END;
+$$;
+
+-- dismiss_outbox_message: Permanently deletes a single dead-letter message
+CREATE OR REPLACE FUNCTION ":schema_name".dismiss_outbox_message(
+    message_id UUID
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM ":schema_name".":table_name"
+    WHERE "Id" = message_id
+      AND "Status" = 4; -- DeadLetter
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
 END;
 $$;
 

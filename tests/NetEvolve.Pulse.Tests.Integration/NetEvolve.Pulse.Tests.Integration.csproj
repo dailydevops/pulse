@@ -17,6 +17,7 @@
     <PackageReference Include="Confluent.Kafka" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.Azure.Cosmos" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.Sqlite" />

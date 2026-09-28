@@ -23,6 +23,7 @@ NetEvolve Pulse delivers a high-performance CQRS mediator with an interceptor-en
 ### Integration Libraries
 
 - **NetEvolve.Pulse.AspNetCore** — ASP.NET Core Minimal API integration: `IEndpointRouteBuilder` extension methods that map mediator commands and queries directly to HTTP endpoints using the `CommandHttpMethod` enum (`Post`, `Put`, `Patch`, `Delete`) ([src/NetEvolve.Pulse.AspNetCore/README.md](src/NetEvolve.Pulse.AspNetCore/README.md))
+- **NetEvolve.Pulse.AspNetCore.Grpc** — ASP.NET Core gRPC integration: `PulseGrpcStreamService<TQuery, TResponse>` exposes streaming queries as server-streaming RPCs with client cancellation, registered via `MapStreamQueryGrpc<TService>()` ([src/NetEvolve.Pulse.AspNetCore.Grpc/README.md](src/NetEvolve.Pulse.AspNetCore.Grpc/README.md))
 - **NetEvolve.Pulse.FluentValidation** — Automatic pre-handler validation via FluentValidation: resolves all `IValidator<TRequest>` instances and throws `ValidationException` on failure, with no impact when no validators are registered ([src/NetEvolve.Pulse.FluentValidation/README.md](src/NetEvolve.Pulse.FluentValidation/README.md))
 - **NetEvolve.Pulse.HttpCorrelation** — Automatically propagates the HTTP correlation ID from `IHttpCorrelationAccessor` into every `IRequest<TResponse>` and `IEvent` dispatched through the mediator, without overwriting a caller-set value ([src/NetEvolve.Pulse.HttpCorrelation/README.md](src/NetEvolve.Pulse.HttpCorrelation/README.md))
 
@@ -170,6 +171,7 @@ dotnet test tests/NetEvolve.Pulse.Tests.Unit
 src/                 # Production libraries
 ├── NetEvolve.Pulse
 ├── NetEvolve.Pulse.AspNetCore
+├── NetEvolve.Pulse.AspNetCore.Grpc
 ├── NetEvolve.Pulse.AzureServiceBus
 ├── NetEvolve.Pulse.Dapr
 ├── NetEvolve.Pulse.EntityFramework
@@ -208,6 +210,7 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report
 
 - [NetEvolve.Pulse project docs](src/NetEvolve.Pulse/README.md) for mediator and outbox usage
 - [NetEvolve.Pulse.AspNetCore docs](src/NetEvolve.Pulse.AspNetCore/README.md) for Minimal API endpoint mapping
+- [NetEvolve.Pulse.AspNetCore.Grpc docs](src/NetEvolve.Pulse.AspNetCore.Grpc/README.md) for gRPC server-streaming queries
 - [NetEvolve.Pulse.AzureServiceBus docs](src/NetEvolve.Pulse.AzureServiceBus/README.md) for Azure Service Bus outbox transport
 - [NetEvolve.Pulse.Dapr docs](src/NetEvolve.Pulse.Dapr/README.md) for Dapr pub/sub transport
 - [NetEvolve.Pulse.EntityFramework docs](src/NetEvolve.Pulse.EntityFramework/README.md) for Entity Framework outbox persistence

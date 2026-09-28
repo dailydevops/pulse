@@ -82,3 +82,29 @@ services.AddSingleton<IConfigureOptions<AzureQueueStorageTransportOptions>, Azur
   }
 }
 ```
+
+## Wire Format
+
+Each outbox message is sent as a Base64-encoded UTF-8 JSON envelope:
+
+```json
+{
+  "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+  "eventType": "MyApp.Events.OrderCreated, MyApp",
+  "payload": "{\"orderId\":42}",
+  "correlationId": "corr-123",
+  "causationId": null,
+  "createdAt": "2026-09-24T10:15:00+00:00"
+}
+```
+
+| Property | Description |
+|---|---|
+| `id` | Outbox message identifier. |
+| `eventType` | Outbox event type identifier of the event. |
+| `payload` | The event as written to the outbox by `IPayloadSerializer` when it was stored, embedded as a JSON string and not serialized again. |
+| `correlationId` | Optional correlation identifier, written as `null` when absent. |
+| `causationId` | Optional causation identifier, written as `null` when absent. |
+| `createdAt` | Creation timestamp of the outbox message. |
+
+The envelope is serialized with the `JsonSerializerOptions` configured through `services.Configure<JsonSerializerOptions>(...)`, the same options the default `IPayloadSerializer` uses, so converters and the encoder apply, for example to `createdAt`. The property names are fixed and the optional identifiers are always written, and `DefaultIgnoreCondition`, `ReferenceHandler` and `WriteIndented` are reset for the envelope, so neither these settings nor a naming policy change its shape or size. An internal source-generated context is appended to a copy of the options as fallback resolver, so the envelope needs no reflection in trimmed or NativeAOT applications.

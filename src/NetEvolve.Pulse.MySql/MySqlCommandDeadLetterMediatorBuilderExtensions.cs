@@ -60,6 +60,8 @@ public static class MySqlCommandDeadLetterMediatorBuilderExtensions
 
     private static IMediatorBuilder RegisterMySqlCommandDeadLetterServices(this IMediatorBuilder configurator)
     {
+        configurator.Services.TryAddSingleton(TimeProvider.System);
+
         _ = configurator
             .Services.RemoveAll<ICommandDeadLetterStore>()
             .AddScoped<ICommandDeadLetterStore, MySqlCommandDeadLetterStore>()

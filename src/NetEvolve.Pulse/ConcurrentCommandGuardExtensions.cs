@@ -73,22 +73,26 @@ public static class ConcurrentCommandGuardExtensions
     /// <list type="number">
     /// <item>
     /// <description>
-    /// The open-generic <see cref="ConcurrentCommandGuardInterceptor{TRequest,TResponse}"/> is registered
-    /// as a singleton mapped to itself via
-    /// <see cref="ServiceCollectionDescriptorExtensions.TryAdd(IServiceCollection, ServiceDescriptor)"/>,
-    /// ensuring at most one concrete instance per closed command type for the application lifetime.
+    /// The closed <see cref="ConcurrentCommandGuardInterceptor{TRequest,TResponse}"/> is registered
+    /// as a singleton mapped to itself, ensuring one concrete instance per closed command type for the
+    /// application lifetime. The registration is closed because the DI container cannot close open-generic
+    /// services over value types such as <see cref="Extensibility.Void"/> under NativeAOT.
     /// </description>
     /// </item>
     /// <item>
     /// <description>
-    /// <see cref="IRequestInterceptor{TRequest,TResponse}"/> is registered with a singleton factory
-    /// via <see cref="ServiceCollectionDescriptorExtensions.TryAddSingleton{TService}(IServiceCollection, Func{IServiceProvider,TService})"/>
-    /// that delegates to the concrete interceptor, so both the open-generic overload
-    /// (<see cref="AddConcurrentCommandGuard(IMediatorBuilder)"/>) and this typed overload resolve
-    /// to the <em>same</em> underlying instance and semaphore dictionary.
+    /// <see cref="IRequestInterceptor{TRequest,TResponse}"/> is added with a singleton factory that delegates
+    /// to the concrete interceptor. It is added alongside any other interceptor already registered for the
+    /// same <typeparamref name="TRequest"/> / <typeparamref name="TResponse"/> pair, so the guard is registered
+    /// whatever the registration order. The registration order still decides the guard's position in the
+    /// interceptor pipeline, because interceptors are applied in reverse registration order.
     /// </description>
     /// </item>
     /// </list>
+    /// Repeated calls for the same pair register nothing, because the concrete interceptor is already registered.
+    /// When the open-generic overload (<see cref="AddConcurrentCommandGuard(IMediatorBuilder)"/>) is already
+    /// registered, this overload registers nothing either, so the command is guarded by a single interceptor
+    /// instance and semaphore dictionary.
     /// <para><strong>Lifetime:</strong></para>
     /// Both registrations use <see cref="ServiceLifetime.Singleton"/>, sharing one interceptor
     /// instance (and its semaphore dictionary) for the full application lifetime.
@@ -111,18 +115,21 @@ public static class ConcurrentCommandGuardExtensions
             && d.ImplementationType == typeof(ConcurrentCommandGuardInterceptor<,>)
         );
 
-        if (openGenericAlreadyRegistered)
+        // The concrete closed registration marks this pair as guarded, keeping repeated calls idempotent.
+        var closedAlreadyRegistered = services.Any(d =>
+            d.ServiceType == typeof(ConcurrentCommandGuardInterceptor<TRequest, TResponse>)
+        );
+
+        if (openGenericAlreadyRegistered || closedAlreadyRegistered)
         {
             return configurator;
         }
 
-        services.TryAdd(
-            ServiceDescriptor.Singleton(
-                typeof(ConcurrentCommandGuardInterceptor<,>),
-                typeof(ConcurrentCommandGuardInterceptor<,>)
-            )
-        );
-        services.TryAddSingleton<IRequestInterceptor<TRequest, TResponse>>(sp =>
+        // Closed registration: the DI container cannot close open-generic services over value types such as Void
+        // under NativeAOT. The interceptor service is added (not TryAdd) because a request can have many
+        // interceptors, and another interceptor for the same pair may already be registered.
+        _ = services.AddSingleton<ConcurrentCommandGuardInterceptor<TRequest, TResponse>>();
+        _ = services.AddSingleton<IRequestInterceptor<TRequest, TResponse>>(sp =>
             sp.GetRequiredService<ConcurrentCommandGuardInterceptor<TRequest, TResponse>>()
         );
 

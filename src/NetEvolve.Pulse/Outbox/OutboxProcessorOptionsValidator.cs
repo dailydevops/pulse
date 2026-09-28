@@ -25,9 +25,19 @@ internal sealed class OutboxProcessorOptionsValidator : IValidateOptions<OutboxP
             );
         }
 
-        if (options.MaxRetryCount < 0)
+        if (options.MaxRetryCount < 1)
         {
-            failures.Add($"{nameof(OutboxProcessorOptions.MaxRetryCount)} must be greater than or equal to 0.");
+            failures.Add($"{nameof(OutboxProcessorOptions.MaxRetryCount)} must be greater than or equal to 1.");
+        }
+
+        foreach (var (eventType, overrides) in options.EventTypeOverrides)
+        {
+            if (overrides.MaxRetryCount < 1)
+            {
+                failures.Add(
+                    $"{nameof(OutboxEventTypeOptions.MaxRetryCount)} for event type '{eventType.FullName}' must be greater than or equal to 1."
+                );
+            }
         }
 
         if (options.ProcessingTimeout <= TimeSpan.Zero)

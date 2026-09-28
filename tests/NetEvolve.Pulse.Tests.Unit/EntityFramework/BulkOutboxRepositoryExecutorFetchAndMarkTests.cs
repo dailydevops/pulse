@@ -62,6 +62,7 @@ public sealed class BulkOutboxRepositoryExecutorFetchAndMarkTests
                                 .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending)
                                 .OrderBy(m => m.CreatedAt)
                                 .Take(10),
+                            m => m.Status == OutboxMessageStatus.Pending,
                             winnerTimestamp,
                             OutboxMessageStatus.Processing,
                             cancellationToken
@@ -84,6 +85,7 @@ public sealed class BulkOutboxRepositoryExecutorFetchAndMarkTests
                                 .OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending)
                                 .OrderBy(m => m.CreatedAt)
                                 .Take(10),
+                            m => m.Status == OutboxMessageStatus.Pending,
                             loserTimestamp,
                             OutboxMessageStatus.Processing,
                             cancellationToken

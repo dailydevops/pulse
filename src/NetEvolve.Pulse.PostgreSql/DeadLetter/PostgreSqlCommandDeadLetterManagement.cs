@@ -50,8 +50,14 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <summary>Cached SQL for updating the status of a dead letter entry.</summary>
     private readonly string _updateStatusSql;
 
+    /// <summary>Cached SQL for resetting a dead letter entry after a failed replay.</summary>
+    private readonly string _recordReplayFailureSql;
+
     /// <summary>Cached SQL for aggregating entry counts per status.</summary>
     private readonly string _getStatisticsSql;
+
+    /// <summary>The time provider used to timestamp a failed replay.</summary>
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlCommandDeadLetterManagement"/> class.
@@ -59,20 +65,24 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <param name="options">The command dead letter configuration options.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads for replay.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public PostgreSqlCommandDeadLetterManagement(
         IOptions<CommandDeadLetterOptions> options,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = options.Value.ConnectionString;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? CommandDeadLetterSchema.DefaultSchema
@@ -96,8 +106,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             SELECT {columns}
             FROM {qualifiedTableName}
             WHERE "{CommandDeadLetterSchema.Columns.Status}" = @status
-            ORDER BY "{CommandDeadLetterSchema.Columns.OccurredAt}" ASC
-            LIMIT @count
+            ORDER BY "{CommandDeadLetterSchema.Columns.OccurredAt}" ASC, "{CommandDeadLetterSchema.Columns.Id}" ASC
+            LIMIT @count OFFSET @skip
             """;
 
         _getByIdSql = $"""
@@ -112,6 +122,16 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id
             """;
 
+        _recordReplayFailureSql = $"""
+            UPDATE {qualifiedTableName}
+            SET "{CommandDeadLetterSchema.Columns.Status}" = @status,
+                "{CommandDeadLetterSchema.Columns.AttemptCount}" = "{CommandDeadLetterSchema.Columns.AttemptCount}" + 1,
+                "{CommandDeadLetterSchema.Columns.ExceptionType}" = @exception_type,
+                "{CommandDeadLetterSchema.Columns.ExceptionMessage}" = @exception_message,
+                "{CommandDeadLetterSchema.Columns.OccurredAt}" = @occurred_at
+            WHERE "{CommandDeadLetterSchema.Columns.Id}" = @id
+            """;
+
         _getStatisticsSql = $"""
             SELECT "{CommandDeadLetterSchema.Columns.Status}", COUNT(*)
             FROM {qualifiedTableName}
@@ -122,10 +142,14 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -135,6 +159,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             {
                 _ = command.Parameters.AddWithValue("status", (short)CommandDeadLetterStatus.New);
                 _ = command.Parameters.AddWithValue("count", count);
+                _ = command.Parameters.AddWithValue("skip", skip);
 
                 var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 await using (reader.ConfigureAwait(false))
@@ -152,6 +177,22 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     }
 
     /// <inheritdoc />
+    public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            return await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -161,16 +202,40 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
         {
             var entry =
                 await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
-                ?? throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                ?? throw new CommandDeadLetterEntryNotFoundException(id);
+
+            if (entry.Status == CommandDeadLetterStatus.Dismissed)
+            {
+                throw new CommandDeadLetterEntryDismissedException(id);
+            }
 
             await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
 
-            await CommandDeadLetterReplayDispatcher
-                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await CommandDeadLetterReplayDispatcher
+                    .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    // Not cancellable: the reset must also run when the replay was cancelled.
+                    await RecordReplayFailureAsync(connection, id, ex).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed reset must not hide the replay failure: the entry stays in Replaying
+                    // and the original exception is rethrown below.
+                }
 
-            await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, cancellationToken)
+                throw;
+            }
+
+            // Not cancellable: the command has already been executed.
+            await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, CancellationToken.None)
                 .ConfigureAwait(false);
         }
     }
@@ -192,7 +257,7 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
                 var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (affected == 0)
                 {
-                    throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                    throw new CommandDeadLetterEntryNotFoundException(id);
                 }
             }
         }
@@ -294,6 +359,28 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     }
 
     /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    private async Task RecordReplayFailureAsync(NpgsqlConnection connection, Guid id, Exception exception)
+    {
+        var command = new NpgsqlCommand(_recordReplayFailureSql, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            _ = command.Parameters.AddWithValue("status", (short)CommandDeadLetterStatus.New);
+            _ = command.Parameters.AddWithValue(
+                "exception_type",
+                (object?)GetExceptionTypeName(exception) ?? DBNull.Value
+            );
+            _ = command.Parameters.AddWithValue("exception_message", exception.Message);
+            _ = command.Parameters.AddWithValue("occurred_at", _timeProvider.GetUtcNow());
+            _ = command.Parameters.AddWithValue("id", id);
+
+            _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Updates the status of the dead letter entry identified by <paramref name="id"/>.
     /// </summary>
     private async Task UpdateStatusAsync(
@@ -340,5 +427,17 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
             AttemptCount = reader.GetInt32(ordAttemptCount),
             Status = (CommandDeadLetterStatus)reader.GetInt16(ordStatus),
         };
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

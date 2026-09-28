@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 public sealed class RabbitMqContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly RabbitMqContainer _container = new RabbitMqBuilder( /*dockerimage*/
-        "rabbitmq:4.3.5"
+        "rabbitmq:4.3.6"
     )
         .WithLogger(NullLogger.Instance)
         .Build();

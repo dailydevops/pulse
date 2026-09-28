@@ -111,6 +111,29 @@ public sealed class SqlServerAuditTests
         _ = await Assert.That(management).IsNotNull();
     }
 
+    [Test]
+    [Arguments(0, 0)]
+    [Arguments(-1, 0)]
+    [Arguments(50, -1)]
+    public async Task Management_QueryAsync_WithInvalidTakeOrSkip_ThrowsArgumentOutOfRangeException(
+        int take,
+        int skip,
+        CancellationToken cancellationToken
+    )
+    {
+        var management = new SqlServerAuditManagement(
+            Options.Create(new AuditStoreOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await management
+                    .QueryAsync(new AuditFilter { Take = take, Skip = skip }, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
     // Defense-in-depth: pin that an attacker-controlled Schema value cannot reach the SQL
     // builder. The constructor must fail fast when Schema contains characters that would
     // break out of the [bracketed] identifier (e.g. ']' followed by injected SQL).

@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <Description>RabbitMQ transport for the Pulse CQRS mediator outbox. Delivers outbox messages directly to RabbitMQ exchanges using the official .NET client, supporting single and batched sends with health checks for the broker connection.</Description>
     <PackageTags>$(PackageTags);rabbitmq;amqp;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>

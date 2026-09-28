@@ -61,6 +61,8 @@ public static class EntityFrameworkCommandDeadLetterExtensions
 
         _ = services.Configure(configureOptions ?? (_ => { }));
 
+        services.TryAddSingleton(TimeProvider.System);
+
         _ = services
             .RemoveAll<ICommandDeadLetterStore>()
             .AddScoped<ICommandDeadLetterStore, EntityFrameworkCommandDeadLetterStore<TContext>>();

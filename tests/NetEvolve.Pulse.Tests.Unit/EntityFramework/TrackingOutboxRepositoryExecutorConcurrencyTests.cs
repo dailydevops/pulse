@@ -35,6 +35,23 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
     }
 
     [Test]
+    public async Task Model_UpdatedAtProperty_IsConcurrencyToken()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(nameof(Model_UpdatedAtProperty_IsConcurrencyToken))
+            .Options;
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            var updatedAtProperty = context
+                .Model.FindEntityType(typeof(OutboxMessage))!
+                .FindProperty(nameof(OutboxMessage.UpdatedAt))!;
+
+            _ = await Assert.That(updatedAtProperty.IsConcurrencyToken).IsTrue();
+        }
+    }
+
+    [Test]
     public async Task FetchAndMarkAsync_WhenCompetingPollerClaimsLoadedRows_DoesNotReturnLostRows(
         CancellationToken cancellationToken
     )
@@ -90,6 +107,7 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                         _ = await winnerExecutor
                             .FetchAndMarkAsync(
                                 winnerContext.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending),
+                                m => m.Status == OutboxMessageStatus.Pending,
                                 winnerTimestamp,
                                 OutboxMessageStatus.Processing,
                                 cancellationToken
@@ -100,6 +118,7 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                 var loserResult = await loserExecutor
                     .FetchAndMarkAsync(
                         interleavedQuery,
+                        m => m.Status == OutboxMessageStatus.Pending,
                         loserTimestamp,
                         OutboxMessageStatus.Processing,
                         cancellationToken
@@ -119,6 +138,112 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
                         _ = await Assert.That(loserResult).IsEmpty();
                         _ = await Assert.That(storedMessage.Status).IsEqualTo(OutboxMessageStatus.Processing);
                         _ = await Assert.That(storedMessage.UpdatedAt).IsEqualTo(winnerTimestamp);
+                    }
+                }
+            }
+        }
+    }
+
+    [Test]
+    public async Task FetchAndMarkAsync_WhenLoadedRowWasClaimedAndFailedAgain_DoesNotReclaimRow(
+        CancellationToken cancellationToken
+    )
+    {
+        var databaseRoot = new InMemoryDatabaseRoot();
+        var databaseName = nameof(FetchAndMarkAsync_WhenLoadedRowWasClaimedAndFailedAgain_DoesNotReclaimRow);
+
+        var winnerOptions = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(databaseName, databaseRoot)
+            .Options;
+        var loserOptions = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(databaseName, databaseRoot)
+            .Options;
+
+        var winnerContext = new TestDbContext(winnerOptions);
+        await using (winnerContext.ConfigureAwait(false))
+        {
+            var loserContext = new TestDbContext(loserOptions);
+            await using (loserContext.ConfigureAwait(false))
+            {
+                var messageId = Guid.NewGuid();
+                _ = await winnerContext
+                    .OutboxMessages.AddAsync(
+                        new OutboxMessage
+                        {
+                            Id = messageId,
+                            EventType = typeof(string),
+                            Payload = "{}",
+                            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+                            UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
+                            Status = OutboxMessageStatus.Failed,
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+                _ = await winnerContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                winnerContext.ChangeTracker.Clear();
+
+                using var winnerExecutor = new InMemoryOutboxRepositoryExecutor<TestDbContext>(winnerContext, 1);
+                using var loserExecutor = new InMemoryOutboxRepositoryExecutor<TestDbContext>(loserContext, 1);
+
+                var claimedAt = DateTimeOffset.UtcNow;
+                var failedAt = claimedAt.AddMilliseconds(10);
+                var nextRetryAt = claimedAt.AddHours(1);
+
+                // Between the loser's load and save, the winner claims the row, fails it again and
+                // schedules the next retry, so the row is back in Failed but no longer eligible.
+                var interleavedQuery = new InterleavingAsyncQueryable<OutboxMessage>(
+                    loserContext.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Failed),
+                    async () =>
+                    {
+                        _ = await winnerExecutor
+                            .FetchAndMarkAsync(
+                                winnerContext.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Failed),
+                                m => m.Status == OutboxMessageStatus.Failed,
+                                claimedAt,
+                                OutboxMessageStatus.Processing,
+                                cancellationToken
+                            )
+                            .ConfigureAwait(false);
+                        await winnerExecutor
+                            .UpdateByQueryAsync(
+                                winnerContext.OutboxMessages.Where(m => m.Id == messageId),
+                                failedAt,
+                                null,
+                                nextRetryAt,
+                                OutboxMessageStatus.Failed,
+                                1,
+                                "failed again",
+                                cancellationToken
+                            )
+                            .ConfigureAwait(false);
+                    }
+                );
+
+                var loserResult = await loserExecutor
+                    .FetchAndMarkAsync(
+                        interleavedQuery,
+                        m => m.Status == OutboxMessageStatus.Failed,
+                        claimedAt.AddMilliseconds(50),
+                        OutboxMessageStatus.Processing,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+
+                var verificationContext = new TestDbContext(winnerOptions);
+                await using (verificationContext.ConfigureAwait(false))
+                {
+                    var storedMessage = await verificationContext
+                        .OutboxMessages.AsNoTracking()
+                        .SingleAsync(m => m.Id == messageId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(loserResult).IsEmpty();
+                        _ = await Assert.That(storedMessage.Status).IsEqualTo(OutboxMessageStatus.Failed);
+                        _ = await Assert.That(storedMessage.UpdatedAt).IsEqualTo(failedAt);
+                        _ = await Assert.That(storedMessage.NextRetryAt).IsEqualTo(nextRetryAt);
                     }
                 }
             }

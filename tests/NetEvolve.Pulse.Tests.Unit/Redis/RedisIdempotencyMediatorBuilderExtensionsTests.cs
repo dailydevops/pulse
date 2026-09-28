@@ -111,4 +111,121 @@ public sealed class RedisIdempotencyMediatorBuilderExtensionsTests
 
         _ = await Assert.That(descriptors.Count).IsEqualTo(1);
     }
+
+    [Test]
+    public async Task AddRedisIdempotencyStore_CalledTwice_RegistersOptionsValidatorOnce()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+        {
+            _ = config.AddRedisIdempotencyStore();
+            _ = config.AddRedisIdempotencyStore();
+        });
+
+        var descriptors = services
+            .Where(d =>
+                d.ServiceType == typeof(IValidateOptions<IdempotencyKeyOptions>)
+                && d.ImplementationType == typeof(RedisIdempotencyKeyOptionsValidator)
+            )
+            .ToList();
+
+        _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AddRedisIdempotencyStore_WithExistingRepository_ReplacesWithRedisRepository()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddScoped(_ => Mock.Of<IIdempotencyKeyRepository>().Object);
+        _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(IIdempotencyKeyRepository)).ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors.Count).IsEqualTo(1);
+            _ = await Assert.That(descriptors[0].ImplementationType).IsEqualTo(typeof(RedisIdempotencyKeyRepository));
+        }
+    }
+
+    [Test]
+    public async Task AddRedisIdempotencyStore_WithoutConfigure_AppliesDefaultOptions()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddRedisIdempotencyStore());
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.Schema).IsEqualTo(IdempotencyKeySchema.DefaultSchema);
+                _ = await Assert.That(options.TableName).IsEqualTo(IdempotencyKeySchema.DefaultTableName);
+                _ = await Assert.That(options.TimeToLive).IsNull();
+            }
+        }
+    }
+
+    [Test]
+    public async Task AddRedisIdempotencyStore_WithConfigureOptions_AppliesTimeToLiveAndSchema()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.AddRedisIdempotencyStore(options =>
+            {
+                options.Schema = "tenant1";
+                options.TimeToLive = TimeSpan.FromMinutes(30);
+            })
+        );
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var options = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(options.Schema).IsEqualTo("tenant1");
+                _ = await Assert.That(options.TimeToLive).IsEqualTo(TimeSpan.FromMinutes(30));
+            }
+        }
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task AddRedisIdempotencyStore_WithNonPositiveTimeToLive_ThrowsOnOptionsResolution(int seconds)
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config =>
+            config.AddRedisIdempotencyStore(options => options.TimeToLive = TimeSpan.FromSeconds(seconds))
+        );
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<OptionsValidationException>(() =>
+                _ = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value
+            );
+        }
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async Task AddRedisIdempotencyStore_WithInvalidTableName_ThrowsOnOptionsResolution(string tableName)
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(config => config.AddRedisIdempotencyStore(options => options.TableName = tableName));
+
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            _ = Assert.Throws<OptionsValidationException>(() =>
+                _ = provider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value
+            );
+        }
+    }
 }

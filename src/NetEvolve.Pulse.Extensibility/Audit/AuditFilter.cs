@@ -48,10 +48,18 @@ public sealed class AuditFilter
     /// <summary>
     /// Gets or sets the maximum number of records to return. Default: <c>50</c>.
     /// </summary>
+    /// <remarks>
+    /// Must be greater than zero; otherwise <see cref="IAuditManagement.QueryAsync"/> throws an
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </remarks>
     public int Take { get; set; } = 50;
 
     /// <summary>
     /// Gets or sets the number of matching records to skip, for pagination. Default: <c>0</c>.
     /// </summary>
+    /// <remarks>
+    /// Must be zero or greater; otherwise <see cref="IAuditManagement.QueryAsync"/> throws an
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </remarks>
     public int Skip { get; set; }
 }

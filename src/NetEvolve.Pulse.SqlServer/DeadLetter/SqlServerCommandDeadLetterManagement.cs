@@ -50,8 +50,14 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <summary>Cached SQL command text for updating the status of a dead letter entry.</summary>
     private readonly string _updateStatusSql;
 
+    /// <summary>Cached SQL command text for resetting a dead letter entry after a failed replay.</summary>
+    private readonly string _recordReplayFailureSql;
+
     /// <summary>Cached SQL command text for retrieving aggregate status counts.</summary>
     private readonly string _getStatisticsSql;
+
+    /// <summary>The time provider used to timestamp a failed replay.</summary>
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerCommandDeadLetterManagement"/> class.
@@ -59,20 +65,24 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <param name="options">The command dead letter configuration options.</param>
     /// <param name="mediator">The mediator used to dispatch replayed commands.</param>
     /// <param name="payloadSerializer">The serializer used to deserialize stored payloads.</param>
+    /// <param name="timeProvider">The time provider used to timestamp a failed replay.</param>
     public SqlServerCommandDeadLetterManagement(
         IOptions<CommandDeadLetterOptions> options,
         IMediatorSendOnly mediator,
-        IPayloadSerializer payloadSerializer
+        IPayloadSerializer payloadSerializer,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _connectionString = options.Value.ConnectionString;
         _mediator = mediator;
         _payloadSerializer = payloadSerializer;
+        _timeProvider = timeProvider;
 
         var schema = string.IsNullOrWhiteSpace(options.Value.Schema)
             ? CommandDeadLetterSchema.DefaultSchema
@@ -83,8 +93,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         var fullTableName = $"[{schema}].[{options.Value.TableName}]";
 
         _getPendingSql = $"""
-            SELECT TOP (@count)
-                   [{CommandDeadLetterSchema.Columns.Id}],
+            SELECT [{CommandDeadLetterSchema.Columns.Id}],
                    [{CommandDeadLetterSchema.Columns.CommandType}],
                    [{CommandDeadLetterSchema.Columns.Payload}],
                    [{CommandDeadLetterSchema.Columns.ExceptionType}],
@@ -94,7 +103,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
                    [{CommandDeadLetterSchema.Columns.Status}]
             FROM {fullTableName}
             WHERE [{CommandDeadLetterSchema.Columns.Status}] = {(short)CommandDeadLetterStatus.New}
-            ORDER BY [{CommandDeadLetterSchema.Columns.OccurredAt}] ASC
+            ORDER BY [{CommandDeadLetterSchema.Columns.OccurredAt}] ASC, [{CommandDeadLetterSchema.Columns.Id}] ASC
+            OFFSET @skip ROWS FETCH NEXT @count ROWS ONLY
             """;
 
         _getByIdSql = $"""
@@ -116,6 +126,16 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
             WHERE [{CommandDeadLetterSchema.Columns.Id}] = @Id
             """;
 
+        _recordReplayFailureSql = $"""
+            UPDATE {fullTableName}
+            SET [{CommandDeadLetterSchema.Columns.Status}] = @Status,
+                [{CommandDeadLetterSchema.Columns.AttemptCount}] = [{CommandDeadLetterSchema.Columns.AttemptCount}] + 1,
+                [{CommandDeadLetterSchema.Columns.ExceptionType}] = @ExceptionType,
+                [{CommandDeadLetterSchema.Columns.ExceptionMessage}] = @ExceptionMessage,
+                [{CommandDeadLetterSchema.Columns.OccurredAt}] = @OccurredAt
+            WHERE [{CommandDeadLetterSchema.Columns.Id}] = @Id
+            """;
+
         _getStatisticsSql = $"""
             SELECT [{CommandDeadLetterSchema.Columns.Status}], COUNT(*) AS [Count]
             FROM {fullTableName}
@@ -126,10 +146,14 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task<IReadOnlyList<CommandDeadLetterEntry>> GetPendingAsync(
         int count = 50,
+        int skip = 0,
         CancellationToken cancellationToken = default
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -138,6 +162,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@count", count);
+                _ = command.Parameters.AddWithValue("@skip", skip);
 
                 var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 await using (reader.ConfigureAwait(false))
@@ -155,6 +180,22 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     }
 
     /// <inheritdoc />
+    public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            return await GetEntryByIdAsync(connection, id, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc />
+    [RequiresUnreferencedCode(
+        "Dead-letter replay resolves the persisted command type by name and dispatches it through reflection. The command type and its members might be removed by trimming."
+    )]
+    [RequiresDynamicCode(
+        "Dead-letter replay closes generic methods over runtime command and response types, which can require dynamic code generation."
+    )]
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -164,16 +205,40 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         {
             var entry =
                 await GetEntryByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
-                ?? throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                ?? throw new CommandDeadLetterEntryNotFoundException(id);
+
+            if (entry.Status == CommandDeadLetterStatus.Dismissed)
+            {
+                throw new CommandDeadLetterEntryDismissedException(id);
+            }
 
             _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Replaying, cancellationToken)
                 .ConfigureAwait(false);
 
-            await CommandDeadLetterReplayDispatcher
-                .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await CommandDeadLetterReplayDispatcher
+                    .ReplayAsync(_mediator, _payloadSerializer, entry.CommandType, entry.Payload, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    // Not cancellable: the reset must also run when the replay was cancelled.
+                    await RecordReplayFailureAsync(connection, id, ex).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed reset must not hide the replay failure: the entry stays in Replaying
+                    // and the original exception is rethrown below.
+                }
 
-            _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, cancellationToken)
+                throw;
+            }
+
+            // Not cancellable: the command has already been executed.
+            _ = await UpdateStatusAsync(connection, id, CommandDeadLetterStatus.Resolved, CancellationToken.None)
                 .ConfigureAwait(false);
         }
     }
@@ -191,7 +256,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
 
             if (affected == 0)
             {
-                throw new KeyNotFoundException($"CommandDeadLetterEntry '{id}' was not found.");
+                throw new CommandDeadLetterEntryNotFoundException(id);
             }
         }
     }
@@ -295,6 +360,31 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     }
 
     /// <summary>
+    /// Resets the dead letter entry identified by <paramref name="id"/> to <see cref="CommandDeadLetterStatus.New"/>
+    /// after a failed replay, increments its attempt count and records the failure details.
+    /// </summary>
+    /// <param name="connection">The open connection to use for the update.</param>
+    /// <param name="id">The identifier of the dead letter entry to update.</param>
+    /// <param name="exception">The exception that caused the replay to fail.</param>
+    private async Task RecordReplayFailureAsync(SqlConnection connection, Guid id, Exception exception)
+    {
+        var command = new SqlCommand(_recordReplayFailureSql, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            _ = command.Parameters.AddWithValue("@Id", id);
+            _ = command.Parameters.AddWithValue("@Status", (short)CommandDeadLetterStatus.New);
+            _ = command.Parameters.AddWithValue(
+                "@ExceptionType",
+                (object?)GetExceptionTypeName(exception) ?? DBNull.Value
+            );
+            _ = command.Parameters.AddWithValue("@ExceptionMessage", exception.Message);
+            _ = command.Parameters.AddWithValue("@OccurredAt", _timeProvider.GetUtcNow());
+
+            _ = await command.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Updates the status of the dead letter entry identified by <paramref name="id"/>.
     /// </summary>
     /// <param name="connection">The open connection to use for the update.</param>
@@ -348,5 +438,17 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
             AttemptCount = reader.GetInt32(ordAttemptCount),
             Status = (CommandDeadLetterStatus)reader.GetInt16(ordStatus),
         };
+    }
+
+    /// <summary>
+    /// Returns the assembly-qualified name of <paramref name="exception"/>, truncated to the length of the
+    /// exception type column so that recording a failed replay cannot fail on long generic type names.
+    /// </summary>
+    private static string? GetExceptionTypeName(Exception exception)
+    {
+        var name = exception.GetType().AssemblyQualifiedName;
+        return name is { Length: > CommandDeadLetterSchema.MaxLengths.ExceptionType }
+            ? name[..CommandDeadLetterSchema.MaxLengths.ExceptionType]
+            : name;
     }
 }

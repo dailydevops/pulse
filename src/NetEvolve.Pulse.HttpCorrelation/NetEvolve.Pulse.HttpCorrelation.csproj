@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
     <Description>HTTP correlation ID propagation interceptors for the Pulse CQRS mediator library. Automatically propagates the HTTP correlation ID from IHttpCorrelationAccessor into every IRequest and IEvent dispatched through the mediator, eliminating the need to manually copy correlation IDs at every call site.</Description>
     <PackageTags>$(PackageTags);http;correlation;tracing;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>

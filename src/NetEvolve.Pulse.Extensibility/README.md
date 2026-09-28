@@ -152,8 +152,8 @@ public class GenericEventHandler<TEvent>
 }
 
 // Generated registration:
-// services.TryAddSingleton(
-//     typeof(IEventHandler<>), typeof(GenericEventHandler<>));
+// services.TryAddEnumerable(ServiceDescriptor.Singleton(
+//     typeof(IEventHandler<>), typeof(GenericEventHandler<>)));
 ```
 
 | Attribute | Use case | Generator output |
@@ -161,6 +161,8 @@ public class GenericEventHandler<TEvent>
 | `[PulseHandler]` | Concrete handler class | `services.TryAddScoped<ICommandHandler<MyCmd, MyResult>, MyHandler>()` |
 | `[PulseHandler<TMessage>]` | Close an open-generic handler for one specific message type | `services.TryAddScoped<ICommandHandler<MyCmd, MyResult>, MyHandler<MyCmd, MyResult>>()` |
 | `[PulseGenericHandler]` | Register an open-generic handler for all closed variants | `services.TryAddScoped(typeof(ICommandHandler<,>), typeof(MyHandler<,>))` |
+
+`IEventHandler<TEvent>` contracts are the exception: an event can have many handlers, so the generator emits `services.TryAddEnumerable(ServiceDescriptor.{Lifetime}<...>())` for them instead of `TryAdd*`.
 
 ### Cacheable Queries (`ICacheableQuery<TResponse>`)
 

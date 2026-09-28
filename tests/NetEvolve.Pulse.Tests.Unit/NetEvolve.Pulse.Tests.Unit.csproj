@@ -33,6 +33,7 @@
     <ProjectReference Include="..\..\src\NetEvolve.Pulse\NetEvolve.Pulse.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.Dapr\NetEvolve.Pulse.Dapr.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AspNetCore\NetEvolve.Pulse.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\NetEvolve.Pulse.AspNetCore.Grpc\NetEvolve.Pulse.AspNetCore.Grpc.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureServiceBus\NetEvolve.Pulse.AzureServiceBus.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.AzureQueueStorage\NetEvolve.Pulse.AzureQueueStorage.csproj" />
     <ProjectReference Include="..\..\src\NetEvolve.Pulse.EntityFramework\NetEvolve.Pulse.EntityFramework.csproj" />

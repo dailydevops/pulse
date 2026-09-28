@@ -280,8 +280,9 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     public async Task<IReadOnlyList<OutboxMessage>> GetPendingAsync(
         int batchSize,
         CancellationToken cancellationToken = default
-    ) =>
-        await FetchAndClaimMessagesAsync(
+    )
+    {
+        var messages = await FetchAndClaimMessagesAsync(
                 _selectPendingIdsSql,
                 batchSize,
                 null,
@@ -290,14 +291,27 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
             )
             .ConfigureAwait(false);
 
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <inheritdoc />
     public async Task<IReadOnlyList<OutboxMessage>> GetFailedForRetryAsync(
         int maxRetryCount,
         int batchSize,
         CancellationToken cancellationToken = default
-    ) =>
-        await FetchAndClaimMessagesAsync(_selectFailedForRetryIdsSql, batchSize, maxRetryCount, null, cancellationToken)
+    )
+    {
+        var messages = await FetchAndClaimMessagesAsync(
+                _selectFailedForRetryIdsSql,
+                batchSize,
+                maxRetryCount,
+                null,
+                cancellationToken
+            )
             .ConfigureAwait(false);
+
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
@@ -638,7 +652,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="command">The <see cref="MySqlCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
+    /// <returns>A read-only list of <see cref="OutboxMessage"/> records, ordered by <see cref="OutboxMessage.CreatedAt"/> then <see cref="OutboxMessage.Id"/>.</returns>
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         MySqlCommand command,
         CancellationToken cancellationToken
@@ -690,11 +704,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                     new OutboxMessage
                     {
                         Id = new Guid(idBytes),
-                        EventType =
-                            Type.GetType(reader.GetString(ordEventType))
-                            ?? throw new InvalidOperationException(
-                                $"Cannot resolve event type '{reader.GetString(ordEventType)}'."
-                            ),
+                        EventType = OutboxEventTypeResolver.Resolve(reader.GetString(ordEventType)),
                         Payload = reader.GetString(ordPayload),
                         CorrelationId = correlationIdNull ? null : reader.GetString(ordCorrelationId),
                         CausationId = causationIdNull ? null : reader.GetString(ordCausationId),
@@ -713,7 +723,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
                 );
             } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 
-            return messages;
+            // Claim statements return rows in no guaranteed order; the outbox contract requires CreatedAt order.
+            return [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
         }
     }
 

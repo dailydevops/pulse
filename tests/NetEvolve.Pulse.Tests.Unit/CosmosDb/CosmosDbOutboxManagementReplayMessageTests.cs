@@ -1,6 +1,8 @@
 namespace NetEvolve.Pulse.Tests.Unit.CosmosDb;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -112,6 +114,63 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
         _ = await Assert.That(result).IsFalse();
     }
 
+    [Test]
+    public async Task ReplayMessageAsync_WithTtlEnabled_PatchesTtlToNeverExpire(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<PatchOperation>? capturedPatches = null;
+
+        var container = new FakeCosmosContainer
+        {
+            OnReadItem = (id, _) =>
+                new FakeItemResponse<CosmosDbOutboxDocument>(CreateDocument(Guid.Parse(id), status: 4), "\"etag\""),
+            OnPatchItem = (id, _, patches, _) =>
+            {
+                capturedPatches = patches;
+                return new FakeItemResponse<CosmosDbOutboxDocument>(CreateDocument(Guid.Parse(id), status: 0));
+            },
+        };
+
+        var management = CreateManagement(container, enableTtl: true);
+
+        var result = await management.ReplayMessageAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsTrue();
+            _ = await Assert.That(capturedPatches).IsNotNull();
+            _ = await Assert
+                .That(capturedPatches!.Any(p => p is PatchOperation<int> { Path: "/ttl", Value: -1 }))
+                .IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task ReplayMessageAsync_WithTtlDisabled_DoesNotPatchTtl(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<PatchOperation>? capturedPatches = null;
+
+        var container = new FakeCosmosContainer
+        {
+            OnReadItem = (id, _) =>
+                new FakeItemResponse<CosmosDbOutboxDocument>(CreateDocument(Guid.Parse(id), status: 4), "\"etag\""),
+            OnPatchItem = (id, _, patches, _) =>
+            {
+                capturedPatches = patches;
+                return new FakeItemResponse<CosmosDbOutboxDocument>(CreateDocument(Guid.Parse(id), status: 0));
+            },
+        };
+
+        var management = CreateManagement(container);
+
+        _ = await management.ReplayMessageAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedPatches).IsNotNull();
+            _ = await Assert.That(capturedPatches!.Any(p => p.Path == "/ttl")).IsFalse();
+        }
+    }
+
     private static CosmosDbOutboxDocument CreateDocument(Guid id, int status) =>
         new CosmosDbOutboxDocument
         {
@@ -123,13 +182,13 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
             Status = status,
         };
 
-    private static CosmosDbOutboxManagement CreateManagement(FakeCosmosContainer container)
+    private static CosmosDbOutboxManagement CreateManagement(FakeCosmosContainer container, bool enableTtl = false)
     {
         using var client = new FakeCosmosClient(container);
 
         return new CosmosDbOutboxManagement(
             client,
-            Options.Create(new CosmosDbOutboxOptions { DatabaseName = "TestDb" }),
+            Options.Create(new CosmosDbOutboxOptions { DatabaseName = "TestDb", EnableTimeToLive = enableTtl }),
             TimeProvider.System
         );
     }

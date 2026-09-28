@@ -45,6 +45,9 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
     /// <summary>Cached SQL for aggregating record counts per result.</summary>
     private readonly string _getStatisticsSql;
 
+    /// <summary>Cached SQL for retrieving a single record by its identifier.</summary>
+    private readonly string _getByIdSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlAuditManagement"/> class.
     /// </summary>
@@ -75,6 +78,12 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
             + $"\"{AuditEntrySchema.Columns.Result}\", \"{AuditEntrySchema.Columns.Payload}\", "
             + $"\"{AuditEntrySchema.Columns.ExceptionMessage}\"";
 
+        _getByIdSql = $"""
+            SELECT {_columns}
+            FROM {_qualifiedTableName}
+            WHERE "{AuditEntrySchema.Columns.Id}" = @id
+            """;
+
         _getStatisticsSql = $"""
             SELECT "{AuditEntrySchema.Columns.Result}", COUNT(*)
             FROM {_qualifiedTableName}
@@ -91,6 +100,8 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var whereClause = new StringBuilder();
         var conditions = new List<string>();
@@ -129,7 +140,7 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
             SELECT {_columns}
             FROM {_qualifiedTableName}
             {whereClause}
-            ORDER BY "{AuditEntrySchema.Columns.OccurredAt}" DESC
+            ORDER BY "{AuditEntrySchema.Columns.OccurredAt}" DESC, "{AuditEntrySchema.Columns.Id}" DESC
             LIMIT @take
             OFFSET @skip
             """;
@@ -152,12 +163,12 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
 
                 if (filter.From is not null)
                 {
-                    _ = command.Parameters.AddWithValue("from", filter.From.Value);
+                    _ = command.Parameters.AddWithValue("from", filter.From.Value.ToUniversalTime());
                 }
 
                 if (filter.To is not null)
                 {
-                    _ = command.Parameters.AddWithValue("to", filter.To.Value);
+                    _ = command.Parameters.AddWithValue("to", filter.To.Value.ToUniversalTime());
                 }
 
                 if (filter.Result is not null)
@@ -178,6 +189,26 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
                     }
 
                     return records;
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_getByIdSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("id", id);
+
+                var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using (reader.ConfigureAwait(false))
+                {
+                    return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? MapToRecord(reader) : null;
                 }
             }
         }

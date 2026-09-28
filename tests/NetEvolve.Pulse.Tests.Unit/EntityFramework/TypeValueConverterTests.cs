@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Configurations;
+using NetEvolve.Pulse.Extensibility.Outbox;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -46,14 +47,14 @@ public sealed class TypeValueConverterTests
     }
 
     [Test]
-    public async Task ConvertFromProvider_With_invalid_type_name_throws_InvalidOperationException()
+    public async Task ConvertFromProvider_With_invalid_type_name_returns_unresolvable_placeholder()
     {
         var converter = new TypeValueConverter();
         var fromProvider = converter.ConvertFromProvider;
 
-        _ = await Assert
-            .That(() => fromProvider("Invalid.Type.Name, InvalidAssembly"))
-            .Throws<InvalidOperationException>();
+        var result = (Type)fromProvider("Invalid.Type.Name, InvalidAssembly")!;
+
+        _ = await Assert.That(OutboxEventTypeResolver.IsUnresolvable(result)).IsTrue();
     }
 
     [Test]
@@ -74,20 +75,15 @@ public sealed class TypeValueConverterTests
     }
 
     [Test]
-    public async Task ConvertFromProvider_With_invalid_type_name_throws_on_every_attempt()
+    public async Task ConvertFromProvider_With_invalid_type_name_round_trips_stored_name()
     {
         var converter = new TypeValueConverter();
         var fromProvider = converter.ConvertFromProvider;
+        var toProvider = converter.ConvertToProvider;
 
-        using (Assert.Multiple())
-        {
-            _ = await Assert
-                .That(() => fromProvider("Invalid.Repeated.Type, InvalidAssembly"))
-                .Throws<InvalidOperationException>();
-            _ = await Assert
-                .That(() => fromProvider("Invalid.Repeated.Type, InvalidAssembly"))
-                .Throws<InvalidOperationException>();
-        }
+        var result = toProvider(fromProvider("Invalid.Repeated.Type, InvalidAssembly"));
+
+        _ = await Assert.That(result).IsEqualTo("Invalid.Repeated.Type, InvalidAssembly");
     }
 
     [Test]

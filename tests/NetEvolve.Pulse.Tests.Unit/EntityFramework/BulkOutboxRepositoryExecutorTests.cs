@@ -44,6 +44,7 @@ public sealed class BulkOutboxRepositoryExecutorTests
             var result = await executor
                 .FetchAndMarkAsync(
                     context.OutboxMessages.Where(m => m.Status == OutboxMessageStatus.Pending),
+                    m => m.Status == OutboxMessageStatus.Pending,
                     DateTimeOffset.UtcNow,
                     OutboxMessageStatus.Processing,
                     cancellationToken

@@ -115,6 +115,29 @@ public sealed class PostgreSqlAuditTests
     }
 
     [Test]
+    [Arguments(0, 0)]
+    [Arguments(-1, 0)]
+    [Arguments(50, -1)]
+    public async Task Management_QueryAsync_WithInvalidTakeOrSkip_ThrowsArgumentOutOfRangeException(
+        int take,
+        int skip,
+        CancellationToken cancellationToken
+    )
+    {
+        var management = new PostgreSqlAuditManagement(
+            Options.Create(new AuditStoreOptions { ConnectionString = ValidConnectionString })
+        );
+
+        _ = await Assert
+            .That(async () =>
+                await management
+                    .QueryAsync(new AuditFilter { Take = take, Skip = skip }, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public async Task AddPostgreSqlAuditStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>

@@ -18,6 +18,10 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     private readonly AzureServiceBusTransportOptions _options;
     private readonly ConcurrentDictionary<string, ServiceBusSender> _senders = new(StringComparer.Ordinal);
 
+    // Entities that rejected a multi-message batch (partitioned with duplicate detection). Messages for
+    // these entities are sent one at a time for the lifetime of this transport.
+    private readonly ConcurrentDictionary<string, bool> _individualSendEntities = new(StringComparer.Ordinal);
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureServiceBusMessageTransport"/> class.
     /// </summary>
@@ -62,32 +66,38 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         // Group messages by resolved topic name for efficient batching
         var messagesByTopic = messages.ToLookup(m => _topicNameResolver.Resolve(m), StringComparer.Ordinal);
 
-        if (!_options.EnableBatching)
-        {
-            foreach (var group in messagesByTopic)
-            {
-                var sender = GetSender(group.Key);
-                foreach (var message in group)
-                {
-                    var serviceBusMessage = CreateServiceBusMessage(message);
-                    await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            return;
-        }
-
         foreach (var group in messagesByTopic)
         {
             var sender = GetSender(group.Key);
-            await SendChunkedBatchesAsync(sender, group, cancellationToken).ConfigureAwait(false);
+            if (!_options.EnableBatching || _individualSendEntities.ContainsKey(group.Key))
+            {
+                await SendIndividuallyAsync(sender, group.Select(CreateServiceBusMessage), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await SendChunkedBatchesAsync(group.Key, sender, group, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static async Task SendIndividuallyAsync(
+        ServiceBusSender sender,
+        IEnumerable<ServiceBusMessage> messages,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var message in messages)
+        {
+            await sender.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
         }
     }
 
     private ServiceBusSender GetSender(string topicName) =>
         _senders.GetOrAdd(topicName, static (name, client) => client.CreateSender(name), _client);
 
-    private static async Task SendChunkedBatchesAsync(
+    private async Task SendChunkedBatchesAsync(
+        string entityName,
         ServiceBusSender sender,
         IEnumerable<OutboxMessage> messages,
         CancellationToken cancellationToken
@@ -95,21 +105,41 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        // ServiceBusMessageBatch does not expose its messages, so track them for the individual-send fallback.
+        var pending = new List<ServiceBusMessage>();
         var batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            var sendIndividually = false;
             foreach (var message in messages)
             {
                 var serviceBusMessage = CreateServiceBusMessage(message);
+                if (sendIndividually)
+                {
+                    await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 if (batch.TryAddMessage(serviceBusMessage))
                 {
+                    pending.Add(serviceBusMessage);
                     continue;
                 }
 
                 if (batch.Count > 0)
                 {
-                    await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                    if (
+                        !await TrySendBatchAsync(entityName, sender, batch, pending, cancellationToken)
+                            .ConfigureAwait(false)
+                    )
+                    {
+                        sendIndividually = true;
+                        await sender.SendMessageAsync(serviceBusMessage, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+
                     batch.Dispose();
+                    pending.Clear();
                     batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
                 }
 
@@ -120,16 +150,48 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
                         ServiceBusFailureReason.MessageSizeExceeded
                     );
                 }
+
+                pending.Add(serviceBusMessage);
             }
 
-            if (batch.Count > 0)
+            if (!sendIndividually && batch.Count > 0)
             {
-                await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+                _ = await TrySendBatchAsync(entityName, sender, batch, pending, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
         finally
         {
             batch.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Sends <paramref name="batch"/>. When the service rejects a multi-message batch because the messages
+    /// carry distinct partition keys (partitioned entity with duplicate detection, where the unique
+    /// <see cref="ServiceBusMessage.MessageId"/> is the partition key), the batch was not enqueued at all,
+    /// so its messages are sent one at a time and the entity is remembered for individual sending.
+    /// </summary>
+    /// <returns><see langword="true"/> when the batch was sent; <see langword="false"/> when it fell back to individual sends.</returns>
+    private async Task<bool> TrySendBatchAsync(
+        string entityName,
+        ServiceBusSender sender,
+        ServiceBusMessageBatch batch,
+        List<ServiceBusMessage> pending,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        // The SDK maps the service condition amqp:not-allowed to InvalidOperationException.
+        catch (InvalidOperationException ex) when (ex is not ObjectDisposedException && batch.Count > 1)
+        {
+            _individualSendEntities[entityName] = true;
+            await SendIndividuallyAsync(sender, pending, cancellationToken).ConfigureAwait(false);
+            return false;
         }
     }
 

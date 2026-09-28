@@ -22,9 +22,13 @@ public sealed class OutboxProcessorOptions
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// Gets or sets the maximum number of retry attempts before moving to dead letter.
-    /// Default: 3.
+    /// Gets or sets the maximum number of delivery attempts (including the first) before a message is moved to dead letter.
+    /// Must be at least 1. Default: 3.
     /// </summary>
+    /// <remarks>
+    /// The value counts attempts, not retries: <c>3</c> means one initial attempt plus two retries,
+    /// and <c>1</c> moves a message to dead letter after its first failed attempt.
+    /// </remarks>
     public int MaxRetryCount { get; set; } = 3;
 
     /// <summary>
@@ -123,11 +127,32 @@ public sealed class OutboxProcessorOptions
     /// applying any configured per-type override.
     /// </summary>
     /// <param name="eventType">The event type.</param>
-    /// <returns>The resolved maximum retry count.</returns>
+    /// <returns>The resolved maximum number of delivery attempts.</returns>
     internal int GetEffectiveMaxRetryCount(Type eventType) =>
         EventTypeOverrides.TryGetValue(eventType, out var overrides) && overrides.MaxRetryCount.HasValue
             ? overrides.MaxRetryCount.Value
             : MaxRetryCount;
+
+    /// <summary>
+    /// Returns the largest effective <see cref="MaxRetryCount"/> across the global value and all
+    /// <see cref="EventTypeOverrides"/>, used to fetch failed messages for retry so that no event type
+    /// is excluded before reaching its own limit.
+    /// </summary>
+    /// <returns>The largest configured maximum number of delivery attempts.</returns>
+    internal int GetHighestMaxRetryCount()
+    {
+        var highest = MaxRetryCount;
+
+        foreach (var overrides in EventTypeOverrides.Values)
+        {
+            if (overrides.MaxRetryCount is int value && value > highest)
+            {
+                highest = value;
+            }
+        }
+
+        return highest;
+    }
 
     /// <summary>
     /// Returns the effective <see cref="ProcessingTimeout"/> for the given event type,

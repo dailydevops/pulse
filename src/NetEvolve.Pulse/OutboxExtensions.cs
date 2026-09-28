@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse;
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -106,7 +107,9 @@ public static class OutboxExtensions
     /// <remarks>
     /// Replaces any existing <see cref="IMessageTransport"/> registration.
     /// </remarks>
-    public static IMediatorBuilder UseMessageTransport<TTransport>(this IMediatorBuilder configurator)
+    public static IMediatorBuilder UseMessageTransport<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTransport
+    >(this IMediatorBuilder configurator)
         where TTransport : class, IMessageTransport
     {
         ArgumentNullException.ThrowIfNull(configurator);

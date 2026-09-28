@@ -79,6 +79,15 @@ The script creates:
 | `replay_outbox_message` | Resets a single dead-letter message to Pending |
 | `replay_all_dead_letter_outbox_messages` | Resets all dead-letter messages to Pending |
 | `get_outbox_statistics` | Returns message counts grouped by status |
+| `get_outbox_messages` | Returns a paginated, read-only list of messages in any status, optionally filtered by status |
+| `get_outbox_message` | Returns a single message by ID, regardless of its status |
+| `dismiss_outbox_message` | Permanently deletes a single dead-letter message |
+
+### Upgrading
+
+Every timestamp the outbox functions write (including `UpdatedAt`) is passed in from the application's injected `TimeProvider` instead of being taken from the database clock (`NOW()`). As a result, the signatures of `get_pending_outbox_messages`, `mark_outbox_message_failed`, `mark_outbox_message_dead_letter`, `replay_outbox_message` and `replay_all_dead_letter_outbox_messages` changed.
+
+When upgrading from an earlier version, **re-run `OutboxMessage.sql`** against every database that hosts the outbox. The script is idempotent: it keeps the table and its data, drops the outdated function overloads and recreates the functions. Deploy the script together with the package upgrade, because the old and new package versions call different function signatures.
 
 ## Quick Start
 

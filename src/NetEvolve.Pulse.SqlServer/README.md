@@ -104,6 +104,9 @@ The script creates:
 | `usp_ReplayOutboxMessage` | Resets a single dead-letter message to Pending |
 | `usp_ReplayAllDeadLetterOutboxMessages` | Resets all dead-letter messages to Pending |
 | `usp_GetOutboxStatistics` | Returns message counts grouped by status |
+| `usp_GetOutboxMessages` | Returns a paginated, read-only list of messages in any status, optionally filtered by status |
+| `usp_GetOutboxMessage` | Returns a single message by ID, regardless of its status |
+| `usp_DismissOutboxMessage` | Permanently deletes a single dead-letter message |
 
 ## Quick Start
 
@@ -271,6 +274,9 @@ public class OutboxMonitorService
 | `GetDeadLetterCountAsync()` | Returns the total count of dead-letter messages |
 | `ReplayMessageAsync(messageId)` | Resets a single dead-letter message to Pending for reprocessing |
 | `ReplayAllDeadLetterAsync()` | Resets all dead-letter messages to Pending and returns the updated count |
+| `GetMessagesAsync(pageSize, page, status)` | Returns a paginated, read-only list of messages in any status, optionally filtered by status |
+| `GetMessageAsync(messageId)` | Returns a single message by ID, regardless of its status |
+| `DismissMessageAsync(messageId)` | Permanently deletes a single dead-letter message and returns whether one was deleted |
 
 ## Transaction Integration
 

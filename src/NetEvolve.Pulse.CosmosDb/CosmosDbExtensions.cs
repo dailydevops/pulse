@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -104,21 +105,34 @@ public static class CosmosDbExtensions
         var services = configurator.Services;
 
         _ = services.Configure(configureOptions);
+        services.AddCosmosDbOutboxOptionsValidation();
 
         // Ensure TimeProvider is registered.
         services.TryAddSingleton(TimeProvider.System);
 
-        // Register the repository.
-        services.TryAddScoped<IOutboxRepository, CosmosDbOutboxRepository>();
-
-        // Register the management API.
-        services.TryAddScoped<IOutboxManagement, CosmosDbOutboxManagement>();
+        // Replace any previously registered repository and management API.
+        _ = services
+            .RemoveAll<IOutboxRepository>()
+            .AddScoped<IOutboxRepository, CosmosDbOutboxRepository>()
+            .RemoveAll<IOutboxManagement>()
+            .AddScoped<IOutboxManagement, CosmosDbOutboxManagement>();
 
         return configurator;
     }
 
+    private static void AddCosmosDbOutboxOptionsValidation(this IServiceCollection services)
+    {
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<CosmosDbOutboxOptions>, CosmosDbOutboxOptionsValidator>()
+        );
+
+        _ = services.AddOptions<CosmosDbOutboxOptions>().ValidateOnStart();
+    }
+
     private static IMediatorBuilder RegisterCosmosDbOutboxServices(this IMediatorBuilder configurator)
     {
+        configurator.Services.AddCosmosDbOutboxOptionsValidation();
+
         // AddOutbox() uses TryAdd* internally, so this call is safe even when AddOutbox() was already invoked.
         _ = configurator
             .AddOutbox()

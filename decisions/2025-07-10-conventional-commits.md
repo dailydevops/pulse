@@ -7,13 +7,14 @@ applyTo:
 
 created: 2025-07-10
 
-lastModified: 2025-07-14
+lastModified: 2026-09-24
 
 state: accepted
 
 instructions: |
   Adopt Conventional Commits 1.0.0 specification for structured commit messages with type, scope, and description format to enable automated semantic versioning and changelog generation.
   Required types include feat, fix, docs, style, refactor, test, chore, build, ci, perf, and revert with breaking change indicators.
+  Exception: while the major version is 0, changes to public interfaces in NetEvolve.Pulse.Extensibility MUST NOT use `!` or a `BREAKING CHANGE:` footer (see 2026-09-24-extensibility-interface-evolution-pre-1-0.md).
 ---
 
 # Decision: Conventional Commits
@@ -67,6 +68,7 @@ We will adopt the [Conventional Commits 1.0.0 specification](https://www.convent
 
 - Commits MUST be prefixed with a type followed by an optional scope, optional `!`, and required terminal colon and space
 - Breaking changes MUST be indicated either by `!` after the type/scope or by including `BREAKING CHANGE:` in the footer
+  - Exception: while the major version is `0`, changes to public extensibility interfaces MUST NOT be marked as breaking, see [Extensibility Interface Evolution Before 1.0](./2026-09-24-extensibility-interface-evolution-pre-1-0.md)
 - Scope MAY be provided to give additional context (e.g., `feat(api):`, `fix(parser):`)
 - Description MUST immediately follow the colon and space after the type/scope prefix
 - Body and footers are OPTIONAL and provide additional context when needed

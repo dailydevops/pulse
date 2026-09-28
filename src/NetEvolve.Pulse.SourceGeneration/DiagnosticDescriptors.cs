@@ -71,12 +71,13 @@ internal static class DiagnosticDescriptors
     /// <summary>
     /// PULSE006 – a closed registration for the given message type cannot be constructed because
     /// the handler does not implement a compatible handler interface or its type parameters cannot
-    /// all be inferred from the message type.
+    /// all be inferred from the message type, or the inferred type arguments do not satisfy the
+    /// handler's generic constraints.
     /// </summary>
     public static readonly DiagnosticDescriptor IncompatibleExplicitMessageType = new(
         id: "PULSE006",
         title: "No compatible handler registration can be constructed for the message type",
-        messageFormat: "Cannot construct a registration for message type '{0}' on '{1}': the handler does not implement a compatible handler interface or not all type parameters can be inferred",
+        messageFormat: "Cannot construct a registration for message type '{0}' on '{1}': the handler does not implement a compatible handler interface, not all type parameters can be inferred, or the inferred type arguments do not satisfy the handler's generic constraints",
         category: "Usage",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true

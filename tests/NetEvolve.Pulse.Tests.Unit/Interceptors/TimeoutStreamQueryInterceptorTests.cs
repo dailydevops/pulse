@@ -20,7 +20,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
 
         _ = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -40,7 +43,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
 
         var items = new List<string>();
@@ -64,7 +70,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
 
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
@@ -96,7 +105,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
@@ -131,7 +143,7 @@ public sealed class TimeoutStreamQueryInterceptorTests
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(1) }
         );
-        var interceptor = new TimeoutStreamQueryInterceptor<TestStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestStreamQuery, string>(options, TimeProvider.System);
         var query = new TestStreamQuery();
 
         var items = new List<string>();
@@ -155,7 +167,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(null);
 
         var items = new List<string>();
@@ -179,7 +194,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(null);
 
         var items = new List<string>();
@@ -205,7 +223,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(50) }
         );
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(null);
 
         var exception = await Assert.ThrowsAsync<TimeoutException>(async () =>
@@ -234,7 +255,10 @@ public sealed class TimeoutStreamQueryInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
-        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options);
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
         var query = new TestTimeoutStreamQuery(TimeSpan.FromSeconds(5));
         var expectedException = new InvalidOperationException("handler error");
 
@@ -252,6 +276,245 @@ public sealed class TimeoutStreamQueryInterceptorTests
 
         // If CancellationTokenSource was not disposed, a subsequent test run might detect undisposed resources.
         // This test simply verifies the interceptor completes without resource-leak exceptions.
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenItemArrivesAfterDeadlineWithoutObservingCancellation_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+        var items = new List<string>();
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(query, (_, ct) => YieldAfterCancellation(ct, "late"), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                items.Add(item);
+            }
+        });
+
+        _ = await Assert.That(items).IsEmpty();
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenStreamCompletesAfterDeadlineWithoutObservingCancellation_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(
+            options,
+            TimeProvider.System
+        );
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(query, (_, ct) => YieldAfterCancellation<string>(ct), cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                // Consume
+            }
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenDeadlineElapsedButTimerNotYetFired_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, timeProvider);
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+        var items = new List<string>();
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(
+                        query,
+                        (_, _) => YieldAfterAdvancing(timeProvider, TimeSpan.FromMilliseconds(250), "late"),
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            {
+                items.Add(item);
+            }
+        });
+
+        _ = await Assert.That(items).IsEmpty();
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenItemsArriveBeforeDeadline_ReturnsItems(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, timeProvider);
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+
+        var items = new List<string>();
+        await foreach (
+            var item in interceptor
+                .HandleAsync(
+                    query,
+                    (_, _) => YieldAfterAdvancing(timeProvider, TimeSpan.FromMilliseconds(49), "a", "b"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        )
+        {
+            items.Add(item);
+        }
+
+        _ = await Assert.That(items).IsEquivalentTo(["a", "b"]);
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_WhenDeadlineTimerFiresBeforeClockReachesTimeout_ThrowsTimeoutException(
+        CancellationToken cancellationToken
+    )
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, timeProvider);
+        var query = new TestTimeoutStreamQuery(TimeSpan.FromMilliseconds(50));
+        var items = new List<string>();
+
+        _ = await Assert.ThrowsAsync<TimeoutException>(async () =>
+        {
+            await foreach (
+                var item in interceptor
+                    .HandleAsync(
+                        query,
+                        (_, ct) => YieldAfterFiringTimers(timeProvider, TimeSpan.FromMilliseconds(49), ct, "late"),
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            )
+            {
+                items.Add(item);
+            }
+        });
+
+        _ = await Assert.That(items).IsEmpty();
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutQuery_InfiniteTimeout_NeverTimesOut(CancellationToken cancellationToken)
+    {
+        var timeProvider = new StarvedTimeProvider();
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+        var interceptor = new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, timeProvider);
+        var query = new TestTimeoutStreamQuery(Timeout.InfiniteTimeSpan);
+
+        var items = new List<string>();
+        await foreach (
+            var item in interceptor
+                .HandleAsync(
+                    query,
+                    (_, _) => YieldAfterAdvancing(timeProvider, TimeSpan.FromHours(1), "a", "b"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        )
+        {
+            items.Add(item);
+        }
+
+        _ = await Assert.That(items).IsEquivalentTo(["a", "b"]);
+    }
+
+    [Test]
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        var options = Options.Create(new TimeoutRequestInterceptorOptions());
+
+        _ = await Assert
+            .That(() => new TimeoutStreamQueryInterceptor<TestTimeoutStreamQuery, string>(options, null!))
+            .Throws<ArgumentNullException>();
+    }
+
+    private static async IAsyncEnumerable<T> YieldAfterAdvancing<T>(
+        StarvedTimeProvider timeProvider,
+        TimeSpan elapsed,
+        params T[] items
+    )
+    {
+        await Task.Yield();
+        timeProvider.Advance(elapsed);
+
+        foreach (var item in items)
+        {
+            yield return item;
+        }
+    }
+
+    /// <summary>
+    /// Advances the clock to just before the deadline, then fires the deadline timer and yields the items
+    /// without observing the cancellation. This models a timer whose coarser clock fires slightly before
+    /// the high-resolution elapsed time reaches the timeout.
+    /// </summary>
+    private static async IAsyncEnumerable<T> YieldAfterFiringTimers<T>(
+        StarvedTimeProvider timeProvider,
+        TimeSpan elapsed,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        params T[] items
+    )
+    {
+        await Task.Yield();
+        timeProvider.Advance(elapsed);
+        timeProvider.FireTimers();
+
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("The deadline timer did not cancel the token.");
+        }
+
+        foreach (var item in items)
+        {
+            yield return item;
+        }
+    }
+
+    /// <summary>
+    /// Completes normally (without throwing <see cref="OperationCanceledException"/>) only once the
+    /// token has been cancelled, i.e. strictly after the deadline. This models a handler whose work
+    /// finished while the deadline callback was still pending (e.g. under thread-pool starvation).
+    /// </summary>
+    private static async IAsyncEnumerable<T> YieldAfterCancellation<T>(
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        params T[] items
+    )
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (cancellationToken.Register(() => tcs.TrySetResult()))
+        {
+            await tcs.Task.ConfigureAwait(false);
+        }
+
+        foreach (var item in items)
+        {
+            yield return item;
+        }
     }
 
     private static async IAsyncEnumerable<T> GenerateItems<T>(IEnumerable<T> items)

@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(_ProjectTargetFrameworks)</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <Description>Redis idempotency provider for Pulse using StackExchange.Redis. Implements IIdempotencyStore with atomic SET NX EX operations for high-throughput, distributed idempotency enforcement without read-before-write round-trips.</Description>
     <PackageTags>$(PackageTags);idempotency;redis;stackexchange;</PackageTags>
     <RootNamespace>NetEvolve.Pulse</RootNamespace>

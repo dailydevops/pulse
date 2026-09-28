@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 public sealed class AzuriteContainerFixture : IAsyncDisposable, IAsyncInitializer
 {
     private readonly AzuriteContainer _container = new AzuriteBuilder( /*dockerimage*/
-        "mcr.microsoft.com/azure-storage/azurite:3.36.0"
+        "mcr.microsoft.com/azure-storage/azurite:3.37.0"
     )
         .WithLogger(NullLogger.Instance)
         .Build();

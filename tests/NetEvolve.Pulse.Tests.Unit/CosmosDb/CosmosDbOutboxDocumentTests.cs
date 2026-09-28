@@ -141,11 +141,11 @@ public sealed class CosmosDbOutboxDocumentTests
         }
     }
 
-    // INVARIANT: An unresolvable/garbage event type name falls back to typeof(object), both
-    // on first lookup and on any subsequent lookup for the same garbage name (unresolvable
-    // names are never cached, so this must keep failing gracefully every time).
+    // INVARIANT: An unresolvable/garbage event type name maps to a placeholder carrying the stored
+    // name, both on first lookup and on any subsequent lookup (unresolvable names are never cached),
+    // so the repository can dead-letter the message and the management API can still list it.
     [Test]
-    public async Task ToOutboxMessage_With_Unknown_EventType_Falls_Back_To_Object()
+    public async Task ToOutboxMessage_With_Unknown_EventType_Returns_Placeholder()
     {
         var doc = CosmosDbOutboxDocument.FromOutboxMessage(CreateMessage());
         doc.EventType = "Totally.Bogus.Type, Totally.Bogus.Assembly";
@@ -155,8 +155,11 @@ public sealed class CosmosDbOutboxDocumentTests
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(first.EventType).IsEqualTo(typeof(object));
-            _ = await Assert.That(second.EventType).IsEqualTo(typeof(object));
+            _ = await Assert.That(OutboxEventTypeResolver.IsUnresolvable(first.EventType)).IsTrue();
+            _ = await Assert.That(OutboxEventTypeResolver.IsUnresolvable(second.EventType)).IsTrue();
+            _ = await Assert
+                .That(first.EventType.ToOutboxEventTypeName())
+                .IsEqualTo("Totally.Bogus.Type, Totally.Bogus.Assembly");
         }
     }
 }

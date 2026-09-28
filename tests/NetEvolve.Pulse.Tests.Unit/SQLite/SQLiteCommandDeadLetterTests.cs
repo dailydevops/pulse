@@ -109,7 +109,8 @@ public sealed class SQLiteCommandDeadLetterTests
                 new SQLiteCommandDeadLetterManagement(
                     null!,
                     Mock.Of<IMediatorSendOnly>().Object,
-                    Mock.Of<IPayloadSerializer>().Object
+                    Mock.Of<IPayloadSerializer>().Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -121,7 +122,8 @@ public sealed class SQLiteCommandDeadLetterTests
                 new SQLiteCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
                     null!,
-                    Mock.Of<IPayloadSerializer>().Object
+                    Mock.Of<IPayloadSerializer>().Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -133,6 +135,20 @@ public sealed class SQLiteCommandDeadLetterTests
                 new SQLiteCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
                     Mock.Of<IMediatorSendOnly>().Object,
+                    null!,
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Management_Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new SQLiteCommandDeadLetterManagement(
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+                    Mock.Of<IMediatorSendOnly>().Object,
+                    Mock.Of<IPayloadSerializer>().Object,
                     null!
                 )
             )
@@ -145,7 +161,8 @@ public sealed class SQLiteCommandDeadLetterTests
                 new SQLiteCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = null }),
                     Mock.Of<IMediatorSendOnly>().Object,
-                    Mock.Of<IPayloadSerializer>().Object
+                    Mock.Of<IPayloadSerializer>().Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -157,7 +174,8 @@ public sealed class SQLiteCommandDeadLetterTests
                 new SQLiteCommandDeadLetterManagement(
                     Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty }),
                     Mock.Of<IMediatorSendOnly>().Object,
-                    Mock.Of<IPayloadSerializer>().Object
+                    Mock.Of<IPayloadSerializer>().Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -170,7 +188,8 @@ public sealed class SQLiteCommandDeadLetterTests
         var management = new SQLiteCommandDeadLetterManagement(
             Options.Create(options),
             Mock.Of<IMediatorSendOnly>().Object,
-            Mock.Of<IPayloadSerializer>().Object
+            Mock.Of<IPayloadSerializer>().Object,
+            TimeProvider.System
         );
 
         _ = await Assert.That(management).IsNotNull();
@@ -189,7 +208,8 @@ public sealed class SQLiteCommandDeadLetterTests
                         }
                     ),
                     Mock.Of<IMediatorSendOnly>().Object,
-                    Mock.Of<IPayloadSerializer>().Object
+                    Mock.Of<IPayloadSerializer>().Object,
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();

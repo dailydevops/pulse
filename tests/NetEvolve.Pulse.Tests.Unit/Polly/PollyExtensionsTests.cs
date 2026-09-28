@@ -57,6 +57,46 @@ public sealed class PollyExtensionsTests
     }
 
     [Test]
+    public async Task AddPollyRequestPolicies_WithKeyedInterceptorRegistration_DoesNotThrow()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddKeyedSingleton<IRequestInterceptor<TestCommand, string>>(
+            "keyed",
+            (_, _) => Mock.Of<IRequestInterceptor<TestCommand, string>>().Object
+        );
+
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyRequestPolicies<TestCommand, string>(pipeline =>
+                pipeline.AddTimeout(TimeSpan.FromSeconds(30))
+            )
+        );
+
+        _ = await Assert
+            .That(services.Count(d => d.ServiceType == typeof(IRequestInterceptor<TestCommand, string>)))
+            .IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task AddPollyStreamQueryPolicies_WithKeyedInterceptorRegistration_DoesNotThrow()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddKeyedSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>(
+            "keyed",
+            (_, _) => Mock.Of<IStreamQueryInterceptor<TestStreamQuery, string>>().Object
+        );
+
+        _ = services.AddPulse(configurator =>
+            configurator.AddPollyStreamQueryPolicies<TestStreamQuery, string>(pipeline =>
+                pipeline.AddTimeout(TimeSpan.FromSeconds(30))
+            )
+        );
+
+        _ = await Assert
+            .That(services.Count(d => d.ServiceType == typeof(IStreamQueryInterceptor<TestStreamQuery, string>)))
+            .IsEqualTo(2);
+    }
+
+    [Test]
     public async Task AddPollyRequestPolicies_VoidCommand_RegistersPipelineAndInterceptor()
     {
         // Arrange

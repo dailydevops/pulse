@@ -41,6 +41,8 @@ internal sealed class EntityFrameworkAuditManagement<TContext> : IAuditManagemen
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var query = _context.AuditEntries.AsQueryable();
 
@@ -71,11 +73,16 @@ internal sealed class EntityFrameworkAuditManagement<TContext> : IAuditManagemen
 
         return await query
             .OrderByDescending(e => e.OccurredAt)
+            .ThenByDescending(e => e.Id)
             .Skip(filter.Skip)
             .Take(filter.Take)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _context.AuditEntries.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
     /// <inheritdoc />
     public async Task<AuditStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)

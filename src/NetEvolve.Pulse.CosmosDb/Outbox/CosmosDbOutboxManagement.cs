@@ -32,6 +32,7 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
 
     private readonly Container _container;
     private readonly TimeProvider _timeProvider;
+    private readonly bool _enableTtl;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CosmosDbOutboxManagement"/> class.
@@ -52,12 +53,19 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         var opts = options.Value;
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.DatabaseName);
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.ContainerName);
+        opts.ThrowIfPartitionKeyPathIsNotSupported();
 
         _container = cosmosClient.GetContainer(opts.DatabaseName, opts.ContainerName);
         _timeProvider = timeProvider;
+        _enableTtl = opts.EnableTimeToLive;
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Results are sorted by <c>updatedAt</c> only. A secondary <c>id</c> sort would require a composite index
+    /// that containers created for earlier versions do not have, so the relative order of messages sharing the
+    /// same <see cref="OutboxMessage.UpdatedAt"/> value is not guaranteed and may shift between pages.
+    /// </remarks>
     public async Task<IReadOnlyList<OutboxMessage>> GetDeadLetterMessagesAsync(
         int pageSize = 50,
         int page = 0,
@@ -65,6 +73,13 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
 
         var offset = page * pageSize;
         var query = new QueryDefinition(
@@ -142,16 +157,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
                 return false;
             }
 
-            var now = _timeProvider.GetUtcNow();
             var requestOptions = new PatchItemRequestOptions { IfMatchEtag = current.ETag };
-
-            var patches = new List<PatchOperation>
-            {
-                PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
-                PatchOperation.Set("/retryCount", 0),
-                PatchOperation.Set("/error", (string?)null),
-                PatchOperation.Set("/updatedAt", now),
-            };
+            var patches = CreateReplayPatches();
 
             _ = await _container
                 .PatchItemAsync<CosmosDbOutboxDocument>(id, partitionKey, patches, requestOptions, cancellationToken)
@@ -206,16 +213,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var now = _timeProvider.GetUtcNow();
         var requestOptions = new PatchItemRequestOptions { IfMatchEtag = document.ETag };
-
-        var patches = new List<PatchOperation>
-        {
-            PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
-            PatchOperation.Set("/retryCount", 0),
-            PatchOperation.Set("/error", (string?)null),
-            PatchOperation.Set("/updatedAt", now),
-        };
+        var patches = CreateReplayPatches();
 
         try
         {
@@ -227,6 +226,115 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
                     requestOptions,
                     cancellationToken
                 )
+                .ConfigureAwait(false);
+
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates the patch operations that reset a dead-letter document to <see cref="OutboxMessageStatus.Pending"/>.
+    /// </summary>
+    /// <remarks>
+    /// When TTL is enabled, dead-letter documents carry a <c>ttl</c> value. Cosmos DB counts TTL from the last
+    /// modification, so a replayed document would still be deleted <see cref="CosmosDbOutboxOptions.TtlSeconds"/>
+    /// after the replay. Setting <c>ttl</c> to <c>-1</c> keeps the replayed message until it is processed again.
+    /// </remarks>
+    private List<PatchOperation> CreateReplayPatches()
+    {
+        var patches = new List<PatchOperation>
+        {
+            PatchOperation.Set("/status", (int)OutboxMessageStatus.Pending),
+            PatchOperation.Set("/retryCount", 0),
+            PatchOperation.Set("/error", (string?)null),
+            PatchOperation.Set("/updatedAt", _timeProvider.GetUtcNow()),
+        };
+
+        if (_enableTtl)
+        {
+            patches.Add(PatchOperation.Set("/ttl", -1));
+        }
+
+        return patches;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Results are sorted by <c>updatedAt</c> only. A secondary <c>id</c> sort would require a composite index
+    /// that containers created for earlier versions do not have, so the relative order of messages sharing the
+    /// same <see cref="OutboxMessage.UpdatedAt"/> value is not guaranteed and may shift between pages.
+    /// </remarks>
+    public async Task<IReadOnlyList<OutboxMessage>> GetMessagesAsync(
+        int pageSize = 50,
+        int page = 0,
+        OutboxMessageStatus? status = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (page > int.MaxValue / pageSize)
+        {
+            throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
+        }
+
+        var query = (
+            status is { } value
+                ? new QueryDefinition(
+                    "SELECT * FROM c WHERE c.status = @status ORDER BY c.updatedAt DESC OFFSET @offset LIMIT @limit"
+                ).WithParameter("@status", (int)value)
+                : new QueryDefinition("SELECT * FROM c ORDER BY c.updatedAt DESC OFFSET @offset LIMIT @limit")
+        )
+            .WithParameter("@offset", page * pageSize)
+            .WithParameter("@limit", pageSize);
+
+        return await ExecuteQueryAsync(query, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var id = messageId.ToString();
+
+        try
+        {
+            var response = await _container
+                .ReadItemAsync<CosmosDbOutboxDocument>(id, new PartitionKey(id), cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return response.Resource.ToOutboxMessage();
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var id = messageId.ToString();
+        var partitionKey = new PartitionKey(id);
+
+        try
+        {
+            var current = await _container
+                .ReadItemAsync<CosmosDbOutboxDocument>(id, partitionKey, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (current.Resource.Status != (int)OutboxMessageStatus.DeadLetter)
+            {
+                return false;
+            }
+
+            var requestOptions = new ItemRequestOptions { IfMatchEtag = current.ETag };
+
+            _ = await _container
+                .DeleteItemAsync<CosmosDbOutboxDocument>(id, partitionKey, requestOptions, cancellationToken)
                 .ConfigureAwait(false);
 
             return true;
