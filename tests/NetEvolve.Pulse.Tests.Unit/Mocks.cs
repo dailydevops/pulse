@@ -12,3 +12,5 @@ using StackExchange.Redis;
 [assembly: GenerateMock(typeof(IOutboxRepository))]
 [assembly: GenerateMock(typeof(ICommandDeadLetterManagement))]
 [assembly: GenerateMock(typeof(IAuditManagement))]
+[assembly: GenerateMock(typeof(RabbitMQ.Client.IConnection))]
+[assembly: GenerateMock(typeof(RabbitMQ.Client.IChannel))]
