@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Time.Testing;
 using MySql.Data.MySqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.DeadLetter;
@@ -32,6 +33,8 @@ public abstract class CommandDeadLetterTestsBase(
 {
     protected IServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
     protected IServiceInitializer DatabaseInitializer { get; } = databaseInitializer;
+
+    protected static DateTimeOffset TestDateTime { get; } = new DateTimeOffset(2001, 2, 3, 4, 5, 6, 0, TimeSpan.Zero);
 
     protected async ValueTask RunAndVerify(
         Func<IServiceProvider, CancellationToken, Task> testableCode,
@@ -185,6 +188,50 @@ public abstract class CommandDeadLetterTestsBase(
                 cancellationToken
             )
             .ConfigureAwait(false);
+
+    [Test]
+    public async Task StoreAsync_Uses_injected_TimeProvider_for_OccurredAt(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider();
+        var occurredAts = new[] { TestDateTime.AddHours(2), TestDateTime, TestDateTime.AddHours(1) };
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<ICommandDeadLetterStore>();
+                    var management = services.GetRequiredService<ICommandDeadLetterManagement>();
+
+                    for (var i = 0; i < occurredAts.Length; i++)
+                    {
+                        // AdjustTime may move backwards, so the insertion order differs from the OccurredAt order.
+                        fakeTime.AdjustTime(occurredAts[i]);
+                        await store
+                            .StoreAsync(
+                                typeof(TestReplayCommand).AssemblyQualifiedName!,
+                                """{"Value":"n/a"}""",
+                                new InvalidOperationException($"failure-{i}"),
+                                token
+                            )
+                            .ConfigureAwait(false);
+                    }
+
+                    var pending = await management.GetPendingAsync(50, 0, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(3);
+                    _ = await Assert.That(pending[0].ExceptionMessage).IsEqualTo("failure-1");
+                    _ = await Assert.That(pending[0].OccurredAt).IsEqualTo(TestDateTime);
+                    _ = await Assert.That(pending[1].ExceptionMessage).IsEqualTo("failure-2");
+                    _ = await Assert.That(pending[1].OccurredAt).IsEqualTo(TestDateTime.AddHours(1));
+                    _ = await Assert.That(pending[2].ExceptionMessage).IsEqualTo("failure-0");
+                    _ = await Assert.That(pending[2].OccurredAt).IsEqualTo(TestDateTime.AddHours(2));
+                },
+                cancellationToken,
+                configureServices: services => services.AddSingleton<TimeProvider>(fakeTime)
+            )
+            .ConfigureAwait(false);
+    }
 
     [Test]
     public async Task GetPendingAsync_With_negative_skip_throws(CancellationToken cancellationToken) =>
