@@ -18,14 +18,28 @@ public sealed class MySqlCommandDeadLetterTests
 
     [Test]
     public async Task Store_Constructor_WithNullOptions_ThrowsArgumentNullException() =>
-        _ = await Assert.That(() => new MySqlCommandDeadLetterStore(null!)).Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(() => new MySqlCommandDeadLetterStore(null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Store_Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new MySqlCommandDeadLetterStore(
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Store_Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 new MySqlCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -35,7 +49,8 @@ public sealed class MySqlCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new MySqlCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -45,7 +60,8 @@ public sealed class MySqlCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new MySqlCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -54,7 +70,8 @@ public sealed class MySqlCommandDeadLetterTests
     public async Task Store_Constructor_WithValidConnectionString_CreatesInstance()
     {
         var store = new MySqlCommandDeadLetterStore(
-            Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert.That(store).IsNotNull();
@@ -69,7 +86,7 @@ public sealed class MySqlCommandDeadLetterTests
             TableName = "CustomCommandDeadLetter",
         };
 
-        var store = new MySqlCommandDeadLetterStore(Options.Create(options));
+        var store = new MySqlCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }

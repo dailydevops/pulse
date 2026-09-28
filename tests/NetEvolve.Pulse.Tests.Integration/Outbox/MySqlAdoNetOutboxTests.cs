@@ -12,4 +12,9 @@ using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 [TestGroup("AdoNet")]
 [InheritsTests]
 public class MySqlAdoNetOutboxTests(IServiceFixture databaseServiceFixture, IServiceInitializer databaseInitializer)
-    : OutboxTestsBase(databaseServiceFixture, databaseInitializer);
+    : OutboxTestsBase(databaseServiceFixture, databaseInitializer)
+{
+    /// <inheritdoc />
+    protected override IComparer<Guid> IdComparer { get; } =
+        Comparer<Guid>.Create((x, y) => x.ToByteArray().AsSpan().SequenceCompareTo(y.ToByteArray()));
+}

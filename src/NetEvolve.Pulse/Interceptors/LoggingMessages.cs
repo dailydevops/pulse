@@ -118,4 +118,23 @@ internal static partial class LoggingMessages
         double elapsedMs,
         string? correlationId
     );
+
+    /// <summary>
+    /// Logs an error when an audit record could not be built or persisted.
+    /// </summary>
+    /// <remarks>
+    /// Emitted by <c>AuditRequestInterceptor</c> when the user accessor, the payload serializer or the
+    /// <see cref="Extensibility.Audit.IAuditStore"/> throws. The handler outcome is not affected.
+    /// </remarks>
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "Failed to record {AuditResult} audit entry for '{RequestName}' (CorrelationId: {CorrelationId})"
+    )]
+    internal static partial void LogAuditRecordFailed(
+        this ILogger logger,
+        Exception exception,
+        Extensibility.Audit.AuditResult auditResult,
+        string requestName,
+        string? correlationId
+    );
 }

@@ -16,7 +16,7 @@
       Location: {
         Kind: ExternalFile,
         SourceSpan: {
-          Start: 198,
+          Start: 285,
           Length: 193
         }
       },
@@ -39,7 +39,7 @@
       Location: {
         Kind: ExternalFile,
         SourceSpan: {
-          Start: 393,
+          Start: 480,
           Length: 212
         }
       },

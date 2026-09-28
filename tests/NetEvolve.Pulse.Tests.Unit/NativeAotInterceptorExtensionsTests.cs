@@ -80,6 +80,26 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
+    public async Task AddCommandInterceptorsCore_WithCommandDeadLetter_RegistersClosedInterceptorAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = new MediatorBuilder(services).AddCommandDeadLetter();
+
+        NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
+
+        var descriptors = KeyedDescriptors<IRequestInterceptor<ValueCommand, int>>(services);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(descriptors).HasSingleItem();
+            _ = await Assert
+                .That(descriptors[0].KeyedImplementationType)
+                .IsEqualTo(typeof(CommandDeadLetterInterceptor<ValueCommand, int>));
+            _ = await Assert.That(descriptors[0].Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        }
+    }
+
+    [Test]
     public async Task AddCommandInterceptorsCore_WithAllBuiltInInterceptors_ClosesEveryRequestInterceptor()
     {
         var services = new ServiceCollection();
