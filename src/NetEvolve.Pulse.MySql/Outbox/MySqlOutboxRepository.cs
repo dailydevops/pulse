@@ -282,6 +282,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = await FetchAndClaimMessagesAsync(
                 _selectPendingIdsSql,
                 batchSize,
@@ -301,6 +303,8 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = await FetchAndClaimMessagesAsync(
                 _selectFailedForRetryIdsSql,
                 batchSize,

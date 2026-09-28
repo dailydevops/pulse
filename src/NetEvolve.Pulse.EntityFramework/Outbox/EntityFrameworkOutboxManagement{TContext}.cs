@@ -98,6 +98,8 @@ internal sealed class EntityFrameworkOutboxManagement<TContext> : IOutboxManagem
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
         if (page > int.MaxValue / pageSize)

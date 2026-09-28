@@ -325,6 +325,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = await ClaimFailedForRetryAsync(maxRetryCount, batchSize, cancellationToken)
             .ConfigureAwait(false);
 
@@ -343,6 +345,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
         var leaseExpiredBefore = now.ToUniversalTime() - _processingLeaseTimeout;
 

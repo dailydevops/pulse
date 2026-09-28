@@ -179,6 +179,8 @@ internal sealed class PostgreSqlCommandDeadLetterManagement : ICommandDeadLetter
     /// <inheritdoc />
     public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {

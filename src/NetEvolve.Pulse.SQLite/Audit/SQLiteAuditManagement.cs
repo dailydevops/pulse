@@ -206,6 +206,8 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
     /// <inheritdoc />
     public async Task<AuditRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {

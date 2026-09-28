@@ -62,6 +62,8 @@ internal sealed class TrackingOutboxManagementExecutor<TContext>(TContext contex
     /// <inheritdoc />
     public async Task<bool> DeleteDeadLetterByIdAsync(Guid id, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entity = await context
             .OutboxMessages.FirstOrDefaultAsync(
                 m => m.Id == id && m.Status == OutboxMessageStatus.DeadLetter,

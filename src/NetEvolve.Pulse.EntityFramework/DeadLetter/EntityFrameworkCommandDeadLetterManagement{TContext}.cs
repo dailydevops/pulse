@@ -60,6 +60,8 @@ internal sealed class EntityFrameworkCommandDeadLetterManagement<TContext> : ICo
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
