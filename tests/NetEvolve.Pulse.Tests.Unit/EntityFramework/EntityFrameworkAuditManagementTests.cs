@@ -8,6 +8,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Audit;
 using NetEvolve.Pulse.Extensibility.Audit;
 using TUnit.Assertions;
+using TUnit.Assertions.Enums;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -268,6 +269,67 @@ public sealed class EntityFrameworkAuditManagementTests
                 _ = await Assert.That(result[0].Id).IsEqualTo(records[1].Id);
                 _ = await Assert.That(result[1].Id).IsEqualTo(records[2].Id);
             }
+        }
+    }
+
+    [Test]
+    public async Task QueryAsync_WithEqualOccurredAt_OrdersByIdDescending(CancellationToken cancellationToken)
+    {
+        var context = CreateContext(nameof(QueryAsync_WithEqualOccurredAt_OrdersByIdDescending));
+        await using (context.ConfigureAwait(false))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var records = Enumerable.Range(0, 5).Select(_ => CreateRecord(now)).OrderBy(r => r.Id).ToList();
+
+            await context.AuditEntries.AddRangeAsync(records, cancellationToken).ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkAuditManagement<TestAuditStoreDbContext>(context);
+
+            var paged = new List<Guid>();
+            for (var skip = 0; skip < records.Count; skip += 2)
+            {
+                var page = await management
+                    .QueryAsync(new AuditFilter { Skip = skip, Take = 2 }, cancellationToken)
+                    .ConfigureAwait(false);
+                paged.AddRange(page.Select(r => r.Id));
+            }
+
+            _ = await Assert
+                .That(paged)
+                .IsEquivalentTo(records.Select(r => r.Id).Reverse(), CollectionOrdering.Matching);
+        }
+    }
+
+    [Test]
+    [Arguments(0, 0)]
+    [Arguments(-1, 0)]
+    [Arguments(50, -1)]
+    public async Task QueryAsync_WithInvalidTakeOrSkip_ThrowsArgumentOutOfRangeException(
+        int take,
+        int skip,
+        CancellationToken cancellationToken
+    )
+    {
+        var context = CreateContext(
+            $"{nameof(QueryAsync_WithInvalidTakeOrSkip_ThrowsArgumentOutOfRangeException)}_{take}_{skip}"
+        );
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await context
+                .AuditEntries.AddAsync(CreateRecord(DateTimeOffset.UtcNow), cancellationToken)
+                .ConfigureAwait(false);
+            _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            var management = new EntityFrameworkAuditManagement<TestAuditStoreDbContext>(context);
+
+            _ = await Assert
+                .That(async () =>
+                    await management
+                        .QueryAsync(new AuditFilter { Take = take, Skip = skip }, cancellationToken)
+                        .ConfigureAwait(false)
+                )
+                .Throws<ArgumentOutOfRangeException>();
         }
     }
 

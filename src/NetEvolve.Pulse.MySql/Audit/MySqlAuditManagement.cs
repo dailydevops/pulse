@@ -89,6 +89,8 @@ internal sealed class MySqlAuditManagement : IAuditManagement
     )
     {
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var sql = new StringBuilder();
         _ = sql.Append(
@@ -137,7 +139,10 @@ internal sealed class MySqlAuditManagement : IAuditManagement
             _ = sql.Append(CultureInfo.InvariantCulture, $" AND `{AuditEntrySchema.Columns.Result}` = @result");
         }
 
-        _ = sql.Append(CultureInfo.InvariantCulture, $" ORDER BY `{AuditEntrySchema.Columns.OccurredAt}` DESC");
+        _ = sql.Append(
+            CultureInfo.InvariantCulture,
+            $" ORDER BY `{AuditEntrySchema.Columns.OccurredAt}` DESC, `{AuditEntrySchema.Columns.Id}` DESC"
+        );
         _ = sql.Append(" LIMIT @take OFFSET @skip");
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);

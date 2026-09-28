@@ -87,6 +87,8 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
     )
     {
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -247,6 +249,8 @@ internal sealed class SqlServerAuditManagement : IAuditManagement
 
         _ = sql.Append("\nORDER BY [")
             .Append(AuditEntrySchema.Columns.OccurredAt)
+            .Append("] DESC, [")
+            .Append(AuditEntrySchema.Columns.Id)
             .Append("] DESC")
             .Append("\nOFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY");
 

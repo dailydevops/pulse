@@ -98,6 +98,8 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
     )
     {
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var whereClause = new StringBuilder();
         var conditions = new List<string>();
@@ -136,7 +138,7 @@ internal sealed class PostgreSqlAuditManagement : IAuditManagement
             SELECT {_columns}
             FROM {_qualifiedTableName}
             {whereClause}
-            ORDER BY "{AuditEntrySchema.Columns.OccurredAt}" DESC
+            ORDER BY "{AuditEntrySchema.Columns.OccurredAt}" DESC, "{AuditEntrySchema.Columns.Id}" DESC
             LIMIT @take
             OFFSET @skip
             """;

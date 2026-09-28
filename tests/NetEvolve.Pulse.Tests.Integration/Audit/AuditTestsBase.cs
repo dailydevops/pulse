@@ -10,6 +10,7 @@ using NetEvolve.Pulse.Audit;
 using NetEvolve.Pulse.Extensibility.Audit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using TUnit.Assertions;
+using TUnit.Assertions.Enums;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -19,6 +20,13 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
 {
     protected IServiceFixture DatabaseServiceFixture { get; } = databaseServiceFixture;
     protected IServiceInitializer DatabaseInitializer { get; } = databaseInitializer;
+
+    /// <summary>
+    /// Gets the comparer that mirrors how the store orders its native <c>Id</c> column.
+    /// Defaults to ordinal text order of the canonical Guid string (TEXT, UUID, CHAR(36)).
+    /// </summary>
+    protected virtual IComparer<Guid> IdComparer { get; } =
+        Comparer<Guid>.Create((x, y) => string.CompareOrdinal(x.ToString(), y.ToString()));
 
     protected async ValueTask RunAndVerify(
         Func<IServiceProvider, CancellationToken, Task> testableCode,
@@ -360,6 +368,86 @@ public abstract class AuditTestsBase(IServiceFixture databaseServiceFixture, ISe
                     // Most recent (Command2) first, then Command1.
                     _ = await Assert.That(results[0].CommandType).IsEqualTo("Test.Command2");
                     _ = await Assert.That(results[1].CommandType).IsEqualTo("Test.Command1");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task QueryAsync_With_zero_Take_throws(CancellationToken cancellationToken) =>
+        await RunAndVerify((services, token) => AssertQueryThrowsOutOfRange(services, 0, 0, token), cancellationToken)
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task QueryAsync_With_negative_Take_throws(CancellationToken cancellationToken) =>
+        await RunAndVerify((services, token) => AssertQueryThrowsOutOfRange(services, -1, 0, token), cancellationToken)
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task QueryAsync_With_negative_Skip_throws(CancellationToken cancellationToken) =>
+        await RunAndVerify((services, token) => AssertQueryThrowsOutOfRange(services, 50, -1, token), cancellationToken)
+            .ConfigureAwait(false);
+
+    private static async Task AssertQueryThrowsOutOfRange(
+        IServiceProvider services,
+        int take,
+        int skip,
+        CancellationToken cancellationToken
+    )
+    {
+        var store = services.GetRequiredService<IAuditStore>();
+        var management = services.GetRequiredService<IAuditManagement>();
+
+        await store.RecordAsync(CreateRecord(), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert
+            .That(async () =>
+                await management
+                    .QueryAsync(new AuditFilter { Take = take, Skip = skip }, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
+    public async Task QueryAsync_Pages_equal_OccurredAt_entries_stably(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IAuditStore>();
+                    var management = services.GetRequiredService<IAuditManagement>();
+
+                    var occurredAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+                    var records = Enumerable.Range(0, 7).Select(_ => CreateRecord(occurredAt: occurredAt)).ToList();
+                    foreach (var record in records)
+                    {
+                        await store.RecordAsync(record, token).ConfigureAwait(false);
+                    }
+
+                    var all = await management
+                        .QueryAsync(new AuditFilter { Take = records.Count }, token)
+                        .ConfigureAwait(false);
+
+                    var paged = new List<Guid>();
+                    for (var skip = 0; skip < records.Count; skip += 2)
+                    {
+                        var page = await management
+                            .QueryAsync(new AuditFilter { Take = 2, Skip = skip }, token)
+                            .ConfigureAwait(false);
+                        paged.AddRange(page.Select(r => r.Id));
+                    }
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(paged).IsEquivalentTo(records.Select(r => r.Id));
+                        _ = await Assert.That(paged).IsEquivalentTo(all.Select(r => r.Id), CollectionOrdering.Matching);
+                        _ = await Assert
+                            .That(paged)
+                            .IsEquivalentTo(
+                                records.Select(r => r.Id).OrderDescending(IdComparer),
+                                CollectionOrdering.Matching
+                            );
+                    }
                 },
                 cancellationToken
             )
