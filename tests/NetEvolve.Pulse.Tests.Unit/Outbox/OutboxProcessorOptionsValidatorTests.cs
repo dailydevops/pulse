@@ -71,9 +71,64 @@ public class OutboxProcessorOptionsValidatorTests
     }
 
     [Test]
-    public async Task Validate_WithZeroMaxRetryCount_Succeeds()
+    public async Task Validate_WithZeroMaxRetryCount_Fails()
     {
         var options = new OutboxProcessorOptions { MaxRetryCount = 0 };
+
+        var result = _validator.Validate(null, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.FailureMessage).Contains("must be greater than or equal to 1");
+        }
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(3)]
+    public async Task Validate_WithPositiveMaxRetryCount_Succeeds(int maxRetryCount)
+    {
+        var options = new OutboxProcessorOptions { MaxRetryCount = maxRetryCount };
+
+        var result = _validator.Validate(null, options);
+
+        _ = await Assert.That(result.Succeeded).IsTrue();
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task Validate_WithOverrideMaxRetryCountBelowOne_Fails(int maxRetryCount)
+    {
+        var options = new OutboxProcessorOptions
+        {
+            EventTypeOverrides =
+            {
+                [typeof(OverrideEvent)] = new OutboxEventTypeOptions { MaxRetryCount = maxRetryCount },
+            },
+        };
+
+        var result = _validator.Validate(null, options);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.FailureMessage).Contains(typeof(OverrideEvent).FullName!);
+        }
+    }
+
+    [Test]
+    public async Task Validate_WithValidOverrideMaxRetryCount_Succeeds()
+    {
+        var options = new OutboxProcessorOptions
+        {
+            EventTypeOverrides =
+            {
+                [typeof(OverrideEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 },
+                [typeof(OutboxProcessorOptionsValidatorTests)] = new OutboxEventTypeOptions(),
+            },
+        };
 
         var result = _validator.Validate(null, options);
 
@@ -156,4 +211,6 @@ public class OutboxProcessorOptionsValidatorTests
 
         _ = await Assert.That(result.Succeeded).IsTrue();
     }
+
+    private sealed class OverrideEvent;
 }
