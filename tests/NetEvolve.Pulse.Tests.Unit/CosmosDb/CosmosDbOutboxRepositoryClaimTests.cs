@@ -2,11 +2,13 @@ namespace NetEvolve.Pulse.Tests.Unit.CosmosDb;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -144,6 +146,47 @@ public sealed class CosmosDbOutboxRepositoryClaimTests
         {
             _ = await Assert.That(claimed.Count).IsEqualTo(1);
             _ = await Assert.That(claimed[0].Id).IsEqualTo(claimedId);
+        }
+    }
+
+    [Test]
+    public async Task GetPendingAsync_QueriesExpiredProcessingLeases(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var timeProvider = new FakeTimeProvider(new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero));
+        QueryDefinition? capturedQuery = null;
+
+        var container = new FakeCosmosContainer
+        {
+            OnQueryIterator = (_, query, _) =>
+            {
+                capturedQuery = query;
+                return new FakeFeedIterator<CosmosDbOutboxDocument>([
+                    [],
+                ]);
+            },
+        };
+
+        using var client = new FakeCosmosClient(container);
+        var repository = new CosmosDbOutboxRepository(
+            client,
+            Options.Create(
+                new CosmosDbOutboxOptions { DatabaseName = "TestDb", ProcessingLeaseTimeout = TimeSpan.FromMinutes(3) }
+            ),
+            timeProvider
+        );
+
+        _ = await repository.GetPendingAsync(10, cancellationToken).ConfigureAwait(false);
+
+        var leaseExpiredBefore = capturedQuery!.GetQueryParameters().Single(p => p.Name == "@leaseExpiredBefore").Value;
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert
+                .That(capturedQuery.QueryText)
+                .Contains("c.status = 1 AND c.updatedAt <= @leaseExpiredBefore");
+            _ = await Assert.That(leaseExpiredBefore).IsEqualTo(timeProvider.GetUtcNow().AddMinutes(-3));
         }
     }
 

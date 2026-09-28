@@ -82,6 +82,20 @@ public sealed class CosmosDbOutboxOptions
     public int TtlSeconds { get; set; } = DefaultTtlSeconds;
 
     /// <summary>
+    /// Gets or sets the maximum duration a claimed message may remain in the
+    /// <see cref="Extensibility.Outbox.OutboxMessageStatus.Processing"/> status
+    /// before it becomes eligible for reclaiming by a subsequent pending poll.
+    /// Default: 5 minutes.
+    /// </summary>
+    /// <remarks>
+    /// When a worker crashes or is cancelled after claiming a message but before completing it,
+    /// the message stays in the <c>Processing</c> status. Once this lease expires, the next pending
+    /// poll claims the message again, preserving at-least-once delivery. Choose a value comfortably
+    /// larger than the longest expected message dispatch duration to avoid duplicate publishing.
+    /// </remarks>
+    public TimeSpan ProcessingLeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
     /// Gets the validation error for <see cref="PartitionKeyPath"/>, or <see langword="null"/> when it is
     /// <see cref="DefaultPartitionKeyPath"/>.
     /// </summary>
