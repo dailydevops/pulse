@@ -29,6 +29,9 @@ public static class CommandDeadLetterMediatorBuilderExtensions
     /// to actually be persisted. Without a registered store, the interceptor is a harmless no-op.
     /// The interceptor is registered as scoped, so it resolves the store from the scope of the mediator
     /// that sends the command.
+    /// If serializing the command or <see cref="ICommandDeadLetterStore.StoreAsync"/> throws, the failure is logged
+    /// at <c>Error</c> level (<c>Warning</c> if the request was cancelled) and the original command exception is
+    /// still rethrown; no dead letter entry is written in that case, so monitor that log.
     /// </remarks>
     /// <example>
     /// <code>

@@ -42,17 +42,23 @@ internal sealed class SQLiteCommandDeadLetterStore : ICommandDeadLetterStore
     /// <summary>Cached SQL statement for inserting a command dead letter entry.</summary>
     private readonly string _insertSql;
 
+    /// <summary>The time provider used to stamp new entries.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SQLiteCommandDeadLetterStore"/> class.
     /// </summary>
     /// <param name="options">The command dead letter configuration options.</param>
-    public SQLiteCommandDeadLetterStore(IOptions<CommandDeadLetterOptions> options)
+    /// <param name="timeProvider">The time provider used to stamp <see cref="CommandDeadLetterEntry.OccurredAt"/>.</param>
+    public SQLiteCommandDeadLetterStore(IOptions<CommandDeadLetterOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ConnectionString);
 
         var opts = options.Value;
         _connectionString = opts.ConnectionString;
+        _timeProvider = timeProvider;
         _enableWalMode = opts.EnableWalMode;
 
         SqlIdentifier.Validate(opts.TableName, nameof(opts.TableName));
@@ -97,7 +103,7 @@ internal sealed class SQLiteCommandDeadLetterStore : ICommandDeadLetterStore
                 _ = command.Parameters.AddWithValue("@payload", payload);
                 _ = command.Parameters.AddWithValue("@exceptionType", exception.GetType().AssemblyQualifiedName);
                 _ = command.Parameters.AddWithValue("@exceptionMessage", exception.Message);
-                _ = command.Parameters.AddWithValue("@occurredAt", DateTimeOffset.UtcNow);
+                _ = command.Parameters.AddWithValue("@occurredAt", _timeProvider.GetUtcNow());
                 _ = command.Parameters.AddWithValue("@attemptCount", 1);
                 _ = command.Parameters.AddWithValue("@status", (int)CommandDeadLetterStatus.New);
 

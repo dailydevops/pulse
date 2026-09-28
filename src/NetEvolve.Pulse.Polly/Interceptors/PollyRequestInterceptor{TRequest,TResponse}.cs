@@ -25,13 +25,13 @@ using Polly;
 /// <item><description><strong>Fallback:</strong> Provide alternative response when primary handler fails</description></item>
 /// </list>
 /// <para><strong>Interceptor Ordering:</strong></para>
-/// Due to LIFO execution order, policy interceptors registered last execute first.
+/// Interceptors execute in registration order, so the first registered interceptor is outermost.
 /// Consider the desired execution order when registering multiple interceptors:
 /// <code>
 /// services.AddPulse(config => config
 ///     .AddCommandHandler&lt;CreateOrder, Result, CreateOrderHandler&gt;()
-///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)  // Executes second
-///     .AddActivityAndMetrics());                      // Executes first (outermost)
+///     .AddActivityAndMetrics()                         // Executes first (outermost)
+///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)); // Executes second
 /// </code>
 /// <para><strong>Best Practices:</strong></para>
 /// <list type="bullet">
