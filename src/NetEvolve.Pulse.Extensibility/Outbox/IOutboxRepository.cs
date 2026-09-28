@@ -190,7 +190,9 @@ public interface IOutboxRepository
     /// <summary>
     /// Retrieves messages eligible for retry based on retry count and delay.
     /// </summary>
-    /// <param name="maxRetryCount">Maximum retry count threshold.</param>
+    /// <param name="maxRetryCount">Exclusive upper bound on <see cref="OutboxMessage.RetryCount"/>: only messages with
+    /// <c>RetryCount &lt; maxRetryCount</c> are returned. The value is a number of delivery attempts;
+    /// the processor passes the highest effective limit across the global value and all per-event-type overrides.</param>
     /// <param name="batchSize">Maximum number of messages to retrieve.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A collection of failed messages eligible for retry.</returns>

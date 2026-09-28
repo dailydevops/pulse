@@ -538,10 +538,10 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions
             {
                 PollingInterval = TimeSpan.FromMilliseconds(50),
-                MaxRetryCount = 5, // Global: 5 retries
+                MaxRetryCount = 5, // Global: 5 delivery attempts
                 EventTypeOverrides =
                 {
-                    [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 retry
+                    [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 attempt, no retry
                 },
             }
         );
@@ -566,6 +566,105 @@ public sealed class OutboxProcessorHostedServiceTests
 
         // With MaxRetryCount=1, retryCount+1 (1) >= 1, so it should be dead-lettered
         _ = await Assert.That(repository.DeadLetterMessageIds).Contains(message.Id);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithOverrideAboveGlobal_RetriesUpToOverride(CancellationToken cancellationToken)
+    {
+        using var repository = new InMemoryOutboxRepository();
+        var transport = new FailingMessageTransport(failCount: int.MaxValue);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                MaxRetryCount = 3,
+                EventTypeOverrides = { [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 10 } },
+            }
+        );
+        var logger = CreateLogger();
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
+
+        var critical = CreateMessage(typeof(CriticalEvent));
+        var regular = CreateMessage();
+        await repository.AddAsync(critical, cancellationToken).ConfigureAwait(false);
+        await repository.AddAsync(regular, cancellationToken).ConfigureAwait(false);
+
+        // 10 attempts for the override (9 failed + 1 dead letter) and 3 for the global limit (2 failed + 1 dead letter).
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(13, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(repository.DeadLetterMessageIds).IsEquivalentTo([critical.Id, regular.Id]);
+            _ = await Assert.That(repository.FailedMessageIds.Count(id => id == critical.Id)).IsEqualTo(9);
+            _ = await Assert.That(repository.FailedMessageIds.Count(id => id == regular.Id)).IsEqualTo(2);
+            _ = await Assert.That(critical.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+            _ = await Assert.That(regular.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+        }
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithoutOverrides_FetchesFailedWithGlobalMax(CancellationToken cancellationToken)
+    {
+        using var repository = new InMemoryOutboxRepository();
+        var options = Options.Create(
+            new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 4 }
+        );
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            new InMemoryMessageTransport(),
+            CreateLifetime(),
+            options,
+            CreateLogger()
+        );
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForFailedFetchAsync(timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(repository.LastMaxRetryCountRequested).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task ExecuteAsync_WithOverrides_FetchesFailedWithLargestMax(CancellationToken cancellationToken)
+    {
+        using var repository = new InMemoryOutboxRepository();
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromMilliseconds(50),
+                MaxRetryCount = 3,
+                EventTypeOverrides =
+                {
+                    [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 10 },
+                    [typeof(BatchEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 },
+                    [typeof(SlowEvent)] = new OutboxEventTypeOptions { ProcessingTimeout = TimeSpan.FromSeconds(1) },
+                },
+            }
+        );
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            new InMemoryMessageTransport(),
+            CreateLifetime(),
+            options,
+            CreateLogger()
+        );
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForFailedFetchAsync(timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(repository.LastMaxRetryCountRequested).IsEqualTo(10);
     }
 
     [Test]
@@ -1756,6 +1855,7 @@ public sealed class OutboxProcessorHostedServiceTests
         private readonly SemaphoreSlim _pendingCountEvent = new(0, int.MaxValue);
         private int _isHealthyCallCount;
         private int _getPendingCountCallCount;
+        private readonly SemaphoreSlim _failedFetchEvent = new(0, int.MaxValue);
 
         /// <summary>
         /// Waits until at least <paramref name="count"/> processing events (completed, failed, or dead-letter)
@@ -1791,6 +1891,13 @@ public sealed class OutboxProcessorHostedServiceTests
         }
 
         /// <summary>
+        /// Waits until <see cref="GetFailedForRetryAsync"/> has been called at least once, or the
+        /// <paramref name="cancellationToken"/> is cancelled.
+        /// </summary>
+        public Task WaitForFailedFetchAsync(CancellationToken cancellationToken = default) =>
+            _failedFetchEvent.WaitAsync(cancellationToken);
+
+        /// <summary>
         /// Waits until at least <paramref name="count"/> polling calls (<see cref="GetPendingAsync"/> or
         /// <see cref="GetPendingCountAsync"/>) have occurred, or the <paramref name="cancellationToken"/> is
         /// cancelled. Avoids relying on fixed <c>Task.Delay</c> margins that are flaky under CI load.
@@ -1803,6 +1910,7 @@ public sealed class OutboxProcessorHostedServiceTests
         public List<Guid> DeadLetterMessageIds { get; } = [];
         public int GetPendingCallCount { get; private set; }
         public int LastBatchSizeRequested { get; private set; }
+        public int? LastMaxRetryCountRequested { get; private set; }
         public bool ThrowOnGetPendingCount { get; set; }
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
@@ -1881,6 +1989,9 @@ public sealed class OutboxProcessorHostedServiceTests
             var now = DateTimeOffset.UtcNow;
             lock (_lock)
             {
+                LastMaxRetryCountRequested = maxRetryCount;
+                _ = _failedFetchEvent.Release();
+
                 var messages = _messages
                     .Where(m =>
                         m.Status == OutboxMessageStatus.Failed
@@ -2018,6 +2129,7 @@ public sealed class OutboxProcessorHostedServiceTests
             _pollEvent.Dispose();
             _healthCheckEvent.Dispose();
             _pendingCountEvent.Dispose();
+            _failedFetchEvent.Dispose();
         }
     }
 
