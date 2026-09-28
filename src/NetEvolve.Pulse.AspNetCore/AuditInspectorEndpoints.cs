@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
-using NetEvolve.Pulse.Internals;
 using NetEvolve.Pulse.Extensibility.Audit;
+using NetEvolve.Pulse.Internals;
 using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 /// <summary>

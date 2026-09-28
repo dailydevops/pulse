@@ -3,8 +3,8 @@ namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 using Microsoft.Data.SqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
-using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 /// <summary>
 /// Runs the claim race against SQL Server with <c>READ_COMMITTED_SNAPSHOT</c> enabled, where the
