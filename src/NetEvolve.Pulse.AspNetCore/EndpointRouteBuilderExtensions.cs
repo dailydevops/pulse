@@ -203,7 +203,7 @@ public static class EndpointRouteBuilderExtensions
     /// (<c>type/subtype</c> over <c>type/*</c> over <c>*/*</c>), as defined by RFC 9110 §12.5.1.
     /// A range without <c>q</c> weighs 1, and <c>q=0</c> marks a media type as not acceptable.
     /// SSE is used on ties, when the header is missing or cannot be parsed, and when neither media
-    /// type is acceptable; in that last case the endpoint disregards the header, as RFC 9110 §12.1
+    /// type is acceptable; in that last case the endpoint disregards the header, as RFC 9110 §12.5.1
     /// permits, instead of answering <c>406 Not Acceptable</c>. The response carries
     /// <c>Vary: Accept</c>.
     /// </remarks>
