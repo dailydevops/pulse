@@ -9,9 +9,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST change an outbox message in every IOutboxRepository MarkAsCompleted/MarkAsFailed/MarkAsDeadLetter implementation (single and batch overloads) only while its status is Processing, as part of the same atomic storage operation (WHERE Status = 1, a status filter, or a conditional patch).
@@ -39,7 +39,7 @@ SQL Server, PostgreSQL and the Entity Framework single-message paths already fil
 * Every `Mark*` implementation MUST include `Status = Processing` in the same atomic storage operation that changes the message:
   - Relational providers: `WHERE Id = @id AND Status = 1` (single) and `WHERE Status = 1 AND Id IN (...)` (batch).
   - MongoDB: a filter on `Id` and `Status`.
-  - Cosmos DB: `PatchItemRequestOptions.FilterPredicate = "FROM c WHERE c.status = 1"`. A `412 Precondition Failed` or `404 Not Found` response is a no-op.
+  - Cosmos DB: `PatchItemRequestOptions.FilterPredicate = "FROM c WHERE c.status = 1"`. A `412 Precondition Failed` response, or a `404 Not Found` with sub-status 0 (document missing), is a no-op; any other 404 (for example sub-status 1003, container or database missing) MUST still throw.
   - Entity Framework: the `Status == Processing` predicate in both `UpdateByQueryAsync` callers and `UpdateByIdsAsync` implementations.
 * A `Mark*` call for a message in any other status, or for an unknown message, MUST be a silent no-op.
 * The `IOutboxRepository` XML documentation states the rule for implementers.
