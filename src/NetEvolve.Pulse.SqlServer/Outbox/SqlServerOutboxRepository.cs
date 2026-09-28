@@ -209,11 +209,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
                 var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
-                return await this.DeadLetterUnresolvableAsync(
-                        [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
-                        cancellationToken
-                    )
-                    .ConfigureAwait(false);
+                return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -242,11 +238,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
 
                 var messages = await ReadMessagesAsync(command, cancellationToken).ConfigureAwait(false);
 
-                return await this.DeadLetterUnresolvableAsync(
-                        [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
-                        cancellationToken
-                    )
-                    .ConfigureAwait(false);
+                return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -532,7 +524,7 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="command">The <see cref="SqlCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
+    /// <returns>A read-only list of <see cref="OutboxMessage"/> records, ordered by <see cref="OutboxMessage.CreatedAt"/> then <see cref="OutboxMessage.Id"/>.</returns>
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         SqlCommand command,
         CancellationToken cancellationToken
@@ -582,7 +574,8 @@ internal sealed class SqlServerOutboxRepository : IOutboxRepository
                 );
             } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 
-            return messages;
+            // Claim statements return rows in no guaranteed order; the outbox contract requires CreatedAt order.
+            return [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
         }
     }
 

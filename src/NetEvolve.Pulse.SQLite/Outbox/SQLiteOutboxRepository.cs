@@ -311,11 +311,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
         var messages = await ClaimPendingAsync(batchSize, cancellationToken).ConfigureAwait(false);
 
         // Dead-letter after the claim transaction has committed, because BEGIN IMMEDIATE holds the write lock.
-        return await this.DeadLetterUnresolvableAsync(
-                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -329,11 +325,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             .ConfigureAwait(false);
 
         // Dead-letter after the claim transaction has committed, because BEGIN IMMEDIATE holds the write lock.
-        return await this.DeadLetterUnresolvableAsync(
-                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -760,7 +752,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
     /// </summary>
     /// <param name="command">The <see cref="SqliteCommand"/> to execute.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A read-only list of <see cref="OutboxMessage"/> records.</returns>
+    /// <returns>A read-only list of <see cref="OutboxMessage"/> records, ordered by <see cref="OutboxMessage.CreatedAt"/> then <see cref="OutboxMessage.Id"/>.</returns>
     private static async Task<IReadOnlyList<OutboxMessage>> ReadMessagesAsync(
         SqliteCommand command,
         CancellationToken cancellationToken
@@ -840,7 +832,8 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
                 );
             } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 
-            return messages;
+            // Claim statements return rows in no guaranteed order; the outbox contract requires CreatedAt order.
+            return [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)];
         }
     }
 }
