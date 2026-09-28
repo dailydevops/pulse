@@ -14,10 +14,10 @@ using System.Collections.Generic;
 /// command succeeds. This allows a cache invalidation interceptor to evict the corresponding cache entries
 /// after the command handler completes.
 /// <para><strong>Declared Types:</strong></para>
-/// Each <see cref="Type"/> listed in <see cref="InvalidatedQueryTypes"/> is expected to implement
-/// <see cref="IQuery{TResponse}"/> for the same <typeparamref name="TResponse"/> as this command. This
-/// interface does not enforce that relationship; the runtime check is performed by the consuming
-/// interceptor when it processes the invalidation.
+/// Each <see cref="Type"/> listed in <see cref="InvalidatedQueryTypes"/> is expected to be a query type,
+/// typically one implementing <c>ICacheableQuery&lt;T&gt;</c>. Its response type does not need to match
+/// <typeparamref name="TResponse"/>. The relationship is not validated: a type for which no cache keys were
+/// recorded is ignored.
 /// </remarks>
 /// <example>
 /// <code>
@@ -37,8 +37,8 @@ public interface IInvalidatingCommand<TResponse> : ICommand<TResponse>
     /// Gets the query types whose cached results should be invalidated after this command succeeds.
     /// </summary>
     /// <remarks>
-    /// Each listed type is expected to implement <see cref="IQuery{TResponse}"/> for the same
-    /// <typeparamref name="TResponse"/>, though this is not enforced by this interface.
+    /// Each listed type is expected to be a query type. Types for which no cache keys were recorded are
+    /// ignored.
     /// </remarks>
     IEnumerable<Type> InvalidatedQueryTypes { get; }
 }
