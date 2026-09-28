@@ -296,9 +296,11 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         if (batchSize > 0)
         {
-            // Also check for failed messages eligible for retry
+            // Also check for failed messages eligible for retry. The highest limit is resolved on every cycle
+            // because EventTypeOverrides can change at runtime; the per-message dead-letter decision still
+            // applies the effective limit of each event type.
             var failedMessages = await repository
-                .GetFailedForRetryAsync(_options.MaxRetryCount, batchSize, cancellationToken)
+                .GetFailedForRetryAsync(_options.GetHighestMaxRetryCount(), batchSize, cancellationToken)
                 .ConfigureAwait(false);
             messages = [.. messages, .. failedMessages];
         }

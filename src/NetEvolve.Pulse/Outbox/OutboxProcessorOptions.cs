@@ -130,6 +130,27 @@ public sealed class OutboxProcessorOptions
             : MaxRetryCount;
 
     /// <summary>
+    /// Returns the largest effective <see cref="MaxRetryCount"/> across the global value and all
+    /// <see cref="EventTypeOverrides"/>, used to fetch failed messages for retry so that no event type
+    /// is excluded before reaching its own limit.
+    /// </summary>
+    /// <returns>The largest configured maximum number of delivery attempts.</returns>
+    internal int GetHighestMaxRetryCount()
+    {
+        var highest = MaxRetryCount;
+
+        foreach (var overrides in EventTypeOverrides.Values)
+        {
+            if (overrides.MaxRetryCount is int value && value > highest)
+            {
+                highest = value;
+            }
+        }
+
+        return highest;
+    }
+
+    /// <summary>
     /// Returns the effective <see cref="ProcessingTimeout"/> for the given event type,
     /// applying any configured per-type override.
     /// </summary>
