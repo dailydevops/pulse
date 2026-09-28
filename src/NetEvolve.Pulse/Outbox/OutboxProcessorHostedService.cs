@@ -222,7 +222,16 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             catch (Exception ex)
             {
                 LogProcessingCycleError(_logger, ex);
-                await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+
+                try
+                {
+                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    // Graceful shutdown during the error back-off delay
+                    break;
+                }
             }
         }
 
