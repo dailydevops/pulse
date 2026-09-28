@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
@@ -36,7 +37,13 @@ public sealed class CommandDeadLetterInterceptorTests
     [Test]
     public async Task Constructor_NullServiceProvider_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new CommandDeadLetterInterceptor<TestCommand, string>(null!, DefaultSerializer))
+            .That(() =>
+                new CommandDeadLetterInterceptor<TestCommand, string>(
+                    null!,
+                    DefaultSerializer,
+                    NullLogger<CommandDeadLetterInterceptor<TestCommand, string>>.Instance
+                )
+            )
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -45,6 +52,19 @@ public sealed class CommandDeadLetterInterceptorTests
             .That(() =>
                 new CommandDeadLetterInterceptor<TestCommand, string>(
                     new ServiceCollection().BuildServiceProvider(),
+                    null!,
+                    NullLogger<CommandDeadLetterInterceptor<TestCommand, string>>.Instance
+                )
+            )
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Constructor_NullLogger_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new CommandDeadLetterInterceptor<TestCommand, string>(
+                    new ServiceCollection().BuildServiceProvider(),
+                    DefaultSerializer,
                     null!
                 )
             )
@@ -61,7 +81,11 @@ public sealed class CommandDeadLetterInterceptorTests
         var services = new ServiceCollection();
         _ = services.AddSingleton<ICommandDeadLetterStore>(store);
         var provider = services.BuildServiceProvider();
-        var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(provider, DefaultSerializer);
+        var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(
+            provider,
+            DefaultSerializer,
+            NullLogger<CommandDeadLetterInterceptor<TestCommand, string>>.Instance
+        );
         var command = new TestCommand { Value = "payload-value" };
         var thrown = new InvalidOperationException("handler failed");
 
@@ -181,6 +205,43 @@ public sealed class CommandDeadLetterInterceptorTests
     }
 
     [Test]
+    public async Task HandleAsync_CancelledHandlerAndStoreThrowsCancellation_RethrowsOriginalCancellation(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var store = Mock.Of<ICommandDeadLetterStore>();
+        _ = store
+            .StoreAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Exception>(), Arg.Any<CancellationToken>())
+            .Throws(new OperationCanceledException("store cancelled"));
+        var logger = Mock.Logger<CommandDeadLetterInterceptor<TestCommand, string>>();
+        var interceptor = CreateInterceptor(store.Object, DefaultSerializer, logger);
+        var thrown = new OperationCanceledException("handler cancelled");
+
+        var exception = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new TestCommand { Value = "x" },
+                    async (_, _) =>
+                    {
+                        await cts.CancelAsync().ConfigureAwait(false);
+                        throw thrown;
+                    },
+                    cts.Token
+                )
+                .ConfigureAwait(false)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception).IsSameReferenceAs(thrown);
+            _ = await Assert.That(logger.Entries.Count(e => e.LogLevel == LogLevel.Error)).IsEqualTo(1);
+        }
+    }
+
+    [Test]
     public async Task HandleAsync_SuccessfulCommand_NeverCallsStoreAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -189,7 +250,11 @@ public sealed class CommandDeadLetterInterceptorTests
         var services = new ServiceCollection();
         _ = services.AddSingleton<ICommandDeadLetterStore>(store);
         var provider = services.BuildServiceProvider();
-        var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(provider, DefaultSerializer);
+        var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(
+            provider,
+            DefaultSerializer,
+            NullLogger<CommandDeadLetterInterceptor<TestCommand, string>>.Instance
+        );
         var command = new TestCommand { Value = "ok" };
 
         var result = await interceptor
@@ -211,7 +276,11 @@ public sealed class CommandDeadLetterInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var provider = new ServiceCollection().BuildServiceProvider();
-        var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(provider, DefaultSerializer);
+        var interceptor = new CommandDeadLetterInterceptor<TestCommand, string>(
+            provider,
+            DefaultSerializer,
+            NullLogger<CommandDeadLetterInterceptor<TestCommand, string>>.Instance
+        );
         var command = new TestCommand { Value = "no-store" };
         var thrown = new InvalidOperationException("handler failed without store");
 
@@ -235,7 +304,11 @@ public sealed class CommandDeadLetterInterceptorTests
         var services = new ServiceCollection();
         _ = services.AddSingleton<ICommandDeadLetterStore>(store);
         var provider = services.BuildServiceProvider();
-        var interceptor = new CommandDeadLetterInterceptor<TestQuery, string>(provider, DefaultSerializer);
+        var interceptor = new CommandDeadLetterInterceptor<TestQuery, string>(
+            provider,
+            DefaultSerializer,
+            NullLogger<CommandDeadLetterInterceptor<TestQuery, string>>.Instance
+        );
         var query = new TestQuery();
         var thrown = new InvalidOperationException("query handler failed");
 
@@ -256,7 +329,11 @@ public sealed class CommandDeadLetterInterceptorTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var provider = new ServiceCollection().BuildServiceProvider();
-        var interceptor = new CommandDeadLetterInterceptor<TestQuery, string>(provider, DefaultSerializer);
+        var interceptor = new CommandDeadLetterInterceptor<TestQuery, string>(
+            provider,
+            DefaultSerializer,
+            NullLogger<CommandDeadLetterInterceptor<TestQuery, string>>.Instance
+        );
         var query = new TestQuery();
         var thrown = new InvalidOperationException("query handler failed without store");
 

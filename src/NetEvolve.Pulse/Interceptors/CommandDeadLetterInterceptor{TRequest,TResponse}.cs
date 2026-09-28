@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
 
@@ -21,7 +22,8 @@ using NetEvolve.Pulse.Extensibility.DeadLetter;
 /// <item><description>If the handler throws, and <see cref="ICommandDeadLetterStore"/> is registered in the DI container, the command's serialized payload and the exception are recorded via <see cref="ICommandDeadLetterStore.StoreAsync"/> before the original exception is rethrown.</description></item>
 /// <item><description>If <see cref="ICommandDeadLetterStore"/> is not registered, the interceptor is a no-op on failure - the original exception is still rethrown unchanged.</description></item>
 /// <item><description>If the failed command is the one <see cref="CommandDeadLetterReplayDispatcher"/> is replaying, no new entry is stored - <see cref="ICommandDeadLetterManagement.ReplayAsync"/> records the failure on the replayed entry instead. Other commands sent by the replayed handler are still recorded.</description></item>
-/// <item><description>The original exception is always rethrown, whether or not a store is registered - this interceptor never swallows a command failure, it only optionally records it first.</description></item>
+/// <item><description>If serializing the payload or <see cref="ICommandDeadLetterStore.StoreAsync"/> throws, that recording failure is logged at <see cref="LogLevel.Error"/> and swallowed, so it never replaces the original exception. No entry is recorded in that case.</description></item>
+/// <item><description>The original exception is always rethrown with its stack trace, whether or not a store is registered and whether or not recording succeeds - this interceptor never swallows a command failure, it only optionally records it first.</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddCommandDeadLetter()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
@@ -29,25 +31,34 @@ using NetEvolve.Pulse.Extensibility.DeadLetter;
 /// <seealso cref="ICommand{TResponse}"/>
 /// <seealso cref="ICommandDeadLetterStore"/>
 /// <seealso cref="IPayloadSerializer"/>
-internal sealed class CommandDeadLetterInterceptor<TRequest, TResponse> : IRequestInterceptor<TRequest, TResponse>
+internal sealed partial class CommandDeadLetterInterceptor<TRequest, TResponse>
+    : IRequestInterceptor<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IPayloadSerializer _payloadSerializer;
+    private readonly ILogger<CommandDeadLetterInterceptor<TRequest, TResponse>> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CommandDeadLetterInterceptor{TRequest, TResponse}"/> class.
     /// </summary>
     /// <param name="serviceProvider">The service provider used to resolve the optional <see cref="ICommandDeadLetterStore"/>.</param>
     /// <param name="payloadSerializer">The serializer used to serialize the failed command's payload.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="serviceProvider"/> or <paramref name="payloadSerializer"/> is <see langword="null"/>.</exception>
-    public CommandDeadLetterInterceptor(IServiceProvider serviceProvider, IPayloadSerializer payloadSerializer)
+    /// <param name="logger">The logger used to report a failure while recording a dead letter.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="serviceProvider"/>, <paramref name="payloadSerializer"/> or <paramref name="logger"/> is <see langword="null"/>.</exception>
+    public CommandDeadLetterInterceptor(
+        IServiceProvider serviceProvider,
+        IPayloadSerializer payloadSerializer,
+        ILogger<CommandDeadLetterInterceptor<TRequest, TResponse>> logger
+    )
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(payloadSerializer);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _serviceProvider = serviceProvider;
         _payloadSerializer = payloadSerializer;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -78,13 +89,28 @@ internal sealed class CommandDeadLetterInterceptor<TRequest, TResponse> : IReque
                 : _serviceProvider.GetService<ICommandDeadLetterStore>();
             if (store is not null)
             {
-                var payload = _payloadSerializer.Serialize(request);
-                await store
-                    .StoreAsync(typeof(TRequest).AssemblyQualifiedName!, payload, ex, cancellationToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    var payload = _payloadSerializer.Serialize(request);
+                    await store
+                        .StoreAsync(typeof(TRequest).AssemblyQualifiedName!, payload, ex, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+#pragma warning disable CA1031 // A recording failure must never replace the original command exception.
+                catch (Exception recordingException)
+#pragma warning restore CA1031
+                {
+                    LogRecordingFailed(_logger, recordingException, typeof(TRequest).FullName);
+                }
             }
 
             throw;
         }
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "Failed to record failed command '{CommandType}' as dead letter; the original exception is rethrown."
+    )]
+    private static partial void LogRecordingFailed(ILogger logger, Exception exception, string? commandType);
 }
