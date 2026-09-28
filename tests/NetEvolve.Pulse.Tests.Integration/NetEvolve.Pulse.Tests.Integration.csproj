@@ -6,6 +6,12 @@
 
     <!-- Suppress the Newtonsoft.Json explicit-reference check; this package uses System.Text.Json via CosmosSystemTextJsonSerializer. -->
     <AzureCosmosDisableNewtonsoftJsonCheck>true</AzureCosmosDisableNewtonsoftJsonCheck>
+
+    <!-- Verify v33+ build-time license gate (SC021). Pulse is a non-revenue open source project, so the OpenSource exemption applies.
+         See https://github.com/VerifyTests/Verify/blob/main/docs/maintenance-fee.md
+         Renew yearly: the end month may be at most 12 months ahead of the build date; builds fail after 2027-09. -->
+    <Verify_SponsorshipExemption>OpenSource</Verify_SponsorshipExemption>
+    <Verify_SponsorshipExemptionUntil>2027-09</Verify_SponsorshipExemptionUntil>
   </PropertyGroup>
 
   <ItemGroup>
