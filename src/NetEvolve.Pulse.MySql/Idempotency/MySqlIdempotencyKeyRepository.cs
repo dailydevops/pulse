@@ -162,6 +162,8 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
     /// Runs <c>INSERT IGNORE</c> and, when <paramref name="validFrom"/> is set, a conditional
     /// <c>UPDATE</c> of an expired row. InnoDB's row lock makes a concurrent refresh re-read the
     /// already refreshed row, so only one caller for the same key receives <see langword="true"/>.
+    /// When the refresh matches no row, the <c>INSERT IGNORE</c> runs once more, because the expired row
+    /// may have been deleted by a cleanup job between the two statements.
     /// </remarks>
     public async Task<bool> TryReserveAsync(
         string idempotencyKey,
@@ -201,7 +203,21 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
                 _ = refresh.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
                 _ = refresh.Parameters.AddWithValue("@validFromTicks", validFrom.Value.UtcTicks);
 
-                return await refresh.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
+                if (await refresh.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0)
+                {
+                    return true;
+                }
+            }
+
+            // A cleanup job can delete the expired row between the two statements; the key is then
+            // absent, so one more INSERT IGNORE reserves it instead of reporting a false duplicate.
+            var retry = new MySqlCommand(_insertSql, connection);
+            await using (retry.ConfigureAwait(false))
+            {
+                _ = retry.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = retry.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
+
+                return await retry.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
             }
         }
     }
