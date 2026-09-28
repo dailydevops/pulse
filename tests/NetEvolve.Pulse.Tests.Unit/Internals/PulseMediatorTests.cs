@@ -823,4 +823,125 @@ public class PulseMediatorTests
             return result;
         }
     }
+
+    [Test]
+    public async Task PublishAsync_WithMultipleInterceptors_InvokesThemInRegistrationOrder(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var log = new List<string>();
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton<IEventHandler<TestEvent>>(new TestEventHandler());
+        _ = services.AddSingleton<IEventInterceptor<TestEvent>>(new OrderTrackingEventInterceptor("first", log));
+        _ = services.AddSingleton<IEventInterceptor<TestEvent>>(new OrderTrackingEventInterceptor("second", log));
+        _ = services.AddSingleton<IEventInterceptor<TestEvent>>(new OrderTrackingEventInterceptor("third", log));
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var mediator = new PulseMediator(logger, serviceProvider, TimeProvider.System);
+
+        await mediator.PublishAsync(new TestEvent(), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert
+            .That(string.Join(",", log))
+            .IsEqualTo("first:before,second:before,third:before,third:after,second:after,first:after");
+    }
+
+    [Test]
+    public async Task StreamQueryAsync_WithMultipleInterceptors_InvokesThemInRegistrationOrder(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var log = new List<string>();
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddSingleton<IStreamQueryHandler<TestStreamQuery, string>>(new TestStreamQueryHandler(["item"]));
+        _ = services.AddSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>(
+            new OrderTrackingStreamQueryInterceptor("first", log)
+        );
+        _ = services.AddSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>(
+            new OrderTrackingStreamQueryInterceptor("second", log)
+        );
+        _ = services.AddSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>(
+            new OrderTrackingStreamQueryInterceptor("third", log)
+        );
+        var serviceProvider = services.BuildServiceProvider();
+        var logger = serviceProvider.GetRequiredService<ILogger<PulseMediator>>();
+        var mediator = new PulseMediator(logger, serviceProvider, TimeProvider.System);
+
+        await foreach (
+            var item in mediator
+                .StreamQueryAsync<TestStreamQuery, string>(new TestStreamQuery(), cancellationToken)
+                .ConfigureAwait(false)
+        )
+        {
+            log.Add(item);
+        }
+
+        _ = await Assert
+            .That(string.Join(",", log))
+            .IsEqualTo("first:before,second:before,third:before,item,third:after,second:after,first:after");
+    }
+
+    private sealed class OrderTrackingEventInterceptor : IEventInterceptor<TestEvent>
+    {
+        private readonly string _name;
+        private readonly List<string> _log;
+
+        public OrderTrackingEventInterceptor(string name, List<string> log)
+        {
+            _name = name;
+            _log = log;
+        }
+
+        public async Task HandleAsync(
+            TestEvent message,
+            Func<TestEvent, CancellationToken, Task> handler,
+            CancellationToken cancellationToken = default
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _log.Add($"{_name}:before");
+            await handler(message, cancellationToken).ConfigureAwait(false);
+            _log.Add($"{_name}:after");
+        }
+    }
+
+    private sealed class OrderTrackingStreamQueryInterceptor : IStreamQueryInterceptor<TestStreamQuery, string>
+    {
+        private readonly string _name;
+        private readonly List<string> _log;
+
+        public OrderTrackingStreamQueryInterceptor(string name, List<string> log)
+        {
+            _name = name;
+            _log = log;
+        }
+
+        public async IAsyncEnumerable<string> HandleAsync(
+            TestStreamQuery request,
+            Func<TestStreamQuery, CancellationToken, IAsyncEnumerable<string>> handler,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _log.Add($"{_name}:before");
+            await foreach (
+                var item in handler(request, cancellationToken)
+                    .WithCancellation(cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                yield return item;
+            }
+
+            _log.Add($"{_name}:after");
+        }
+    }
 }

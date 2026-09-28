@@ -11,7 +11,9 @@ using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
+using TUnit.Assertions.Enums;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 using TUnit.Mocks;
@@ -747,6 +749,44 @@ public sealed class PollyExtensionsTests
         _ = await Assert.That(pipeline1).IsNotNull();
         _ = await Assert.That(pipeline2).IsNotNull();
         _ = await Assert.That(pipeline1).IsEqualTo(pipeline2);
+    }
+
+    [Test]
+    public async Task AddPollyRequestPolicies_WithDocumentedRegistrationOrder_ResolvesActivityAndMetricsOutermost()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddPulse(configurator =>
+            configurator
+                .AddActivityAndMetrics()
+                .AddPollyRequestPolicies<TestCommand, string>(pipeline => pipeline.AddTimeout(TimeSpan.FromSeconds(30)))
+                .AddCommandInterceptor<TestCommand, string, PassThroughCommandInterceptor>()
+        );
+        var provider = services.BuildServiceProvider();
+
+        var interceptorTypes = provider
+            .GetServices<IRequestInterceptor<TestCommand, string>>()
+            .Select(interceptor => interceptor.GetType())
+            .ToArray();
+
+        _ = await Assert
+            .That(interceptorTypes)
+            .IsEquivalentTo(
+                [
+                    typeof(ActivityAndMetricsRequestInterceptor<TestCommand, string>),
+                    typeof(PollyRequestInterceptor<TestCommand, string>),
+                    typeof(PassThroughCommandInterceptor),
+                ],
+                CollectionOrdering.Matching
+            );
+    }
+
+    private sealed class PassThroughCommandInterceptor : ICommandInterceptor<TestCommand, string>
+    {
+        public Task<string> HandleAsync(
+            TestCommand request,
+            Func<TestCommand, CancellationToken, Task<string>> handler,
+            CancellationToken cancellationToken = default
+        ) => handler(request, cancellationToken);
     }
 
     private sealed record TestCommand : ICommand<string>
