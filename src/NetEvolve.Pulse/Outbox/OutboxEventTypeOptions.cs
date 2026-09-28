@@ -15,9 +15,12 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 public sealed class OutboxEventTypeOptions
 {
     /// <summary>
-    /// Gets or sets the maximum number of retry attempts before moving to dead letter.
-    /// When <c>null</c>, the global <see cref="OutboxProcessorOptions.MaxRetryCount"/> is used.
+    /// Gets or sets the maximum number of delivery attempts (including the first) before a message is moved to dead letter.
+    /// Must be at least 1 when set. When <c>null</c>, the global <see cref="OutboxProcessorOptions.MaxRetryCount"/> is used.
     /// </summary>
+    /// <remarks>
+    /// The value counts attempts, not retries: <c>3</c> means one initial attempt plus two retries.
+    /// </remarks>
     public int? MaxRetryCount { get; set; }
 
     /// <summary>

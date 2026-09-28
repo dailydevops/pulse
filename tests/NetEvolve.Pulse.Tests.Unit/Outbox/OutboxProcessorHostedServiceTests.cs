@@ -538,10 +538,10 @@ public sealed class OutboxProcessorHostedServiceTests
             new OutboxProcessorOptions
             {
                 PollingInterval = TimeSpan.FromMilliseconds(50),
-                MaxRetryCount = 5, // Global: 5 retries
+                MaxRetryCount = 5, // Global: 5 delivery attempts
                 EventTypeOverrides =
                 {
-                    [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 retry
+                    [typeof(CriticalEvent)] = new OutboxEventTypeOptions { MaxRetryCount = 1 }, // Override: 1 attempt, no retry
                 },
             }
         );

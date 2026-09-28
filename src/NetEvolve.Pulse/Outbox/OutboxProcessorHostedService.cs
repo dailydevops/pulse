@@ -635,25 +635,25 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     )]
     private static partial void LogMessageProcessed(ILogger logger, Guid messageId, string eventType);
 
-    /// <summary>Logs a warning when processing a single outbox message fails, including retry progress.</summary>
+    /// <summary>Logs a warning when processing a single outbox message fails, including attempt progress.</summary>
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Failed to process outbox message {MessageId} (retry {RetryCount}/{MaxRetry})"
+        Message = "Failed to process outbox message {MessageId} (attempt {Attempt}/{MaxAttempts})"
     )]
     private static partial void LogMessageProcessingFailed(
         ILogger logger,
         Exception exception,
         Guid messageId,
-        int retryCount,
-        int maxRetry
+        int attempt,
+        int maxAttempts
     );
 
-    /// <summary>Logs that a message has exhausted all retries and been moved to the dead-letter status.</summary>
+    /// <summary>Logs that a message has exhausted all delivery attempts and been moved to the dead-letter status.</summary>
     [LoggerMessage(
         Level = LogLevel.Error,
-        Message = "Outbox message {MessageId} moved to dead letter after {MaxRetry} retries"
+        Message = "Outbox message {MessageId} moved to dead letter after {MaxAttempts} attempts"
     )]
-    private static partial void LogMessageMovedToDeadLetter(ILogger logger, Guid messageId, int maxRetry);
+    private static partial void LogMessageMovedToDeadLetter(ILogger logger, Guid messageId, int maxAttempts);
 
     /// <summary>Logs that a batch of outbox messages was successfully processed.</summary>
     [LoggerMessage(Level = LogLevel.Debug, Message = "Successfully processed batch of {Count} outbox messages")]

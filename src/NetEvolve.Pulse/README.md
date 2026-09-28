@@ -231,7 +231,7 @@ services.AddPulse(config => config
         {
             processorOptions.BatchSize = 100;              // Messages per batch (default: 100)
             processorOptions.PollingInterval = TimeSpan.FromSeconds(5);  // Poll delay (default: 5s)
-            processorOptions.MaxRetryCount = 3;            // Max retries before dead letter (default: 3)
+            processorOptions.MaxRetryCount = 3;            // Max delivery attempts incl. the first before dead letter (default: 3, min: 1)
             processorOptions.ProcessingTimeout = TimeSpan.FromSeconds(30); // Per-message timeout (default: 30s)
             processorOptions.EnableBatchSending = false;   // Use batch transport (default: false)
         })
@@ -243,18 +243,18 @@ services.AddPulse(config => config
 
 #### Per-Event-Type Overrides
 
-You can tune processing behaviour for individual event types using `EventTypeOverrides`. The dictionary key matches the `EventType` field of stored outbox messages. Any `null` property falls back to the global default:
+You can tune processing behaviour for individual event types using `EventTypeOverrides`. The dictionary key is the event `Type` and matches the `EventType` of stored outbox messages. Any `null` property falls back to the global default:
 
 ```csharp
-processorOptions.EventTypeOverrides["MyNamespace.CriticalEvent"] = new OutboxEventTypeOptions
+processorOptions.EventTypeOverrides[typeof(CriticalEvent)] = new OutboxEventTypeOptions
 {
-    MaxRetryCount = 10,                         // More retries for critical events
+    MaxRetryCount = 10,                         // More delivery attempts for critical events
     ProcessingTimeout = TimeSpan.FromSeconds(10), // Tighter timeout
 };
 
-processorOptions.EventTypeOverrides["MyNamespace.BulkEvent"] = new OutboxEventTypeOptions
+processorOptions.EventTypeOverrides[typeof(BulkEvent)] = new OutboxEventTypeOptions
 {
-    MaxRetryCount = 1,                          // Fewer retries for low-priority bulk events
+    MaxRetryCount = 1,                          // Single attempt, no retries for low-priority bulk events
     ProcessingTimeout = TimeSpan.FromMinutes(2), // Longer timeout for large payloads
 };
 ```
