@@ -11,6 +11,8 @@ public class SequentialEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithMultipleHandlers_InvokesAllHandlersInOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
         var executionOrder = new List<int>();
@@ -42,6 +44,8 @@ public class SequentialEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithNoHandlers_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
         var handlers = Array.Empty<IEventHandler<TestEvent>>();
@@ -59,6 +63,8 @@ public class SequentialEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithSingleHandler_InvokesHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
         var executionOrder = new List<int>();
@@ -79,6 +85,8 @@ public class SequentialEventDispatcherTests
     [Test]
     public async Task DispatchAsync_WithCancellationBetweenHandlers_StopsExecution(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
         var executionOrder = new List<int>();
@@ -107,6 +115,8 @@ public class SequentialEventDispatcherTests
     [Test]
     public async Task DispatchAsync_ExecutesSequentially_NotInParallel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dispatcher = new SequentialEventDispatcher();
         var testEvent = new TestEvent();
         var concurrentCount = 0;
@@ -183,6 +193,8 @@ public class SequentialEventDispatcherTests
 
         public Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Add(_id);
             return Task.CompletedTask;
         }
@@ -203,6 +215,8 @@ public class SequentialEventDispatcherTests
 
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Add(_id);
             await _cts.CancelAsync().ConfigureAwait(false);
         }
@@ -230,6 +244,8 @@ public class SequentialEventDispatcherTests
 
         public async Task HandleAsync(TestEvent message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _setConcurrent(_getConcurrent() + 1);
             _executionOrder.Add(_id);
             await Task.Delay(10, cancellationToken).ConfigureAwait(false);

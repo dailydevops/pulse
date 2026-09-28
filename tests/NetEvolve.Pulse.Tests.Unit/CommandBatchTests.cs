@@ -58,6 +58,8 @@ public class CommandBatchTests
     [Test]
     public async Task SendBatchAsync_WithNullMediator_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IMediatorSendOnly? mediator = null;
         var batch = new CommandBatch();
 
@@ -70,6 +72,8 @@ public class CommandBatchTests
     [Test]
     public async Task SendBatchAsync_WithNullBatch_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
@@ -93,6 +97,8 @@ public class CommandBatchTests
     [Test]
     public async Task SendBatchAsync_EmptyBatch_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new TestCommandHandler();
         var services = new ServiceCollection();
         _ = services.AddLogging();
@@ -117,6 +123,8 @@ public class CommandBatchTests
     [Test]
     public async Task SendBatchAsync_ExecutesAllCommands_InOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var executionOrder = new List<string>();
         var handler = new OrderTrackingCommandHandler(executionOrder);
         var services = new ServiceCollection();
@@ -153,6 +161,8 @@ public class CommandBatchTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var executionOrder = new List<string>();
         var handler = new ThrowingOrderTrackingCommandHandler(executionOrder, throwOnName: "second");
         var services = new ServiceCollection();
@@ -197,6 +207,8 @@ public class CommandBatchTests
 
         public Task<Void> HandleAsync(TestCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             HandledCommands.Add(command);
             return Task.FromResult(Void.Completed);
         }
@@ -219,6 +231,8 @@ public class CommandBatchTests
 
         public Task<Void> HandleAsync(OrderedCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Add(command.Name);
             return Task.FromResult(Void.Completed);
         }
@@ -237,6 +251,8 @@ public class CommandBatchTests
 
         public Task<Void> HandleAsync(OrderedCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _executionOrder.Add(command.Name);
 
             if (command.Name == _throwOnName)

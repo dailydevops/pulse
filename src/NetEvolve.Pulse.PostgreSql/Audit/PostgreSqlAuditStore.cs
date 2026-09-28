@@ -70,6 +70,8 @@ internal sealed class PostgreSqlAuditStore : IAuditStore
     /// <inheritdoc />
     public async Task RecordAsync(AuditRecord record, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(record);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -104,6 +106,8 @@ internal sealed class PostgreSqlAuditStore : IAuditStore
     /// <returns>An open <see cref="NpgsqlConnection"/>.</returns>
     private async Task<NpgsqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

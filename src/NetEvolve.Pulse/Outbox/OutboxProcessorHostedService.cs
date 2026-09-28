@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Internals;
-using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Background service that processes outbox messages and dispatches them via <see cref="IMessageTransport"/>.
@@ -156,6 +155,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        stoppingToken.ThrowIfCancellationRequested();
+
         var applicationStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var startedRegistration = _lifetime.ApplicationStarted.Register(() => applicationStarted.TrySetResult());
 
@@ -256,6 +257,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private async Task RefreshPendingCountAsync(IOutboxRepository repository, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             var count = await repository.GetPendingCountAsync(cancellationToken).ConfigureAwait(false);
@@ -295,6 +298,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <returns>The number of messages sent successfully in this batch; <c>0</c> when no messages are available or all of them failed.</returns>
     private async Task<int> ProcessBatchAsync(IOutboxRepository repository, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var batchSize = _options.BatchSize;
         // Refresh the pending count gauge before processing. The gauge is purely observational;
         // dispatch must never depend on it because GetPendingCountAsync is an optional-to-override
@@ -384,6 +389,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var succeededCount = 0;
         foreach (var message in messages)
         {
@@ -416,6 +423,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var maxRetryCount = _options.GetEffectiveMaxRetryCount(message.EventType);
         var processingTimeout = _options.GetEffectiveProcessingTimeout(message.EventType);
 
@@ -529,6 +538,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

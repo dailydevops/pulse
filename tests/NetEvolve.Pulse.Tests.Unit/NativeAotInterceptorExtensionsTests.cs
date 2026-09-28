@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Unit;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -325,8 +326,12 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
-    public async Task SendAsync_WithValueTypeResponseAndKeyedInterceptors_UsesKeyedInterceptors()
+    public async Task SendAsync_WithValueTypeResponseAndKeyedInterceptors_UsesKeyedInterceptors(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recorder = new Recorder();
         var services = CreateServices(recorder);
         _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
@@ -354,8 +359,12 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
-    public async Task SendAsync_WithValueTypeResponseAndNoKeyedInterceptors_UsesUnkeyedInterceptors()
+    public async Task SendAsync_WithValueTypeResponseAndNoKeyedInterceptors_UsesUnkeyedInterceptors(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recorder = new Recorder();
         var services = CreateServices(recorder);
         _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
@@ -372,8 +381,10 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
-    public async Task SendAsync_WithReferenceTypeResponse_IgnoresKeyedInterceptors()
+    public async Task SendAsync_WithReferenceTypeResponse_IgnoresKeyedInterceptors(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recorder = new Recorder();
         var services = CreateServices(recorder);
         _ = services.AddSingleton<IRequestInterceptor<ReferenceCommand, string>>(
@@ -396,8 +407,12 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
-    public async Task StreamQueryAsync_WithValueTypeItemsAndKeyedInterceptors_UsesKeyedInterceptors()
+    public async Task StreamQueryAsync_WithValueTypeItemsAndKeyedInterceptors_UsesKeyedInterceptors(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recorder = new Recorder();
         var services = CreateServices(recorder);
         _ = services.AddSingleton<IStreamQueryInterceptor<RangeQuery, int>>(
@@ -467,8 +482,12 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
-    public async Task SendAsync_WithOpenGenericInterceptorRegisteredAfterEmptyKeyedRegistration_UsesInterceptor()
+    public async Task SendAsync_WithOpenGenericInterceptorRegisteredAfterEmptyKeyedRegistration_UsesInterceptor(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recorder = new Recorder();
         var services = CreateServices(recorder);
         NativeAotInterceptorExtensions.AddCommandInterceptorsCore<ValueCommand, int>(services);
@@ -581,8 +600,12 @@ public sealed class NativeAotInterceptorExtensionsTests
     }
 
     [Test]
-    public async Task SendAsync_WithUnchangedKeyedRegistration_UsesKeyedInterceptorsOnEveryCall()
+    public async Task SendAsync_WithUnchangedKeyedRegistration_UsesKeyedInterceptorsOnEveryCall(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recorder = new Recorder();
         var services = CreateServices(recorder);
         _ = services.AddSingleton<IRequestInterceptor<ValueCommand, int>>(
@@ -703,6 +726,8 @@ public sealed class NativeAotInterceptorExtensionsTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Yield();
             yield return 1;
             yield return 2;
@@ -714,6 +739,11 @@ public sealed class NativeAotInterceptorExtensionsTests
     {
         public string Name { get; } = name;
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task<int> HandleAsync(
             ValueCommand request,
             Func<ValueCommand, CancellationToken, Task<int>> handler,
@@ -721,6 +751,7 @@ public sealed class NativeAotInterceptorExtensionsTests
         )
         {
             recorder?.Names.Enqueue(Name);
+            cancellationToken.ThrowIfCancellationRequested();
             return handler(request, cancellationToken);
         }
     }
@@ -728,6 +759,11 @@ public sealed class NativeAotInterceptorExtensionsTests
     private sealed class ReferenceRecordingInterceptor(string name, Recorder recorder)
         : IRequestInterceptor<ReferenceCommand, string>
     {
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task<string> HandleAsync(
             ReferenceCommand request,
             Func<ReferenceCommand, CancellationToken, Task<string>> handler,
@@ -735,6 +771,7 @@ public sealed class NativeAotInterceptorExtensionsTests
         )
         {
             recorder.Names.Enqueue(name);
+            cancellationToken.ThrowIfCancellationRequested();
             return handler(request, cancellationToken);
         }
     }
@@ -742,6 +779,11 @@ public sealed class NativeAotInterceptorExtensionsTests
     private sealed class StreamRecordingInterceptor(string name, Recorder recorder)
         : IStreamQueryInterceptor<RangeQuery, int>
     {
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public IAsyncEnumerable<int> HandleAsync(
             RangeQuery request,
             Func<RangeQuery, CancellationToken, IAsyncEnumerable<int>> handler,
@@ -749,6 +791,7 @@ public sealed class NativeAotInterceptorExtensionsTests
         )
         {
             recorder.Names.Enqueue(name);
+            cancellationToken.ThrowIfCancellationRequested();
             return handler(request, cancellationToken);
         }
     }
@@ -766,6 +809,11 @@ public sealed class NativeAotInterceptorExtensionsTests
         : IRequestInterceptor<TRequest, TResponse>
         where TRequest : IRequest<TResponse>
     {
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task<TResponse> HandleAsync(
             TRequest request,
             Func<TRequest, CancellationToken, Task<TResponse>> handler,
@@ -773,6 +821,7 @@ public sealed class NativeAotInterceptorExtensionsTests
         )
         {
             recorder.Names.Enqueue("open");
+            cancellationToken.ThrowIfCancellationRequested();
             return handler(request, cancellationToken);
         }
     }

@@ -29,6 +29,8 @@ internal static class MySqlScriptRunner
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "MySql", scriptName);
         var script = await File.ReadAllTextAsync(scriptPath, cancellationToken).ConfigureAwait(false);
 

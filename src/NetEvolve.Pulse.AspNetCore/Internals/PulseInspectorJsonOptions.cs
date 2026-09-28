@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.AspNetCore.Internals;
+namespace NetEvolve.Pulse.Internals;
 
 using System.Runtime.CompilerServices;
 using System.Text.Json;

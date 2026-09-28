@@ -117,6 +117,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var serviceProvider = CreateServiceProvider<TestStreamQuery>(new ResiliencePipelineBuilder().Build());
         var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
@@ -139,6 +140,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NoPipelineRegistered_PassesThroughTransparently(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var serviceProvider = CreateServiceProvider<TestStreamQuery>(pipeline: null);
         var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
@@ -163,6 +165,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithSuccessfulPipeline_YieldsAllItems(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var pipeline = new ResiliencePipelineBuilder().Build();
         var serviceProvider = CreateServiceProvider<TestStreamQuery>(pipeline);
@@ -188,6 +191,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithRetryPolicy_RetriesHandlerOnFailure(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var callCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -237,6 +241,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithRetryPolicyExhausted_ThrowsException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var callCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -285,6 +290,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithCircuitBreaker_BlocksAfterFailureThreshold(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var callCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -372,6 +378,7 @@ public sealed class PollyStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var attemptCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -424,6 +431,7 @@ public sealed class PollyStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_WithCancellation_ThrowsOperationCanceledException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var pipeline = new ResiliencePipelineBuilder().Build();

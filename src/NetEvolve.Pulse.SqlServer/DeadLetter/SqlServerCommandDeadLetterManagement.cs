@@ -150,6 +150,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
@@ -180,6 +182,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -196,6 +200,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     )]
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -242,6 +248,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -258,6 +266,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -310,6 +320,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <returns>An open <see cref="SqlConnection"/>.</returns>
     private async Task<SqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -329,6 +341,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqlCommand(_getByIdSql, connection);
         await using (command.ConfigureAwait(false))
         {
@@ -354,6 +368,11 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
     /// <param name="connection">The open connection to use for the update.</param>
     /// <param name="id">The identifier of the dead letter entry to update.</param>
     /// <param name="exception">The exception that caused the replay to fail.</param>
+    [SuppressMessage(
+        "Usage",
+        "NE0010:Method returns Task and should accept a CancellationToken parameter",
+        Justification = "The reset after a failed or cancelled replay must always run, so it intentionally uses CancellationToken.None instead of the caller's token, which may already be cancelled (decisions/2026-09-27-command-dead-letter-replay-status.md)."
+    )]
     private async Task RecordReplayFailureAsync(SqlConnection connection, Guid id, Exception exception)
     {
         var command = new SqlCommand(_recordReplayFailureSql, connection);
@@ -387,6 +406,8 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqlCommand(_updateStatusSql, connection);
         await using (command.ConfigureAwait(false))
         {

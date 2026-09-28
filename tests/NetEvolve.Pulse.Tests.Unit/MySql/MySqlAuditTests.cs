@@ -106,6 +106,8 @@ public sealed class MySqlAuditTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = new MySqlAuditManagement(
             Options.Create(new AuditStoreOptions { ConnectionString = ValidConnectionString })
         );

@@ -1,4 +1,4 @@
-﻿namespace NetEvolve.Pulse.Tests.Integration.Internals;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 using DotNet.Testcontainers.Containers;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -24,8 +24,10 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
         ).GetConnectionString() + ";MultipleActiveResultSets=True;Pool Blocking Period=NeverBlock;";
 
     // The tail of the container output, to tell a crashed SQL Server (microsoft/mssql-docker#974) from a network issue.
-    internal async Task<string> GetDiagnosticsAsync()
+    internal async Task<string> GetDiagnosticsAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_container is null)
         {
             return "The SQL Server container has not been started.";
@@ -33,7 +35,7 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
 
         try
         {
-            var (stdout, stderr) = await _container.GetLogsAsync().ConfigureAwait(false);
+            var (stdout, stderr) = await _container.GetLogsAsync(ct: cancellationToken).ConfigureAwait(false);
             var tail = string.Join(
                 Environment.NewLine,
                 $"{stdout}{stderr}".Split('\n', StringSplitOptions.RemoveEmptyEntries).TakeLast(40)
@@ -61,7 +63,7 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
             }
             catch (ContainerNotRunningException ex)
             {
-                await ReportCrashAsync(attempt, ex).ConfigureAwait(false);
+                await ReportCrashAsync(attempt, ex, CancellationToken.None).ConfigureAwait(false);
                 await container.DisposeAsync().ConfigureAwait(false);
             }
         }
@@ -73,8 +75,14 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
 
     // Test output of passing runs is not printed by `dotnet test`, so a retry is also written to the GitHub Actions job
     // summary (when running there) to keep the upstream crash rate observable.
-    private static async Task ReportCrashAsync(int attempt, ContainerNotRunningException ex)
+    private static async Task ReportCrashAsync(
+        int attempt,
+        ContainerNotRunningException ex,
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var message =
             $"[SqlServerContainerFixture] SQL Server container crashed during startup (attempt {attempt}/{MaxStartAttempts}, {TestHelper.TargetFramework}), starting a new one.";
         await Console.Error.WriteLineAsync($"{message}{Environment.NewLine}{ex.Message}").ConfigureAwait(false);
@@ -84,7 +92,8 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
         {
             await File.AppendAllTextAsync(
                     summary,
-                    $"> [!WARNING]{Environment.NewLine}> {message}{Environment.NewLine}{Environment.NewLine}"
+                    $"> [!WARNING]{Environment.NewLine}> {message}{Environment.NewLine}{Environment.NewLine}",
+                    cancellationToken
                 )
                 .ConfigureAwait(false);
         }

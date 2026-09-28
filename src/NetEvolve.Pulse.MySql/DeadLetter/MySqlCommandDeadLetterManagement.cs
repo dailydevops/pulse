@@ -154,6 +154,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
@@ -184,6 +186,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     )]
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entry =
             await GetByIdAsync(id, cancellationToken).ConfigureAwait(false)
             ?? throw new CommandDeadLetterEntryNotFoundException(id);
@@ -224,6 +228,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -244,6 +250,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var newCount = 0;
         var replayingCount = 0;
         var resolvedCount = 0;
@@ -294,6 +302,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     private async Task<CommandDeadLetterEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -314,6 +324,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     private async Task SetStatusAsync(string sql, Guid id, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -333,6 +345,11 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     /// <param name="id">The identifier of the dead letter entry to update.</param>
     /// <param name="exception">The exception that caused the replay to fail.</param>
+    [SuppressMessage(
+        "Usage",
+        "NE0010:Method returns Task and should accept a CancellationToken parameter",
+        Justification = "The reset after a failed or cancelled replay must always run, so it intentionally uses CancellationToken.None instead of the caller's token, which may already be cancelled (decisions/2026-09-27-command-dead-letter-replay-status.md)."
+    )]
     private async Task RecordReplayFailureAsync(Guid id, Exception exception)
     {
         var connection = await CreateConnectionAsync(CancellationToken.None).ConfigureAwait(false);
@@ -357,6 +374,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
@@ -370,6 +389,8 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using (reader.ConfigureAwait(false))
         {

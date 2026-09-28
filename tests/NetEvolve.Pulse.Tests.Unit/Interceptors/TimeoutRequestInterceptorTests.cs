@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,8 @@ public sealed class TimeoutRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithNullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -29,6 +32,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -45,6 +50,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromMilliseconds(50));
@@ -73,6 +80,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -102,6 +111,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(1) }
         );
@@ -121,6 +132,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(null);
@@ -137,6 +150,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(null);
@@ -153,6 +168,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(
             new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromMilliseconds(50) }
         );
@@ -182,6 +199,7 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Per-request timeout (50ms) should take precedence over global (5s),
         // so the request should time out.
         var options = Options.Create(new TimeoutRequestInterceptorOptions { GlobalTimeout = TimeSpan.FromSeconds(5) });
@@ -208,6 +226,8 @@ public sealed class TimeoutRequestInterceptorTests
     [Test]
     public async Task HandleAsync_DisposesLinkedCts_EvenWhenHandlerThrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromSeconds(5));
@@ -227,6 +247,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
@@ -250,6 +272,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
@@ -271,6 +295,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
@@ -292,6 +318,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutQuery, string>(options, timeProvider);
@@ -315,6 +343,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, TimeProvider.System);
         var command = new TestTimeoutCommand(TimeSpan.FromMilliseconds(50));
@@ -331,6 +361,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
@@ -362,6 +394,8 @@ public sealed class TimeoutRequestInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
@@ -388,6 +422,8 @@ public sealed class TimeoutRequestInterceptorTests
     [Test]
     public async Task HandleAsync_WithTimeoutRequest_InfiniteTimeout_NeverTimesOut(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new StarvedTimeProvider();
         var options = Options.Create(new TimeoutRequestInterceptorOptions());
         var interceptor = new TimeoutRequestInterceptor<TestTimeoutCommand, string>(options, timeProvider);
@@ -426,6 +462,11 @@ public sealed class TimeoutRequestInterceptorTests
     /// without observing the cancellation. This models a timer whose coarser clock fires slightly before
     /// the high-resolution elapsed time reaches the timeout.
     /// </summary>
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "This fake models a handler that ignores cancellation: it must run and return its result after the deadline timer cancelled the token, so the interceptor under test (not the handler) decides the outcome."
+    )]
     private static async Task<T> CompleteAfterFiringTimers<T>(
         StarvedTimeProvider timeProvider,
         TimeSpan elapsed,
@@ -450,6 +491,11 @@ public sealed class TimeoutRequestInterceptorTests
     /// token has been cancelled, i.e. strictly after the deadline. This models a handler that ignores
     /// the token and finishes its work late.
     /// </summary>
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "This fake models a handler that ignores cancellation and completes normally only after the token was cancelled; observing the token would turn it into a cooperative handler and defeat the test."
+    )]
     private static async Task<T> CompleteAfterCancellation<T>(T result, CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -43,6 +43,8 @@ public sealed class EntityFrameworkAuditStoreTests
     [Test]
     public async Task RecordAsync_WithNullRecord_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(RecordAsync_WithNullRecord_ThrowsArgumentNullException));
         await using (context.ConfigureAwait(false))
         {
@@ -57,6 +59,8 @@ public sealed class EntityFrameworkAuditStoreTests
     [Test]
     public async Task RecordAsync_WithValidRecord_InsertsNewRow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(RecordAsync_WithValidRecord_InsertsNewRow));
         await using (context.ConfigureAwait(false))
         {
@@ -93,6 +97,8 @@ public sealed class EntityFrameworkAuditStoreTests
     [Test]
     public async Task RecordAsync_CalledTwice_StoresTwoDistinctEntries(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(RecordAsync_CalledTwice_StoresTwoDistinctEntries));
         await using (context.ConfigureAwait(false))
         {

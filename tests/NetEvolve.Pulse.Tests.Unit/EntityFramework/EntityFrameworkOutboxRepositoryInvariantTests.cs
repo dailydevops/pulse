@@ -52,6 +52,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task GetPendingAsync_Excludes_messages_with_future_NextRetryAt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider(
             DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture)
         );
@@ -87,6 +89,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task GetPendingAsync_Includes_messages_with_past_NextRetryAt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider(
             DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture)
         );
@@ -116,6 +120,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task GetPendingAsync_Transitions_claimed_messages_to_Processing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider(
             DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture)
         );
@@ -147,6 +153,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task MarkAsCompletedAsync_Does_not_change_DeadLetter_to_Completed(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider(
             DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture)
         );
@@ -172,6 +180,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task MarkAsFailedAsync_Does_not_change_Completed_to_Failed(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var fakeTime = new FakeTimeProvider(
             DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture)
         );
@@ -205,6 +215,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(
@@ -237,6 +249,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task DeleteCompletedAsync_Removes_only_old_Completed_messages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(DeleteCompletedAsync_Removes_only_old_Completed_messages));
@@ -292,6 +306,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var startTime = DateTimeOffset.Parse("2025-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
         var fakeTime = new FakeTimeProvider(startTime);
         var context = CreateContext(nameof(GetFailedForRetryAsync_Excludes_messages_at_or_above_max_retry_count));
@@ -323,6 +339,8 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
     [Test]
     public async Task AddAsync_Persists_message_and_AddAsync_with_null_throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(AddAsync_Persists_message_and_AddAsync_with_null_throws));
         await using (context.ConfigureAwait(false))
         {

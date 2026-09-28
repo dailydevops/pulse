@@ -28,6 +28,8 @@ public sealed class ValidationResilienceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureServices(services => configureServices(services))
             .ConfigureWebHost(webBuilder => _ = webBuilder.UseTestServer().Configure(applicationBuilder => { }))
@@ -199,6 +201,8 @@ public sealed class ValidationResilienceTests
     [Test]
     public async Task Polly_Retry_SucceedsAfterTransientFailures(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new FlakyCommandHandler(failuresBeforeSuccess: 2);
 
         await RunAndVerify(
@@ -263,6 +267,8 @@ public sealed class ValidationResilienceTests
     [Test]
     public async Task Polly_Event_Retry_SucceedsAfterTransientFailures(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new FlakyEventHandler(failuresBeforeSuccess: 2);
 
         await RunAndVerify(
@@ -372,6 +378,8 @@ public sealed class ValidationResilienceTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return $"{request.Prefix}-1";
             await Task.Yield();
             yield return $"{request.Prefix}-2";
@@ -390,6 +398,8 @@ public sealed class ValidationResilienceTests
 
         public Task<string> HandleAsync(FlakyCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             AttemptCount++;
 
             if (AttemptCount <= failuresBeforeSuccess)
@@ -415,6 +425,8 @@ public sealed class ValidationResilienceTests
 
         public Task HandleAsync(FlakyEvent @event, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             AttemptCount++;
 
             if (AttemptCount <= failuresBeforeSuccess)
@@ -439,6 +451,8 @@ public sealed class ValidationResilienceTests
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
             yield return 1;
         }
@@ -454,6 +468,8 @@ public sealed class ValidationResilienceTests
     {
         public async Task<string> HandleAsync(SlowCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
             return "done";
         }

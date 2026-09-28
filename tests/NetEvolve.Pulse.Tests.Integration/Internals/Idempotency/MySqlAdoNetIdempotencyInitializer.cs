@@ -22,6 +22,8 @@ public sealed class MySqlAdoNetIdempotencyInitializer : IServiceInitializer
     /// <inheritdoc />
     public async ValueTask CreateDatabaseAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = serviceProvider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
 
         var connectionString =

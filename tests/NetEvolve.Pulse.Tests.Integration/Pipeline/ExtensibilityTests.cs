@@ -23,6 +23,8 @@ public sealed class ExtensibilityTests
     [Test]
     public async Task SendBatchAsync_Executes_Commands_Sequentially_InOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var order = new List<int>();
 
         using var host = await CreateHostAsync(services => services.AddSingleton(order), cancellationToken)
@@ -42,6 +44,8 @@ public sealed class ExtensibilityTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var order = new List<int>();
 
         using var host = await CreateHostAsync(services => services.AddSingleton(order), cancellationToken)
@@ -93,6 +97,8 @@ public sealed class ExtensibilityTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -128,6 +134,8 @@ public sealed class ExtensibilityTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             order.Add(command.Value);
             return Task.FromResult<NetEvolve.Pulse.Extensibility.Void>(default);
         }

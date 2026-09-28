@@ -14,7 +14,7 @@
 /// Common examples include Delete operations, notifications, or fire-and-forget actions.
 /// <para><strong>Design Pattern:</strong></para>
 /// This is an implementation of the Unit type from functional programming, representing a type with exactly one value.
-/// It's preferred over using <c>object</c>, <c>bool</c>, or nullable types for void returns.
+/// It's preferred over using <see cref="object"/>, <see cref="bool"/>, or nullable types for void returns.
 /// <para><strong>Convenience Interface:</strong></para>
 /// The <c>ICommand</c> interface uses <see cref="Void"/> as its response type, allowing you to write
 /// <c>: ICommand</c> instead of <c>: ICommand&lt;Void&gt;</c> for cleaner syntax.

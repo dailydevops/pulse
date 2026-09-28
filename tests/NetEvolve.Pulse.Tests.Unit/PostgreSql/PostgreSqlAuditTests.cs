@@ -124,6 +124,8 @@ public sealed class PostgreSqlAuditTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = new PostgreSqlAuditManagement(
             Options.Create(new AuditStoreOptions { ConnectionString = ValidConnectionString })
         );

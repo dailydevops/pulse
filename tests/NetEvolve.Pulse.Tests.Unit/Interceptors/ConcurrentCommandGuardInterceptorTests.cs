@@ -16,6 +16,8 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
         var command = new ExclusiveCommand();
 
@@ -27,6 +29,8 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveCommand_ExecutesHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
         var command = new ExclusiveCommand();
         var handlerCalled = false;
@@ -53,6 +57,8 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveCommand_HandlerThrows_SemaphoreReleased(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand2, string>();
         var command = new ExclusiveCommand2();
 
@@ -80,6 +86,8 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveVoidCommand_ExecutesHandler(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveVoidCommand, Extensibility.Void>();
         var command = new ExclusiveVoidCommand();
         var handlerCalled = false;
@@ -106,6 +114,8 @@ public sealed class ConcurrentCommandGuardInterceptorTests
     [Test]
     public async Task HandleAsync_ExclusiveCommand_SerializesExecution(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand3, int>();
         var maxConcurrent = 0;
         var currentConcurrent = 0;

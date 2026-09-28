@@ -139,6 +139,8 @@ public sealed class RedisStreamsMessageTransportTests
     [Test]
     public async Task SendAsync_Publishes_one_entry_with_expected_fields(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, _, capture) = BuildFakes();
         var options = Options.Create(new RedisStreamsTransportOptions { StreamKey = "test-stream" });
         using var transport = new RedisStreamsMessageTransport(mux, options);
@@ -175,6 +177,8 @@ public sealed class RedisStreamsMessageTransportTests
     [Test]
     public async Task SendAsync_Creates_consumer_group_once_on_first_use(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, _, capture) = BuildFakes();
         var options = Options.Create(
             new RedisStreamsTransportOptions { CreateStreamIfNotExists = true, ConsumerGroupName = "group-1" }
@@ -194,6 +198,8 @@ public sealed class RedisStreamsMessageTransportTests
     [Test]
     public async Task SendAsync_Tolerates_BUSYGROUP_error_and_still_adds_entry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, _, capture) = BuildFakes();
         capture.ThrowBusyGroupOnCreateConsumerGroup = true;
         var options = Options.Create(new RedisStreamsTransportOptions { CreateStreamIfNotExists = true });
@@ -210,6 +216,8 @@ public sealed class RedisStreamsMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, _, capture) = BuildFakes();
         var options = Options.Create(new RedisStreamsTransportOptions { CreateStreamIfNotExists = false });
         using var transport = new RedisStreamsMessageTransport(mux, options);
@@ -223,6 +231,8 @@ public sealed class RedisStreamsMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Sends_all_messages_in_order(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, _, capture) = BuildFakes();
         var options = Options.Create(new RedisStreamsTransportOptions());
         using var transport = new RedisStreamsMessageTransport(mux, options);
@@ -247,6 +257,8 @@ public sealed class RedisStreamsMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_multiplexer_connected_returns_true(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, muxFake, _) = BuildFakes();
         muxFake.IsConnected = true;
         var options = Options.Create(new RedisStreamsTransportOptions());
@@ -260,6 +272,8 @@ public sealed class RedisStreamsMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_When_multiplexer_disconnected_returns_false(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var (mux, muxFake, _) = BuildFakes();
         muxFake.IsConnected = false;
         var options = Options.Create(new RedisStreamsTransportOptions());

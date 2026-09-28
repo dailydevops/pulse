@@ -43,6 +43,8 @@ public abstract class CommandDeadLetterTestsBase(
     {
         ArgumentNullException.ThrowIfNull(testableCode);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = new HostBuilder()
             .ConfigureAppConfiguration((hostContext, configBuilder) => { })
             .ConfigureServices(services =>
@@ -444,6 +446,8 @@ public abstract class CommandDeadLetterTestsBase(
     [Test]
     public async Task ReplayAsync_When_entry_resolved_replays_again(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new CountingReplayCommandHandler();
 
         await RunAndVerify(
@@ -493,6 +497,8 @@ public abstract class CommandDeadLetterTestsBase(
     [Test]
     public async Task ReplayAsync_When_cancelled_resets_entry_to_New(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var replayCancellation = new CancellationTokenSource();
 
         await RunAndVerify(
@@ -685,6 +691,8 @@ public abstract class CommandDeadLetterTestsBase(
     )]
     private async Task DropDeadLetterTableAsync(IServiceProvider services, string tableName, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+
         var contextFactory = services.GetService<
             IDbContextFactory<EntityFrameworkCommandDeadLetterInitializer.TestCommandDeadLetterDbContext>
         >();
@@ -735,6 +743,8 @@ public abstract class CommandDeadLetterTestsBase(
 
     private static async Task<Guid> StoreReplayableEntryAsync(IServiceProvider services, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+
         var store = services.GetRequiredService<ICommandDeadLetterStore>();
         var management = services.GetRequiredService<ICommandDeadLetterManagement>();
         var serializer = services.GetRequiredService<IPayloadSerializer>();
@@ -772,6 +782,11 @@ public abstract class CommandDeadLetterTestsBase(
 
         public Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Task.FromCanceled<Void>(cancellationToken);
+            }
+
             _ = Interlocked.Increment(ref _handledCount);
             return Task.FromResult(Void.Completed);
         }
@@ -820,6 +835,8 @@ public abstract class CommandDeadLetterTestsBase(
     {
         public async Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await dropTable(cancellationToken).ConfigureAwait(false);
             throw new InvalidOperationException("replay failed");
         }
@@ -830,6 +847,8 @@ public abstract class CommandDeadLetterTestsBase(
     {
         public async Task<Void> HandleAsync(TestReplayCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await replayCancellation.CancelAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             return Void.Completed;

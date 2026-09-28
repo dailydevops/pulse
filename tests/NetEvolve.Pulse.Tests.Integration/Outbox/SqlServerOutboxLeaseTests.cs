@@ -7,6 +7,8 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 [ClassDataSource<SqlServerDatabaseServiceFixture, SqlServerAdoNetOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]
@@ -22,6 +24,8 @@ public sealed class SqlServerOutboxLeaseTests(
     [Test]
     public async Task Should_GetPendingAsync_ReclaimExpiredProcessingLease(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -58,6 +62,8 @@ public sealed class SqlServerOutboxLeaseTests(
     [Test]
     public async Task Should_GetPendingAsync_NotReclaim_WhileProcessingLeaseActive(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 

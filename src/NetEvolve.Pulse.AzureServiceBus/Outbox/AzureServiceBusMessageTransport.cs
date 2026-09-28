@@ -46,6 +46,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     /// <inheritdoc />
     public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var topicName = _topicNameResolver.Resolve(message);
@@ -57,6 +59,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     /// <inheritdoc />
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messages);
 
         // Group messages by resolved topic name for efficient batching
@@ -83,6 +87,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var message in messages)
         {
             await sender.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
@@ -99,6 +105,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // ServiceBusMessageBatch does not expose its messages, so track them for the individual-send fallback.
         var pending = new List<ServiceBusMessage>();
         var batch = await sender.CreateMessageBatchAsync(cancellationToken).ConfigureAwait(false);
@@ -175,6 +183,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             await sender.SendMessagesAsync(batch, cancellationToken).ConfigureAwait(false);
@@ -192,6 +202,8 @@ public sealed class AzureServiceBusMessageTransport : IMessageTransport, IAsyncD
     /// <inheritdoc />
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             // Verify the client is not disposed and can communicate with Service Bus

@@ -48,8 +48,10 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WithItems_WritesAllItemsInOrder()
+    public async Task StreamAsync_WithItems_WritesAllItemsInOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mediator = Mock.Of<IMediator>();
         _ = mediator
             .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())
@@ -64,8 +66,10 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WithEmptyStream_WritesNothing()
+    public async Task StreamAsync_WithEmptyStream_WritesNothing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mediator = Mock.Of<IMediator>();
         _ = mediator
             .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())
@@ -80,8 +84,10 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_ForwardsQueryAndContextCancellationToken()
+    public async Task StreamAsync_ForwardsQueryAndContextCancellationToken(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         var query = new TestStreamQuery();
         var mediator = Mock.Of<IMediator>();
@@ -97,8 +103,12 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WhenCancelledDuringStream_StopsWritingEvenIfHandlerIgnoresToken()
+    public async Task StreamAsync_WhenCancelledDuringStream_StopsWritingEvenIfHandlerIgnoresToken(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -123,6 +133,8 @@ public sealed class PulseGrpcStreamServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -144,8 +156,10 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WhenAlreadyCancelled_WritesNothing()
+    public async Task StreamAsync_WhenAlreadyCancelled_WritesNothing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync().ConfigureAwait(false);
         var mediator = Mock.Of<IMediator>();
@@ -166,8 +180,12 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WithCancellableTokenAndWriterWithoutTokenOverload_WritesAllItems()
+    public async Task StreamAsync_WithCancellableTokenAndWriterWithoutTokenOverload_WritesAllItems(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var cts = new CancellationTokenSource();
         var mediator = Mock.Of<IMediator>();
         _ = mediator
@@ -183,8 +201,12 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WhenHandlerThrows_PropagatesExceptionAfterWrittenItems()
+    public async Task StreamAsync_WhenHandlerThrows_PropagatesExceptionAfterWrittenItems(
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mediator = Mock.Of<IMediator>();
         _ = mediator
             .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())
@@ -204,8 +226,10 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WhenWriterThrows_PropagatesException()
+    public async Task StreamAsync_WhenWriterThrows_PropagatesException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mediator = Mock.Of<IMediator>();
         _ = mediator
             .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())
@@ -226,8 +250,10 @@ public sealed class PulseGrpcStreamServiceTests
     }
 
     [Test]
-    public async Task StreamAsync_WithMap_WritesMappedItemsInOrder()
+    public async Task StreamAsync_WithMap_WritesMappedItemsInOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mediator = Mock.Of<IMediator>();
         _ = mediator
             .StreamQueryAsync<TestStreamQuery, string>(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>())

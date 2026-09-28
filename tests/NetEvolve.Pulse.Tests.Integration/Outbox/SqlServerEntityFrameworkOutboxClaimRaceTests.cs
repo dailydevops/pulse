@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 /// <summary>
 /// Runs the claim race against SQL Server with <c>READ_COMMITTED_SNAPSHOT</c> enabled, where the
@@ -23,6 +24,8 @@ public class SqlServerEntityFrameworkOutboxClaimRaceTests(
     /// <inheritdoc />
     protected override async Task PrepareDatabaseAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString = DatabaseServiceFixture.ConnectionString;
 
         // ALTER DATABASE ... SET READ_COMMITTED_SNAPSHOT needs the database to itself, so drop the

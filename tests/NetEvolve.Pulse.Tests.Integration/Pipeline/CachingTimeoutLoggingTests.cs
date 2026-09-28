@@ -14,7 +14,6 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Caching;
 using NetEvolve.Pulse.Extensibility.Outbox;
-using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
 
@@ -32,6 +31,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder().ConfigureServices(configureServices).Build();
 
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -48,6 +49,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var executionCount = 0;
 
         using var host = await BuildHostAsync(
@@ -91,6 +94,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var executionCount = 0;
 
         using var host = await BuildHostAsync(
@@ -133,6 +138,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await BuildHostAsync(
                 services =>
                 {
@@ -165,6 +172,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await BuildHostAsync(
                 services =>
                 {
@@ -196,6 +205,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await BuildHostAsync(
                 services =>
                 {
@@ -238,6 +249,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var provider = new CapturingLoggerProvider();
 
         using var host = await BuildHostAsync(
@@ -287,6 +300,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var provider = new CapturingLoggerProvider();
 
         using var host = await BuildHostAsync(
@@ -352,6 +367,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var provider = new CapturingLoggerProvider();
 
         using var host = await BuildHostAsync(
@@ -407,6 +424,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var provider = new CapturingLoggerProvider();
 
         using var host = await BuildHostAsync(
@@ -451,6 +470,8 @@ public sealed class CachingTimeoutLoggingTests
     [Test]
     public async Task NullMessageTransport_SendAsync_Should_CompleteWithoutError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var transport = new NullMessageTransport();
         var message = new OutboxMessage
         {
@@ -470,6 +491,8 @@ public sealed class CachingTimeoutLoggingTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IMessageTransport transport = new RecordingMessageTransport();
         var messages = Enumerable
             .Range(0, 3)
@@ -503,6 +526,8 @@ public sealed class CachingTimeoutLoggingTests
     [Test]
     public async Task IMessageTransport_DefaultIsHealthyAsync_ReturnsTrue(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IMessageTransport transport = new RecordingMessageTransport();
 
         var healthy = await transport.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
@@ -527,6 +552,8 @@ public sealed class CachingTimeoutLoggingTests
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             _sentPayloads.Enqueue(message.Payload);
             return Task.CompletedTask;
         }
@@ -548,6 +575,8 @@ public sealed class CachingTimeoutLoggingTests
 
         public Task<int> HandleAsync(CachingTestQuery request, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             onExecuted();
             return Task.FromResult(Interlocked.Increment(ref _value));
         }
@@ -569,6 +598,7 @@ public sealed class CachingTimeoutLoggingTests
     {
         public async Task<string> HandleAsync(SlowTimeoutCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // Always delay longer than the "fast" test's timeout, but shorter than the "slow" test's timeout,
             // so both the timeout and the pass-through scenario can be exercised deterministically.
             await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
@@ -580,6 +610,8 @@ public sealed class CachingTimeoutLoggingTests
     {
         public async Task<string> HandleAsync(SlowTimeoutCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Only ever completes through cancellation, so the outcome does not depend on which of two
             // due timers (deadline vs. a fixed handler delay) the thread pool happens to run first.
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
@@ -602,6 +634,8 @@ public sealed class CachingTimeoutLoggingTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
             yield return 1;
         }
@@ -633,6 +667,8 @@ public sealed class CachingTimeoutLoggingTests
     {
         public async Task<string> HandleAsync(SlowLoggingCommand command, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
             return "slow";
         }
@@ -665,6 +701,8 @@ public sealed class CachingTimeoutLoggingTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             yield return 1;
             await Task.Yield();
             yield return 2;

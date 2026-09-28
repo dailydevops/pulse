@@ -3,7 +3,6 @@ namespace NetEvolve.Pulse.Tests.Unit.CosmosDb;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;

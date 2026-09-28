@@ -79,6 +79,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
 
         var doc = OutboxDocumentMapper.ToDocument(message);
@@ -91,6 +93,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var leaseExpiredBefore = now - _processingLeaseTimeout;
 
@@ -154,6 +158,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.And(
@@ -200,6 +206,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
@@ -220,6 +228,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
@@ -242,6 +252,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
@@ -264,6 +276,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Id, messageId);
@@ -281,6 +295,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.Pending);
 
         return await GetCollection()
@@ -291,6 +307,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<int> DeleteCompletedAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cutoff = _timeProvider.GetUtcNow().Subtract(olderThan).UtcDateTime;
 
         var filter = Builders<OutboxDocument>.Filter.And(
@@ -308,6 +326,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <inheritdoc />
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             var db = _mongoClient.GetDatabase(_databaseName);
@@ -346,6 +366,8 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
     /// <returns>The outbox MongoDB collection.</returns>
     private async Task<IMongoCollection<OutboxDocument>> GetClaimCollectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var collection = GetCollection();
 
         if (Interlocked.CompareExchange(ref _claimIndexCreated, 1, 0) == 0)

@@ -1,4 +1,4 @@
-# Mirrors .editorconfig so CSharpier does not depend on it being readable during parallel builds.
+# Mirrors template.editorconfig so CSharpier does not depend on it being readable during parallel builds.
 printWidth: 120
 useTabs: false
 indentSize: 4

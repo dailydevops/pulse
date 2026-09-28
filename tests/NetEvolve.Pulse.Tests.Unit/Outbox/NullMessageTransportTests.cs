@@ -15,6 +15,8 @@ public sealed class NullMessageTransportTests
     [Test]
     public async Task SendAsync_WithValidMessage_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var transport = new NullMessageTransport();
         var message = new OutboxMessage
         {
@@ -32,6 +34,8 @@ public sealed class NullMessageTransportTests
     [Test]
     public async Task SendAsync_WithCancelledToken_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var transport = new NullMessageTransport();
         var message = new OutboxMessage
         {

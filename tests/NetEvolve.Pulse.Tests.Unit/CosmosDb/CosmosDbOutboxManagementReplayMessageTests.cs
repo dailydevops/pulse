@@ -20,6 +20,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messageId = Guid.NewGuid();
         string? capturedEtag = null;
 
@@ -54,6 +56,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnReadItem = (id, _) =>
@@ -74,6 +78,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
     [Test]
     public async Task ReplayMessageAsync_WhenNotFound_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnReadItem = (_, _) => throw new CosmosException("gone", HttpStatusCode.NotFound, 0, "activity", 0),
@@ -91,6 +97,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnReadItem = (id, _) =>
@@ -109,6 +117,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
     [Test]
     public async Task ReplayMessageAsync_WithTtlEnabled_PatchesTtlToNeverExpire(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
         var container = new FakeCosmosContainer
@@ -139,6 +149,8 @@ public sealed class CosmosDbOutboxManagementReplayMessageTests
     [Test]
     public async Task ReplayMessageAsync_WithTtlDisabled_DoesNotPatchTtl(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         IReadOnlyList<PatchOperation>? capturedPatches = null;
 
         var container = new FakeCosmosContainer

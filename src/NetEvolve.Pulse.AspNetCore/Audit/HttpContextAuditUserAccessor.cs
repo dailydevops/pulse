@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.AspNetCore;
+namespace NetEvolve.Pulse.Audit;
 
 using System;
 using Microsoft.AspNetCore.Http;

@@ -4,7 +4,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using NetEvolve.Pulse.AspNetCore.Internals;
+using NetEvolve.Pulse.Internals;
 
 /// <summary>
 /// Provides opt-in extension methods for <see cref="RouteHandlerBuilder"/> to attach OpenAPI

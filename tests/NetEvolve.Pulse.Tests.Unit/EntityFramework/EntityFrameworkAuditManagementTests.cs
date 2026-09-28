@@ -57,6 +57,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_WithNullFilter_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_WithNullFilter_ThrowsArgumentNullException));
         await using (context.ConfigureAwait(false))
         {
@@ -71,6 +73,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_FiltersByCommandType(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_FiltersByCommandType));
         await using (context.ConfigureAwait(false))
         {
@@ -95,6 +99,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_FiltersByUserId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_FiltersByUserId));
         await using (context.ConfigureAwait(false))
         {
@@ -119,6 +125,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_FiltersByFrom(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_FiltersByFrom));
         await using (context.ConfigureAwait(false))
         {
@@ -143,6 +151,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_FiltersByTo(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_FiltersByTo));
         await using (context.ConfigureAwait(false))
         {
@@ -167,6 +177,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_FiltersByResult(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_FiltersByResult));
         await using (context.ConfigureAwait(false))
         {
@@ -191,6 +203,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_CombinesMultipleFilterConditions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_CombinesMultipleFilterConditions));
         await using (context.ConfigureAwait(false))
         {
@@ -244,6 +258,8 @@ public sealed class EntityFrameworkAuditManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_OrdersByOccurredAtDescending_AndRespectsSkipAndTake));
         await using (context.ConfigureAwait(false))
         {
@@ -275,6 +291,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task QueryAsync_WithEqualOccurredAt_OrdersByIdDescending(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(QueryAsync_WithEqualOccurredAt_OrdersByIdDescending));
         await using (context.ConfigureAwait(false))
         {
@@ -311,6 +329,8 @@ public sealed class EntityFrameworkAuditManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(
             $"{nameof(QueryAsync_WithInvalidTakeOrSkip_ThrowsArgumentOutOfRangeException)}_{take}_{skip}"
         );
@@ -336,6 +356,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task GetStatisticsAsync_ReturnsCorrectSuccessAndFailureCounts(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetStatisticsAsync_ReturnsCorrectSuccessAndFailureCounts));
         await using (context.ConfigureAwait(false))
         {
@@ -369,6 +391,8 @@ public sealed class EntityFrameworkAuditManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetStatisticsAsync_WithNoFailureRecords_ReturnsZeroFailureCount));
         await using (context.ConfigureAwait(false))
         {
@@ -397,6 +421,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task GetStatisticsAsync_EmptyDatabase_ReturnsAllZero(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetStatisticsAsync_EmptyDatabase_ReturnsAllZero));
         await using (context.ConfigureAwait(false))
         {
@@ -411,6 +437,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task GetByIdAsync_WithExistingId_ReturnsUntrackedRecord(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         const string databaseName = nameof(GetByIdAsync_WithExistingId_ReturnsUntrackedRecord);
         var now = DateTimeOffset.UtcNow;
         var match = CreateRecord(now, commandType: "Match.Command", userId: "user-1");
@@ -444,6 +472,8 @@ public sealed class EntityFrameworkAuditManagementTests
     [Test]
     public async Task GetByIdAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext(nameof(GetByIdAsync_WithUnknownId_ReturnsNull));
         await using (context.ConfigureAwait(false))
         {

@@ -95,6 +95,8 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -124,6 +126,8 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -151,6 +155,8 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 

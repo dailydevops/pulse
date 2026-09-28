@@ -121,6 +121,8 @@ public sealed class SqlServerAuditTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = new SqlServerAuditManagement(
             Options.Create(new AuditStoreOptions { ConnectionString = ValidConnectionString })
         );

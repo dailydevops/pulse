@@ -5,7 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.AspNetCore.Internals;
+using NetEvolve.Pulse.Internals;
 using TUnit.Core;
 
 [TestGroup("AspNetCore")]

@@ -3,7 +3,6 @@ namespace NetEvolve.Pulse.Tests.Unit.AspNetCore;
 using System;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,7 +17,7 @@ using Microsoft.Extensions.Hosting;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Audit;
 using TUnit.Core;
-using PulseEndpoints = AuditInspectorEndpoints;
+using PulseEndpoints = NetEvolve.Pulse.AuditInspectorEndpoints;
 
 [TestGroup("AspNetCore")]
 public sealed class AuditInspectorEndpointsTests
@@ -48,6 +47,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetStatistics_ReturnsOkWithMockedStatistics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new AuditStatistics(3, 2);
 
         var mock = Mock.Of<IAuditManagement>();
@@ -77,6 +78,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntries_ReturnsOkWithMockedList(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recordId = Guid.NewGuid();
         var records = new[]
         {
@@ -112,6 +115,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntry_WithExistingId_ReturnsOkWithRecord(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recordId = Guid.NewGuid();
         var record = new AuditRecord
         {
@@ -152,6 +157,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntry_WithUnknownId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recordId = Guid.NewGuid();
 
         var mock = Mock.Of<IAuditManagement>();
@@ -172,6 +179,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntry_WithNonGuidId_ReturnsNotFound(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -191,6 +200,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntries_WithoutQuery_UsesFilterDefaults(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -204,12 +215,12 @@ public sealed class AuditInspectorEndpointsTests
 
         mock.QueryAsync(
                 Arg.Is<AuditFilter>(f =>
-                    f != null
-                    && f.CommandType == null
-                    && f.UserId == null
+                    f is not null
+                    && f.CommandType is null
+                    && f.UserId is null
                     && f.From == null
                     && f.To == null
-                    && f.Result == null
+                    && f.Result is null
                     && f.Take == 50
                     && f.Skip == 0
                 ),
@@ -221,6 +232,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntries_WithCommandTypeFilter_BindsCommandTypeOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -233,7 +246,7 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         mock.QueryAsync(
-                Arg.Is<AuditFilter>(f => f != null && f.CommandType == "MyCommand"),
+                Arg.Is<AuditFilter>(f => f is not null && f.CommandType == "MyCommand"),
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);
@@ -242,6 +255,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntries_WithUserIdFilter_BindsUserIdOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -253,13 +268,15 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.UserId == "alice"), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.UserId == "alice"), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
     [Test]
     public async Task GetEntries_WithFromFilter_BindsFromOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var from = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         var mock = Mock.Of<IAuditManagement>();
@@ -276,13 +293,15 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.From == from), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.From == from), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
     [Test]
     public async Task GetEntries_WithToFilter_BindsToOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var to = new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero);
 
         var mock = Mock.Of<IAuditManagement>();
@@ -299,13 +318,15 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.To == to), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.To == to), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
     [Test]
     public async Task GetEntries_WithResultFilter_BindsResultOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -318,7 +339,7 @@ public sealed class AuditInspectorEndpointsTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
         mock.QueryAsync(
-                Arg.Is<AuditFilter>(f => f != null && f.Result == AuditResult.Failure),
+                Arg.Is<AuditFilter>(f => f is not null && f.Result == AuditResult.Failure),
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);
@@ -327,6 +348,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntries_WithTakeFilter_BindsTakeOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -338,13 +361,15 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.Take == 10), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.Take == 10), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
     [Test]
     public async Task GetEntries_WithSkipFilter_BindsSkipOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -356,13 +381,15 @@ public sealed class AuditInspectorEndpointsTests
 
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
 
-        mock.QueryAsync(Arg.Is<AuditFilter>(f => f != null && f.Skip == 20), Arg.Any<CancellationToken>())
+        mock.QueryAsync(Arg.Is<AuditFilter>(f => f is not null && f.Skip == 20), Arg.Any<CancellationToken>())
             .WasCalled(Times.Once);
     }
 
     [Test]
     public async Task GetEntries_WithAllFilters_BindsAllFieldsOntoFilter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var from = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero);
 
@@ -383,7 +410,7 @@ public sealed class AuditInspectorEndpointsTests
 
         mock.QueryAsync(
                 Arg.Is<AuditFilter>(f =>
-                    f != null
+                    f is not null
                     && f.CommandType == "MyCommand"
                     && f.UserId == "alice"
                     && f.From == from
@@ -410,6 +437,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -437,6 +466,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -454,6 +485,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task GetEntries_WithEqualFromAndTo_ReturnsOk(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -470,7 +503,7 @@ public sealed class AuditInspectorEndpointsTests
 
         var expected = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         mock.QueryAsync(
-                Arg.Is<AuditFilter>(f => f != null && f.From == expected && f.To == expected),
+                Arg.Is<AuditFilter>(f => f is not null && f.From == expected && f.To == expected),
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Once);
@@ -491,6 +524,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
 
         using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
@@ -513,6 +548,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var mock = Mock.Of<IAuditManagement>();
         Action<AuditInspectorOptions>? configure = routeGroupName is null
             ? null
@@ -534,6 +571,8 @@ public sealed class AuditInspectorEndpointsTests
     [Test]
     public async Task MapAuditInspector_WithCustomBasePath_UsesConfiguredPrefix(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new AuditStatistics(1, 0);
 
         var mock = Mock.Of<IAuditManagement>();
@@ -574,6 +613,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var statistics = new AuditStatistics(3, 2);
 
         var mock = Mock.Of<IAuditManagement>();
@@ -606,6 +647,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recordId = Guid.NewGuid();
         var record = new AuditRecord
         {
@@ -651,6 +694,8 @@ public sealed class AuditInspectorEndpointsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var recordId = Guid.NewGuid();
         var record = new AuditRecord
         {
@@ -685,6 +730,8 @@ public sealed class AuditInspectorEndpointsTests
         Action<IServiceCollection>? configureServices = null
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var host = new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {

@@ -120,6 +120,8 @@ public sealed class SqlServerOutboxRepositoryTests
     [Test]
     public async Task AddAsync_WithNullMessage_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -216,6 +218,8 @@ public sealed class SqlServerOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -233,6 +237,8 @@ public sealed class SqlServerOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -246,6 +252,8 @@ public sealed class SqlServerOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -263,6 +271,8 @@ public sealed class SqlServerOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -276,6 +286,8 @@ public sealed class SqlServerOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System
@@ -293,6 +305,8 @@ public sealed class SqlServerOutboxRepositoryTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = new SqlServerOutboxRepository(
             Options.Create(new OutboxOptions { ConnectionString = ValidConnectionString }),
             TimeProvider.System

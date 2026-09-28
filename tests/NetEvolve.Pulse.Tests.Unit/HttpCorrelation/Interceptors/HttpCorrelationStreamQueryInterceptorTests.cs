@@ -67,6 +67,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new HttpCorrelationStreamQueryInterceptor<TestStreamQuery, string>(provider);
@@ -91,6 +92,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new HttpCorrelationStreamQueryInterceptor<TestStreamQuery, string>(provider);
@@ -120,6 +122,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         const string existingId = "existing-id";
         var services = new ServiceCollection();
@@ -151,6 +154,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         const string httpId = "http-correlation-id";
         var services = new ServiceCollection();
@@ -187,6 +191,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyRequest(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services
@@ -215,6 +220,7 @@ public sealed class HttpCorrelationStreamQueryInterceptorTests
     [Test]
     public async Task HandleAsync_YieldsItemsUnchanged(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new HttpCorrelationStreamQueryInterceptor<TestStreamQuery, string>(provider);

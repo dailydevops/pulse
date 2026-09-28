@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 [ClassDataSource<CosmosDbDatabaseServiceFixture, CosmosDbOutboxInitializer>(
     Shared = [SharedType.None, SharedType.None]
@@ -17,6 +19,8 @@ public class CosmosDbOutboxTests(IServiceFixture databaseServiceFixture, IServic
     [Test]
     public async Task Should_Reject_Container_With_Unsupported_PartitionKeyPath(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var testableCodeRan = false;
 
         var exception = await Assert

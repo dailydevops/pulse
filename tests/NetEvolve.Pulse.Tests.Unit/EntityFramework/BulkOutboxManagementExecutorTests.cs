@@ -19,6 +19,8 @@ public sealed class BulkOutboxManagementExecutorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtGetDeadLetterMessages;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -74,6 +76,8 @@ public sealed class BulkOutboxManagementExecutorTests
     [Test]
     public async Task GetDeadLetterMessageAsync_WhenDeadLetter_ReturnsMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtGetDeadLetterMessageFound;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -112,6 +116,8 @@ public sealed class BulkOutboxManagementExecutorTests
     [Test]
     public async Task GetDeadLetterMessageAsync_WhenIdDoesNotExist_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtGetDeadLetterMessageMissing;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -142,6 +148,8 @@ public sealed class BulkOutboxManagementExecutorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtGetDeadLetterMessageWrongStatus;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -175,6 +183,8 @@ public sealed class BulkOutboxManagementExecutorTests
     [Test]
     public async Task ReplayByIdAsync_WhenDeadLetter_ResetsMessageAndReturnsTrue(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtReplayByIdFound;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -223,6 +233,8 @@ public sealed class BulkOutboxManagementExecutorTests
     [Test]
     public async Task ReplayByIdAsync_WhenIdDoesNotExist_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtReplayByIdMissing;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -253,6 +265,8 @@ public sealed class BulkOutboxManagementExecutorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtReplayByIdWrongStatus;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -297,6 +311,8 @@ public sealed class BulkOutboxManagementExecutorTests
     [Test]
     public async Task ReplayAllAsync_ResetsAllDeadLetterMessages_AndReturnsCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtReplayAllFound;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 
@@ -364,6 +380,8 @@ public sealed class BulkOutboxManagementExecutorTests
     [Test]
     public async Task ReplayAllAsync_WhenNoDeadLetterMessages_ReturnsZero(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connectionString =
             "Data Source=BulkOutboxMgmtReplayAllNone;Mode=Memory;Cache=Shared;Foreign Keys=False;Pooling=False";
 

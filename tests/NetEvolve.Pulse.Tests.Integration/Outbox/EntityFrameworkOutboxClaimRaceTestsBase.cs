@@ -140,6 +140,8 @@ public abstract class EntityFrameworkOutboxClaimRaceTestsBase(
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
         var outbox = services.GetRequiredService<IOutboxRepository>();
 
@@ -181,6 +183,8 @@ public abstract class EntityFrameworkOutboxClaimRaceTestsBase(
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var firstScope = services.CreateAsyncScope();
         await using (firstScope.ConfigureAwait(false))
         {

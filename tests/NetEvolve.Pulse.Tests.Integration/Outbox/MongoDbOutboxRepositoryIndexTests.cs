@@ -2,9 +2,9 @@ namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse;
@@ -33,8 +33,12 @@ public sealed class MongoDbOutboxRepositoryIndexTests
         };
 
     [Test]
-    public async Task GetPendingAsync_CreatesClaimIndexOnStatusAndCreatedAt()
+    public async Task GetPendingAsync_CreatesClaimIndexOnStatusAndCreatedAt(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var databaseName = $"pulse{Guid.NewGuid():N}";
         var repository = new MongoDbOutboxRepository(
@@ -43,13 +47,15 @@ public sealed class MongoDbOutboxRepositoryIndexTests
             TimeProvider.System
         );
 
-        await repository.AddAsync(CreateMessage(DateTimeOffset.UtcNow));
-        _ = await repository.GetPendingAsync(10);
+        await repository.AddAsync(CreateMessage(DateTimeOffset.UtcNow), cancellationToken: cancellationToken);
+        _ = await repository.GetPendingAsync(10, cancellationToken: cancellationToken);
 
         var collection = client
             .GetDatabase(databaseName)
             .GetCollection<OutboxDocument>(new MongoDbOutboxOptions().CollectionName);
-        var indexes = await (await collection.Indexes.ListAsync()).ToListAsync();
+        var indexes = await (await collection.Indexes.ListAsync(cancellationToken: cancellationToken)).ToListAsync(
+            cancellationToken: cancellationToken
+        );
 
         var hasClaimIndex = indexes.Any(index =>
         {
@@ -63,8 +69,12 @@ public sealed class MongoDbOutboxRepositoryIndexTests
     }
 
     [Test]
-    public async Task GetFailedForRetryAsync_CreatesClaimIndexOnStatusAndCreatedAt()
+    public async Task GetFailedForRetryAsync_CreatesClaimIndexOnStatusAndCreatedAt(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var client = new MongoClient(Container.ConnectionString);
         var databaseName = $"pulse{Guid.NewGuid():N}";
         var repository = new MongoDbOutboxRepository(
@@ -73,13 +83,15 @@ public sealed class MongoDbOutboxRepositoryIndexTests
             TimeProvider.System
         );
 
-        await repository.AddAsync(CreateMessage(DateTimeOffset.UtcNow));
-        _ = await repository.GetFailedForRetryAsync(5, 10);
+        await repository.AddAsync(CreateMessage(DateTimeOffset.UtcNow), cancellationToken: cancellationToken);
+        _ = await repository.GetFailedForRetryAsync(5, 10, cancellationToken: cancellationToken);
 
         var collection = client
             .GetDatabase(databaseName)
             .GetCollection<OutboxDocument>(new MongoDbOutboxOptions().CollectionName);
-        var indexes = await (await collection.Indexes.ListAsync()).ToListAsync();
+        var indexes = await (await collection.Indexes.ListAsync(cancellationToken: cancellationToken)).ToListAsync(
+            cancellationToken: cancellationToken
+        );
 
         var hasClaimIndex = indexes.Any(index =>
         {

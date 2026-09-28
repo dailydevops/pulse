@@ -31,6 +31,8 @@ public sealed class BulkOutboxRepositoryExecutorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(FetchAndMarkAsync_WithZeroMaxDegreeOfParallelism_CompletesWithoutDeadlock))
             .Options;

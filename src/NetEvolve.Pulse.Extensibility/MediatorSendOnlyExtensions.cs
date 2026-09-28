@@ -41,6 +41,7 @@ public static class MediatorSendOnlyExtensions
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(mediator);
         ArgumentNullException.ThrowIfNull(batch);
 

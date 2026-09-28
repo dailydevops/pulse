@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -22,6 +23,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Maps_outbox_message_to_kafka_message(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -45,6 +48,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Propagates_ProduceException_on_delivery_failure(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var expectedError = new Error(ErrorCode.BrokerNotAvailable, "broker unavailable");
         using var producer = new FakeProducer { ProduceAsyncError = expectedError };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -62,6 +67,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Uses_topic_name_resolver_to_determine_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin, topicName: "resolved-topic");
@@ -75,6 +82,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Routes_to_topic_from_resolver(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin, topicName: "test-topic");
@@ -88,6 +97,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Enqueues_all_messages_and_flushes(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -102,6 +113,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Collects_delivery_errors_as_AggregateException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var error = new Error(ErrorCode.BrokerNotAvailable, "broker down");
         using var producer = new FakeProducer { DeliveryError = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -124,6 +137,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var error = new Error(ErrorCode.BrokerNotAvailable, "down");
         using var producer = new FakeProducer { DeliveryError = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -142,6 +157,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Collects_synchronous_produce_exceptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var error = new Error(ErrorCode.Local_QueueFull, "queue full");
         using var producer = new FakeProducer { ThrowOnProduce = error };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -160,6 +177,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendBatchAsync_When_all_messages_succeed_calls_Flush_once(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -177,6 +196,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendBatchAsync_Forwards_cancellation_token_to_Flush(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -198,6 +219,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         // AutoCreateTopics is disabled so this scenario is isolated to Flush cancellation;
@@ -231,6 +254,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var flushGate = new ManualResetEventSlim(false);
         using var producer = new FakeProducer { FlushGate = flushGate };
         using var admin = new FakeAdminClient { BrokerCount = 1 };
@@ -258,6 +283,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_Returns_true_when_broker_metadata_is_available(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -271,6 +298,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task IsHealthyAsync_Returns_false_when_no_brokers_in_metadata(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 0 };
         await using var transport = CreateTransport(producer, admin);
@@ -285,6 +314,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { ThrowOnGetMetadata = true };
         await using var transport = CreateTransport(producer, admin);
@@ -302,6 +333,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -317,6 +350,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(producer, admin);
@@ -332,6 +367,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -350,6 +387,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_AutoCreateTopics_false_Skips_topic_creation(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -367,6 +406,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_AutoCreateTopics_only_Creates_topic_once_per_topic(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -385,6 +426,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Creates_topic_with_custom_partition_count(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -402,6 +445,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Creates_topic_with_custom_replication_factor(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -419,6 +464,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Creates_topic_with_custom_retention(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         var retention = TimeSpan.FromHours(24);
@@ -441,6 +488,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendAsync_Creates_topic_without_retention_config_when_not_set(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -458,6 +507,8 @@ public sealed class KafkaMessageTransportTests
     [Test]
     public async Task SendBatchAsync_AutoCreateTopics_false_Skips_topic_creation(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -481,6 +532,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -504,6 +557,8 @@ public sealed class KafkaMessageTransportTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var producer = new FakeProducer();
         using var admin = new FakeAdminClient { BrokerCount = 1 };
         await using var transport = CreateTransport(
@@ -602,6 +657,8 @@ public sealed class KafkaMessageTransportTests
                 );
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             ProducedTopics.Add(topic);
             ProducedMessages.Add(message);
             return Task.FromResult(
@@ -667,11 +724,17 @@ public sealed class KafkaMessageTransportTests
             return 0;
         }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This fake must record that Flush was invoked before honoring cancellation, so tests can assert the real Confluent.Kafka Flush(ct) contract: the call happens and then observes cancellation, rather than the caller short-circuiting before Flush ever runs."
+        )]
         public void Flush(CancellationToken cancellationToken = default)
         {
-            FlushGate?.Wait(cancellationToken);
             FlushCallCount++;
             FlushCancellationTokens.Add(cancellationToken);
+
+            FlushGate?.Wait(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
         }
 

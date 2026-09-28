@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.AspNetCore.Internals;
+namespace NetEvolve.Pulse.Internals;
 
 using System.Collections.Generic;
 using System.Text.Json;

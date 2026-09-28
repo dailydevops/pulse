@@ -15,6 +15,8 @@ public sealed class CosmosDbOutboxManagementQueryOptionsTests
     [Test]
     public async Task GetDeadLetterCountAsync_PassesParallelQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) =>
@@ -37,6 +39,8 @@ public sealed class CosmosDbOutboxManagementQueryOptionsTests
     [Test]
     public async Task GetStatisticsAsync_PassesParallelQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer { OnQueryIterator = (itemType, _, _) => CreateEmptyIterator(itemType) };
 
         var management = CreateManagement(container);
@@ -53,6 +57,8 @@ public sealed class CosmosDbOutboxManagementQueryOptionsTests
     [Test]
     public async Task ReplayAllDeadLetterAsync_PassesParallelQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) => new FakeFeedIterator<CosmosDbOutboxDocument>([]),
@@ -72,6 +78,8 @@ public sealed class CosmosDbOutboxManagementQueryOptionsTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_PassesParallelQueryRequestOptions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var container = new FakeCosmosContainer
         {
             OnQueryIterator = (_, _, _) => new FakeFeedIterator<CosmosDbOutboxDocument>([]),

@@ -4,6 +4,7 @@ using System.Data.SqlTypes;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
 using NetEvolve.Pulse.Tests.Integration.Internals.Audit;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
 [ClassDataSource<SqlServerDatabaseServiceFixture, SqlServerAdoNetAuditInitializer>(
     Shared = [SharedType.None, SharedType.None]

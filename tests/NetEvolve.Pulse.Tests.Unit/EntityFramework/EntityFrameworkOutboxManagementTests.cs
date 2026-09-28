@@ -90,6 +90,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException))
             .Options;
@@ -111,6 +113,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList))
             .Options;
@@ -132,6 +136,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithDeadLetterMessages_ReturnsMessages))
             .Options;
@@ -185,6 +191,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithExistingDeadLetterMessage_ReturnsMessage))
             .Options;
@@ -223,6 +231,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithNonDeadLetterMessage_ReturnsNull))
             .Options;
@@ -258,6 +268,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull))
             .Options;
@@ -277,6 +289,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero))
             .Options;
@@ -296,6 +310,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterCountAsync_WithDeadLetterMessages_ReturnsCorrectCount))
             .Options;
@@ -350,6 +366,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithExistingDeadLetterMessage_ReturnsTrueAndResetsMessage))
             .Options;
@@ -395,6 +413,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse))
             .Options;
@@ -430,6 +450,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task ReplayMessageAsync_WithUnknownId_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithUnknownId_ReturnsFalse))
             .Options;
@@ -447,6 +469,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero))
             .Options;
@@ -466,6 +490,8 @@ public sealed class EntityFrameworkOutboxManagementTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_WithDeadLetterMessages_ResetsAllAndReturnsCount))
             .Options;
@@ -520,6 +546,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics))
             .Options;
@@ -545,6 +573,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetStatisticsAsync_WithMessages_ReturnsCorrectCounts(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetStatisticsAsync_WithMessages_ReturnsCorrectCounts))
             .Options;
@@ -605,6 +635,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_WithPage_ReturnsCorrectPage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithPage_ReturnsCorrectPage))
             .Options;
@@ -651,6 +683,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task GetDeadLetterMessagesAsync_OrderedByUpdatedAtDescending(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_OrderedByUpdatedAtDescending))
             .Options;
@@ -699,6 +733,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task ReplayMessageAsync_SetsUpdatedAtFromTimeProvider(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var expectedTime = new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero);
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayMessageAsync_SetsUpdatedAtFromTimeProvider))
@@ -739,6 +775,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task ReplayAllDeadLetterAsync_DoesNotAffectNonDeadLetterMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_DoesNotAffectNonDeadLetterMessages))
             .Options;
@@ -801,6 +839,8 @@ public sealed class EntityFrameworkOutboxManagementTests
     [Test]
     public async Task ReplayAllDeadLetterAsync_ResetsRetryCountAndError(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_ResetsRetryCountAndError))
             .Options;

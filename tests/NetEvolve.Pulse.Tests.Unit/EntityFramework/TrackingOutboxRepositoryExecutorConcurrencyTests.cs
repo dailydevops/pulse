@@ -56,6 +56,8 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseRoot = new InMemoryDatabaseRoot();
         var databaseName = nameof(FetchAndMarkAsync_WhenCompetingPollerClaimsLoadedRows_DoesNotReturnLostRows);
 
@@ -147,6 +149,8 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var databaseRoot = new InMemoryDatabaseRoot();
         var databaseName = nameof(FetchAndMarkAsync_WhenLoadedRowWasClaimedAndFailedAgain_DoesNotReclaimRow);
 
@@ -268,6 +272,8 @@ public sealed class TrackingOutboxRepositoryExecutorConcurrencyTests
 
         public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var buffer = new List<T>();
             await foreach (
                 var item in ((IAsyncEnumerable<T>)inner).WithCancellation(cancellationToken).ConfigureAwait(false)

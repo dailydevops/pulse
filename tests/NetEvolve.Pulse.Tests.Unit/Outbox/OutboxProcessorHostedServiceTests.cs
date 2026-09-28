@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Tests.Unit.Outbox;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -178,6 +179,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task StartAsync_WithCancellationToken_StartsProcessing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -210,6 +213,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task StopAsync_WhenRunning_StopsGracefully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -242,6 +247,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -275,6 +282,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithMultipleMessages_ProcessesAllMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -311,6 +320,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithNoMessages_WaitsForPollingInterval(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(200) });
@@ -339,6 +350,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithTransportFailure_MarksMessageAsFailed(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: int.MaxValue);
         var options = Options.Create(
@@ -368,6 +381,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithExceededRetries_MovesToDeadLetter(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: int.MaxValue);
         var options = Options.Create(
@@ -401,6 +416,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: int.MaxValue);
         var options = Options.Create(
@@ -438,6 +455,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithTransientFailure_RetriesAndSucceeds(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: 1); // Fail once, then succeed
         var options = Options.Create(
@@ -468,6 +487,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithBatchSendingEnabled_SendsInBatch(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(
@@ -503,6 +524,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithBatchSendingFailure_MarkAsFailedForRetry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new BatchFailingMessageTransport();
         var options = Options.Create(
@@ -547,6 +570,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithBatchSize_RespectsLimit(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(
@@ -582,6 +607,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: int.MaxValue);
         var options = Options.Create(
@@ -622,6 +649,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithOverrideAboveGlobal_RetriesUpToOverride(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: int.MaxValue);
         var options = Options.Create(
@@ -666,6 +695,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithoutOverrides_FetchesFailedWithGlobalMax(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var options = Options.Create(
             new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50), MaxRetryCount = 4 }
@@ -690,6 +721,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithOverrides_FetchesFailedWithLargestMax(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var options = Options.Create(
             new OutboxProcessorOptions
@@ -724,6 +757,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithPerEventTypeProcessingTimeout_UsesOverride(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new SlowMessageTransport(delay: TimeSpan.FromSeconds(5)); // Much larger than the override timeout to avoid timer-jitter flakiness
         var options = Options.Create(
@@ -775,6 +810,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(
@@ -902,6 +939,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [NotInParallel("OutboxMetrics")]
     public async Task ExecuteAsync_WithPendingMessages_RecordsProcessedMetric(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
@@ -953,6 +992,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [NotInParallel("OutboxMetrics")]
     public async Task ExecuteAsync_WithTransportFailure_RecordsFailedMetric(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
@@ -1004,6 +1045,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [NotInParallel("OutboxMetrics")]
     public async Task ExecuteAsync_WithExceededRetries_RecordsDeadLetterMetric(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
@@ -1056,6 +1099,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [NotInParallel("OutboxMetrics")]
     public async Task ExecuteAsync_AfterProcessingCycle_RecordsProcessingDuration(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
@@ -1111,6 +1156,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
@@ -1238,6 +1285,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new FailingMessageTransport(failCount: int.MaxValue);
         var options = Options.Create(
@@ -1289,6 +1338,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var timeProvider = new TimerSignalingTimeProvider();
         using var repository = new InMemoryOutboxRepository(timeProvider);
         var transport = new TimedFailingMessageTransport(timeProvider);
@@ -1334,6 +1385,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var timeProvider = new TimerSignalingTimeProvider();
         using var repository = new InMemoryOutboxRepository(timeProvider);
         var transport = new TimedFailingMessageTransport(timeProvider);
@@ -1393,6 +1446,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var timeProvider = new TimerSignalingTimeProvider();
         using var repository = new InMemoryOutboxRepository(timeProvider) { IgnoreNextRetryAt = true };
         var transport = new TimedFailingMessageTransport(timeProvider);
@@ -1433,6 +1488,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task GetPendingAsync_WithFutureNextRetryAt_ExcludesMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var futureTime = DateTimeOffset.UtcNow.AddSeconds(10);
 
@@ -1448,6 +1505,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task GetPendingAsync_WithPastNextRetryAt_IncludesMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var pastTime = DateTimeOffset.UtcNow.AddSeconds(-10);
 
@@ -1463,6 +1522,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task GetFailedForRetryAsync_WithFutureNextRetryAt_ExcludesMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var futureTime = DateTimeOffset.UtcNow.AddSeconds(10);
 
@@ -1482,6 +1543,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task GetFailedForRetryAsync_WithPastNextRetryAt_IncludesMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var pastTime = DateTimeOffset.UtcNow.AddSeconds(-10);
 
@@ -1503,6 +1566,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1546,6 +1611,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1580,6 +1647,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WhenDatabaseIsUnhealthy_SkipsProcessingCycle(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository { IsHealthy = false };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1619,6 +1688,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WhenTransportIsUnhealthy_SkipsProcessingCycle(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         using var healthCheckEvent = new SemaphoreSlim(0, int.MaxValue);
         var isHealthyCallCount = 0;
@@ -1676,6 +1747,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WhenDisableProcessingIsTrue_NeverPolls(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(
@@ -1711,6 +1784,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository { ThrowOnGetPendingCount = true };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1749,6 +1824,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository { ThrowOnIsHealthy = true };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMinutes(5) });
@@ -1787,6 +1864,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository { ThrowOnIsHealthy = true };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1826,6 +1905,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository { ThrowOnGetPendingCount = true };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1859,6 +1940,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new DefaultCountOutboxRepository();
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1888,6 +1971,8 @@ public sealed class OutboxProcessorHostedServiceTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository();
         var transport = new BatchFailingMessageTransport();
         var options = Options.Create(
@@ -1939,6 +2024,8 @@ public sealed class OutboxProcessorHostedServiceTests
     [Test]
     public async Task ExecuteAsync_WhenDatabaseBecomesHealthy_ResumesProcessing(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var repository = new InMemoryOutboxRepository { IsHealthy = false };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
@@ -1991,6 +2078,8 @@ public sealed class OutboxProcessorHostedServiceTests
     /// </remarks>
     private static CancellationTokenSource CreateSignalTimeout(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(30));
         return cts;
@@ -1998,6 +2087,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
     private static async Task WaitForSignalsAsync(SemaphoreSlim signal, int count, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         for (var i = 0; i < count; i++)
         {
             await signal.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -2046,6 +2137,8 @@ public sealed class OutboxProcessorHostedServiceTests
         /// </summary>
         public async Task WaitForMarkingsAsync(int count, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             for (var i = 0; i < count; i++)
             {
                 try
@@ -2104,6 +2197,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 _messages.Add(message);
@@ -2137,10 +2232,17 @@ public sealed class OutboxProcessorHostedServiceTests
         public Task WaitForPendingCountsAsync(int count, CancellationToken cancellationToken = default) =>
             WaitForSignalsAsync(_pendingCountEvent, count, cancellationToken);
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This fake must count and signal every health check before honoring cancellation, so tests waiting on WaitForHealthChecksAsync observe calls made with an already-cancelled stopping token instead of hanging."
+        )]
         public Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
         {
             _ = Interlocked.Increment(ref _isHealthyCallCount);
             _ = _healthCheckEvent.Release();
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (ThrowOnIsHealthy)
             {
@@ -2150,6 +2252,11 @@ public sealed class OutboxProcessorHostedServiceTests
             return Task.FromResult(IsHealthy);
         }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This fake must count and signal every pending-count call, including cancelled and throwing ones, before honoring cancellation, so tests waiting on WaitForPendingCountsAsync observe the call instead of hanging."
+        )]
         public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
         {
             lock (_lock)
@@ -2158,6 +2265,8 @@ public sealed class OutboxProcessorHostedServiceTests
                 _ = Interlocked.Increment(ref _getPendingCountCallCount);
                 _ = _pollEvent.Release();
                 _ = _pendingCountEvent.Release();
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (ThrowOnGetPendingCount)
                 {
@@ -2175,6 +2284,8 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var now = _timeProvider.GetUtcNow();
             lock (_lock)
             {
@@ -2204,6 +2315,8 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var now = _timeProvider.GetUtcNow();
             lock (_lock)
             {
@@ -2230,6 +2343,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 CompletedMessageIds.Add(messageId);
@@ -2251,6 +2366,8 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 DeadLetterMessageIds.Add(messageId);
@@ -2272,6 +2389,8 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 FailedMessageIds.Add(messageId);
@@ -2295,6 +2414,8 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 FailedMessageIds.Add(messageId);
@@ -2330,6 +2451,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public async Task WaitForCompletionAsync(int count, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             for (var i = 0; i < count; i++)
             {
                 await _completionEvent.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -2338,6 +2461,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 _messages.Add(message);
@@ -2351,6 +2476,8 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 var messages = _messages.Where(m => m.Status == OutboxMessageStatus.Pending).Take(batchSize).ToList();
@@ -2366,6 +2493,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task MarkAsCompletedAsync(Guid messageId, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             lock (_lock)
             {
                 var message = _messages.Find(m => m.Id == messageId);
@@ -2410,12 +2539,16 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             SentMessages.Add(message);
             return Task.CompletedTask;
         }
 
         public Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             BatchSendCallCount++;
             SentMessages.AddRange(messages);
             return Task.CompletedTask;
@@ -2450,15 +2583,27 @@ public sealed class OutboxProcessorHostedServiceTests
     {
         public ConcurrentQueue<DateTimeOffset> Attempts { get; } = new();
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
             Attempts.Enqueue(timeProvider.GetUtcNow());
+            cancellationToken.ThrowIfCancellationRequested();
             throw new InvalidOperationException("Simulated transport failure");
         }
 
+        [SuppressMessage(
+            "Usage",
+            "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+            Justification = "This recording test double must record the call before honoring cancellation, so tests can assert that the call happened even when the token is already cancelled."
+        )]
         public Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
         {
             Attempts.Enqueue(timeProvider.GetUtcNow());
+            cancellationToken.ThrowIfCancellationRequested();
             throw new InvalidOperationException("Simulated batch transport failure");
         }
     }
@@ -2472,6 +2617,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var attempt = Interlocked.Increment(ref _attemptCount);
             if (attempt <= _failCount)
             {
@@ -2493,6 +2640,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             IndividualSendCallCount++;
             return Task.CompletedTask;
         }
@@ -2513,6 +2662,8 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
             SentMessages.Add(message);
         }

@@ -102,6 +102,11 @@ public static class OutboxEventTypeResolver
     /// <see cref="OutboxMessageStatus.Processing"/> and are dead-lettered again once a provider that reclaims
     /// expired processing leases fetches them again.
     /// </remarks>
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "Called after the claim has been committed; dead-lettering is best-effort and a cancelled token must still return the resolvable messages of the claimed batch (see remarks), so an entry check would lose them."
+    )]
     public static async Task<IReadOnlyList<OutboxMessage>> DeadLetterUnresolvableAsync(
         this IOutboxRepository repository,
         IReadOnlyList<OutboxMessage> messages,

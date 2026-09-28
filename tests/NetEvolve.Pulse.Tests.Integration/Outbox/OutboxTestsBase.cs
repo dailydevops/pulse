@@ -40,6 +40,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_Persist_Expected_Messages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -125,6 +127,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_GetPendingAsync_Return_Messages_In_CreatedAt_Order(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -288,6 +292,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_Mark_Single_Message_AsFailed_WithRetryScheduling(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -385,6 +391,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_GetFailedForRetry_ExcludesScheduledMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -423,6 +431,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_DeleteCompleted_ReturnsCorrectCount(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -575,6 +585,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_DeleteCompleted_DoesNotDelete_NonCompletedMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -702,6 +714,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_GetDeadLetterMessages_Order_By_UpdatedAt_Descending(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -1018,6 +1032,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_GetMessages_Respect_Paging(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Distinct UpdatedAt values keep OFFSET paging deterministic on providers without an Id tie-breaker (Cosmos DB).
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
@@ -1149,6 +1165,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_Persist_UpdatedAt_From_TimeProvider_On_Transitions(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -1204,6 +1222,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     [Test]
     public async Task Should_Persist_UpdatedAt_From_TimeProvider_On_Replay(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var timeProvider = new FakeTimeProvider();
         timeProvider.AdjustTime(TestDateTime);
 
@@ -1252,6 +1272,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var messageId in messageIds)
         {
             var message = await management.GetMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
@@ -1536,6 +1558,8 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
         var message = new OutboxMessage
         {

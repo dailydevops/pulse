@@ -20,6 +20,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
     [Test]
     public async Task FetchAndMarkAsync_UncontendedBatch_UsesAtMostTwoRoundTrips(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {
@@ -100,6 +102,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {
@@ -168,6 +172,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
     [Test]
     public async Task FetchAndMarkAsync_WithoutPendingMessages_ReturnsEmpty(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection("Data Source=:memory:");
         await using (connection.ConfigureAwait(false))
         {
@@ -212,6 +218,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Count();
             return ValueTask.FromResult(result);
         }
@@ -223,6 +231,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Count();
             return ValueTask.FromResult(result);
         }
@@ -234,6 +244,8 @@ public sealed class BulkOutboxRepositoryExecutorRoundTripTests
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Count();
             return ValueTask.FromResult(result);
         }

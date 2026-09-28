@@ -17,6 +17,8 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
     [Test]
     public async Task FetchAndMarkAsync_WhileSemaphoreHeld_WaitsForRelease(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(FetchAndMarkAsync_WhileSemaphoreHeld_WaitsForRelease))
             .Options;
@@ -52,6 +54,8 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
     [Test]
     public async Task DeleteByQueryAsync_WhileSemaphoreHeld_WaitsForRelease(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(DeleteByQueryAsync_WhileSemaphoreHeld_WaitsForRelease))
             .Options;
@@ -86,6 +90,8 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(nameof(UpdateByIdsAsync_MySqlExecutor_WhileSemaphoreHeld_WaitsForRelease))
             .Options;
@@ -132,6 +138,8 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),

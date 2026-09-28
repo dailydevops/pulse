@@ -71,6 +71,8 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var host = await CreateTestHostAsync(YieldAsync(["first", "second", "third"]), cancellationToken)
             .ConfigureAwait(false);
         using var channel = CreateChannel(host);
@@ -96,6 +98,8 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
     [Test]
     public async Task MapStreamQueryGrpc_WhenClientCancels_StopsStream(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var serverToken = new TaskCompletionSource<CancellationToken>(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
@@ -179,6 +183,8 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = Mock.Of<IStreamQueryHandler<TestStreamQuery, string>>();
         _ = handler.HandleAsync(Arg.Any<TestStreamQuery>(), Arg.Any<CancellationToken>()).Returns(items);
 
@@ -215,6 +221,11 @@ public sealed class PulseGrpcEndpointRouteBuilderExtensionsTests
     }
 #pragma warning restore CS1998
 
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "This fake must publish the received token through started before observing cancellation, so the test can assert which token reached the handler instead of hanging; the loop condition then observes cancellation."
+    )]
     private static async IAsyncEnumerable<string> YieldForeverAsync(
         TaskCompletionSource<CancellationToken> started,
         TaskCompletionSource ended,

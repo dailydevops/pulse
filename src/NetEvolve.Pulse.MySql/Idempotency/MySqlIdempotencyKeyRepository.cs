@@ -94,6 +94,8 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var sql = validFrom.HasValue ? _existsWithTtlSql : _existsSql;
@@ -124,6 +126,8 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -148,6 +152,8 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
     /// <returns>An open <see cref="MySqlConnection"/>.</returns>
     private async Task<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;

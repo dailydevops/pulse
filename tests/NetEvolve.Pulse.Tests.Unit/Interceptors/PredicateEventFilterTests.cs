@@ -29,6 +29,8 @@ public sealed class PredicateEventFilterTests
     [Test]
     public async Task ShouldHandleAsync_DelegatesToPredicate(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = new PredicateEventFilter<TestEvent>((_, _) => ValueTask.FromResult(true));
 
         var result = await filter.ShouldHandleAsync(new TestEvent(), cancellationToken).ConfigureAwait(false);
@@ -39,6 +41,8 @@ public sealed class PredicateEventFilterTests
     [Test]
     public async Task ShouldHandleAsync_PropagatesFalseFromPredicate(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var filter = new PredicateEventFilter<TestEvent>((_, _) => ValueTask.FromResult(false));
 
         var result = await filter.ShouldHandleAsync(new TestEvent(), cancellationToken).ConfigureAwait(false);
@@ -49,6 +53,8 @@ public sealed class PredicateEventFilterTests
     [Test]
     public async Task ShouldHandleAsync_PassesEventAndTokenToPredicate(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         TestEvent? capturedEvent = null;
         var capturedToken = default(CancellationToken);
         var filter = new PredicateEventFilter<TestEvent>(

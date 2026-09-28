@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Configurations;
+﻿namespace NetEvolve.Pulse.Configurations;
 
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetEvolve.Pulse.Extensibility.Outbox;

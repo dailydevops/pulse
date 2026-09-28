@@ -91,6 +91,7 @@ public sealed class PollyEventInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var serviceProvider = CreateServiceProvider<TestEvent>();
         var interceptor = new PollyEventInterceptor<TestEvent>(serviceProvider);
@@ -105,6 +106,7 @@ public sealed class PollyEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithSuccessfulHandler_CompletesSuccessfully(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var serviceProvider = CreateServiceProvider<TestEvent>();
         var interceptor = new PollyEventInterceptor<TestEvent>(serviceProvider);
@@ -133,6 +135,7 @@ public sealed class PollyEventInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var pipeline = new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions { MaxRetryAttempts = 1, Delay = TimeSpan.FromMilliseconds(10) })
@@ -180,6 +183,7 @@ public sealed class PollyEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithRetryPolicy_RetriesOnFailure(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var attemptCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -221,6 +225,7 @@ public sealed class PollyEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithRetryPolicyExhausted_ThrowsException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var attemptCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -263,6 +268,7 @@ public sealed class PollyEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithCombinedPolicies_ExecutesInOrder(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var attemptCount = 0;
         var pipeline = new ResiliencePipelineBuilder()
@@ -305,6 +311,7 @@ public sealed class PollyEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithCircuitBreaker_BlocksAfterFailureThreshold(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var attemptCount = 0;
         var pipeline = new ResiliencePipelineBuilder()

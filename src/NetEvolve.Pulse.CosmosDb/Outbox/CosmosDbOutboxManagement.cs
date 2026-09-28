@@ -72,6 +72,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
         if (page > int.MaxValue / pageSize)
@@ -95,6 +97,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = messageId.ToString();
 
         try
@@ -116,6 +120,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.status = 4");
 
         using var iterator = _container.GetItemQueryIterator<long>(query, requestOptions: ParallelQueryOptions);
@@ -135,6 +141,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> ReplayMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
 
@@ -167,6 +175,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<int> ReplayAllDeadLetterAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new QueryDefinition("SELECT * FROM c WHERE c.status = 4");
         var replayed = 0;
 
@@ -201,6 +211,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var requestOptions = new PatchItemRequestOptions { IfMatchEtag = document.ETag };
         var patches = CreateReplayPatches();
 
@@ -270,6 +282,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
             throw new ArgumentOutOfRangeException(nameof(page), "The requested page is too large.");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = (
             status is { } value
                 ? new QueryDefinition(
@@ -286,6 +300,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxMessage?> GetMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = messageId.ToString();
 
         try
@@ -305,6 +321,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<bool> DismissMessageAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var id = messageId.ToString();
         var partitionKey = new PartitionKey(id);
 
@@ -336,6 +354,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
     /// <inheritdoc />
     public async Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var query = new QueryDefinition("SELECT c.status, COUNT(1) AS count FROM c GROUP BY c.status");
 
         var counts = new Dictionary<int, long>();
@@ -370,6 +390,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var messages = new List<OutboxMessage>();
 
         using var iterator = _container.GetItemQueryIterator<CosmosDbOutboxDocument>(

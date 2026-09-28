@@ -164,6 +164,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
 
@@ -184,6 +186,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task<CommandDeadLetterEntry?> GetEntryAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -200,6 +204,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     )]
     public async Task ReplayAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -255,6 +261,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqliteCommand(sql, connection);
         await using (command.ConfigureAwait(false))
         {
@@ -270,6 +278,11 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <param name="connection">The open connection to use for the update.</param>
     /// <param name="id">The identifier of the dead letter entry to update.</param>
     /// <param name="exception">The exception that caused the replay to fail.</param>
+    [SuppressMessage(
+        "Usage",
+        "NE0010:Method returns Task and should accept a CancellationToken parameter",
+        Justification = "The reset after a failed or cancelled replay must always run, so it intentionally uses CancellationToken.None instead of the caller's token, which may already be cancelled (decisions/2026-09-27-command-dead-letter-replay-status.md)."
+    )]
     private async Task SetFailedAsync(SqliteConnection connection, Guid id, Exception exception)
     {
         var command = new SqliteCommand(_setFailedSql, connection);
@@ -286,6 +299,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task DismissAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
@@ -306,6 +321,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <inheritdoc />
     public async Task<CommandDeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var newCount = 0;
         var replayingCount = 0;
         var resolvedCount = 0;
@@ -361,6 +378,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var command = new SqliteCommand(_getByIdSql, connection);
         await using (command.ConfigureAwait(false))
         {
@@ -382,6 +401,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     /// <returns>An open <see cref="SqliteConnection"/>.</returns>
     private async Task<SqliteConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -410,6 +431,8 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entries = new List<CommandDeadLetterEntry>();
 
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

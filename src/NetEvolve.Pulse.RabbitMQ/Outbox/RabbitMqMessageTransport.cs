@@ -73,6 +73,8 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <exception cref="ObjectDisposedException">Thrown when the transport has already been disposed.</exception>
     public async Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(message);
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
@@ -97,6 +99,8 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// <exception cref="ObjectDisposedException">Thrown when the transport has already been disposed.</exception>
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(messages);
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
@@ -127,6 +131,8 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var routingKey = ResolveRoutingKey(message);
         var body = Encoding.UTF8.GetBytes(message.Payload);
 
@@ -162,6 +168,8 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
     /// </remarks>
     public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (Volatile.Read(ref _disposed) != 0)
         {
             return Task.FromResult(false);

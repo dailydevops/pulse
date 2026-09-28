@@ -1,6 +1,5 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
@@ -33,6 +32,8 @@ public sealed class ConcurrentCommandGuardInterceptorDisposeTests
     [Test]
     public async Task Dispose_AfterUse_DoesNotThrow(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
 
         // Use the interceptor first to populate the internal dictionary
@@ -49,6 +50,8 @@ public sealed class ConcurrentCommandGuardInterceptorDisposeTests
     [Test]
     public async Task Dispose_WhileHandlerInFlight_DoesNotReplaceCommandOutcome(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var interceptor = new ConcurrentCommandGuardInterceptor<ExclusiveCommand, string>();
         var handlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

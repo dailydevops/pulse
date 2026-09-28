@@ -26,6 +26,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_LogsBeginAndEndAtDebugLevel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Debug });
         var testEvent = new TestEvent { CorrelationId = "corr-123" };
@@ -55,6 +57,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_LogsBeginAndEndAtInformationLevel(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { LogLevel = LogLevel.Information });
         var testEvent = new TestEvent();
@@ -72,6 +76,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_LogsEventNameInMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
@@ -84,6 +90,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithSlowEvent_LogsWarning(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(
             logger,
@@ -103,6 +111,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_WithDisabledSlowThreshold_DoesNotLogWarning(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger, new LoggingInterceptorOptions { SlowRequestThreshold = null });
         var testEvent = new TestEvent();
@@ -118,6 +128,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_WhenHandlerThrows_LogsErrorAndRethrows(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();
@@ -142,6 +154,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_LogsCorrelationId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent { CorrelationId = "event-correlation-id" };
@@ -154,6 +168,8 @@ public class LoggingEventInterceptorTests
     [Test]
     public async Task HandleAsync_InvokesHandlerWithCorrectEvent(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var logger = Mock.Logger<LoggingEventInterceptor<TestEvent>>();
         var interceptor = CreateInterceptor(logger);
         var testEvent = new TestEvent();

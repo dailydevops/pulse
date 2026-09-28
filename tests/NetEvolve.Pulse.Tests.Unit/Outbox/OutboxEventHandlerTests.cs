@@ -17,6 +17,8 @@ public sealed class OutboxEventHandlerTests
     [Test]
     public async Task HandleAsync_WithRegularEvent_StoresEventInOutbox(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestRegularEvent>(outbox);
         var @event = new TestRegularEvent();
@@ -33,6 +35,8 @@ public sealed class OutboxEventHandlerTests
     [Test]
     public async Task HandleAsync_WithInProcessEvent_SkipsOutbox(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestInProcessEvent>(outbox);
         var @event = new TestInProcessEvent();
@@ -47,6 +51,8 @@ public sealed class OutboxEventHandlerTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestOptOutInProcessEvent>(outbox);
         var @event = new TestOptOutInProcessEvent();
@@ -63,6 +69,8 @@ public sealed class OutboxEventHandlerTests
     [Test]
     public async Task HandleAsync_WithCancellationToken_PassesTokenToOutbox(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestRegularEvent>(outbox);
         var @event = new TestRegularEvent();
@@ -76,6 +84,8 @@ public sealed class OutboxEventHandlerTests
     [Test]
     public async Task HandleAsync_WithCancelledToken_PropagatesCancellation(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outbox = new TrackingEventOutbox();
         var handler = new OutboxEventHandler<TestRegularEvent>(outbox);
         var @event = new TestRegularEvent();

@@ -54,6 +54,8 @@ public sealed class SequentialEventDispatcher : IEventDispatcher
     )
         where TEvent : IEvent
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 

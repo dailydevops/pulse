@@ -64,6 +64,7 @@ public sealed class HttpCorrelationEventInterceptorTests
     [Test]
     public async Task HandleAsync_NullHandler_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(provider);
@@ -80,6 +81,7 @@ public sealed class HttpCorrelationEventInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var provider = new ServiceCollection().BuildServiceProvider();
         var interceptor = new HttpCorrelationEventInterceptor<TestEvent>(provider);
@@ -112,6 +114,7 @@ public sealed class HttpCorrelationEventInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         const string existingId = "existing-id";
         var services = new ServiceCollection();
@@ -136,6 +139,7 @@ public sealed class HttpCorrelationEventInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange — verifies the core invariant: when accessor exposes a correlation id and the
         // event message has none, the interceptor propagates the accessor value onto the message
         // before the next handler in the chain is invoked.
@@ -182,6 +186,7 @@ public sealed class HttpCorrelationEventInterceptorTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange — string.Empty is treated the same as null per IsNullOrEmpty contract.
         const string httpId = "http-correlation-id";
         var services = new ServiceCollection();
@@ -209,6 +214,7 @@ public sealed class HttpCorrelationEventInterceptorTests
     [Test]
     public async Task HandleAsync_AccessorCorrelationIdIsEmpty_DoesNotModifyMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         // Arrange
         var services = new ServiceCollection();
         _ = services
