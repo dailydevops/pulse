@@ -22,7 +22,7 @@ using NetEvolve.Pulse.Extensibility.DeadLetter;
 /// <item><description>If the handler throws, and <see cref="ICommandDeadLetterStore"/> is registered in the DI container, the command's serialized payload and the exception are recorded via <see cref="ICommandDeadLetterStore.StoreAsync"/> before the original exception is rethrown.</description></item>
 /// <item><description>If <see cref="ICommandDeadLetterStore"/> is not registered, the interceptor is a no-op on failure - the original exception is still rethrown unchanged.</description></item>
 /// <item><description>If the failed command is the one <see cref="CommandDeadLetterReplayDispatcher"/> is replaying, no new entry is stored - <see cref="ICommandDeadLetterManagement.ReplayAsync"/> records the failure on the replayed entry instead. Other commands sent by the replayed handler are still recorded.</description></item>
-/// <item><description>If serializing the payload or <see cref="ICommandDeadLetterStore.StoreAsync"/> throws, that recording failure is logged at <see cref="LogLevel.Error"/> and swallowed, so it never replaces the original exception. No entry is recorded in that case.</description></item>
+/// <item><description>If serializing the payload or <see cref="ICommandDeadLetterStore.StoreAsync"/> throws, that recording failure is logged at <see cref="LogLevel.Error"/> (or at <see cref="LogLevel.Warning"/> when it is an <see cref="OperationCanceledException"/> caused by the request's own cancellation) and swallowed, so it never replaces the original exception. No entry is recorded in that case.</description></item>
 /// <item><description>The original exception is always rethrown with its stack trace, whether or not a store is registered and whether or not recording succeeds - this interceptor never swallows a command failure, it only optionally records it first.</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
@@ -97,6 +97,10 @@ internal sealed partial class CommandDeadLetterInterceptor<TRequest, TResponse>
                         .ConfigureAwait(false);
                 }
 #pragma warning disable CA1031 // A recording failure must never replace the original command exception.
+                catch (OperationCanceledException recordingException) when (cancellationToken.IsCancellationRequested)
+                {
+                    LogRecordingCancelled(_logger, recordingException, typeof(TRequest).FullName);
+                }
                 catch (Exception recordingException)
 #pragma warning restore CA1031
                 {
@@ -113,4 +117,10 @@ internal sealed partial class CommandDeadLetterInterceptor<TRequest, TResponse>
         Message = "Failed to record failed command '{CommandType}' as dead letter; the original exception is rethrown."
     )]
     private static partial void LogRecordingFailed(ILogger logger, Exception exception, string? commandType);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Recording failed command '{CommandType}' as dead letter was cancelled; the original exception is rethrown."
+    )]
+    private static partial void LogRecordingCancelled(ILogger logger, Exception exception, string? commandType);
 }
