@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 [TestGroup("SourceGeneration")]
@@ -1824,111 +1823,24 @@ public class PulseHandlerGeneratorTests
         }
         """;
 
-    private static Compilation CompileWithGenerator(string assemblyName)
-    {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose);
-        var syntaxTree = CSharpSyntaxTree.ParseText(SimpleCommandHandlerSource, parseOptions);
-        var compilation = CSharpCompilation.Create(
-            assemblyName,
-            [syntaxTree],
-            [
-                .. GetMetadataReferences(referencePulse: false),
-                MetadataReference.CreateFromFile(
-                    typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection).Assembly.Location
-                ),
-                MetadataReference.CreateFromFile(
-                    typeof(Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions)
-                        .Assembly
-                        .Location
-                ),
-            ],
-            new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable
+    private static Compilation CompileWithGenerator(string assemblyName) =>
+        GeneratorHarness
+            .Run(
+                SimpleCommandHandlerSource,
+                assemblyName: assemblyName,
+                parseOptions: new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose)
             )
-        );
-
-        _ = CSharpGeneratorDriver
-            .Create(
-                generators: [new PulseHandlerGenerator().AsSourceGenerator()],
-                optionsProvider: new TestAnalyzerConfigOptionsProvider("TestAssembly"),
-                parseOptions: parseOptions
-            )
-            .RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
-
-        return outputCompilation;
-    }
+            .OutputCompilation;
 
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
-        string? rootNamespace = "TestAssembly",
-        string assemblyName = "TestAssembly",
+        string? rootNamespace = GeneratorHarness.DefaultAssemblyName,
+        string assemblyName = GeneratorHarness.DefaultAssemblyName,
         bool referencePulse = false
     )
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText(source);
-
-        var references = GetMetadataReferences(referencePulse);
-
-        var compilation = CSharpCompilation.Create(
-            assemblyName,
-            [syntaxTree],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-        );
-
-        var generator = new PulseHandlerGenerator();
-        var optionsProvider = new TestAnalyzerConfigOptionsProvider(rootNamespace);
-
-        var driver = CSharpGeneratorDriver
-            .Create(generators: [generator.AsSourceGenerator()], optionsProvider: optionsProvider)
-            .RunGeneratorsAndUpdateCompilation(compilation, out _, out var generatorDiagnostics);
-
-        var runResult = driver.GetRunResult();
-        var generatorResult = runResult.Results.Single();
-
-        // Only return generator-specific diagnostics (PULSE*), not compilation diagnostics.
-        var pulseDiagnostics = generatorDiagnostics
-            .Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))
-            .ToImmutableArray();
-
-        return (
-            pulseDiagnostics,
-            generatorResult.GeneratedSources.Select(x => x.SourceText.ToString()).ToImmutableArray()
-        );
-    }
-
-    private static MetadataReference[] GetMetadataReferences(bool referencePulse)
-    {
-        // Core runtime references
-        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
-        var runtimeReferences = trustedAssemblies!
-            .Split(Path.PathSeparator)
-            .Where(p =>
-            {
-                var fileName = Path.GetFileName(p);
-                return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(p => MetadataReference.CreateFromFile(p))
-            .Cast<MetadataReference>()
-            .ToList();
-
-        // Add the Pulse assemblies
-        runtimeReferences.Add(MetadataReference.CreateFromFile(typeof(Extensibility.ICommand<>).Assembly.Location));
-        runtimeReferences.Add(
-            MetadataReference.CreateFromFile(typeof(Extensibility.Attributes.PulseHandlerAttribute).Assembly.Location)
-        );
-
-        if (referencePulse)
-        {
-            runtimeReferences.Add(
-                MetadataReference.CreateFromFile(typeof(NativeAotInterceptorExtensions).Assembly.Location)
-            );
-        }
-
-        return [.. runtimeReferences];
+        var run = GeneratorHarness.Run(source, assemblyName, rootNamespace, referencePulse);
+        return (run.PulseDiagnostics, run.Sources);
     }
 
     private static async Task VerifySources(ImmutableArray<Diagnostic> diagnostics, ImmutableArray<string> sources) =>
