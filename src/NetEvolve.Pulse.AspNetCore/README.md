@@ -329,7 +329,7 @@ app.MapOutboxInspector(options =>
 | `POST` | `{BasePath}/dead-letters/{id:guid}/dismiss` | Permanently deletes a dead-letter message | `204`, `404` |
 | `POST` | `{BasePath}/dead-letters/replay-all` | Resets all dead-letter messages to `Pending`; returns `{ "count": n }` | `200` |
 
-`pageSize` must be at least `1` and `page` must not be negative. Invalid values and undefined `status` values return `400 Bad Request` with a validation problem body. Identifiers that are not GUIDs do not match any route and return `404 Not Found`.
+`pageSize` must be between `1` and `1000` and `page` must not be negative. Invalid values and undefined `status` values return `400 Bad Request` with a validation problem body. Identifiers that are not GUIDs do not match any route and return `404 Not Found`.
 
 ### Options
 

@@ -20,6 +20,11 @@ using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 public static class OutboxInspectorEndpoints
 {
     /// <summary>
+    /// The largest page size a single listing request may ask for, so one call cannot load and serialize the whole outbox.
+    /// </summary>
+    private const int MaxPageSize = 1000;
+
+    /// <summary>
     /// Maps the outbox inspector endpoints, backed by <see cref="IOutboxManagement"/>, as a route
     /// group under <see cref="OutboxInspectorOptions.BasePath"/>.
     /// </summary>
@@ -48,7 +53,7 @@ public static class OutboxInspectorEndpoints
     /// <item><description><c>POST {BasePath}/dead-letters/replay-all</c> — replays all dead-letter messages.</description></item>
     /// </list>
     /// <para><strong>Status codes:</strong></para>
-    /// Paging values outside their valid range (<c>pageSize</c> below 1, negative <c>page</c>, or an offset beyond
+    /// Paging values outside their valid range (<c>pageSize</c> below 1 or above 1000, negative <c>page</c>, or an offset beyond
     /// <see cref="int.MaxValue"/>) and undefined <c>status</c> values are rejected with <c>400 Bad Request</c>.
     /// Single-message routes return <c>404 Not Found</c> when no matching message exists, and replay and dismiss
     /// return <c>204 No Content</c> on success.
@@ -244,16 +249,19 @@ public static class OutboxInspectorEndpoints
     /// with <c>400 Bad Request</c> instead of surfacing the provider's <see cref="ArgumentOutOfRangeException"/>
     /// as <c>500 Internal Server Error</c>.
     /// </summary>
-    /// <param name="pageSize">The requested page size; must be greater than zero.</param>
-    /// <param name="page">The requested zero-based page index; must not be negative.</param>
+    /// <param name="pageSize">The requested page size; must be between 1 and <see cref="MaxPageSize"/>.</param>
+    /// <param name="page">
+    /// The requested zero-based page index; must not be negative, and <c>page * pageSize</c> must not exceed
+    /// <see cref="int.MaxValue"/>.
+    /// </param>
     /// <returns>The validation errors keyed by parameter name, or <see langword="null"/> when both values are valid.</returns>
     private static Dictionary<string, string[]>? ValidatePaging(int pageSize, int page)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
 
-        if (pageSize <= 0)
+        if (pageSize is <= 0 or > MaxPageSize)
         {
-            errors[nameof(pageSize)] = ["The page size must be greater than zero."];
+            errors[nameof(pageSize)] = [$"The page size must be between 1 and {MaxPageSize}."];
         }
 
         if (page < 0)

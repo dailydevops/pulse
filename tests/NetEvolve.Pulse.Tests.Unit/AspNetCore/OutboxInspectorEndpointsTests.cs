@@ -319,6 +319,9 @@ public sealed class OutboxInspectorEndpointsTests
     [Arguments("pageSize=-1")]
     [Arguments("page=-1")]
     [Arguments("pageSize=2&page=2147483647")]
+    [Arguments("pageSize=1001")]
+    [Arguments("pageSize=2147483647&page=0")]
+    [Arguments("pageSize=1000&page=2147484")]
     public async Task GetDeadLetterMessages_WithInvalidPaging_ReturnsBadRequest(
         string query,
         CancellationToken cancellationToken
@@ -428,6 +431,9 @@ public sealed class OutboxInspectorEndpointsTests
     [Arguments("pageSize=-1")]
     [Arguments("page=-1")]
     [Arguments("pageSize=2&page=2147483647")]
+    [Arguments("pageSize=1001")]
+    [Arguments("pageSize=2147483647&page=0")]
+    [Arguments("pageSize=1000&page=2147484")]
     [Arguments("status=99")]
     [Arguments("status=Unknown")]
     public async Task GetMessages_WithInvalidQuery_ReturnsBadRequest(string query, CancellationToken cancellationToken)
@@ -450,6 +456,105 @@ public sealed class OutboxInspectorEndpointsTests
                 Arg.Any<CancellationToken>()
             )
             .WasCalled(Times.Never);
+    }
+
+    // GET {base}/messages and {base}/dead-letters — page size bounds
+
+    [Test]
+    [Arguments(1, 0)]
+    [Arguments(1000, 0)]
+    [Arguments(1000, 2147483)]
+    public async Task GetMessages_WithPageSizeWithinBounds_PassesValuesThrough(
+        int pageSize,
+        int page,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetMessagesAsync(
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<OutboxMessageStatus?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Array.Empty<OutboxMessage>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(
+                new Uri($"/pulse/outbox/messages?pageSize={pageSize}&page={page}", UriKind.Relative),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        mock.GetMessagesAsync(pageSize, page, (OutboxMessageStatus?)null, Arg.Any<CancellationToken>())
+            .WasCalled(Times.Once);
+    }
+
+    [Test]
+    [Arguments(1, 0)]
+    [Arguments(1000, 0)]
+    [Arguments(1000, 2147483)]
+    public async Task GetDeadLetterMessages_WithPageSizeWithinBounds_PassesValuesThrough(
+        int pageSize,
+        int page,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+        _ = mock.GetDeadLetterMessagesAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<OutboxMessage>());
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(
+                new Uri($"/pulse/outbox/dead-letters?pageSize={pageSize}&page={page}", UriKind.Relative),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        mock.GetDeadLetterMessagesAsync(pageSize, page, Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+    }
+
+    [Test]
+    [Arguments("messages", "pageSize=0")]
+    [Arguments("messages", "pageSize=1001")]
+    [Arguments("messages", "pageSize=2147483647&page=0")]
+    [Arguments("dead-letters", "pageSize=0")]
+    [Arguments("dead-letters", "pageSize=1001")]
+    [Arguments("dead-letters", "pageSize=2147483647&page=0")]
+    public async Task GetListing_WithPageSizeOutOfBounds_ReturnsPageSizeValidationProblem(
+        string route,
+        string query,
+        CancellationToken cancellationToken
+    )
+    {
+        var mock = Mock.Of<IOutboxManagement>();
+
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+
+        using var response = await client
+            .GetAsync(new Uri($"/pulse/outbox/{route}?{query}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+
+        var problem = await response
+            .Content.ReadFromJsonAsync<HttpValidationProblemDetails>(cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(problem).IsNotNull();
+        _ = await Assert.That(problem!.Errors.Keys).IsEquivalentTo(["pageSize"]);
+        _ = await Assert.That(problem.Errors["pageSize"]).IsEquivalentTo(["The page size must be between 1 and 1000."]);
     }
 
     // GET {base}/messages/{id:guid}
