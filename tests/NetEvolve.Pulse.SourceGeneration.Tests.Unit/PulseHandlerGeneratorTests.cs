@@ -891,13 +891,16 @@ public class PulseHandlerGeneratorTests
     [Arguments("NetEvolve.Pulse", "AddNetEvolvePulsePulseHandlers")]
     public async Task WhenAssemblyNameHasNonIdentifierCharactersThenGeneratedCodeCompiles(
         string assemblyName,
-        string expectedMethodName
+        string expectedMethodName,
+        CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outputCompilation = CompileWithGenerator(assemblyName);
 
         var errors = outputCompilation
-            .GetDiagnostics()
+            .GetDiagnostics(cancellationToken)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .Select(d => d.ToString())
             .ToArray();
@@ -918,12 +921,17 @@ public class PulseHandlerGeneratorTests
     [Test]
     [Arguments("R&D")]
     [Arguments("a<b>")]
-    public async Task WhenAssemblyNameHasXmlCharactersThenGeneratedDocumentationIsWellFormed(string assemblyName)
+    public async Task WhenAssemblyNameHasXmlCharactersThenGeneratedDocumentationIsWellFormed(
+        string assemblyName,
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var outputCompilation = CompileWithGenerator(assemblyName);
 
         var warnings = outputCompilation
-            .GetDiagnostics()
+            .GetDiagnostics(cancellationToken)
             .Where(d => d.Location.SourceTree?.FilePath.EndsWith(".g.cs", StringComparison.Ordinal) == true)
             .Select(d => d.ToString())
             .ToArray();

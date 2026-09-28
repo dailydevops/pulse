@@ -44,11 +44,12 @@ public sealed class SqlServerDatabaseServiceFixture : IServiceFixture
 
             try
             {
-                await CreateDatabaseAsync(Container.ConnectionString, DatabaseName).ConfigureAwait(false);
+                await CreateDatabaseAsync(Container.ConnectionString, DatabaseName, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                var diagnostics = await Container.GetDiagnosticsAsync().ConfigureAwait(false);
+                var diagnostics = await Container.GetDiagnosticsAsync(CancellationToken.None).ConfigureAwait(false);
                 throw new InvalidOperationException(
                     $"Failed to create SQL Server test database '{DatabaseName}'.{Environment.NewLine}{diagnostics}",
                     ex
@@ -61,8 +62,14 @@ public sealed class SqlServerDatabaseServiceFixture : IServiceFixture
         }
     }
 
-    private static async Task CreateDatabaseAsync(string connectionString, string databaseName)
+    private static async Task CreateDatabaseAsync(
+        string connectionString,
+        string databaseName,
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Bounded retry: the connect fails transiently (managed SNI error 35 on Linux, which SqlClient does not treat
         // as transient, see dotnet/SqlClient#4665), or 'model' is briefly held by SQL Server itself (e.g. right after
         // startup).
@@ -73,7 +80,7 @@ public sealed class SqlServerDatabaseServiceFixture : IServiceFixture
             {
                 try
                 {
-                    await con.OpenAsync().ConfigureAwait(false);
+                    await con.OpenAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (SqlException ex)
                 {
@@ -83,7 +90,7 @@ public sealed class SqlServerDatabaseServiceFixture : IServiceFixture
                         throw;
                     }
 
-                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt), cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -96,13 +103,13 @@ public sealed class SqlServerDatabaseServiceFixture : IServiceFixture
                         cmd.CommandText = $"CREATE DATABASE [{databaseName}]";
 #pragma warning restore CA2100, S2077
 
-                        _ = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        _ = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                         return;
                     }
                 }
                 catch (SqlException ex) when (ex.Number == ModelLockErrorNumber && attempt < MaxAttempts)
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt)).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken).ConfigureAwait(false);
                 }
             }
         }
