@@ -219,6 +219,26 @@ The deadline is scheduled and measured with the registered `TimeProvider`, so it
 
 > **Side effects:** the interceptor cannot undo work. A command handler that finished after the deadline may already have written data, published events or called external systems before the `TimeoutException` is thrown. Any retry policy that reacts to a `TimeoutException` must therefore be idempotent (for example by combining it with `IIdempotentCommand<TResponse>` or natural idempotency keys).
 
+### Audit Trail
+
+`AddAudit()` records every command, and optionally every query, to the registered `IAuditStore` after the handler has run. Register a store with one of the provider-specific `Add*AuditStore()` extensions; without a store the interceptor does nothing.
+
+```csharp
+services.AddPulse(config => config.AddAudit(options => options.CapturePayload = true));
+```
+
+Audit writes are best effort (fail open):
+
+| Scenario | Result |
+| --- | --- |
+| Handler completes | `AuditResult.Success` recorded, result returned |
+| Handler throws | `AuditResult.Failure` recorded with the handler's exception message, original exception rethrown |
+| Store, serializer or user accessor throws after a successful handler | Error logged, result returned, no `Failure` record |
+| Store, serializer or user accessor throws after a failing handler | Error logged, original handler exception rethrown |
+| Caller cancels the `CancellationToken` after the handler finished | Record still written (`CancellationToken.None`), no `OperationCanceledException` |
+
+A missing audit record therefore shows up as an `Error` log entry, never as a failed request.
+
 ### Outbox Pattern Configuration
 
 The outbox pattern ensures reliable event delivery by persisting events before dispatching:

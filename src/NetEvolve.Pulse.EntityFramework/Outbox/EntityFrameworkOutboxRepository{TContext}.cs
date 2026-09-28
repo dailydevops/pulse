@@ -299,7 +299,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
                 null,
                 null,
                 OutboxMessageStatus.DeadLetter,
-                1,
+                0,
                 errorMessage,
                 cancellationToken
             )
