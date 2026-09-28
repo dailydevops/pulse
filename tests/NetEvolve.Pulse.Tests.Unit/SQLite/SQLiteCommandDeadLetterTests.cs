@@ -20,14 +20,28 @@ public sealed class SQLiteCommandDeadLetterTests
 
     [Test]
     public async Task Store_Constructor_WithNullOptions_ThrowsArgumentNullException() =>
-        _ = await Assert.That(() => new SQLiteCommandDeadLetterStore(null!)).Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(() => new SQLiteCommandDeadLetterStore(null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Store_Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new SQLiteCommandDeadLetterStore(
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Store_Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 new SQLiteCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -37,7 +51,8 @@ public sealed class SQLiteCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new SQLiteCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -47,7 +62,8 @@ public sealed class SQLiteCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new SQLiteCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -57,7 +73,7 @@ public sealed class SQLiteCommandDeadLetterTests
     {
         var options = new CommandDeadLetterOptions { ConnectionString = ValidConnectionString };
 
-        var store = new SQLiteCommandDeadLetterStore(Options.Create(options));
+        var store = new SQLiteCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }
@@ -71,7 +87,7 @@ public sealed class SQLiteCommandDeadLetterTests
             TableName = "CustomCommandDeadLetter",
         };
 
-        var store = new SQLiteCommandDeadLetterStore(Options.Create(options));
+        var store = new SQLiteCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }
@@ -81,7 +97,7 @@ public sealed class SQLiteCommandDeadLetterTests
     {
         var options = new CommandDeadLetterOptions { ConnectionString = ValidConnectionString, EnableWalMode = false };
 
-        var store = new SQLiteCommandDeadLetterStore(Options.Create(options));
+        var store = new SQLiteCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }
@@ -97,7 +113,8 @@ public sealed class SQLiteCommandDeadLetterTests
                             ConnectionString = ValidConnectionString,
                             TableName = "1invalid",
                         }
-                    )
+                    ),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();

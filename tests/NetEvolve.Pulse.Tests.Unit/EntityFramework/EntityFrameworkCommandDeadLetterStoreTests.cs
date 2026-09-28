@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.DeadLetter;
 using NetEvolve.Pulse.Extensibility.DeadLetter;
@@ -23,14 +24,29 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
     }
 
     private static EntityFrameworkCommandDeadLetterStore<TestCommandDeadLetterDbContext> CreateStore(
-        TestCommandDeadLetterDbContext context
-    ) => new(context);
+        TestCommandDeadLetterDbContext context,
+        TimeProvider? timeProvider = null
+    ) => new(context, timeProvider ?? TimeProvider.System);
 
     [Test]
     public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new EntityFrameworkCommandDeadLetterStore<TestCommandDeadLetterDbContext>(null!))
+            .That(() =>
+                new EntityFrameworkCommandDeadLetterStore<TestCommandDeadLetterDbContext>(null!, TimeProvider.System)
+            )
             .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        var context = CreateContext(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException));
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await Assert
+                .That(() => new EntityFrameworkCommandDeadLetterStore<TestCommandDeadLetterDbContext>(context, null!))
+                .Throws<ArgumentNullException>();
+        }
+    }
 
     [Test]
     public async Task Constructor_WithValidContext_CreatesInstance()
@@ -131,6 +147,29 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
                 _ = await Assert.That(entry.AttemptCount).IsEqualTo(1);
                 _ = await Assert.That(entry.Status).IsEqualTo(CommandDeadLetterStatus.New);
             }
+        }
+    }
+
+    [Test]
+    public async Task StoreAsync_WithInjectedTimeProvider_SetsOccurredAtFromTimeProvider(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var occurredAt = new DateTimeOffset(2001, 2, 3, 4, 5, 6, TimeSpan.Zero);
+        var timeProvider = new FakeTimeProvider(occurredAt);
+        var context = CreateContext(nameof(StoreAsync_WithInjectedTimeProvider_SetsOccurredAtFromTimeProvider));
+        await using (context.ConfigureAwait(false))
+        {
+            var store = CreateStore(context, timeProvider);
+
+            await store
+                .StoreAsync("Some.Command", "{}", new InvalidOperationException("boom"), cancellationToken)
+                .ConfigureAwait(false);
+
+            var entry = await context.CommandDeadLetterEntries.SingleAsync(cancellationToken).ConfigureAwait(false);
+            _ = await Assert.That(entry.OccurredAt).IsEqualTo(occurredAt);
         }
     }
 

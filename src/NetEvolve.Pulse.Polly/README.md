@@ -12,7 +12,7 @@ NetEvolve.Pulse.Polly provides Polly v8 resilience policies for the Pulse CQRS m
 - **Per-Handler Policies**: Fine-grained control over resilience strategies for specific handlers
 - **Multiple Policy Types**: Retry, circuit breaker, timeout, bulkhead, and fallback strategies
 - **Fluent API**: Type-safe configuration through extension methods on `IMediatorBuilder`
-- **LIFO-Aware**: Works with Pulse's interceptor execution order for predictable behavior
+- **Order-Aware**: Follows Pulse's interceptor execution order (registration order, first registered is outermost) for predictable behavior
 - **Thread-Safe**: Polly pipelines are singleton-safe and designed for concurrent use
 
 ## Installation
@@ -204,14 +204,14 @@ services.AddPulse(config => config
 
 ## Policy Execution Order
 
-Pulse interceptors execute in **LIFO (Last-In, First-Out)** order. The last registered interceptor runs first. Plan your policy chain accordingly:
+Pulse interceptors execute in **registration order**. The first registered interceptor is outermost and runs first. Plan your policy chain accordingly:
 
 ```csharp
 config
     .AddCommandHandler<CreateOrder, Result, CreateOrderHandler>()
-    .AddCommandInterceptor<CreateOrder, Result, ValidationInterceptor>() // Executes third (innermost)
-    .AddPollyRequestPolicies<CreateOrder, Result>(...)                   // Executes second
-    .AddActivityAndMetrics();                                            // Executes first (outermost)
+    .AddActivityAndMetrics()                                              // Executes first (outermost)
+    .AddPollyRequestPolicies<CreateOrder, Result>(...)                    // Executes second
+    .AddCommandInterceptor<CreateOrder, Result, ValidationInterceptor>(); // Executes third (innermost)
 ```
 
 Within a single Polly pipeline, strategies execute in the order they are added:
@@ -313,13 +313,13 @@ meterListener.InstrumentPublished = (instrument, listener) =>
 meterListener.Start();
 ```
 
-For integration with Pulse's `AddActivityAndMetrics()`, policy overhead is included in handler execution time.
+When `AddActivityAndMetrics()` is registered before the Polly policies (so it is the outer interceptor), policy overhead such as retries is included in the measured handler execution time.
 
 ## Comparison with Other Approaches
 
 | Approach                     | Pros                                                                | Cons                                                       |
 | ---------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Polly Interceptors**       | Declarative, reusable, testable, composable with other interceptors | LIFO ordering requires planning                            |
+| **Polly Interceptors**       | Declarative, reusable, testable, composable with other interceptors | Registration order requires planning                       |
 | **Manual Polly in Handlers** | Fine-grained control, explicit                                      | Repetitive code, hard to test, scattered logic             |
 | **Middleware/Filters**       | Request-level scope                                                 | Not handler-specific, can't differentiate commands/queries |
 

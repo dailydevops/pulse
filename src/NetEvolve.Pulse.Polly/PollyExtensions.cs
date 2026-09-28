@@ -24,15 +24,15 @@ using Polly;
 /// <item><description><strong>Bulkhead:</strong> Limit concurrent executions to prevent resource exhaustion</description></item>
 /// <item><description><strong>Fallback:</strong> Provide alternative responses on handler failure</description></item>
 /// </list>
-/// <para><strong>Interceptor Ordering (LIFO):</strong></para>
-/// Remember that interceptors execute in reverse order of registration. Policy interceptors registered
-/// last will execute first. Plan your interceptor chain accordingly:
+/// <para><strong>Interceptor Ordering:</strong></para>
+/// Interceptors execute in registration order. The first registered interceptor is outermost and
+/// runs first. Plan your interceptor chain accordingly:
 /// <code>
 /// config
 ///     .AddCommandHandler&lt;CreateOrder, Result, CreateOrderHandler&gt;()
-///     .AddCommandInterceptor&lt;CreateOrder, Result, ValidationInterceptor&gt;() // Executes third (innermost)
-///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)       // Executes second
-///     .AddActivityAndMetrics();                            // Executes first (outermost)
+///     .AddActivityAndMetrics()                                                // Executes first (outermost)
+///     .AddPollyCommandPolicies&lt;CreateOrder, Result&gt;(...)                   // Executes second
+///     .AddCommandInterceptor&lt;CreateOrder, Result, ValidationInterceptor&gt;(); // Executes third (innermost)
 /// </code>
 /// <para><strong>Performance Considerations:</strong></para>
 /// <list type="bullet">

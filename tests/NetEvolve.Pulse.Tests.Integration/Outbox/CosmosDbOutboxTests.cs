@@ -16,6 +16,10 @@ using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 public class CosmosDbOutboxTests(IServiceFixture databaseServiceFixture, IServiceInitializer databaseInitializer)
     : OutboxTestsBase(databaseServiceFixture, databaseInitializer)
 {
+    /// <inheritdoc />
+    /// <remarks>Cosmos DB dead-letter paging has no <c>Id</c> tie-breaker yet (tracked in #793).</remarks>
+    protected override bool OrdersDeadLettersById => false;
+
     [Test]
     public async Task Should_Reject_Container_With_Unsupported_PartitionKeyPath(CancellationToken cancellationToken)
     {

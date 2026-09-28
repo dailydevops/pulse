@@ -282,6 +282,8 @@ public class OutboxMonitorService
 | `GetMessageAsync(messageId)` | Returns a single message by ID, regardless of its status |
 | `DismissMessageAsync(messageId)` | Permanently deletes a single dead-letter message and returns whether one was deleted |
 
+`usp_GetDeadLetterOutboxMessages` orders dead letters with equal `UpdatedAt` by `Id` descending, so paging returns every dead letter exactly once. Existing databases get this order after re-running `OutboxMessage.sql`, which drops and recreates the procedure without touching the table or its data.
+
 ## Transaction Integration
 
 ### Manual Transaction Enlistment

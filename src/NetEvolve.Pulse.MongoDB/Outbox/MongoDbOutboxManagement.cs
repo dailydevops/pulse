@@ -66,7 +66,7 @@ internal sealed class MongoDbOutboxManagement : IOutboxManagement
         }
 
         var filter = Builders<OutboxDocument>.Filter.Eq(d => d.Status, (int)OutboxMessageStatus.DeadLetter);
-        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.UpdatedAt);
+        var sort = Builders<OutboxDocument>.Sort.Descending(d => d.UpdatedAt).Descending(d => d.Id);
 
         var docs = await GetCollection()
             .Find(filter)
