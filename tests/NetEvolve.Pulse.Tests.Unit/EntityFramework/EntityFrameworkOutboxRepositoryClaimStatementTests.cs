@@ -36,12 +36,15 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
             )
             .ConfigureAwait(false);
 
+        var where = WhereClause(claim);
+
         using (Assert.Multiple())
         {
+            _ = await Assert.That(claim).DoesNotContain("FROM (", StringComparison.OrdinalIgnoreCase);
             _ = await Assert.That(claim).DoesNotContain("LIMIT", StringComparison.OrdinalIgnoreCase);
             _ = await Assert.That(claim).DoesNotContain("ORDER BY", StringComparison.OrdinalIgnoreCase);
-            _ = await Assert.That(claim).Contains("\"Status\" = ", StringComparison.Ordinal);
-            _ = await Assert.That(claim).Contains("\"NextRetryAt\"", StringComparison.Ordinal);
+            _ = await Assert.That(where).Contains("\"o\".\"Status\" = ", StringComparison.Ordinal);
+            _ = await Assert.That(where).Contains("\"o\".\"NextRetryAt\"", StringComparison.Ordinal);
         }
     }
 
@@ -58,14 +61,24 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
             )
             .ConfigureAwait(false);
 
+        var where = WhereClause(claim);
+
         using (Assert.Multiple())
         {
+            _ = await Assert.That(claim).DoesNotContain("FROM (", StringComparison.OrdinalIgnoreCase);
             _ = await Assert.That(claim).DoesNotContain("LIMIT", StringComparison.OrdinalIgnoreCase);
             _ = await Assert.That(claim).DoesNotContain("ORDER BY", StringComparison.OrdinalIgnoreCase);
-            _ = await Assert.That(claim).Contains("\"Status\" = ", StringComparison.Ordinal);
-            _ = await Assert.That(claim).Contains("\"RetryCount\" < ", StringComparison.Ordinal);
-            _ = await Assert.That(claim).Contains("\"NextRetryAt\"", StringComparison.Ordinal);
+            _ = await Assert.That(where).Contains("\"o\".\"Status\" = ", StringComparison.Ordinal);
+            _ = await Assert.That(where).Contains("\"o\".\"RetryCount\" < ", StringComparison.Ordinal);
+            _ = await Assert.That(where).Contains("\"o\".\"NextRetryAt\"", StringComparison.Ordinal);
         }
+    }
+
+    private static string WhereClause(string statement)
+    {
+        const string keyword = "WHERE";
+        var index = statement.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+        return index < 0 ? string.Empty : statement[(index + keyword.Length)..];
     }
 
     private static async Task<string> CaptureClaimUpdateAsync(
