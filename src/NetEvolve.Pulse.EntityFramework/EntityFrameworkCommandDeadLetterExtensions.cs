@@ -32,6 +32,7 @@ public static class EntityFrameworkCommandDeadLetterExtensions
     /// <list type="bullet">
     /// <item><description><see cref="ICommandDeadLetterStore"/> as <see cref="EntityFrameworkCommandDeadLetterStore{TContext}"/> (Scoped)</description></item>
     /// <item><description><see cref="ICommandDeadLetterManagement"/> as <see cref="EntityFrameworkCommandDeadLetterManagement{TContext}"/> (Scoped)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// <para><strong>Note:</strong></para>
     /// The DbContext must already be registered in the service collection.
