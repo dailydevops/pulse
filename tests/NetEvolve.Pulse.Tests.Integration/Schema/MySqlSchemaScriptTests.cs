@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 using TUnit.Core;
 
 [TestGroup("MySql")]

@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 using Microsoft.Data.SqlClient;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Tests.Integration.Internals;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 using NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 /// <summary>
