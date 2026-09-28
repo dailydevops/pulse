@@ -27,6 +27,8 @@ public static class CommandDeadLetterMediatorBuilderExtensions
     /// Callers must also register a store, e.g. via one of the provider-specific
     /// <c>Add*CommandDeadLetterStore()</c> extensions (EF Core or an ADO.NET provider), for failed commands
     /// to actually be persisted. Without a registered store, the interceptor is a harmless no-op.
+    /// The interceptor is registered as scoped, so it resolves the store from the scope of the mediator
+    /// that sends the command.
     /// </remarks>
     /// <example>
     /// <code>
@@ -42,7 +44,7 @@ public static class CommandDeadLetterMediatorBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton(typeof(IRequestInterceptor<,>), typeof(CommandDeadLetterInterceptor<,>))
+            ServiceDescriptor.Scoped(typeof(IRequestInterceptor<,>), typeof(CommandDeadLetterInterceptor<,>))
         );
 
         return builder;
