@@ -105,7 +105,11 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         var messages = await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
 
-        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(
+                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -135,7 +139,11 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         var messages = await ClaimMessagesAsync(candidates, (int)OutboxMessageStatus.Processing, cancellationToken)
             .ConfigureAwait(false);
 
-        return await this.DeadLetterUnresolvableAsync(messages, cancellationToken).ConfigureAwait(false);
+        return await this.DeadLetterUnresolvableAsync(
+                [.. messages.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)],
+                cancellationToken
+            )
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
