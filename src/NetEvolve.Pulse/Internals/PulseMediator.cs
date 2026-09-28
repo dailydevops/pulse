@@ -69,7 +69,7 @@ internal sealed partial class PulseMediator : IMediator
     /// This method executes all registered event handlers using the configured <see cref="IEventDispatcher"/>.
     /// The event's <see cref="IEvent.PublishedAt"/> property is automatically set before handlers execute.
     /// If any handler throws an exception, it is logged but does not prevent other handlers from executing.
-    /// Event interceptors are applied in reverse registration order, allowing pre- and post-processing.
+    /// Event interceptors are applied in registration order (the first registered is outermost), allowing pre- and post-processing.
     /// Handlers are resolved from the same service provider the mediator was resolved from, so scoped
     /// handlers share the caller's scoped services (e.g. the same DbContext) and can participate in the
     /// caller's transaction — a prerequisite for atomic outbox writes. When the mediator is resolved from
@@ -102,7 +102,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <inheritdoc />
     /// <remarks>
     /// This method resolves a single query handler from the service provider and executes it through any registered interceptors.
-    /// Query interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns like caching or logging.
+    /// Query interceptors are applied in registration order (the first registered is outermost), forming a pipeline for cross-cutting concerns like caching or logging.
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the query type.</exception>
     public Task<TResponse> QueryAsync<TQuery, TResponse>(
@@ -124,7 +124,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <inheritdoc />
     /// <remarks>
     /// This method resolves a single streaming query handler from the service provider and executes it through any registered interceptors.
-    /// Streaming query interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns.
+    /// Streaming query interceptors are applied in registration order (the first registered is outermost), forming a pipeline for cross-cutting concerns.
     /// Items are yielded incrementally; the caller must enumerate the result to trigger execution.
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the streaming query type.</exception>
@@ -147,7 +147,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <inheritdoc />
     /// <remarks>
     /// This method resolves a single command handler from the service provider and executes it through any registered interceptors.
-    /// Command interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns like validation or auditing.
+    /// Command interceptors are applied in registration order (the first registered is outermost), forming a pipeline for cross-cutting concerns like validation or auditing.
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the command type.</exception>
     public Task<TResponse> SendAsync<TCommand, TResponse>(
@@ -168,7 +168,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <summary>
     /// Builds and executes an interceptor pipeline for event handling with dispatcher integration.
-    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// Interceptors are applied in registration order (the first registered is outermost), forming a chain where each interceptor
     /// can perform actions before and after calling the next interceptor or final handler.
     /// </summary>
     /// <typeparam name="TEvent">The type of event being processed.</typeparam>
@@ -220,7 +220,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <summary>
     /// Builds and executes an interceptor pipeline for request handling (commands and queries).
-    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// Interceptors are applied in registration order (the first registered is outermost), forming a chain where each interceptor
     /// can perform actions before and after calling the next interceptor or final handler.
     /// This enables cross-cutting concerns like validation, logging, caching, and metrics without modifying handlers.
     /// </summary>
@@ -268,7 +268,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <summary>
     /// Builds and executes an interceptor pipeline for streaming query handling.
-    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// Interceptors are applied in registration order (the first registered is outermost), forming a chain where each interceptor
     /// can perform actions before iterating the next interceptor or final handler.
     /// </summary>
     /// <typeparam name="TQuery">The type of streaming query being processed.</typeparam>

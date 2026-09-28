@@ -19,14 +19,28 @@ public sealed class PostgreSqlCommandDeadLetterTests
 
     [Test]
     public async Task Store_Constructor_WithNullOptions_ThrowsArgumentNullException() =>
-        _ = await Assert.That(() => new PostgreSqlCommandDeadLetterStore(null!)).Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(() => new PostgreSqlCommandDeadLetterStore(null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Store_Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new PostgreSqlCommandDeadLetterStore(
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Store_Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 new PostgreSqlCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -36,7 +50,8 @@ public sealed class PostgreSqlCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new PostgreSqlCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -46,7 +61,8 @@ public sealed class PostgreSqlCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new PostgreSqlCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -56,7 +72,7 @@ public sealed class PostgreSqlCommandDeadLetterTests
     {
         var options = new CommandDeadLetterOptions { ConnectionString = ValidConnectionString };
 
-        var store = new PostgreSqlCommandDeadLetterStore(Options.Create(options));
+        var store = new PostgreSqlCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }
@@ -71,7 +87,7 @@ public sealed class PostgreSqlCommandDeadLetterTests
             TableName = "CustomDeadLetter",
         };
 
-        var store = new PostgreSqlCommandDeadLetterStore(Options.Create(options));
+        var store = new PostgreSqlCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }
@@ -81,7 +97,7 @@ public sealed class PostgreSqlCommandDeadLetterTests
     {
         var options = new CommandDeadLetterOptions { ConnectionString = ValidConnectionString, Schema = null };
 
-        var store = new PostgreSqlCommandDeadLetterStore(Options.Create(options));
+        var store = new PostgreSqlCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }

@@ -55,7 +55,7 @@ services.AddPulse(config => config.UseAzureServiceBusTransport(options =>
 
 ## Topic Name Resolution
 
-The transport uses `ITopicNameResolver` to determine the destination queue or topic name for each outbox message. By default, the `DefaultTopicNameResolver` extracts the simple class name from the event type (e.g., `"MyApp.Events.OrderCreated"` → `"OrderCreated"`).
+The transport uses `ITopicNameResolver` to determine the destination queue or topic name for each outbox message. By default, the `DefaultTopicNameResolver` returns the `Type.Name` of `OutboxMessage.EventType`, which is a `System.Type` (e.g., an event of type `MyApp.Events.OrderCreated` resolves to `"OrderCreated"`).
 
 You can provide a custom resolver to implement different routing strategies:
 
@@ -65,7 +65,7 @@ public class CustomTopicNameResolver : ITopicNameResolver
     public string Resolve(OutboxMessage message)
     {
         // Route based on event type, metadata, or other logic
-        return message.EventType.Contains("Order") ? "orders-topic" : "events-topic";
+        return message.EventType.Name.Contains("Order", StringComparison.Ordinal) ? "orders-topic" : "events-topic";
     }
 }
 

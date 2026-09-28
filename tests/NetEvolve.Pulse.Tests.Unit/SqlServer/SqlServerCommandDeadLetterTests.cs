@@ -18,14 +18,28 @@ public sealed class SqlServerCommandDeadLetterTests
 
     [Test]
     public async Task Store_Constructor_WithNullOptions_ThrowsArgumentNullException() =>
-        _ = await Assert.That(() => new SqlServerCommandDeadLetterStore(null!)).Throws<ArgumentNullException>();
+        _ = await Assert
+            .That(() => new SqlServerCommandDeadLetterStore(null!, TimeProvider.System))
+            .Throws<ArgumentNullException>();
+
+    [Test]
+    public async Task Store_Constructor_WithNullTimeProvider_ThrowsArgumentNullException() =>
+        _ = await Assert
+            .That(() =>
+                new SqlServerCommandDeadLetterStore(
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+                    null!
+                )
+            )
+            .Throws<ArgumentNullException>();
 
     [Test]
     public async Task Store_Constructor_WithNullConnectionString_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
                 new SqlServerCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = null }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentNullException>();
@@ -35,7 +49,8 @@ public sealed class SqlServerCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new SqlServerCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = string.Empty }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -45,7 +60,8 @@ public sealed class SqlServerCommandDeadLetterTests
         _ = await Assert
             .That(() =>
                 new SqlServerCommandDeadLetterStore(
-                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " })
+                    Options.Create(new CommandDeadLetterOptions { ConnectionString = "   " }),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();
@@ -54,7 +70,8 @@ public sealed class SqlServerCommandDeadLetterTests
     public async Task Store_Constructor_WithValidConnectionString_CreatesInstance()
     {
         var store = new SqlServerCommandDeadLetterStore(
-            Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString })
+            Options.Create(new CommandDeadLetterOptions { ConnectionString = ValidConnectionString }),
+            TimeProvider.System
         );
 
         _ = await Assert.That(store).IsNotNull();
@@ -69,7 +86,7 @@ public sealed class SqlServerCommandDeadLetterTests
             TableName = "CustomCommandDeadLetter",
         };
 
-        var store = new SqlServerCommandDeadLetterStore(Options.Create(options));
+        var store = new SqlServerCommandDeadLetterStore(Options.Create(options), TimeProvider.System);
 
         _ = await Assert.That(store).IsNotNull();
     }
@@ -88,7 +105,8 @@ public sealed class SqlServerCommandDeadLetterTests
                             ConnectionString = ValidConnectionString,
                             Schema = "pulse].[evil] -- ",
                         }
-                    )
+                    ),
+                    TimeProvider.System
                 )
             )
             .Throws<ArgumentException>();

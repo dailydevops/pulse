@@ -161,12 +161,12 @@ public class OrderService
 
 ### Routing Key Resolution
 
-By default, the simple class name of the event type is used as the routing key. The assembly qualifier and namespace are stripped automatically via `ITopicNameResolver`.
+By default, the `ITopicNameResolver` returns the `Type.Name` of `OutboxMessage.EventType` (a `System.Type`), which is used as the routing key.
 
-| `EventType`                            | Resolved routing key |
-| -------------------------------------- | -------------------- |
-| `MyApp.Events.OrderCreated, MyApp`     | `OrderCreated`       |
-| `MyApp.Events.PaymentProcessed, MyApp` | `PaymentProcessed`   |
+| `EventType`                     | Resolved routing key |
+| ------------------------------- | -------------------- |
+| `MyApp.Events.OrderCreated`     | `OrderCreated`       |
+| `MyApp.Events.PaymentProcessed` | `PaymentProcessed`   |
 
 Override the resolver for custom naming strategies:
 
