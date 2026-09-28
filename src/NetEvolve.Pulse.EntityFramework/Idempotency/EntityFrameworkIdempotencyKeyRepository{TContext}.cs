@@ -58,7 +58,7 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
 
     /// <inheritdoc />
     /// <remarks>
-    /// Composes <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> and is therefore not atomic.
+    /// Composes <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> and is therefore not atomic (tracked in #907).
     /// </remarks>
     public async Task<bool> TryStoreAsync(
         string idempotencyKey,

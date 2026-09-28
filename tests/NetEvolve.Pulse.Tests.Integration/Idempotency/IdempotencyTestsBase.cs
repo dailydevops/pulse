@@ -327,7 +327,7 @@ public abstract class IdempotencyTestsBase(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically.");
+        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically (tracked in #907).");
 
         await RunAndVerify(
                 async (services, token) =>
@@ -377,7 +377,7 @@ public abstract class IdempotencyTestsBase(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically.");
+        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically (tracked in #907).");
 
         var counter = new InvocationCounter();
 
