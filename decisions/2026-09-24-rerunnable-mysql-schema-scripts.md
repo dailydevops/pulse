@@ -28,24 +28,24 @@ MySQL 8.0 has no `CREATE INDEX IF NOT EXISTS`. A second `CREATE INDEX` with an e
 
 ## Decision
 
-- Each script stays the single source of the schema, and re-running it is the upgrade path.
-- Tables use `CREATE TABLE IF NOT EXISTS`.
-- Each index is created through a guard that checks `information_schema.statistics` and executes either the `CREATE INDEX` or `DO 0` through `PREPARE` / `EXECUTE`. The MySQL 8.0 manual lists both `CREATE INDEX` and `DO` as SQL permitted in prepared statements.
-- A column added in a later release gets the same guard, with `information_schema.columns` and `ALTER TABLE ... ADD COLUMN`.
-- The scripts contain no `DELIMITER` changes and no `;` inside string literals. As a result they run unchanged through `mysql < script.sql` and through statement-splitting runners.
+* Each script stays the single source of the schema, and re-running it is the upgrade path.
+* Tables use `CREATE TABLE IF NOT EXISTS`.
+* Each index is created through a guard that checks `information_schema.statistics` and executes either the `CREATE INDEX` or `DO 0` through `PREPARE` / `EXECUTE`. The MySQL 8.0 manual lists both `CREATE INDEX` and `DO` as SQL permitted in prepared statements.
+* A column added in a later release gets the same guard, with `information_schema.columns` and `ALTER TABLE ... ADD COLUMN`.
+* The scripts contain no `DELIMITER` changes and no `;` inside string literals. As a result they run unchanged through `mysql < script.sql` and through statement-splitting runners.
 
 ## Consequences
 
-- Existing deployments get new indexes by re-running the shipped script.
-- The scripts are more verbose than plain DDL.
-- The scripts use a session user variable (`@pulse_sql`). ADO.NET runners based on MySql.Data must enable `AllowUserVariables=True` to execute them.
-- A guard checks only the index name. It does not repair an index that has the right name but the wrong columns.
+* Existing deployments get new indexes by re-running the shipped script.
+* The scripts are more verbose than plain DDL.
+* The scripts use a session user variable (`@pulse_sql`). ADO.NET runners based on MySql.Data must enable `AllowUserVariables=True` to execute them.
+* A guard checks only the index name. It does not repair an index that has the right name but the wrong columns.
 
 ## Alternatives Considered
 
-- **Stored procedure helper**: needs `DELIMITER` changes, so it breaks the plain-client and statement-splitting requirements, and it leaves a procedure behind in the database.
-- **Separate numbered upgrade scripts**: operators would need to track which scripts they have applied, and nothing in the package records that.
-- **`CREATE INDEX IF NOT EXISTS`**: only MariaDB supports it, MySQL 8.0 does not.
+* **Stored procedure helper**: needs `DELIMITER` changes, so it breaks the plain-client and statement-splitting requirements, and it leaves a procedure behind in the database.
+* **Separate numbered upgrade scripts**: operators would need to track which scripts they have applied, and nothing in the package records that.
+* **`CREATE INDEX IF NOT EXISTS`**: only MariaDB supports it, MySQL 8.0 does not.
 
 ## Related Decisions (Optional)
 
