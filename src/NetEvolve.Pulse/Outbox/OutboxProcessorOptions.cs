@@ -16,9 +16,13 @@ public sealed class OutboxProcessorOptions
     public int BatchSize { get; set; } = 100;
 
     /// <summary>
-    /// Gets or sets the delay between processing cycles when no messages are found.
+    /// Gets or sets the delay before the next processing cycle when a cycle found no messages or could not send any of them.
     /// Default: 5 seconds.
     /// </summary>
+    /// <remarks>
+    /// When <see cref="EnableExponentialBackoff"/> is disabled, this is also the retry delay: a failed message is not
+    /// retried before one polling interval has passed since the failure.
+    /// </remarks>
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
