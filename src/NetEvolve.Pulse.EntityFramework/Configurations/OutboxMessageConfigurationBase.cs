@@ -54,7 +54,7 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
     /// <summary>
     /// Gets the raw SQL filter expression used for the retry-scheduled messages index.
     /// Covers <see cref="OutboxMessageStatus.Failed"/> rows with non-null <see cref="OutboxMessage.NextRetryAt"/>.
-    /// Used when exponential backoff is enabled to efficiently query messages scheduled for retry.
+    /// Used to efficiently query failed messages scheduled for retry.
     /// Return <see langword="null"/> when the target database does not support filtered indexes
     /// (e.g. MySQL) — EF Core will omit the filter clause entirely.
     /// The default implementation returns <see langword="null"/>, which is suitable for databases
@@ -181,7 +181,7 @@ internal abstract class OutboxMessageConfigurationBase : IEntityTypeConfiguratio
             .HasFilter(PendingMessagesFilter)
             .HasDatabaseName(TruncateIdentifier($"IX_{schema}_{tableName}_Status_CreatedAt"));
 
-        // Index for retry-scheduled message polling (with exponential backoff)
+        // Index for retry-scheduled message polling
         _ = builder
             .HasIndex(m => new { m.Status, m.NextRetryAt })
             .HasFilter(RetryScheduledMessagesFilter)

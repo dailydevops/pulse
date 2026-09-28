@@ -53,7 +53,7 @@ internal sealed class OutboxDocument
     [BsonElement(OutboxMessageSchema.Columns.ProcessedAt)]
     public DateTime? ProcessedAt { get; set; }
 
-    /// <summary>Gets or sets the UTC timestamp for the next scheduled retry attempt, or <see langword="null"/> when exponential backoff is not in use.</summary>
+    /// <summary>Gets or sets the UTC timestamp for the next scheduled retry attempt, or <see langword="null"/> when the message is not scheduled for retry.</summary>
     [BsonElement(OutboxMessageSchema.Columns.NextRetryAt)]
     public DateTime? NextRetryAt { get; set; }
 
