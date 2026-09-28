@@ -14,7 +14,8 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 /// <para><strong>Time-to-Live:</strong></para>
 /// When <see cref="IdempotencyKeyOptions.TimeToLive"/> is set, keys older than the TTL
 /// are treated as absent by <see cref="ExistsAsync"/>. Physical deletion is not performed;
-/// expired keys are logically ignored by passing a cutoff timestamp to the repository.
+/// expired keys are logically ignored by passing a cutoff timestamp to the repository, and
+/// <see cref="StoreAsync"/> and <see cref="TryReserveAsync"/> refresh the timestamp of an expired key.
 /// </remarks>
 internal sealed class IdempotencyStore : IIdempotencyStore
 {
@@ -50,20 +51,33 @@ internal sealed class IdempotencyStore : IIdempotencyStore
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        DateTimeOffset? cutoff = _options.TimeToLive.HasValue
-            ? _timeProvider.GetUtcNow() - _options.TimeToLive.Value
-            : null;
-
-        return _repository.ExistsAsync(idempotencyKey, cutoff, cancellationToken);
+        return _repository.ExistsAsync(idempotencyKey, GetCutoff(), cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// An expired key is refreshed, so that <see cref="ExistsAsync"/> returns <see langword="true"/> again afterwards.
+    /// </remarks>
+    public Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+        TryReserveAsync(idempotencyKey, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Delegates to the atomic <see cref="IIdempotencyKeyRepository.TryReserveAsync"/>, which also refreshes
+    /// the timestamp of a key that has outlived <see cref="IdempotencyKeyOptions.TimeToLive"/>.
+    /// </remarks>
+    public Task<bool> TryReserveAsync(string idempotencyKey, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
-        return _repository.StoreAsync(idempotencyKey, _timeProvider.GetUtcNow(), cancellationToken);
+        var now = _timeProvider.GetUtcNow();
+        return _repository.TryReserveAsync(idempotencyKey, now, GetCutoff(now), cancellationToken);
     }
+
+    private DateTimeOffset? GetCutoff() => GetCutoff(_timeProvider.GetUtcNow());
+
+    private DateTimeOffset? GetCutoff(DateTimeOffset now) =>
+        _options.TimeToLive.HasValue ? now - _options.TimeToLive.Value : null;
 }

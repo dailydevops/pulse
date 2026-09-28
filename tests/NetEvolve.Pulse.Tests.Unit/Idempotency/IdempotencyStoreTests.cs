@@ -159,9 +159,7 @@ public sealed class IdempotencyStoreTests
         var repository = new TrackingIdempotencyKeyRepository();
         var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = ttl }, fakeTime);
 
-        var result = await ((IIdempotencyStore)store)
-            .TryReserveAsync("test-key", cancellationToken)
-            .ConfigureAwait(false);
+        var result = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -180,7 +178,7 @@ public sealed class IdempotencyStoreTests
         var repository = new TrackingIdempotencyKeyRepository();
         var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = null });
 
-        _ = await ((IIdempotencyStore)store).TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
+        _ = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
@@ -197,9 +195,7 @@ public sealed class IdempotencyStoreTests
         var store = CreateStore(new TrackingIdempotencyKeyRepository());
 
         _ = await Assert
-            .That(async () =>
-                await ((IIdempotencyStore)store).TryReserveAsync(string.Empty, cancellationToken).ConfigureAwait(false)
-            )
+            .That(async () => await store.TryReserveAsync(string.Empty, cancellationToken).ConfigureAwait(false))
             .Throws<ArgumentException>();
     }
 
