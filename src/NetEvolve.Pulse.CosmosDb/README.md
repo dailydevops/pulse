@@ -131,7 +131,7 @@ services.AddPulse(config => config
 | `PartitionKeyPath` | `string` | `/id` | Only `/id` is supported; other values fail validation at startup. The container must use `/id` (see [Container Setup](#container-setup)). |
 | `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. Replaying a dead-letter message sets its `ttl` to `-1`, so it does not expire while pending. Requires `DefaultTimeToLive` on the container. |
 | `TtlSeconds` | `int` | `86400` (24 hours) | TTL in seconds for completed and dead-letter documents. Only applies when `EnableTimeToLive` is `true`. |
-| `ProcessingLeaseTimeout` | `TimeSpan` | 5 minutes | How long a claimed message may stay in `Processing` before the next pending poll reclaims it, for example after a crash or shutdown. Must be greater than zero. |
+| `ProcessingLeaseTimeout` | `TimeSpan` | 5 minutes | How long a claimed message may stay in `Processing` before the next pending poll reclaims it, for example after a crash or shutdown. Must be greater than zero; other values fail validation at startup. |
 
 ## Concurrency
 
