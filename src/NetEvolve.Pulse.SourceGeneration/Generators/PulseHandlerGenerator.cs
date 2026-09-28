@@ -978,19 +978,16 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         var closedHandler = classSymbol.Construct(handlerTypeArgs);
 
-        // Build the closed service interface type arguments.
-        var serviceTypeArgs = new ITypeSymbol[matchingIface.TypeArguments.Length];
-        for (var i = 0; i < matchingIface.TypeArguments.Length; i++)
-        {
-#pragma warning disable S3358 // Ternary operators should not be nested
-            serviceTypeArgs[i] =
-                matchingIface.TypeArguments[i] is ITypeParameterSymbol
-                    ? (i == 0 ? messageType : resultType!)
-                    : matchingIface.TypeArguments[i];
-#pragma warning restore S3358 // Ternary operators should not be nested
-        }
-
-        var closedService = matchingIface.OriginalDefinition.Construct(serviceTypeArgs);
+        // Substitute the class type parameters everywhere in the interface, including constructed
+        // result arguments such as Result<T>. The interface's own constraint (TCommand : ICommand<TResponse>)
+        // is a constraint of the class too, so SatisfiesConstraints already ensured the message declares the
+        // substituted result type.
+        var closedService = (INamedTypeSymbol)SubstituteTypeParameters(
+            compilation,
+            matchingIface,
+            classSymbol.TypeParameters,
+            handlerTypeArgs
+        );
 
         return new HandlerRegistration(
             GetFullyQualifiedName(closedHandler),

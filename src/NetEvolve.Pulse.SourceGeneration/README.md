@@ -105,6 +105,21 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 }
 ```
 
+The same works for a concrete class that implements one handler interface per message type. Each attribute registers the interface whose message argument is the attribute's type argument:
+
+```csharp
+[PulseHandler<CreateOrderCommand>]
+[PulseHandler<CancelOrderCommand>]
+public sealed class OrderCommandHandler
+    : ICommandHandler<CreateOrderCommand, OrderId>,
+        ICommandHandler<CancelOrderCommand, OrderId>
+{
+    public Task<OrderId> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken) => ...;
+
+    public Task<OrderId> HandleAsync(CancelOrderCommand command, CancellationToken cancellationToken) => ...;
+}
+```
+
 ### Pure Open-Generic Handler Registration
 
 Use `[PulseGenericHandler]` when you want a single open-generic class to handle _any_ closed variant of a message type, resolved by the DI container at runtime. The generator emits a `typeof()`-based registration instead of a closed-type one:
