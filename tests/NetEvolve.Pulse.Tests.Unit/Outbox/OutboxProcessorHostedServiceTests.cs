@@ -29,7 +29,15 @@ public sealed class OutboxProcessorHostedServiceTests
 
         _ = Assert.Throws<ArgumentNullException>(
             "scopeFactory",
-            () => _ = new OutboxProcessorHostedService(scopeFactory!, transport, CreateLifetime(), options, logger)
+            () =>
+                _ = new OutboxProcessorHostedService(
+                    scopeFactory!,
+                    transport,
+                    CreateLifetime(),
+                    options,
+                    logger,
+                    TimeProvider.System
+                )
         );
     }
 
@@ -49,7 +57,8 @@ public sealed class OutboxProcessorHostedServiceTests
                     transport!,
                     CreateLifetime(),
                     options,
-                    logger
+                    logger,
+                    TimeProvider.System
                 )
         );
     }
@@ -70,7 +79,8 @@ public sealed class OutboxProcessorHostedServiceTests
                     transport,
                     CreateLifetime(),
                     options!,
-                    logger
+                    logger,
+                    TimeProvider.System
                 )
         );
     }
@@ -91,7 +101,8 @@ public sealed class OutboxProcessorHostedServiceTests
                     transport,
                     CreateLifetime(),
                     options,
-                    logger!
+                    logger!,
+                    TimeProvider.System
                 )
         );
     }
@@ -113,7 +124,31 @@ public sealed class OutboxProcessorHostedServiceTests
                     transport,
                     lifetime!,
                     options,
-                    logger
+                    logger,
+                    TimeProvider.System
+                )
+        );
+    }
+
+    [Test]
+    public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        using var repository = new InMemoryOutboxRepository();
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions());
+        var logger = CreateLogger();
+        TimeProvider? timeProvider = null;
+
+        _ = Assert.Throws<ArgumentNullException>(
+            "timeProvider",
+            () =>
+                _ = new OutboxProcessorHostedService(
+                    CreateScopeFactory(repository),
+                    transport,
+                    CreateLifetime(),
+                    options,
+                    logger,
+                    timeProvider!
                 )
         );
     }
@@ -131,7 +166,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         _ = await Assert.That(service).IsNotNull();
@@ -149,7 +185,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -180,7 +217,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -211,7 +249,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Add a pending message
@@ -243,7 +282,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Add multiple messages
@@ -278,7 +318,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -307,7 +348,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -335,7 +377,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Add a message that has already been retried once
@@ -367,7 +410,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -403,7 +447,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -432,7 +477,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message1 = CreateMessage();
@@ -466,7 +512,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message1 = CreateMessage();
@@ -509,7 +556,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Add more messages than batch size
@@ -551,7 +599,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Message of type CriticalEvent should use override (MaxRetryCount = 1)
@@ -587,7 +636,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var critical = CreateMessage(typeof(CriticalEvent));
@@ -623,7 +673,8 @@ public sealed class OutboxProcessorHostedServiceTests
             new InMemoryMessageTransport(),
             CreateLifetime(),
             options,
-            CreateLogger()
+            CreateLogger(),
+            TimeProvider.System
         );
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -656,7 +707,8 @@ public sealed class OutboxProcessorHostedServiceTests
             new InMemoryMessageTransport(),
             CreateLifetime(),
             options,
-            CreateLogger()
+            CreateLogger(),
+            TimeProvider.System
         );
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -693,7 +745,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // SlowEvent message should time out and be marked as failed/dead-lettered
@@ -739,7 +792,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Add two messages of the overridden type: should be batch-sent
@@ -876,7 +930,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -928,7 +983,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -978,7 +1034,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -1027,7 +1084,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -1081,7 +1139,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Add 3 pending messages before starting
@@ -1163,7 +1222,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         service.Dispose();
@@ -1194,7 +1254,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -1239,7 +1300,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -1343,7 +1405,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             lifetime,
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -1385,7 +1448,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             lifetime,
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         // Startup never completes: ApplicationStarted is never signaled.
@@ -1417,7 +1481,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -1465,7 +1530,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport.Object,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -1513,7 +1579,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -1545,7 +1612,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -1582,7 +1650,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -1619,7 +1688,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -1657,7 +1727,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -1689,7 +1760,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message = CreateMessage();
@@ -1727,7 +1799,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         var message1 = CreateMessage();
@@ -1767,7 +1840,8 @@ public sealed class OutboxProcessorHostedServiceTests
             transport,
             CreateLifetime(),
             options,
-            logger
+            logger,
+            TimeProvider.System
         );
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
@@ -1845,8 +1919,9 @@ public sealed class OutboxProcessorHostedServiceTests
             Status = OutboxMessageStatus.Pending,
         };
 
-    private sealed class InMemoryOutboxRepository : IOutboxRepository, IDisposable
+    private sealed class InMemoryOutboxRepository(TimeProvider? timeProvider = null) : IOutboxRepository, IDisposable
     {
+        private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
         internal readonly List<OutboxMessage> _messages = [];
         private readonly object _lock = new();
         private readonly SemaphoreSlim _markingEvent = new(0, int.MaxValue);
@@ -1912,6 +1987,12 @@ public sealed class OutboxProcessorHostedServiceTests
         public int LastBatchSizeRequested { get; private set; }
         public int? LastMaxRetryCountRequested { get; private set; }
         public bool ThrowOnGetPendingCount { get; set; }
+
+        /// <summary>
+        /// Drops the retry time passed to <see cref="MarkAsFailedAsync(Guid, string, DateTimeOffset?, CancellationToken)"/>,
+        /// like a third-party repository that only implements the overload without a retry time.
+        /// </summary>
+        public bool IgnoreNextRetryAt { get; set; }
 
         public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
         {
@@ -1986,7 +2067,7 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             lock (_lock)
             {
                 LastMaxRetryCountRequested = maxRetryCount;
@@ -2015,7 +2096,7 @@ public sealed class OutboxProcessorHostedServiceTests
             CancellationToken cancellationToken = default
         )
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             lock (_lock)
             {
                 GetPendingCallCount++;
@@ -2115,7 +2196,7 @@ public sealed class OutboxProcessorHostedServiceTests
                     message.Status = OutboxMessageStatus.Failed;
                     message.Error = errorMessage;
                     message.RetryCount++;
-                    message.NextRetryAt = nextRetryAt;
+                    message.NextRetryAt = IgnoreNextRetryAt ? null : nextRetryAt;
                 }
             }
 

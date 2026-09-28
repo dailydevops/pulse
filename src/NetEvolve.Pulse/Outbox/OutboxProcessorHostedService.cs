@@ -90,6 +90,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>The logger used for diagnostic output during processing cycles.</summary>
     private readonly ILogger<OutboxProcessorHostedService> _logger;
 
+    /// <summary>The time provider used for retry scheduling and the polling delays.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>Cached count of pending outbox messages, refreshed each polling cycle.</summary>
     private long _pendingCount;
 
@@ -108,12 +111,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="lifetime">The application lifetime for coordinating startup and shutdown.</param>
     /// <param name="options">The processor configuration options.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
+    /// <param name="timeProvider">The time provider used for retry scheduling and the polling delays.</param>
     public OutboxProcessorHostedService(
         IServiceScopeFactory scopeFactory,
         IMessageTransport transport,
         IHostApplicationLifetime lifetime,
         IOptions<OutboxProcessorOptions> options,
-        ILogger<OutboxProcessorHostedService> logger
+        ILogger<OutboxProcessorHostedService> logger,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
@@ -121,12 +126,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         ArgumentNullException.ThrowIfNull(lifetime);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _scopeFactory = scopeFactory;
         _transport = transport;
         _lifetime = lifetime;
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider;
 
         _meter = new Meter(Defaults.Meter.Name, Defaults.Version);
         _ = _meter.CreateObservableGauge(
@@ -167,7 +174,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             {
                 if (_options.DisableProcessing)
                 {
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -182,7 +189,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 if (!isDatabaseHealthy)
                 {
                     LogDatabaseUnhealthy(_logger);
-                    await Task.Delay(_options.PollingInterval * 2, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval * 2, _timeProvider, stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -191,7 +198,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 if (!isTransportHealthy)
                 {
                     LogTransportUnhealthy(_logger);
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -211,7 +218,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 if (processedCount == 0)
                 {
                     // No messages found, wait before next poll
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -225,7 +232,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
                 try
                 {
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -449,7 +456,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 DateTimeOffset? nextRetryAt = null;
                 if (_options.EnableExponentialBackoff)
                 {
-                    nextRetryAt = _options.ComputeNextRetryAt(DateTimeOffset.UtcNow, message.RetryCount);
+                    nextRetryAt = _options.ComputeNextRetryAt(_timeProvider.GetUtcNow(), message.RetryCount);
                 }
 
                 await repository
@@ -547,7 +554,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             var failedMessageIds = failedMessages.Select(m => m.Id).ToArray();
             if (_options.EnableExponentialBackoff && failedMessageIds.Length > 0)
             {
-                var now = DateTimeOffset.UtcNow;
+                var now = _timeProvider.GetUtcNow();
                 var failedWithRetryTime = failedMessages
                     .Select(m => (messageId: m.Id, nextRetryAt: _options.ComputeNextRetryAt(now, m.RetryCount)))
                     .ToArray();
