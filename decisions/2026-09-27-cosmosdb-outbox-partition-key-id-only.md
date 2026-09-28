@@ -6,11 +6,11 @@ applyTo:
   - "src/NetEvolve.Pulse.CosmosDb/**/*.cs"
   - "src/NetEvolve.Pulse.CosmosDb/README.md"
 
-created: 2026-09-24
+created: 2026-09-27
 
-lastModified: 2026-09-24
+lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   The Cosmos DB outbox container MUST be partitioned on /id; CosmosDbOutboxOptions.PartitionKeyPath MUST only accept "/id" (ordinal).
