@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.Interceptors;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,7 @@ using NetEvolve.Pulse.Extensibility.Audit;
 /// <item><description>The serialized request payload is only captured when <see cref="AuditOptions.CapturePayload"/> is <see langword="true"/>.</description></item>
 /// <item><description>The audit write is best effort (fail open): if resolving the user, serializing the payload or <see cref="IAuditStore.RecordAsync"/> throws, the error is logged and the handler outcome is kept - a successful handler still returns its response.</description></item>
 /// <item><description>Once the handler has finished, the audit record is written with <see cref="CancellationToken.None"/>, so cancelling the caller's token cannot discard the record or turn a completed command into an <see cref="OperationCanceledException"/>.</description></item>
-/// <item><description>The original exception always propagates unchanged - this interceptor never swallows a failure, it only optionally records it first.</description></item>
+/// <item><description>The handler's original exception always propagates unchanged - handler failures are never swallowed; only failures of the audit write itself are logged and discarded (see above).</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddAudit()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
@@ -118,27 +119,27 @@ internal sealed class AuditRequestInterceptor<TRequest, TResponse> : IRequestInt
         }
         catch (Exception ex)
         {
-            await TryRecordAsync(store, request, startTime, AuditResult.Failure, ex, CancellationToken.None)
-                .ConfigureAwait(false);
+            await TryRecordAsync(store, request, startTime, AuditResult.Failure, ex).ConfigureAwait(false);
             throw;
         }
 
-        await TryRecordAsync(store, request, startTime, AuditResult.Success, null, CancellationToken.None)
-            .ConfigureAwait(false);
+        await TryRecordAsync(store, request, startTime, AuditResult.Success, null).ConfigureAwait(false);
         return response;
     }
 
+    [SuppressMessage(
+        "Usage",
+        "NE0010:Method returns Task and should accept a CancellationToken parameter",
+        Justification = "The handler has already finished, so the audit write intentionally uses CancellationToken.None instead of the caller's token (decisions/2026-09-28-audit-write-fail-open.md)."
+    )]
     private async Task TryRecordAsync(
         IAuditStore store,
         TRequest request,
         DateTimeOffset startTime,
         AuditResult result,
-        Exception? handlerException,
-        CancellationToken cancellationToken
+        Exception? handlerException
     )
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         try
         {
             var occurredAt = _timeProvider.GetUtcNow();
@@ -156,7 +157,7 @@ internal sealed class AuditRequestInterceptor<TRequest, TResponse> : IRequestInt
                 ExceptionMessage = handlerException?.Message,
             };
 
-            await store.RecordAsync(record, cancellationToken).ConfigureAwait(false);
+            await store.RecordAsync(record, CancellationToken.None).ConfigureAwait(false);
         }
 #pragma warning disable CA1031 // Audit writes are best effort and must never replace the handler outcome.
         catch (Exception ex)
