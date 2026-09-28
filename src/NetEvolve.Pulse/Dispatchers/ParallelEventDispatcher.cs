@@ -29,7 +29,8 @@ using NetEvolve.Pulse.Extensibility;
 /// services. Do not combine this dispatcher with two or more handlers of the same event that use the
 /// same scoped <c>DbContext</c> or database connection: they run concurrently on it, which EF Core and
 /// most ADO.NET providers do not support. Register
-/// <c>UseDefaultEventDispatcher&lt;SequentialEventDispatcher&gt;()</c> for such events instead.
+/// <c>UseEventDispatcherFor&lt;TEvent, SequentialEventDispatcher&gt;()</c> for such events instead, or
+/// <c>UseDefaultEventDispatcher&lt;SequentialEventDispatcher&gt;()</c> to make every event sequential.
 /// The outbox handler registered by <c>AddOutbox()</c> is not affected: the mediator always runs it
 /// first and on its own, and passes only the remaining handlers to this dispatcher.
 /// </remarks>

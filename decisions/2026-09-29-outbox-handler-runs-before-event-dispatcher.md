@@ -5,7 +5,7 @@ authors:
 applyTo:
   - "src/NetEvolve.Pulse/Internals/PulseMediator.cs"
   - "src/NetEvolve.Pulse/Dispatchers/*.cs"
-  - "src/NetEvolve.Pulse/Outbox/OutboxEventHandler{TEvent}.cs"
+  - "src/NetEvolve.Pulse/Outbox/OutboxEventHandler*.cs"
 
 created: 2026-09-29
 
@@ -35,7 +35,7 @@ The default `ParallelEventDispatcher` ran all resolved handlers through `Paralle
 - Inside the innermost step of the event interceptor chain, it invokes the outbox handlers one after another. It then passes only the remaining handlers to the resolved dispatcher: a keyed per-event dispatcher, the global one, or the parallel default. Interceptors such as event filters therefore still wrap and can suppress the outbox write.
 - The error contract does not change. An outbox failure does not stop the other handlers. All failures are thrown together as one flat `AggregateException` after every handler has run.
 - Events without an outbox handler take the unchanged path.
-- `ParallelEventDispatcher` remains the default. Its documentation and the READMEs now state that user handlers sharing a scoped `DbContext` or connection must use `UseDefaultEventDispatcher<SequentialEventDispatcher>()`.
+- `ParallelEventDispatcher` remains the default. Its documentation and the READMEs now state that user handlers sharing a scoped `DbContext` or connection must use `UseEventDispatcherFor<TEvent, SequentialEventDispatcher>()` (or `UseDefaultEventDispatcher<SequentialEventDispatcher>()` for all events).
 
 ## Consequences
 

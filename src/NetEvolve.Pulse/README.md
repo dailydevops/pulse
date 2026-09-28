@@ -290,9 +290,11 @@ If two or more of your own handlers for the same event use the same scoped `DbCo
 ```csharp
 services.AddPulse(config => config
     .AddOutbox()
-    .UseDefaultEventDispatcher<SequentialEventDispatcher>()
+    .UseEventDispatcherFor<MyEvent, SequentialEventDispatcher>()
 );
 ```
+
+To make every event sequential instead, use `UseDefaultEventDispatcher<SequentialEventDispatcher>()`.
 
 ### Payload Serialization
 

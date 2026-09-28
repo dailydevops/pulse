@@ -10,6 +10,8 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>Execution Behavior:</strong></para>
 /// Handlers execute one at a time in the order they were registered in the DI container.
 /// Each handler completes before the next one starts.
+/// The outbox handler registered by <c>AddOutbox()</c> is never passed to this dispatcher: the mediator
+/// always runs it first and on its own, so registration order applies only to the remaining handlers.
 /// <para><strong>Error Handling:</strong></para>
 /// Individual handler failures do not prevent subsequent handlers from executing.
 /// All handlers are executed regardless of failures. If any handlers fail, an

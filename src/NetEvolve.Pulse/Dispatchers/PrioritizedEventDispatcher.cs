@@ -34,6 +34,9 @@ using NetEvolve.Pulse.Extensibility;
 /// Sequential group execution impacts overall throughput compared to fully parallel execution.
 /// Use only when handler ordering across groups is critical.
 /// Consider <see cref="ParallelEventDispatcher"/> for independent handlers.
+/// <para><strong>Outbox:</strong></para>
+/// The outbox handler registered by <c>AddOutbox()</c> is never passed to this dispatcher: the mediator
+/// always runs it first and on its own, and passes only the remaining handlers here.
 /// </remarks>
 /// <example>
 /// <code>
