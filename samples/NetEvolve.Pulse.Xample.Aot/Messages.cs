@@ -18,7 +18,7 @@ internal sealed record RangeStreamQuery(int Count) : IStreamQuery<int>
 }
 
 /// <summary>
-/// Event type that the application only publishes and never names through <c>typeof</c>, like an outbox event
+/// Event type that the application only publishes and never names through <see langword="typeof"/>, like an outbox event
 /// that is rehydrated from its persisted type name.
 /// </summary>
 internal sealed record ShipmentDispatchedEvent(string ShipmentId) : IEvent

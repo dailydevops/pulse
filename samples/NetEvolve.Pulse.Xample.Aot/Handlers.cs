@@ -15,6 +15,8 @@ internal sealed class CountdownHandler(InvocationRecorder recorder) : IStreamQue
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue(nameof(CountdownHandler));
         for (var i = request.From; i > 0; i--)
         {
@@ -32,6 +34,8 @@ internal sealed class RangeHandler : IStreamQueryHandler<RangeStreamQuery, int>
         [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         for (var i = 1; i <= request.Count; i++)
         {
             await Task.Yield();
@@ -55,6 +59,8 @@ internal sealed class RecordingRequestInterceptor<TRequest, TResponse>(Invocatio
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue($"RecordingRequestInterceptor<{typeof(TRequest).Name}>");
         return handler(request, cancellationToken);
     }
@@ -72,6 +78,8 @@ internal sealed class AddNumbersRecordingInterceptor(InvocationRecorder recorder
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue(nameof(AddNumbersRecordingInterceptor));
         return handler(request, cancellationToken);
     }
@@ -134,6 +142,8 @@ internal sealed class CreateOrderHandler(InvocationRecorder recorder) : ICommand
 {
     public Task<OrderResult> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue(nameof(CreateOrderHandler));
         return Task.FromResult(new OrderResult(command.OrderId, Accepted: true));
     }
@@ -151,6 +161,8 @@ internal sealed class PingHandler(InvocationRecorder recorder) : ICommandHandler
 {
     public Task<Extensibility.Void> HandleAsync(PingCommand command, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue(nameof(PingHandler));
         return Task.FromResult(Extensibility.Void.Completed);
     }
@@ -165,6 +177,8 @@ internal sealed class ReserveStockHandler(InvocationRecorder recorder)
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue(nameof(ReserveStockHandler));
         recorder.EnterReservation();
         try
@@ -193,6 +207,8 @@ internal sealed class OrderCreatedHandler(InvocationRecorder recorder) : IEventH
 {
     public Task HandleAsync(OrderCreatedEvent message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue(nameof(OrderCreatedHandler));
         return Task.CompletedTask;
     }
@@ -216,6 +232,8 @@ internal sealed class OrderNotificationHandler(InvocationRecorder recorder)
 
     public Task HandleAsync(OrderCreatedEvent message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue($"{nameof(OrderNotificationHandler)}<{nameof(OrderCreatedEvent)}>");
         recorder.Invocations.Enqueue(InstanceMarker);
         return Task.CompletedTask;
@@ -223,6 +241,8 @@ internal sealed class OrderNotificationHandler(InvocationRecorder recorder)
 
     public Task HandleAsync(OrderCancelledEvent message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue($"{nameof(OrderNotificationHandler)}<{nameof(OrderCancelledEvent)}>");
         recorder.Invocations.Enqueue(InstanceMarker);
         return Task.CompletedTask;
@@ -239,6 +259,8 @@ internal sealed class AuditEventHandler<TEvent>(InvocationRecorder recorder) : I
 {
     public Task HandleAsync(TEvent message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         recorder.Invocations.Enqueue($"AuditEventHandler<{typeof(TEvent).Name}>");
         return Task.CompletedTask;
     }
