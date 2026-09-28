@@ -622,6 +622,22 @@ public class PulseHandlerGeneratorConstraintTests
         "ICommandHandler<global::Msg, global::Result<global::Msg>>, global::G<global::Msg>>",
         null
     )]
+    [Arguments(
+        "GenericHandlerWithOpenInterfaceOfOtherResultTypeAndMessageWithSeveralResults",
+        """
+            public sealed record Both : RequestBase, ICommand<string>, ICommand<int>;
+
+            [PulseHandler<Both>]
+            public sealed class G<T> : ICommandHandler<T, int>, ICommandHandler<Both, string>
+                where T : ICommand<int>
+            {
+                public Task<int> HandleAsync(T command, CancellationToken cancellationToken = default) => Task.FromResult(0);
+                public Task<string> HandleAsync(Both command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+            }
+            """,
+        "ICommandHandler<global::Both, int>, global::G<global::Both>>",
+        null
+    )]
     public async Task WhenHandlerImplementsSameHandlerInterfaceForSeveralMessagesThenEachExplicitMessageTypeIsRegistered(
         string scenario,
         string declarations,
@@ -659,21 +675,6 @@ public class PulseHandlerGeneratorConstraintTests
             }
             """,
         "ICommandHandler<global::Fixed, string>"
-    )]
-    [Arguments(
-        "GenericHandlerWithOpenInterfaceOfOtherResultTypeAndMessageWithSeveralResults",
-        """
-            public sealed record Both : RequestBase, ICommand<string>, ICommand<int>;
-
-            [PulseHandler<Both>]
-            public sealed class G<T> : ICommandHandler<T, int>, ICommandHandler<Both, string>
-                where T : ICommand<int>
-            {
-                public Task<int> HandleAsync(T command, CancellationToken cancellationToken = default) => Task.FromResult(0);
-                public Task<string> HandleAsync(Both command, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
-            }
-            """,
-        "ICommandHandler<global::Both, int>"
     )]
     [Arguments(
         "ConcreteHandlerWithoutInterfaceForMessage",
