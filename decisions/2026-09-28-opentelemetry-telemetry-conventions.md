@@ -55,7 +55,7 @@ No earlier decision defines the Pulse telemetry contract. Units are part of the 
   | `pulse.outbox.processed.total`, `pulse.outbox.failed.total`, `pulse.outbox.deadletter.total`, `pulse.outbox.pending` | `messages` | `{message}` |
   | `pulse.request.duration`, `pulse.event.duration`, `pulse.stream_query.duration`, `pulse.outbox.processing.duration` | `ms` | `s` |
 
-* MUST provide explicit histogram bucket boundaries for the `s` unit on .NET 9 and later (`InstrumentAdvice<T>`), using the boundaries of the HTTP semantic conventions: 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10.
+* MUST provide explicit histogram bucket boundaries for the `s` unit on all target frameworks (`InstrumentAdvice<T>`), using the boundaries of the HTTP semantic conventions: 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10.
 * MUST keep the metric names and tag names unchanged.
 * Transition plan: a later `0.x` release makes `UseSemanticConventionUnits` the default. The legacy units and the option are removed before `1.0.0`.
 
