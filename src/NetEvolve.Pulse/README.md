@@ -230,7 +230,7 @@ services.AddPulse(config => config
         processorOptions =>
         {
             processorOptions.BatchSize = 100;              // Messages per batch (default: 100)
-            processorOptions.PollingInterval = TimeSpan.FromSeconds(5);  // Poll delay (default: 5s)
+            processorOptions.PollingInterval = TimeSpan.FromSeconds(5);  // Poll delay and, without exponential backoff, retry delay (default: 5s)
             processorOptions.MaxRetryCount = 3;            // Max delivery attempts incl. the first before dead letter (default: 3, min: 1)
             processorOptions.ProcessingTimeout = TimeSpan.FromSeconds(30); // Per-message timeout (default: 30s)
             processorOptions.EnableBatchSending = false;   // Use batch transport (default: false)

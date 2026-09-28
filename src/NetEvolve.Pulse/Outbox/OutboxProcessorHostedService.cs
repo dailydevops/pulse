@@ -20,11 +20,13 @@ using NetEvolve.Pulse.Internals;
 /// <item><description>Send each message via transport (single or batch)</description></item>
 /// <item><description>Mark successfully sent messages as completed</description></item>
 /// <item><description>Mark failed messages for retry or dead letter</description></item>
-/// <item><description>Wait for polling interval and repeat</description></item>
+/// <item><description>Repeat right away while messages are sent successfully; otherwise wait for the polling interval</description></item>
 /// </list>
 /// <para><strong>Error Handling:</strong></para>
 /// <list type="bullet">
-/// <item><description>Transient failures: Retry on subsequent polling cycles using the configured polling interval</description></item>
+/// <item><description>Transient failures: Retry once the scheduled retry time is reached. Without exponential backoff
+/// the retry time is one <see cref="OutboxProcessorOptions.PollingInterval"/> after the failure, so a message is
+/// retried at most once per polling interval</description></item>
 /// <item><description>Exceeded retries: Move to dead letter status</description></item>
 /// <item><description>Processor errors: Log and continue (resilient)</description></item>
 /// </list>
@@ -89,6 +91,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <summary>The logger used for diagnostic output during processing cycles.</summary>
     private readonly ILogger<OutboxProcessorHostedService> _logger;
 
+    /// <summary>The time provider used for retry scheduling and the polling delays.</summary>
+    private readonly TimeProvider _timeProvider;
+
     /// <summary>Cached count of pending outbox messages, refreshed each polling cycle.</summary>
     private long _pendingCount;
 
@@ -107,12 +112,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="lifetime">The application lifetime for coordinating startup and shutdown.</param>
     /// <param name="options">The processor configuration options.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
+    /// <param name="timeProvider">The time provider used for retry scheduling and the polling delays.</param>
     public OutboxProcessorHostedService(
         IServiceScopeFactory scopeFactory,
         IMessageTransport transport,
         IHostApplicationLifetime lifetime,
         IOptions<OutboxProcessorOptions> options,
-        ILogger<OutboxProcessorHostedService> logger
+        ILogger<OutboxProcessorHostedService> logger,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
@@ -120,12 +127,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         ArgumentNullException.ThrowIfNull(lifetime);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _scopeFactory = scopeFactory;
         _transport = transport;
         _lifetime = lifetime;
         _options = options.Value;
         _logger = logger;
+        _timeProvider = timeProvider;
 
         _meter = new Meter(Defaults.Meter.Name, Defaults.Version);
         _ = _meter.CreateObservableGauge(
@@ -168,7 +177,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             {
                 if (_options.DisableProcessing)
                 {
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -183,7 +192,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 if (!isDatabaseHealthy)
                 {
                     LogDatabaseUnhealthy(_logger);
-                    await Task.Delay(_options.PollingInterval * 2, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval * 2, _timeProvider, stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
@@ -192,12 +201,12 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 if (!isTransportHealthy)
                 {
                     LogTransportUnhealthy(_logger);
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                     continue;
                 }
 
                 var batchStartTime = Stopwatch.GetTimestamp();
-                var processedCount = await ProcessBatchAsync(repository, stoppingToken).ConfigureAwait(false);
+                var succeededCount = await ProcessBatchAsync(repository, stoppingToken).ConfigureAwait(false);
                 var elapsed = Stopwatch.GetElapsedTime(batchStartTime).TotalMilliseconds;
 
                 try
@@ -209,10 +218,11 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     LogMetricRecordingWarning(_logger, ex);
                 }
 
-                if (processedCount == 0)
+                if (succeededCount == 0)
                 {
-                    // No messages found, wait before next poll
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    // No messages found or none sent successfully, wait before next poll so failing
+                    // messages and an unavailable transport are not retried in a hot loop
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -226,7 +236,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
                 try
                 {
-                    await Task.Delay(_options.PollingInterval, stoppingToken).ConfigureAwait(false);
+                    await Task.Delay(_options.PollingInterval, _timeProvider, stoppingToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -285,7 +295,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// </remarks>
     /// <param name="repository">The repository resolved for the current polling cycle.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The number of messages processed in this batch; <c>0</c> when no messages are available.</returns>
+    /// <returns>The number of messages sent successfully in this batch; <c>0</c> when no messages are available or all of them failed.</returns>
     private async Task<int> ProcessBatchAsync(IOutboxRepository repository, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -317,6 +327,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
         LogProcessingMessages(_logger, messages.Count);
 
+        var succeededCount = 0;
+
         // Group by event type so per-type EnableBatchSending overrides can be applied
         var messagesByEventType = messages.GroupBy(m => m.EventType).ToDictionary(m => m.Key, m => m.ToArray());
 
@@ -336,14 +348,12 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     using var workItemScope = _scopeFactory.CreateScope();
                     var workItemRepository = workItemScope.ServiceProvider.GetRequiredService<IOutboxRepository>();
 
-                    if (!_options.GetEffectiveEnableBatchSending(messageGroup.Key))
-                    {
-                        await ProcessIndividuallyAsync(workItemRepository, messageGroup.Value, token)
+                    var succeeded = _options.GetEffectiveEnableBatchSending(messageGroup.Key)
+                        ? await ProcessBatchSendAsync(workItemRepository, messageGroup.Value, token)
+                            .ConfigureAwait(false)
+                        : await ProcessIndividuallyAsync(workItemRepository, messageGroup.Value, token)
                             .ConfigureAwait(false);
-                        return;
-                    }
-
-                    await ProcessBatchSendAsync(workItemRepository, messageGroup.Value, token).ConfigureAwait(false);
+                    _ = Interlocked.Add(ref succeededCount, succeeded);
                 }
             )
             .ConfigureAwait(false);
@@ -353,7 +363,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         // until the next polling cycle runs RefreshPendingCountAsync, which races with shutdown.
         await RefreshPendingCountAsync(repository, cancellationToken).ConfigureAwait(false);
 
-        return messages.Count;
+        return succeededCount;
     }
 
     /// <summary>
@@ -372,8 +382,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="repository">The repository resolved for this work item.</param>
     /// <param name="messages">The ordered array of outbox messages to process sequentially.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ProcessIndividuallyAsync(
+    /// <returns>The number of messages sent successfully.</returns>
+    private async Task<int> ProcessIndividuallyAsync(
         IOutboxRepository repository,
         OutboxMessage[] messages,
         CancellationToken cancellationToken
@@ -381,6 +391,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        var succeededCount = 0;
         foreach (var message in messages)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -388,8 +399,13 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 break;
             }
 
-            await ProcessMessageAsync(repository, message, cancellationToken).ConfigureAwait(false);
+            if (await ProcessMessageAsync(repository, message, cancellationToken).ConfigureAwait(false))
+            {
+                succeededCount++;
+            }
         }
+
+        return succeededCount;
     }
 
     /// <summary>
@@ -400,8 +416,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="repository">The repository resolved for this work item.</param>
     /// <param name="message">The outbox message to process.</param>
     /// <param name="cancellationToken">A token to monitor for external cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ProcessMessageAsync(
+    /// <returns><see langword="true"/> when the message was sent successfully; otherwise <see langword="false"/>.</returns>
+    private async Task<bool> ProcessMessageAsync(
         IOutboxRepository repository,
         OutboxMessage message,
         CancellationToken cancellationToken
@@ -430,6 +446,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             {
                 LogMetricRecordingWarning(_logger, ex);
             }
+
+            return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -455,11 +473,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             }
             else
             {
-                DateTimeOffset? nextRetryAt = null;
-                if (_options.EnableExponentialBackoff)
-                {
-                    nextRetryAt = _options.ComputeNextRetryAt(DateTimeOffset.UtcNow, message.RetryCount);
-                }
+                var nextRetryAt = ComputeNextRetryAt(_timeProvider.GetUtcNow(), message.RetryCount);
 
                 await repository
                     .MarkAsFailedAsync(message.Id, ex.Message, nextRetryAt, cancellationToken)
@@ -474,8 +488,23 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                     LogMetricRecordingWarning(_logger, metricEx);
                 }
             }
+
+            return false;
         }
     }
+
+    /// <summary>
+    /// Computes when a failed message becomes eligible for its next attempt: the exponential backoff
+    /// schedule when <see cref="OutboxProcessorOptions.EnableExponentialBackoff"/> is enabled, otherwise
+    /// one <see cref="OutboxProcessorOptions.PollingInterval"/> after <paramref name="now"/>.
+    /// </summary>
+    /// <param name="now">The time of the failure.</param>
+    /// <param name="retryCount">The number of retries already attempted.</param>
+    /// <returns>The earliest time of the next attempt.</returns>
+    private DateTimeOffset ComputeNextRetryAt(DateTimeOffset now, int retryCount) =>
+        _options.EnableExponentialBackoff
+            ? _options.ComputeNextRetryAt(now, retryCount)
+            : now + _options.PollingInterval;
 
     /// <summary>
     /// Sends all messages in the batch atomically via <see cref="IMessageTransport.SendBatchAsync"/>.
@@ -502,8 +531,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="repository">The repository resolved for this work item.</param>
     /// <param name="messages">The ordered array of outbox messages to send as a batch.</param>
     /// <param name="cancellationToken">A token to monitor for external cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ProcessBatchSendAsync(
+    /// <returns>The number of messages sent successfully: all of them, or <c>0</c> when the batch send failed.</returns>
+    private async Task<int> ProcessBatchSendAsync(
         IOutboxRepository repository,
         OutboxMessage[] messages,
         CancellationToken cancellationToken
@@ -532,6 +561,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             {
                 LogMetricRecordingWarning(_logger, ex);
             }
+
+            return messages.Length;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -554,34 +585,24 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
                 .Where(m => m.RetryCount + 1 < _options.GetEffectiveMaxRetryCount(m.EventType))
                 .ToArray();
 
-            // Compute NextRetryAt for failed messages if exponential backoff is enabled
-            var failedMessageIds = failedMessages.Select(m => m.Id).ToArray();
-            if (_options.EnableExponentialBackoff && failedMessageIds.Length > 0)
-            {
-                var now = DateTimeOffset.UtcNow;
-                var failedWithRetryTime = failedMessages
-                    .Select(m => (messageId: m.Id, nextRetryAt: _options.ComputeNextRetryAt(now, m.RetryCount)))
-                    .ToArray();
-
-                // Mark failed messages with backoff scheduling
-                await Parallel
-                    .ForEachAsync(
-                        failedWithRetryTime,
-                        cancellationToken,
-                        async (item, token) =>
-                            await repository
-                                .MarkAsFailedAsync(item.messageId, ex.Message, item.nextRetryAt, token)
-                                .ConfigureAwait(false)
-                    )
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                // Mark failed messages without backoff scheduling
-                await repository
-                    .MarkAsFailedAsync(failedMessageIds, ex.Message, cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            // Every failed message gets a retry time, with or without exponential backoff, so it is
+            // not retried before one polling interval (or its backoff delay) has passed.
+            var now = _timeProvider.GetUtcNow();
+            await Parallel
+                .ForEachAsync(
+                    failedMessages,
+                    cancellationToken,
+                    async (message, token) =>
+                        await repository
+                            .MarkAsFailedAsync(
+                                message.Id,
+                                ex.Message,
+                                ComputeNextRetryAt(now, message.RetryCount),
+                                token
+                            )
+                            .ConfigureAwait(false)
+                )
+                .ConfigureAwait(false);
 
             await Task.WhenAll(
                     repository.MarkAsDeadLetterAsync(deadLetterMessages, ex.Message, cancellationToken),
@@ -617,6 +638,8 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             {
                 LogMetricRecordingWarning(_logger, metricEx);
             }
+
+            return 0;
         }
     }
 

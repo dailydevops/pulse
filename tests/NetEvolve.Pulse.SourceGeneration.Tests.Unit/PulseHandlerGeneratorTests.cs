@@ -1128,6 +1128,76 @@ public class PulseHandlerGeneratorTests
     }
 
     [Test]
+    public async Task WhenConcreteHandlerWithMultipleExplicitCommandTypesThenAllRegistered()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+
+            public record CmdA(string Name) : ICommand<string>;
+            public record CmdB(string Name) : ICommand<string>;
+
+            [PulseHandler<CmdA>]
+            [PulseHandler<CmdB>]
+            public sealed class Multi : ICommandHandler<CmdA, string>, ICommandHandler<CmdB, string>
+            {
+                public Task<string> HandleAsync(CmdA command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+
+                public Task<string> HandleAsync(CmdB command, CancellationToken cancellationToken = default)
+                    => Task.FromResult(command.Name);
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task WhenConcreteHandlerWithMultipleExplicitEventTypesThenAllRegistered()
+    {
+        const string source = """
+            using NetEvolve.Pulse.Extensibility;
+            using NetEvolve.Pulse.Extensibility.Attributes;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using System;
+
+            public record EventA : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            public record EventB : IEvent
+            {
+                public string Id { get; init; } = Guid.NewGuid().ToString();
+                public string? CausationId { get; set; }
+                public string? CorrelationId { get; set; }
+                public DateTimeOffset? PublishedAt { get; set; }
+            }
+
+            [PulseHandler<EventA>]
+            [PulseHandler<EventB>]
+            public sealed class MultiEventHandler : IEventHandler<EventA>, IEventHandler<EventB>
+            {
+                public Task HandleAsync(EventA message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+
+                public Task HandleAsync(EventB message, CancellationToken cancellationToken = default)
+                    => Task.CompletedTask;
+            }
+            """;
+
+        var (diagnostics, generatedSources) = RunGenerator(source);
+        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task WhenOpenGenericEventHandlerWithExplicitMessageTypeThenRegistrationIsGenerated()
     {
         const string source = """
