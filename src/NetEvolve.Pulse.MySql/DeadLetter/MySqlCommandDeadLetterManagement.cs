@@ -345,6 +345,11 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     /// </summary>
     /// <param name="id">The identifier of the dead letter entry to update.</param>
     /// <param name="exception">The exception that caused the replay to fail.</param>
+    [SuppressMessage(
+        "Usage",
+        "NE0010:Method returns Task and should accept a CancellationToken parameter",
+        Justification = "The reset after a failed or cancelled replay must always run, so it intentionally uses CancellationToken.None instead of the caller's token, which may already be cancelled (decisions/2026-09-27-command-dead-letter-replay-status.md)."
+    )]
     private async Task RecordReplayFailureAsync(Guid id, Exception exception)
     {
         var connection = await CreateConnectionAsync(CancellationToken.None).ConfigureAwait(false);
