@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Configuration options for <see cref="AzureServiceBusMessageTransport"/>.
