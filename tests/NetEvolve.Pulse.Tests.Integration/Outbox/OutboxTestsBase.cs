@@ -482,6 +482,49 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_GetFailedForRetry_Honors_Higher_MaxRetryCount(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(1);
+
+                    var messageId = pending[0].Id;
+                    await outbox.MarkAsFailedAsync(messageId, "Error 1", token).ConfigureAwait(false);
+
+                    for (var attempt = 2; attempt <= 3; attempt++)
+                    {
+                        var retry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+
+                        _ = await Assert.That(retry.Count).IsEqualTo(1);
+
+                        await outbox.MarkAsFailedAsync(messageId, $"Error {attempt}", token).ConfigureAwait(false);
+                    }
+
+                    var atGlobalLimit = await outbox.GetFailedForRetryAsync(3, 50, token).ConfigureAwait(false);
+                    var belowOverrideLimit = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(atGlobalLimit).IsEmpty();
+                        _ = await Assert.That(belowOverrideLimit.Count).IsEqualTo(1);
+                        _ = await Assert.That(belowOverrideLimit[0].Id).IsEqualTo(messageId);
+                        _ = await Assert.That(belowOverrideLimit[0].RetryCount).IsEqualTo(3);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_DeleteCompleted_DoesNotDelete_NonCompletedMessages(CancellationToken cancellationToken)
     {
         var timeProvider = new FakeTimeProvider();
