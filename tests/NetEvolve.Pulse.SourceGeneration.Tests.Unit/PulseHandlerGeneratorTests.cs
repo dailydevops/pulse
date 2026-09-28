@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 [TestGroup("SourceGeneration")]
@@ -22,7 +21,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -45,7 +44,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyQuery(string Id) : IQuery<string>;
+            public record MyQuery(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyQueryHandler : IQueryHandler<MyQuery, string>
@@ -99,7 +98,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading.Tasks;
             using System;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public record MyEvent : IEvent
             {
@@ -167,7 +166,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class HandlerA : ICommandHandler<MyCommand, string>
@@ -197,7 +196,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class HandlerA : ICommandHandler<MyCommand, string>
@@ -227,7 +226,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyQuery(string Id) : IQuery<string>;
+            public record MyQuery(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class QueryHandlerA : IQueryHandler<MyQuery, string>
@@ -294,7 +293,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
             {
@@ -316,7 +315,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyQuery(string Id) : IQuery<string>;
+            public record MyQuery(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler(Lifetime = PulseServiceLifetime.Singleton)]
             public class MyQueryHandler : IQueryHandler<MyQuery, string>
@@ -399,7 +398,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler(Lifetime = PulseServiceLifetime.Scoped)]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -422,7 +421,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -445,7 +444,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -468,7 +467,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -491,7 +490,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -514,7 +513,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -569,7 +568,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyVoidCommand(string Name) : ICommand;
+            public record MyVoidCommand(string Name) : ICommand { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyVoidCommandHandler : ICommandHandler<MyVoidCommand, Void>
@@ -592,8 +591,8 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record CommandA(string Name) : ICommand<string>;
-            public record CommandB(int Value) : ICommand<int>;
+            public record CommandA(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record CommandB(int Value) : ICommand<int> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class HandlerA : ICommandHandler<CommandA, string>
@@ -623,8 +622,8 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record CommandA(string Name) : ICommand<string>;
-            public record QueryA(string Id) : IQuery<string>;
+            public record CommandA(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record QueryA(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler(Lifetime = PulseServiceLifetime.Singleton)]
             public class SingletonHandler : ICommandHandler<CommandA, string>
@@ -671,7 +670,7 @@ public class PulseHandlerGeneratorTests
             using System.Collections.Generic;
             using System.Threading;
 
-            public record MyStreamQuery(string Id) : IStreamQuery<string>;
+            public record MyStreamQuery(string Id) : IStreamQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyStreamQueryHandler : IStreamQueryHandler<MyStreamQuery, string>
@@ -696,7 +695,7 @@ public class PulseHandlerGeneratorTests
             using System.Collections.Generic;
             using System.Threading;
 
-            public record MyStreamQuery(string Id) : IStreamQuery<string>;
+            public record MyStreamQuery(string Id) : IStreamQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class StreamQueryHandlerA : IStreamQueryHandler<MyStreamQuery, string>
@@ -730,7 +729,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyQuery(string Id) : IQuery<string>;
+            public record MyQuery(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public class MyQueryHandler : IQueryHandler<MyQuery, string>
             {
@@ -781,7 +780,7 @@ public class PulseHandlerGeneratorTests
             using System.Collections.Generic;
             using System.Threading;
 
-            public record MyStreamQuery(string Id) : IStreamQuery<string>;
+            public record MyStreamQuery(string Id) : IStreamQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public class MyStreamQueryHandler : IStreamQueryHandler<MyStreamQuery, string>
             {
@@ -805,7 +804,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public abstract class BaseCommandHandler : ICommandHandler<MyCommand, string>
             {
@@ -851,8 +850,8 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record CommandA(string Name) : ICommand<string>;
-            public record QueryA(string Id) : IQuery<string>;
+            public record CommandA(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record QueryA(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public class HandlerA : ICommandHandler<CommandA, string>
             {
@@ -948,7 +947,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -958,8 +957,12 @@ public class PulseHandlerGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedSources) = RunGenerator(source, assemblyName: "");
-        await VerifySources(diagnostics, generatedSources).ConfigureAwait(false);
+        var run = GeneratorHarness.Run(source, assemblyName: "");
+
+        // An empty assembly name is invalid for the compilation itself (CS8203), the generated code must still compile.
+        _ = await Assert.That(run.InputErrors.Select(d => d.Id)).IsEquivalentTo(["CS8203"]);
+        _ = await Assert.That(run.GeneratedErrors).IsEmpty();
+        await VerifySources(run.PulseDiagnostics, run.Sources).ConfigureAwait(false);
     }
 
     [Test]
@@ -971,7 +974,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public record MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -994,7 +997,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public record MyCommandHandler : ICommandHandler<MyCommand, string>
             {
@@ -1059,7 +1062,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<MyCommand>]
             public class GenericCommandHandler<TCmd, TResult> : ICommandHandler<TCmd, TResult>
@@ -1083,7 +1086,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public class Container
             {
@@ -1110,8 +1113,8 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record CommandA(string Name) : ICommand<string>;
-            public record CommandB(int Value) : ICommand<int>;
+            public record CommandA(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record CommandB(int Value) : ICommand<int> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<CommandA>]
             [PulseHandler<CommandB>]
@@ -1136,8 +1139,8 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record CmdA(string Name) : ICommand<string>;
-            public record CmdB(string Name) : ICommand<string>;
+            public record CmdA(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record CmdB(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<CmdA>]
             [PulseHandler<CmdB>]
@@ -1237,7 +1240,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyQuery(string Id) : IQuery<string>;
+            public record MyQuery(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<MyQuery>(Lifetime = PulseServiceLifetime.Singleton)]
             public class GenericQueryHandler<TQuery, TResult> : IQueryHandler<TQuery, TResult>
@@ -1261,7 +1264,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<MyCommand>]
             [PulseHandler<string>]
@@ -1339,7 +1342,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public sealed record C1 : ICommand<string>;
+            public sealed record C1 : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<C1>]
             public sealed class G1<TCmd> : ICommandHandler<TCmd, int>
@@ -1363,7 +1366,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<MyCommand>]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -1386,7 +1389,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<MyCommand>]
             public record MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -1411,7 +1414,7 @@ public class PulseHandlerGeneratorTests
             using System;
 
             // --- single concrete handler ---
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -1421,7 +1424,7 @@ public class PulseHandlerGeneratorTests
             }
 
             // --- multi-interface concrete handler ---
-            public record AnotherCommand(int Value) : ICommand<int>;
+            public record AnotherCommand(int Value) : ICommand<int> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             public record MyEvent : IEvent
             {
@@ -1442,8 +1445,8 @@ public class PulseHandlerGeneratorTests
             }
 
             // --- open-generic handler with multiple explicit message types ---
-            public record QueryA(string Id) : IQuery<string>;
-            public record QueryB(int Id) : IQuery<int>;
+            public record QueryA(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record QueryB(int Id) : IQuery<int> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler<QueryA>]
             [PulseHandler<QueryB>]
@@ -1468,8 +1471,8 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
-            public record MyQuery(string Id) : IQuery<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record MyQuery(string Id) : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -1693,14 +1696,14 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record AddCommand(int Left, int Right) : ICommand<int>;
-            public record PingCommand : ICommand;
-            public record ReserveCommand : IExclusiveCommand;
-            public record CountQuery : IQuery<long>;
-            public record RangeQuery(int Count) : IStreamQuery<int>;
-            public record struct StructCommand(string Name) : ICommand<string>;
-            public record NameQuery : IQuery<string>;
-            public record GenericCommand : ICommand<System.Guid>;
+            public record AddCommand(int Left, int Right) : ICommand<int> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record PingCommand : ICommand { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record ReserveCommand : IExclusiveCommand { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record CountQuery : IQuery<long> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record RangeQuery(int Count) : IStreamQuery<int> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record struct StructCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record NameQuery : IQuery<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
+            public record GenericCommand : ICommand<System.Guid> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
             public record OrderPlaced : IEvent
             {
                 public string Id { get; init; } = System.Guid.NewGuid().ToString();
@@ -1790,7 +1793,7 @@ public class PulseHandlerGeneratorTests
             using System.Threading;
             using System.Threading.Tasks;
 
-            public record MyCommand(string Name) : ICommand<string>;
+            public record MyCommand(string Name) : ICommand<string> { public string? CausationId { get; set; } public string? CorrelationId { get; set; } }
 
             [PulseHandler]
             public class MyCommandHandler : ICommandHandler<MyCommand, string>
@@ -1824,111 +1827,24 @@ public class PulseHandlerGeneratorTests
         }
         """;
 
-    private static Compilation CompileWithGenerator(string assemblyName)
-    {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose);
-        var syntaxTree = CSharpSyntaxTree.ParseText(SimpleCommandHandlerSource, parseOptions);
-        var compilation = CSharpCompilation.Create(
-            assemblyName,
-            [syntaxTree],
-            [
-                .. GetMetadataReferences(referencePulse: false),
-                MetadataReference.CreateFromFile(
-                    typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection).Assembly.Location
-                ),
-                MetadataReference.CreateFromFile(
-                    typeof(Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions)
-                        .Assembly
-                        .Location
-                ),
-            ],
-            new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                nullableContextOptions: NullableContextOptions.Enable
+    private static Compilation CompileWithGenerator(string assemblyName) =>
+        GeneratorHarness
+            .Run(
+                SimpleCommandHandlerSource,
+                assemblyName: assemblyName,
+                parseOptions: new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Diagnose)
             )
-        );
-
-        _ = CSharpGeneratorDriver
-            .Create(
-                generators: [new PulseHandlerGenerator().AsSourceGenerator()],
-                optionsProvider: new TestAnalyzerConfigOptionsProvider("TestAssembly"),
-                parseOptions: parseOptions
-            )
-            .RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
-
-        return outputCompilation;
-    }
+            .OutputCompilation;
 
     private static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<string> Sources) RunGenerator(
         string source,
-        string? rootNamespace = "TestAssembly",
-        string assemblyName = "TestAssembly",
+        string? rootNamespace = GeneratorHarness.DefaultAssemblyName,
+        string assemblyName = GeneratorHarness.DefaultAssemblyName,
         bool referencePulse = false
     )
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText(source);
-
-        var references = GetMetadataReferences(referencePulse);
-
-        var compilation = CSharpCompilation.Create(
-            assemblyName,
-            [syntaxTree],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-        );
-
-        var generator = new PulseHandlerGenerator();
-        var optionsProvider = new TestAnalyzerConfigOptionsProvider(rootNamespace);
-
-        var driver = CSharpGeneratorDriver
-            .Create(generators: [generator.AsSourceGenerator()], optionsProvider: optionsProvider)
-            .RunGeneratorsAndUpdateCompilation(compilation, out _, out var generatorDiagnostics);
-
-        var runResult = driver.GetRunResult();
-        var generatorResult = runResult.Results.Single();
-
-        // Only return generator-specific diagnostics (PULSE*), not compilation diagnostics.
-        var pulseDiagnostics = generatorDiagnostics
-            .Where(d => d.Id.StartsWith("PULSE", StringComparison.Ordinal))
-            .ToImmutableArray();
-
-        return (
-            pulseDiagnostics,
-            generatorResult.GeneratedSources.Select(x => x.SourceText.ToString()).ToImmutableArray()
-        );
-    }
-
-    private static MetadataReference[] GetMetadataReferences(bool referencePulse)
-    {
-        // Core runtime references
-        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
-        var runtimeReferences = trustedAssemblies!
-            .Split(Path.PathSeparator)
-            .Where(p =>
-            {
-                var fileName = Path.GetFileName(p);
-                return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(p => MetadataReference.CreateFromFile(p))
-            .Cast<MetadataReference>()
-            .ToList();
-
-        // Add the Pulse assemblies
-        runtimeReferences.Add(MetadataReference.CreateFromFile(typeof(Extensibility.ICommand<>).Assembly.Location));
-        runtimeReferences.Add(
-            MetadataReference.CreateFromFile(typeof(Extensibility.Attributes.PulseHandlerAttribute).Assembly.Location)
-        );
-
-        if (referencePulse)
-        {
-            runtimeReferences.Add(
-                MetadataReference.CreateFromFile(typeof(NativeAotInterceptorExtensions).Assembly.Location)
-            );
-        }
-
-        return [.. runtimeReferences];
+        var run = GeneratorHarness.Run(source, assemblyName, rootNamespace, referencePulse).EnsureCompiles();
+        return (run.PulseDiagnostics, run.Sources);
     }
 
     private static async Task VerifySources(ImmutableArray<Diagnostic> diagnostics, ImmutableArray<string> sources) =>

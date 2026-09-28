@@ -8,7 +8,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NetEvolve.Extensions.TUnit;
-using NetEvolve.Pulse.SourceGeneration.Generators;
 using TUnit.Core;
 
 [TestGroup("SourceGeneration")]
@@ -117,44 +116,11 @@ public class PulseHandlerGeneratorIncrementalTests
     )
     {
         var tree = CSharpSyntaxTree.ParseText(source, path: "TestFile.cs");
-        var compilation = CSharpCompilation.Create(
-            "TestAssembly",
-            [tree],
-            GetMetadataReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-        );
+        var compilation = GeneratorHarness.CreateCompilation(tree);
 
-        var optionsProvider = new TestAnalyzerConfigOptionsProvider("TestAssembly");
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            generators: [new PulseHandlerGenerator().AsSourceGenerator()],
-            optionsProvider: optionsProvider
-        );
-
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+        var driver = GeneratorHarness
+            .CreateDriver(parseOptions: (CSharpParseOptions)tree.Options)
+            .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
         return (driver, compilation, tree);
-    }
-
-    private static MetadataReference[] GetMetadataReferences()
-    {
-        var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
-        var runtimeReferences = trustedAssemblies!
-            .Split(Path.PathSeparator)
-            .Where(p =>
-            {
-                var fileName = Path.GetFileName(p);
-                return fileName.StartsWith("System.", StringComparison.Ordinal)
-                    || string.Equals(fileName, "mscorlib.dll", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fileName, "netstandard.dll", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(p => MetadataReference.CreateFromFile(p))
-            .Cast<MetadataReference>()
-            .ToList();
-
-        runtimeReferences.Add(MetadataReference.CreateFromFile(typeof(Extensibility.ICommand<>).Assembly.Location));
-        runtimeReferences.Add(
-            MetadataReference.CreateFromFile(typeof(Extensibility.Attributes.PulseHandlerAttribute).Assembly.Location)
-        );
-
-        return [.. runtimeReferences];
     }
 }
