@@ -43,6 +43,18 @@ public class InMemoryCacheKeyRegistryTests
     }
 
     [Test]
+    public async Task Register_SameKeyRepeatedly_KeepsSingleEntry()
+    {
+        var registry = new InMemoryCacheKeyRegistry();
+
+        registry.Register(typeof(SampleQueryA), "key-1");
+        registry.Register(typeof(SampleQueryA), "key-1");
+        registry.Register(typeof(SampleQueryA), "key-1");
+
+        _ = await Assert.That(registry.GetKeysForType(typeof(SampleQueryA))).IsEquivalentTo(["key-1"]);
+    }
+
+    [Test]
     public async Task GetKeysForType_WithNoRegistrations_ReturnsEmptyReadOnlyList()
     {
         var registry = new InMemoryCacheKeyRegistry();
