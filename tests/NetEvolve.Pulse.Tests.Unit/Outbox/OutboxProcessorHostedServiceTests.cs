@@ -10,6 +10,7 @@ using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
+using TUnit.Mocks;
 
 /// <summary>
 /// Unit tests for <see cref="OutboxProcessorHostedService"/>.
@@ -1311,7 +1312,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var repository = new InMemoryOutboxRepository { IsHealthy = false };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
-        var logger = CreateLogger();
+        var logger = Mock.Logger<OutboxProcessorHostedService>();
         using var service = new OutboxProcessorHostedService(
             CreateScopeFactory(repository),
             transport,
@@ -1322,16 +1323,24 @@ public sealed class OutboxProcessorHostedServiceTests
 
         await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForHealthChecksAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        var unhealthyLogs = logger
+            .Entries.Where(e =>
+                e.LogLevel == LogLevel.Error && e.Message.Contains("Database is unhealthy", StringComparison.Ordinal)
+            )
+            .ToList();
 
         using (Assert.Multiple())
         {
+            _ = await Assert.That(repository.IsHealthyCallCount).IsGreaterThanOrEqualTo(2);
+            _ = await Assert.That(repository.GetPendingCallCount).IsEqualTo(0);
             _ = await Assert.That(transport.SentMessages).IsEmpty();
             _ = await Assert.That(repository.CompletedMessageIds).IsEmpty();
+            _ = await Assert.That(unhealthyLogs.Count).IsGreaterThanOrEqualTo(1);
         }
     }
 
@@ -1339,9 +1348,9 @@ public sealed class OutboxProcessorHostedServiceTests
     public async Task ExecuteAsync_WhenTransportIsUnhealthy_SkipsProcessingCycle(CancellationToken cancellationToken)
     {
         using var repository = new InMemoryOutboxRepository();
-        var transport = new UnhealthyMessageTransport();
+        using var transport = new UnhealthyMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
-        var logger = CreateLogger();
+        var logger = Mock.Logger<OutboxProcessorHostedService>();
         using var service = new OutboxProcessorHostedService(
             CreateScopeFactory(repository),
             transport,
@@ -1353,15 +1362,23 @@ public sealed class OutboxProcessorHostedServiceTests
         var message = CreateMessage();
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await transport.WaitForHealthChecksAsync(2, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        var unhealthyLogs = logger
+            .Entries.Where(e =>
+                e.LogLevel == LogLevel.Warning
+                && e.Message.Contains("Message transport is unhealthy", StringComparison.Ordinal)
+            )
+            .ToList();
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(transport.SentMessages).IsEmpty();
+            _ = await Assert.That(transport.IsHealthyCallCount).IsGreaterThanOrEqualTo(2);
+            _ = await Assert.That(repository.GetPendingCallCount).IsEqualTo(0);
+            _ = await Assert.That(unhealthyLogs.Count).IsGreaterThanOrEqualTo(1);
             var storedMessage = repository._messages.Find(m => m.Id == message.Id);
             _ = await Assert.That(storedMessage).IsNotNull();
             _ = await Assert.That(storedMessage!.Status).IsEqualTo(OutboxMessageStatus.Pending);
@@ -1408,7 +1425,7 @@ public sealed class OutboxProcessorHostedServiceTests
         using var repository = new InMemoryOutboxRepository { ThrowOnGetPendingCount = true };
         var transport = new InMemoryMessageTransport();
         var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
-        var logger = CreateLogger();
+        var logger = Mock.Logger<OutboxProcessorHostedService>();
         using var service = new OutboxProcessorHostedService(
             CreateScopeFactory(repository),
             transport,
@@ -1417,13 +1434,24 @@ public sealed class OutboxProcessorHostedServiceTests
             logger
         );
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        await service.StartAsync(cts.Token).ConfigureAwait(false);
-        await Task.Delay(300, cancellationToken).ConfigureAwait(false);
-        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForPendingCountsAsync(2, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await service.StopAsync(timeoutCts.Token).ConfigureAwait(false);
+        var metricWarnings = logger
+            .Entries.Where(e =>
+                e.LogLevel == LogLevel.Warning
+                && e.Message.Contains("Failed to record outbox metric", StringComparison.Ordinal)
+                && e.Exception is InvalidOperationException
+            )
+            .ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(repository.GetPendingCountCallCount).IsGreaterThanOrEqualTo(2);
+            _ = await Assert.That(metricWarnings.Count).IsGreaterThanOrEqualTo(1);
+        }
     }
 
     [Test]
@@ -1558,14 +1586,14 @@ public sealed class OutboxProcessorHostedServiceTests
         await service.StartAsync(cancellationToken).ConfigureAwait(false);
 
         // Allow several unhealthy cycles to pass.
-        await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForHealthChecksAsync(2, timeoutCts.Token).ConfigureAwait(false);
 
         _ = await Assert.That(transport.SentMessages).IsEmpty();
 
         // Restore database health and allow processing to resume.
         repository.IsHealthy = true;
 
-        using var timeoutCts = CreateSignalTimeout(cancellationToken);
         await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
         await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
@@ -1597,6 +1625,14 @@ public sealed class OutboxProcessorHostedServiceTests
         return cts;
     }
 
+    private static async Task WaitForSignalsAsync(SemaphoreSlim signal, int count, CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            await signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>
     /// Builds an <see cref="IServiceScopeFactory"/> whose scopes always resolve the given
     /// <paramref name="repository"/> instance, mirroring how the hosted service resolves
@@ -1626,6 +1662,10 @@ public sealed class OutboxProcessorHostedServiceTests
         private readonly object _lock = new();
         private readonly SemaphoreSlim _markingEvent = new(0, int.MaxValue);
         private readonly SemaphoreSlim _pollEvent = new(0, int.MaxValue);
+        private readonly SemaphoreSlim _healthCheckEvent = new(0, int.MaxValue);
+        private readonly SemaphoreSlim _pendingCountEvent = new(0, int.MaxValue);
+        private int _isHealthyCallCount;
+        private int _getPendingCountCallCount;
 
         /// <summary>
         /// Waits until at least <paramref name="count"/> processing events (completed, failed, or dead-letter)
@@ -1695,20 +1735,54 @@ public sealed class OutboxProcessorHostedServiceTests
 
         public bool IsHealthy { get; set; } = true;
 
-        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken) => Task.FromResult(IsHealthy);
+        public bool ThrowOnIsHealthy { get; set; }
 
-        public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
+        public int IsHealthyCallCount => Volatile.Read(ref _isHealthyCallCount);
+
+        public int GetPendingCountCallCount => Volatile.Read(ref _getPendingCountCallCount);
+
+        /// <summary>
+        /// Waits until <see cref="IsHealthyAsync"/> has been called at least <paramref name="count"/> times,
+        /// i.e. the processor has reached the database health gate of that many cycles.
+        /// </summary>
+        public Task WaitForHealthChecksAsync(int count, CancellationToken cancellationToken = default) =>
+            WaitForSignalsAsync(_healthCheckEvent, count, cancellationToken);
+
+        /// <summary>
+        /// Waits until <see cref="GetPendingCountAsync"/> has been called at least <paramref name="count"/> times,
+        /// including calls that throw because <see cref="ThrowOnGetPendingCount"/> is set.
+        /// </summary>
+        public Task WaitForPendingCountsAsync(int count, CancellationToken cancellationToken = default) =>
+            WaitForSignalsAsync(_pendingCountEvent, count, cancellationToken);
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken)
         {
-            if (ThrowOnGetPendingCount)
+            _ = Interlocked.Increment(ref _isHealthyCallCount);
+            _ = _healthCheckEvent.Release();
+
+            if (ThrowOnIsHealthy)
             {
                 throw new InvalidOperationException("simulated");
             }
 
+            return Task.FromResult(IsHealthy);
+        }
+
+        public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
+        {
             lock (_lock)
             {
                 GetPendingCallCount++;
-                var count = _messages.Count(m => m.Status == OutboxMessageStatus.Pending);
+                _ = Interlocked.Increment(ref _getPendingCountCallCount);
                 _ = _pollEvent.Release();
+                _ = _pendingCountEvent.Release();
+
+                if (ThrowOnGetPendingCount)
+                {
+                    throw new InvalidOperationException("simulated");
+                }
+
+                var count = _messages.Count(m => m.Status == OutboxMessageStatus.Pending);
                 return Task.FromResult((long)count);
             }
         }
@@ -1857,6 +1931,8 @@ public sealed class OutboxProcessorHostedServiceTests
         {
             _markingEvent.Dispose();
             _pollEvent.Dispose();
+            _healthCheckEvent.Dispose();
+            _pendingCountEvent.Dispose();
         }
     }
 
@@ -2000,11 +2076,28 @@ public sealed class OutboxProcessorHostedServiceTests
         ) => throw new InvalidOperationException("Batch send failed");
     }
 
-    private sealed class UnhealthyMessageTransport : IMessageTransport
+    private sealed class UnhealthyMessageTransport : IMessageTransport, IDisposable
     {
-        public List<OutboxMessage> SentMessages { get; } = [];
+        private readonly SemaphoreSlim _healthCheckEvent = new(0, int.MaxValue);
+        private int _isHealthyCallCount;
 
-        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public int IsHealthyCallCount => Volatile.Read(ref _isHealthyCallCount);
+
+        /// <summary>
+        /// Waits until <see cref="IsHealthyAsync"/> has been called at least <paramref name="count"/> times,
+        /// i.e. the processor has reached the transport health gate of that many cycles.
+        /// </summary>
+        public Task WaitForHealthChecksAsync(int count, CancellationToken cancellationToken = default) =>
+            WaitForSignalsAsync(_healthCheckEvent, count, cancellationToken);
+
+        public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
+        {
+            _ = Interlocked.Increment(ref _isHealthyCallCount);
+            _ = _healthCheckEvent.Release();
+            return Task.FromResult(false);
+        }
+
+        public void Dispose() => _healthCheckEvent.Dispose();
 
         public Task SendAsync(OutboxMessage message, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("SendAsync should never be invoked when the transport is unhealthy.");
