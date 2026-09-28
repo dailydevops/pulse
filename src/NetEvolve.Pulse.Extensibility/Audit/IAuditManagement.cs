@@ -13,9 +13,10 @@ public interface IAuditManagement
     /// <returns>
     /// A read-only list of audit records matching all non-<see langword="null"/> conditions
     /// of <paramref name="filter"/> (AND-combined), ordered by <see cref="AuditRecord.OccurredAt"/>
-    /// descending (most recent first) and then by <see cref="AuditRecord.Id"/> descending, so that
-    /// pagination is stable for records sharing the same timestamp, with <see cref="AuditFilter.Skip"/>
-    /// and <see cref="AuditFilter.Take"/> applied for pagination.
+    /// descending (most recent first) and then by <see cref="AuditRecord.Id"/> descending in the
+    /// store's native identifier ordering as a deterministic tie-breaker, so that pagination is stable
+    /// for records sharing the same timestamp, with <see cref="AuditFilter.Skip"/> and
+    /// <see cref="AuditFilter.Take"/> applied for pagination.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="filter"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
