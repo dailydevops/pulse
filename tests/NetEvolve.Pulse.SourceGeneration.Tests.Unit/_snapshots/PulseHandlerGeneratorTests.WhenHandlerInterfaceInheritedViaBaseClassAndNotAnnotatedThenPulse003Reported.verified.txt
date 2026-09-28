@@ -16,29 +16,6 @@
       Location: {
         Kind: ExternalFile,
         SourceSpan: {
-          Start: 198,
-          Length: 193
-        }
-      },
-      Severity: Info,
-      WarningLevel: 1
-    },
-    {
-      DefaultSeverity: Info,
-      Descriptor: {
-        Category: Design,
-        DefaultSeverity: Info,
-        Description: {},
-        HelpLinkUri: ,
-        Id: PULSE003,
-        IsEnabledByDefault: true,
-        MessageFormat: {},
-        Title: {}
-      },
-      Id: PULSE003,
-      Location: {
-        Kind: ExternalFile,
-        SourceSpan: {
           Start: 393,
           Length: 212
         }

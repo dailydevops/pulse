@@ -82,4 +82,19 @@ internal static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
     );
+
+    /// <summary>
+    /// PULSE007 – the annotated type cannot be registered because the generated registration code cannot
+    /// reference it (the type or a containing type is <see langword="private"/>, <see langword="protected"/>,
+    /// <see langword="private protected"/> or <see langword="file"/>-local) or the DI container cannot instantiate it (the type is
+    /// <see langword="abstract"/>, <see langword="static"/> or a value type).
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnregistrableHandler = new(
+        id: "PULSE007",
+        title: "Handler type cannot be registered",
+        messageFormat: "Type '{0}' cannot be registered as a Pulse handler: it must be a non-abstract, non-static class that is not file-local and neither it nor any containing type is private, protected or private protected",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
 }
