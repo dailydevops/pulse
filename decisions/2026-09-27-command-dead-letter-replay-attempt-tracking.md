@@ -7,11 +7,11 @@ applyTo:
   - "src/**/DeadLetter/*CommandDeadLetterManagement.cs"
   - "src/NetEvolve.Pulse/Interceptors/CommandDeadLetterInterceptor.cs"
 
-created: 2026-09-24
+created: 2026-09-27
 
-lastModified: 2026-09-27
+lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST record a failed or cancelled ICommandDeadLetterManagement.ReplayAsync on the replayed entry, in the same statement as the reset to New: AttemptCount + 1, ExceptionType and ExceptionMessage of the new exception, OccurredAt from the injected TimeProvider.
@@ -25,7 +25,7 @@ A failed replay of a command dead letter entry updates that entry instead of add
 
 ## Context
 
-Issue #864 follows the [Command Dead Letter Replay Status Rules](./2026-09-24-command-dead-letter-replay-status.md). `ReplayAsync` dispatches the stored command through the normal mediator pipeline, which also contains `CommandDeadLetterInterceptor` when `AddCommandDeadLetter()` is registered. Nothing told the interceptor that a dispatch was a replay. So every failed replay stored a new entry with `AttemptCount = 1`, and the replayed entry was reset to `New` as well. After three failed replays, the pending list showed the same command four times. The replayed entry still showed `AttemptCount = 1` and the exception of the first failure.
+Issue #864 follows the [Command Dead Letter Replay Status Rules](./2026-09-27-command-dead-letter-replay-status.md). `ReplayAsync` dispatches the stored command through the normal mediator pipeline, which also contains `CommandDeadLetterInterceptor` when `AddCommandDeadLetter()` is registered. Nothing told the interceptor that a dispatch was a replay. So every failed replay stored a new entry with `AttemptCount = 1`, and the replayed entry was reset to `New` as well. After three failed replays, the pending list showed the same command four times. The replayed entry still showed `AttemptCount = 1` and the exception of the first failure.
 
 ## Decision
 
@@ -54,6 +54,6 @@ Issue #864 follows the [Command Dead Letter Replay Status Rules](./2026-09-24-co
 
 ## Related Decisions
 
-* [Command Dead Letter Replay Status Rules](./2026-09-24-command-dead-letter-replay-status.md) - Defines the status rules this decision extends; its consequences on failure details and duplicate entries are resolved here.
+* [Command Dead Letter Replay Status Rules](./2026-09-27-command-dead-letter-replay-status.md) - Defines the status rules this decision extends; its consequences on failure details and duplicate entries are resolved here.
 * [DateTimeOffset and TimeProvider Usage](./2026-01-21-datetimeoffset-and-timeprovider-usage.md) - The replay failure timestamp comes from the injected `TimeProvider`.
 * [Extensibility Interface Evolution Pre-1.0](./2026-09-24-extensibility-interface-evolution-pre-1-0.md) - The new public dispatcher method and the documented `ReplayAsync` behavior affect external implementers.

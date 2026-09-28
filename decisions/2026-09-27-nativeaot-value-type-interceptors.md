@@ -9,11 +9,11 @@ applyTo:
   - "src/NetEvolve.Pulse.SourceGeneration/**/*.cs"
   - "samples/NetEvolve.Pulse.Xample.Aot/**"
 
-created: 2026-09-24
+created: 2026-09-27
 
-lastModified: 2026-09-24
+lastModified: 2026-09-28
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST make requests with value-type request or response types pass through the built-in open-generic interceptors under NativeAOT by registering closed keyed interceptors per request type: NetEvolve.Pulse.SourceGeneration emits one NativeAotInterceptorExtensions call per handled value-type request when the compilation references NetEvolve.Pulse, and the mediator resolves the keyed interceptors for value-type requests when they are registered.
