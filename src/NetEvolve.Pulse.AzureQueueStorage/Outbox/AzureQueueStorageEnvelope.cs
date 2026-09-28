@@ -25,10 +25,3 @@ internal sealed record AzureQueueStorageEnvelope(
     [property: JsonPropertyName("causationId"), JsonIgnore(Condition = JsonIgnoreCondition.Never)] string? CausationId,
     [property: JsonPropertyName("createdAt")] DateTimeOffset CreatedAt
 );
-
-/// <summary>
-/// Source-generated JSON contract for <see cref="AzureQueueStorageEnvelope"/>, appended as fallback resolver to the
-/// configured <see cref="System.Text.Json.JsonSerializerOptions"/>, so the envelope is written without reflection.
-/// </summary>
-[JsonSerializable(typeof(AzureQueueStorageEnvelope))]
-internal sealed partial class AzureQueueStorageJsonSerializerContext : JsonSerializerContext;
