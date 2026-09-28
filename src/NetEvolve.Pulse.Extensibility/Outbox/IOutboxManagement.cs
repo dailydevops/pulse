@@ -25,7 +25,11 @@ public interface IOutboxManagement
     /// <param name="pageSize">Maximum number of messages to return per page. Must be greater than zero.</param>
     /// <param name="page">Zero-based page index. Must not be negative.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A read-only list of dead-letter messages ordered by <see cref="OutboxMessage.UpdatedAt"/> descending.</returns>
+    /// <returns>
+    /// A read-only list of dead-letter messages ordered by <see cref="OutboxMessage.UpdatedAt"/> descending.
+    /// Where the store supports it, messages with equal <see cref="OutboxMessage.UpdatedAt"/> are ordered by
+    /// <see cref="OutboxMessage.Id"/> descending, so consecutive pages never skip or repeat a message.
+    /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown if <paramref name="pageSize"/> is not positive, <paramref name="page"/> is negative,
     /// or the resulting offset (<paramref name="page"/> × <paramref name="pageSize"/>) exceeds <see cref="int.MaxValue"/>.
