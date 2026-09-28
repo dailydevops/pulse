@@ -3,7 +3,7 @@ authors:
   - Martin Stühmer
 
 applyTo:
-  - "src/NetEvolve.Pulse.EntityFramework/Outbox/EntityFrameworkOutboxRepository{TContext}.cs"
+  - "src/NetEvolve.Pulse.EntityFramework/Outbox/EntityFrameworkOutboxRepository*.cs"
   - "src/NetEvolve.Pulse.CosmosDb/Outbox/CosmosDbOutboxRepository.cs"
   - "src/NetEvolve.Pulse.CosmosDb/Outbox/CosmosDbOutboxOptions.cs"
 
