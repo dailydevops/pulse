@@ -53,4 +53,30 @@ public interface IIdempotencyKeyRepository
     /// a successful (idempotent) store operation.
     /// </remarks>
     Task StoreAsync(string idempotencyKey, DateTimeOffset createdAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Attempts to store an idempotency key only if no valid key with the same value exists yet.
+    /// </summary>
+    /// <param name="idempotencyKey">The idempotency key to reserve.</param>
+    /// <param name="createdAt">The timestamp to associate with the stored key.</param>
+    /// <param name="validFrom">
+    /// When set, an existing key created before this timestamp is treated as absent and may be
+    /// replaced by this reservation. When <see langword="null"/>, an existing key is never replaced.
+    /// </param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// <see langword="true"/> if this call stored the key; <see langword="false"/> if a valid key already exists.
+    /// </returns>
+    /// <remarks>
+    /// Implementations backed by storage that supports an atomic check-and-set (for example Redis <c>SET NX</c>)
+    /// SHOULD perform the check and the store as one atomic operation, so that of several concurrent calls
+    /// for the same key at most one returns <see langword="true"/>. Implementations that compose
+    /// <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> are not atomic.
+    /// </remarks>
+    Task<bool> TryStoreAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    );
 }

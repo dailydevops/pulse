@@ -66,4 +66,21 @@ internal sealed class IdempotencyStore : IIdempotencyStore
 
         return _repository.StoreAsync(idempotencyKey, _timeProvider.GetUtcNow(), cancellationToken);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Delegates to <see cref="IIdempotencyKeyRepository.TryStoreAsync"/>, so the reservation is atomic
+    /// whenever the registered repository implements it atomically.
+    /// </remarks>
+    public Task<bool> TryReserveAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        var now = _timeProvider.GetUtcNow();
+        DateTimeOffset? cutoff = _options.TimeToLive.HasValue ? now - _options.TimeToLive.Value : null;
+
+        return _repository.TryStoreAsync(idempotencyKey, now, cutoff, cancellationToken);
+    }
 }

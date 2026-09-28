@@ -120,6 +120,28 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Composes <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> and is therefore not atomic.
+    /// </remarks>
+    public async Task<bool> TryStoreAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (await ExistsAsync(idempotencyKey, validFrom, cancellationToken).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        await StoreAsync(idempotencyKey, createdAt, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <inheritdoc />
     public async Task StoreAsync(
         string idempotencyKey,
         DateTimeOffset createdAt,
