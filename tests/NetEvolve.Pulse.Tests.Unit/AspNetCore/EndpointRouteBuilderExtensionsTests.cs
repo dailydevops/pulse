@@ -401,6 +401,57 @@ public sealed class EndpointRouteBuilderExtensionsTests
         _ = await Assert.That(body).Contains("\"alpha\"\n");
     }
 
+    // INVARIANT: RFC 9110 §12.4.2 and §12.5.1 — the effective weight of each media type comes from
+    // the most specific matching range, q=0 means "not acceptable", and SSE wins ties and the case
+    // where neither type is acceptable.
+    [Test]
+    [Arguments("text/event-stream, application/x-ndjson;q=0", "text/event-stream")]
+    [Arguments("text/event-stream;q=1, application/x-ndjson;q=0.1", "text/event-stream")]
+    [Arguments("application/x-ndjson;q=0", "text/event-stream")]
+    [Arguments("text/event-stream, application/x-ndjson", "text/event-stream")]
+    [Arguments("*/*", "text/event-stream")]
+    [Arguments("*/*, application/x-ndjson;q=0", "text/event-stream")]
+    [Arguments("application/*, application/x-ndjson;q=0", "text/event-stream")]
+    [Arguments("text/event-stream;q=0.1, application/x-ndjson;q=0.5", "application/x-ndjson")]
+    [Arguments("*/*;q=0.5, text/event-stream;q=0", "application/x-ndjson")]
+    [Arguments("application/*", "application/x-ndjson")]
+    [Arguments("text/*;q=0.2, application/x-ndjson;q=0.3", "application/x-ndjson")]
+    public async Task MapStreamQuery_WithWeightedAccept_SelectsMediaTypeByQuality(
+        string accept,
+        string expectedMediaType,
+        CancellationToken cancellationToken
+    )
+    {
+        using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+        _ = client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", accept);
+
+        using var response = await client
+            .GetAsync(new Uri("/stream", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+        _ = await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo(expectedMediaType);
+    }
+
+    // INVARIANT: The representation depends on the Accept header, so the response must carry
+    // "Vary: Accept" (RFC 9110 §12.5.5) to keep shared caches from mixing SSE and NDJSON.
+    [Test]
+    [Arguments("text/event-stream")]
+    [Arguments("application/x-ndjson")]
+    public async Task MapStreamQuery_WithAccept_SetsVaryAcceptHeader(string accept, CancellationToken cancellationToken)
+    {
+        using var host = await CreateTestHostAsync(["alpha"], cancellationToken).ConfigureAwait(false);
+        var client = host.GetTestClient();
+        _ = client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", accept);
+
+        using var response = await client
+            .GetAsync(new Uri("/stream", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.Headers.Vary).Contains("Accept");
+    }
+
     // MapStreamQuery — empty stream
 
     [Test]
