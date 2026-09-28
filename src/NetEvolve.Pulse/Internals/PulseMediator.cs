@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Internal implementation of <see cref="IMediator"/> that coordinates dispatching requests and events to their handlers.
@@ -74,6 +75,11 @@ internal sealed partial class PulseMediator : IMediator
     /// handlers share the caller's scoped services (e.g. the same DbContext) and can participate in the
     /// caller's transaction — a prerequisite for atomic outbox writes. When the mediator is resolved from
     /// the root provider, scoped handler dependencies live in the root scope for the provider's lifetime.
+    /// Because the outbox handler registered by <c>AddOutbox()</c> writes through those shared services, it is
+    /// invoked first and on its own. Only the remaining handlers go to the dispatcher, so the outbox write never
+    /// runs concurrently with another handler. User handlers that share a scoped <c>DbContext</c> or connection
+    /// with each other need <see cref="SequentialEventDispatcher"/>, because the default
+    /// <see cref="ParallelEventDispatcher"/> runs them concurrently.
     /// </remarks>
     public Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent
@@ -179,7 +185,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <returns>A task representing the asynchronous execution of the event through the interceptor pipeline.</returns>
     private Task ExecuteAsync<TEvent>(
         TEvent msg,
-        IEnumerable<IEventHandler<TEvent>> handlers,
+        IEventHandler<TEvent>[] handlers,
         IServiceProvider serviceProvider,
         CancellationToken cancellationToken
     )
@@ -190,9 +196,20 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve dispatcher: keyed by event type first, then global, then default
         var dispatcher = serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
 
+        // The outbox handler writes through the caller's scoped services (e.g. the same DbContext), so it
+        // must never run concurrently with other handlers. It runs first and sequentially; only the
+        // remaining handlers go through the dispatcher.
+        var outboxHandlers = Array.FindAll(handlers, static h => h is OutboxEventHandler<TEvent>);
+        var otherHandlers =
+            outboxHandlers.Length == 0
+                ? handlers
+                : Array.FindAll(handlers, static h => h is not OutboxEventHandler<TEvent>);
+
         // Create the dispatch action that uses the resolved dispatcher
         Task DispatchAsync(TEvent message, CancellationToken token) =>
-            dispatcher.DispatchAsync(message, handlers, InvokeHandlerAsync, token);
+            outboxHandlers.Length == 0
+                ? dispatcher.DispatchAsync(message, handlers, InvokeHandlerAsync, token)
+                : DispatchOutboxFirstAsync(message, outboxHandlers, otherHandlers, dispatcher, token);
 
         // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
         var next = DispatchAsync;
@@ -336,6 +353,70 @@ internal sealed partial class PulseMediator : IMediator
         }
 
         return [.. _serviceProvider.GetServices<TInterceptor>()];
+    }
+
+    /// <summary>
+    /// Invokes the outbox handlers sequentially and then dispatches the remaining handlers, so the outbox
+    /// write never overlaps another handler that shares the caller's scoped services.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event being processed.</typeparam>
+    /// <param name="message">The event to process.</param>
+    /// <param name="outboxHandlers">The outbox handlers, invoked first and one after another.</param>
+    /// <param name="otherHandlers">The remaining handlers, passed to <paramref name="dispatcher"/>.</param>
+    /// <param name="dispatcher">The dispatcher for the remaining handlers.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous dispatch.</returns>
+    /// <exception cref="AggregateException">
+    /// Thrown after all handlers have run when an outbox handler failed; it also carries the failures of
+    /// the remaining handlers, flattened from the dispatcher's <see cref="AggregateException"/>.
+    /// </exception>
+    private async Task DispatchOutboxFirstAsync<TEvent>(
+        TEvent message,
+        IEventHandler<TEvent>[] outboxHandlers,
+        IEventHandler<TEvent>[] otherHandlers,
+        IEventDispatcher dispatcher,
+        CancellationToken cancellationToken
+    )
+        where TEvent : IEvent
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var exceptions = new List<Exception>();
+
+        foreach (var handler in outboxHandlers)
+        {
+            try
+            {
+                await InvokeHandlerAsync(handler, message, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                exceptions.Add(ex);
+            }
+        }
+
+        if (otherHandlers.Length > 0)
+        {
+            try
+            {
+                await dispatcher
+                    .DispatchAsync(message, otherHandlers, InvokeHandlerAsync, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (AggregateException ex) when (exceptions.Count > 0)
+            {
+                exceptions.AddRange(ex.InnerExceptions);
+            }
+            catch (Exception ex) when (exceptions.Count > 0 && !cancellationToken.IsCancellationRequested)
+            {
+                exceptions.Add(ex);
+            }
+        }
+
+        if (exceptions.Count > 0)
+        {
+            throw new AggregateException("One or more event handlers failed.", exceptions);
+        }
     }
 
     /// <summary>
