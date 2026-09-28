@@ -879,10 +879,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         // Find the matching handler interface in the class's AllInterfaces. A class may implement the
-        // same handler interface for several messages, so its message argument (and, for commands and
-        // queries, its result argument) must be the explicit message type (result type) or a type
-        // parameter still to be closed over it. An open interface with a different result type is
-        // never used as a fallback.
+        // same handler interface for several messages, so its message argument must be the explicit
+        // message type or a type parameter still to be closed over it.
         // A manual loop is used instead of LINQ's FirstOrDefault to avoid allocating a
         // closure/display-class per call.
 #pragma warning disable S3267 // Loops should be simplified using the "Where" LINQ method
@@ -898,11 +896,6 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
                 && (
                     iface.TypeArguments[0] is ITypeParameterSymbol
                     || SymbolEqualityComparer.Default.Equals(iface.TypeArguments[0], messageType)
-                )
-                && (
-                    resultType is null
-                    || iface.TypeArguments[1] is ITypeParameterSymbol
-                    || SymbolEqualityComparer.Default.Equals(iface.TypeArguments[1], resultType)
                 )
             )
             {
@@ -985,19 +978,16 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         var closedHandler = classSymbol.Construct(handlerTypeArgs);
 
-        // Build the closed service interface type arguments.
-        var serviceTypeArgs = new ITypeSymbol[matchingIface.TypeArguments.Length];
-        for (var i = 0; i < matchingIface.TypeArguments.Length; i++)
-        {
-#pragma warning disable S3358 // Ternary operators should not be nested
-            serviceTypeArgs[i] =
-                matchingIface.TypeArguments[i] is ITypeParameterSymbol
-                    ? (i == 0 ? messageType : resultType!)
-                    : matchingIface.TypeArguments[i];
-#pragma warning restore S3358 // Ternary operators should not be nested
-        }
-
-        var closedService = matchingIface.OriginalDefinition.Construct(serviceTypeArgs);
+        // Substitute the class type parameters everywhere in the interface, including constructed
+        // result arguments such as Result<T>. The interface's own constraint (TCommand : ICommand<TResponse>)
+        // is a constraint of the class too, so SatisfiesConstraints already ensured the message declares the
+        // substituted result type.
+        var closedService = (INamedTypeSymbol)SubstituteTypeParameters(
+            compilation,
+            matchingIface,
+            classSymbol.TypeParameters,
+            handlerTypeArgs
+        );
 
         return new HandlerRegistration(
             GetFullyQualifiedName(closedHandler),
