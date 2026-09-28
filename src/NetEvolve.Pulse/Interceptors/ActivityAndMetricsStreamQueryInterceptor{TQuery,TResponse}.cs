@@ -81,6 +81,13 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     /// <item>Measures and records execution duration</item>
     /// <item>Captures exception details on failure</item>
     /// <item>Marks success/failure status in both activity and metrics</item>
+    /// <item>Leaves the activity status <see cref="ActivityStatusCode.Unset"/> unless the stream faults</item>
+    /// <item>Sets <c>error.type</c> on the activity, the error counter and the duration histogram on failure</item>
+    /// <item>
+    /// Records the duration exactly once for every outcome. A stream whose consumer stops enumerating early
+    /// (for example <see langword="break"/>, <c>Take</c> or a disconnected client) is tagged <c>pulse.stream.completed=false</c>
+    /// and carries no <c>pulse.success</c> tag
+    /// </item>
     /// <item>Yields items unchanged without buffering</item>
     /// </list>
     /// </remarks>
@@ -118,13 +125,23 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
         StreamQueryCounter.Add(1, tags);
 
         // yield return is not allowed inside a try/catch block, so we capture any exception
-        // from the inner enumerator and re-throw it after the yield loop completes.
+        // from the handler or the inner enumerator and re-throw it after the finally block ran.
         ExceptionDispatchInfo? caughtExceptionInfo = null;
+        var completed = false;
+        IAsyncEnumerator<TResponse>? enumerator = null;
 
-        var enumerator = handler(request, cancellationToken).GetAsyncEnumerator(cancellationToken);
         try
         {
-            while (true)
+            try
+            {
+                enumerator = handler(request, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                caughtExceptionInfo = ExceptionDispatchInfo.Capture(ex);
+            }
+
+            while (enumerator is not null)
             {
                 bool hasNext;
                 try
@@ -139,6 +156,7 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
 
                 if (!hasNext)
                 {
+                    completed = true;
                     break;
                 }
 
@@ -148,46 +166,73 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
         }
         finally
         {
-            await enumerator.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                if (enumerator is not null)
+                {
+                    await enumerator.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                // Runs for every outcome, including a consumer that stops early and disposes the iterator.
+                RecordOutcome(activity, tags, startTime, caughtExceptionInfo?.SourceException, completed);
+            }
         }
 
-        if (caughtExceptionInfo is not null)
+        caughtExceptionInfo?.Throw();
+    }
+
+    /// <summary>
+    /// Records the duration and outcome of a stream query on the activity and the metrics.
+    /// </summary>
+    /// <param name="activity">The activity of the stream query, if sampled.</param>
+    /// <param name="tags">The base tags of the stream query.</param>
+    /// <param name="startTime">The time the stream query started.</param>
+    /// <param name="exception">The exception that faulted the stream, or <see langword="null"/>.</param>
+    /// <param name="completed"><see langword="true"/> if the stream was enumerated to its end.</param>
+    private void RecordOutcome(
+        Activity? activity,
+        TagList tags,
+        DateTimeOffset startTime,
+        Exception? exception,
+        bool completed
+    )
+    {
+        var endTime = _timeProvider.GetUtcNow();
+        var duration = (endTime - startTime).TotalMilliseconds;
+        _ = activity?.SetEndTime(endTime.UtcDateTime);
+
+        if (exception is not null)
         {
-            var ex = caughtExceptionInfo.SourceException;
-            var errorTime = _timeProvider.GetUtcNow();
+            var errorType = exception.GetType().FullName;
 
             // Capture comprehensive exception details in the activity
             _ = activity
-                ?.SetStatus(ActivityStatusCode.Error, ex.Message)
-                .SetEndTime(errorTime.UtcDateTime)
-                .SetTag(ExceptionType, ex.GetType().FullName)
-                .SetTag(ExceptionMessage, ex.Message)
-                .SetTag(ExceptionStackTrace, ex.StackTrace)
-                .SetTag(ExceptionTimestamp, errorTime)
+                ?.SetStatus(ActivityStatusCode.Error, exception.Message)
+                .SetTag(ErrorType, errorType)
+                .SetTag(ExceptionType, errorType)
+                .SetTag(ExceptionMessage, exception.Message)
+                .SetTag(ExceptionStackTrace, exception.StackTrace)
+                .SetTag(ExceptionTimestamp, endTime)
                 .SetTag(Success, value: false);
 
-            // Increment error counters and record failed execution duration
-            ErrorsCounter.Add(1, tags);
-            StreamQueryDurationHistogram.Record(
-                (errorTime - startTime).TotalMilliseconds,
-                [.. tags, new(Success, false)]
-            );
+            ErrorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
+            StreamQueryDurationHistogram.Record(duration, [.. tags, new(Success, false), new(ErrorType, errorType)]);
+        }
+        else if (completed)
+        {
+            // Status stays Unset on success, as required by the OpenTelemetry Trace API.
+            _ = activity?.SetTag(ResponseTimestamp, endTime).SetTag(Success, value: true);
 
-            caughtExceptionInfo.Throw();
+            StreamQueryDurationHistogram.Record(duration, [.. tags, new(Success, true)]);
         }
         else
         {
-            var endTime = _timeProvider.GetUtcNow();
+            // The consumer stopped early: not an error, so the status stays Unset.
+            _ = activity?.SetTag(StreamCompleted, value: false);
 
-            // Mark activity as successful
-            _ = activity
-                ?.SetStatus(ActivityStatusCode.Ok)
-                .SetEndTime(endTime.UtcDateTime)
-                .SetTag(ResponseTimestamp, endTime)
-                .SetTag(Success, value: true);
-
-            // Record successful execution duration
-            StreamQueryDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
+            StreamQueryDurationHistogram.Record(duration, [.. tags, new(StreamCompleted, false)]);
         }
     }
 }
