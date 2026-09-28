@@ -241,8 +241,8 @@ public static class HandlerRegistrationExtensions
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator"/> is null.</exception>
     /// <remarks>
     /// <para><strong>Multiple Interceptors:</strong></para>
-    /// Multiple interceptors can be registered for the same request type. They execute in reverse order
-    /// of registration (LIFO - Last In, First Out). The last registered interceptor runs first.
+    /// Multiple interceptors can be registered for the same request type. They execute in registration
+    /// order: the first registered interceptor is outermost and runs first.
     /// <para><strong>AOT Safety:</strong></para>
     /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
     /// ensures the interceptor's public constructors are preserved during trimming.
@@ -288,8 +288,8 @@ public static class HandlerRegistrationExtensions
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator"/> is null.</exception>
     /// <remarks>
     /// <para><strong>Multiple Interceptors:</strong></para>
-    /// Multiple interceptors can be registered for the same command type. They execute in reverse order
-    /// of registration (LIFO - Last In, First Out). The last registered interceptor runs first.
+    /// Multiple interceptors can be registered for the same command type. They execute in registration
+    /// order: the first registered interceptor is outermost and runs first.
     /// <para><strong>AOT Safety:</strong></para>
     /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
     /// ensures the interceptor's public constructors are preserved during trimming.
@@ -301,7 +301,7 @@ public static class HandlerRegistrationExtensions
     /// // Register command interceptor
     /// config.AddCommandInterceptor&lt;CreateOrderCommand, OrderResult, TransactionInterceptor&lt;CreateOrderCommand, OrderResult&gt;&gt;();
     ///
-    /// // Chain multiple interceptors (executed in reverse order)
+    /// // Chain multiple interceptors (executed in registration order: Logging -&gt; Validation -&gt; Authorization -&gt; Handler)
     /// config
     ///     .AddCommandInterceptor&lt;CreateOrderCommand, OrderResult, LoggingInterceptor&lt;CreateOrderCommand, OrderResult&gt;&gt;()
     ///     .AddCommandInterceptor&lt;CreateOrderCommand, OrderResult, ValidationInterceptor&lt;CreateOrderCommand, OrderResult&gt;&gt;()
@@ -338,8 +338,8 @@ public static class HandlerRegistrationExtensions
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator"/> is null.</exception>
     /// <remarks>
     /// <para><strong>Multiple Interceptors:</strong></para>
-    /// Multiple interceptors can be registered for the same query type. They execute in reverse order
-    /// of registration (LIFO - Last In, First Out). The last registered interceptor runs first.
+    /// Multiple interceptors can be registered for the same query type. They execute in registration
+    /// order: the first registered interceptor is outermost and runs first.
     /// <para><strong>AOT Safety:</strong></para>
     /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
     /// ensures the interceptor's public constructors are preserved during trimming.
@@ -482,8 +482,8 @@ public static class HandlerRegistrationExtensions
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="configurator"/> is null.</exception>
     /// <remarks>
     /// <para><strong>Multiple Interceptors:</strong></para>
-    /// Multiple interceptors can be registered for the same streaming query type. They execute in reverse order
-    /// of registration (LIFO - Last In, First Out).
+    /// Multiple interceptors can be registered for the same streaming query type. They execute in registration
+    /// order: the first registered interceptor is outermost and runs first.
     /// <para><strong>AOT Safety:</strong></para>
     /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
     /// ensures the interceptor's public constructors are preserved during trimming.

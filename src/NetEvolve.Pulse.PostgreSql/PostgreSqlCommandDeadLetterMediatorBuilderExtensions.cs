@@ -27,6 +27,7 @@ public static class PostgreSqlCommandDeadLetterMediatorBuilderExtensions
     /// <list type="bullet">
     /// <item><description><see cref="ICommandDeadLetterStore"/> as <see cref="PostgreSqlCommandDeadLetterStore"/> (Scoped)</description></item>
     /// <item><description><see cref="ICommandDeadLetterManagement"/> as <see cref="PostgreSqlCommandDeadLetterManagement"/> (Scoped)</description></item>
+    /// <item><description><see cref="TimeProvider"/> (Singleton, if not already registered)</description></item>
     /// </list>
     /// </remarks>
     /// <example>

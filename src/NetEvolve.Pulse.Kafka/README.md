@@ -28,8 +28,8 @@ services.AddPulse(config => config.AddOutbox().UseKafkaTransport());
 ## Topic Routing
 
 Topic names are resolved by the registered `ITopicNameResolver`. The default implementation
-(registered by `AddOutbox()`) extracts the simple class name from `OutboxMessage.EventType`,
-e.g. `"MyApp.Events.OrderCreated, MyApp"` → `"OrderCreated"`.
+(registered by `AddOutbox()`) returns the `Type.Name` of `OutboxMessage.EventType`, which is a `System.Type`,
+e.g. an event of type `MyApp.Events.OrderCreated` resolves to `"OrderCreated"`.
 
 Register a custom `ITopicNameResolver` **before** calling `UseKafkaTransport()` to override:
 
