@@ -95,6 +95,8 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
     )
     {
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var whereClause = new StringBuilder();
 
@@ -153,7 +155,7 @@ internal sealed class SQLiteAuditManagement : IAuditManagement
                 "{AuditEntrySchema.Columns.ExceptionMessage}"
             FROM {_table}
             {whereClause}
-            ORDER BY "{AuditEntrySchema.Columns.OccurredAt}" DESC
+            ORDER BY "{AuditEntrySchema.Columns.OccurredAt}" DESC, "{AuditEntrySchema.Columns.Id}" DESC
             LIMIT @take OFFSET @skip;
             """;
 

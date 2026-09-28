@@ -39,6 +39,8 @@ internal sealed class EntityFrameworkAuditManagement<TContext> : IAuditManagemen
     )
     {
         ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(filter.Take);
+        ArgumentOutOfRangeException.ThrowIfNegative(filter.Skip);
 
         var query = _context.AuditEntries.AsQueryable();
 
@@ -69,6 +71,7 @@ internal sealed class EntityFrameworkAuditManagement<TContext> : IAuditManagemen
 
         return await query
             .OrderByDescending(e => e.OccurredAt)
+            .ThenByDescending(e => e.Id)
             .Skip(filter.Skip)
             .Take(filter.Take)
             .ToListAsync(cancellationToken)

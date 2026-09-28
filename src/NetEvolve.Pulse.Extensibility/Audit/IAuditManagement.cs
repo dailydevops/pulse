@@ -13,9 +13,14 @@ public interface IAuditManagement
     /// <returns>
     /// A read-only list of audit records matching all non-<see langword="null"/> conditions
     /// of <paramref name="filter"/> (AND-combined), ordered by <see cref="AuditRecord.OccurredAt"/>
-    /// descending (most recent first), with <see cref="AuditFilter.Skip"/> and
-    /// <see cref="AuditFilter.Take"/> applied for pagination.
+    /// descending (most recent first) and then by <see cref="AuditRecord.Id"/> descending, so that
+    /// pagination is stable for records sharing the same timestamp, with <see cref="AuditFilter.Skip"/>
+    /// and <see cref="AuditFilter.Take"/> applied for pagination.
     /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="filter"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="AuditFilter.Take"/> is less than or equal to zero, or <see cref="AuditFilter.Skip"/> is negative.
+    /// </exception>
     Task<IReadOnlyList<AuditRecord>> QueryAsync(AuditFilter filter, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -88,10 +93,18 @@ public sealed class AuditFilter
     /// <summary>
     /// Gets or sets the maximum number of records to return. Default: <c>50</c>.
     /// </summary>
+    /// <remarks>
+    /// Must be greater than zero; otherwise <see cref="IAuditManagement.QueryAsync"/> throws an
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </remarks>
     public int Take { get; set; } = 50;
 
     /// <summary>
     /// Gets or sets the number of matching records to skip, for pagination. Default: <c>0</c>.
     /// </summary>
+    /// <remarks>
+    /// Must be zero or greater; otherwise <see cref="IAuditManagement.QueryAsync"/> throws an
+    /// <see cref="ArgumentOutOfRangeException"/>.
+    /// </remarks>
     public int Skip { get; set; }
 }
