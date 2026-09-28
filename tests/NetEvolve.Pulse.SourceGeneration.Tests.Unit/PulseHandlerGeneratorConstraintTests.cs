@@ -578,6 +578,50 @@ public class PulseHandlerGeneratorConstraintTests
         "ICommandHandler<global::StrCmd, string>, global::G<global::StrCmd>>",
         null
     )]
+    [Arguments(
+        "ConcreteHandlerForSecondResultOfMessageWithSeveralResults",
+        """
+            public sealed record Both : RequestBase, ICommand<string>, ICommand<int>;
+
+            [PulseHandler<Both>]
+            public sealed class H : ICommandHandler<Both, int>
+            {
+                public Task<int> HandleAsync(Both command, CancellationToken cancellationToken = default) => Task.FromResult(0);
+            }
+            """,
+        "ICommandHandler<global::Both, int>, global::H>",
+        null
+    )]
+    [Arguments(
+        "ConcreteHandlerWithDifferentTupleElementNames",
+        """
+            public sealed record TupleCmd : RequestBase, ICommand<(int A, int B)>;
+
+            [PulseHandler<TupleCmd>]
+            public sealed class H : ICommandHandler<TupleCmd, (int X, int Y)>
+            {
+                public Task<(int X, int Y)> HandleAsync(TupleCmd command, CancellationToken cancellationToken = default) => Task.FromResult((0, 0));
+            }
+            """,
+        "ICommandHandler<global::TupleCmd, (int X, int Y)>, global::H>",
+        null
+    )]
+    [Arguments(
+        "GenericHandlerWithSelfReferentialConstructedResult",
+        """
+            public sealed record Result<T>;
+            public sealed record Msg : RequestBase, ICommand<Result<Msg>>;
+
+            [PulseHandler<Msg>]
+            public sealed class G<T> : ICommandHandler<T, Result<T>>
+                where T : ICommand<Result<T>>
+            {
+                public Task<Result<T>> HandleAsync(T command, CancellationToken cancellationToken = default) => Task.FromResult(new Result<T>());
+            }
+            """,
+        "ICommandHandler<global::Msg, global::Result<global::Msg>>, global::G<global::Msg>>",
+        null
+    )]
     public async Task WhenHandlerImplementsSameHandlerInterfaceForSeveralMessagesThenEachExplicitMessageTypeIsRegistered(
         string scenario,
         string declarations,
