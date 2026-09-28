@@ -125,6 +125,8 @@ public static class OutboxInspectorEndpoints
         OutboxMessageStatus? status = null
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var errors = ValidatePaging(pageSize, page);
         if (status is { } value && !Enum.IsDefined(value))
         {
@@ -154,6 +156,8 @@ public static class OutboxInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var message = await outboxManagement.GetMessageAsync(id, cancellationToken).ConfigureAwait(false);
 
         return message is null
@@ -231,6 +235,8 @@ public static class OutboxInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var dismissed = await outboxManagement.DismissMessageAsync(id, cancellationToken).ConfigureAwait(false);
 
         return dismissed ? TypedResults.NoContent() : TypedResults.NotFound();

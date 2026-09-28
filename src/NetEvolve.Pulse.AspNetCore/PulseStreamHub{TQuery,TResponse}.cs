@@ -55,6 +55,11 @@ public class PulseStreamHub<TQuery, TResponse> : Hub
     /// </param>
     /// <returns>An asynchronous sequence of result items that SignalR streams to the caller.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="query"/> is <see langword="null"/>.</exception>
+    [SuppressMessage(
+        "Usage",
+        "NE0009:Method or local function has a CancellationToken parameter but does not check for cancellation at the start of its body",
+        Justification = "Cancellation ends the SignalR stream gracefully without an exception (client unsubscribe or disconnect); StreamCoreAsync checks the token and ends the stream with yield break."
+    )]
     public IAsyncEnumerable<TResponse> StreamAsync([NotNull] TQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -70,6 +75,11 @@ public class PulseStreamHub<TQuery, TResponse> : Hub
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            yield break;
+        }
+
         var enumerator = items.GetAsyncEnumerator(cancellationToken);
         await using (enumerator.ConfigureAwait(false))
         {

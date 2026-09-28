@@ -111,6 +111,8 @@ public static class CommandDeadLetterInspectorEndpoints
         int skip = 0
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
         if (count is <= 0 or > MaxCount)
         {
@@ -140,6 +142,8 @@ public static class CommandDeadLetterInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entry = await commandDeadLetterManagement.GetEntryAsync(id, cancellationToken).ConfigureAwait(false);
 
         return entry is null

@@ -100,6 +100,8 @@ public static class AuditInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var errors = query.Validate();
         if (errors.Count > 0)
         {
@@ -119,6 +121,8 @@ public static class AuditInspectorEndpoints
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var record = await auditManagement.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
         return record is null
             ? TypedResults.NotFound()
