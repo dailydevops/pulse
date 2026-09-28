@@ -1455,6 +1455,43 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    public async Task ExecuteAsync_WhenStoppedDuringErrorBackoff_CompletesAndLogsProcessorStopped(
+        CancellationToken cancellationToken
+    )
+    {
+        using var repository = new InMemoryOutboxRepository { ThrowOnIsHealthy = true };
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMinutes(5) });
+        var logger = Mock.Logger<OutboxProcessorHostedService>();
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            logger
+        );
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForHealthChecksAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        var stoppedLogs = logger
+            .Entries.Where(e =>
+                e.LogLevel == LogLevel.Information
+                && e.Message.Contains("Outbox processor stopped", StringComparison.Ordinal)
+            )
+            .ToList();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(service.ExecuteTask).IsNotNull();
+            _ = await Assert.That(service.ExecuteTask.IsCompletedSuccessfully).IsTrue();
+            _ = await Assert.That(stoppedLogs).HasSingleItem();
+        }
+    }
+
+    [Test]
     public async Task ExecuteAsync_WhenGetPendingCountThrows_StillProcessesPendingMessages(
         CancellationToken cancellationToken
     )
