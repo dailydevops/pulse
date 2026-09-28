@@ -28,10 +28,17 @@
 --   exception during dispatch. No additional column is required — UpdatedAt is reused.
 --
 -- Usage:
---   Run this script in the target MySQL database once before deploying the application:
+--   Run this script in the target MySQL database before deploying the application:
 --     mysql -u <user> -p <database> < OutboxMessage.sql
 --
---   If you need a custom table name, replace all occurrences of `OutboxMessage`
+--   The script is safe to re-run. MySQL 8.0 has no CREATE INDEX IF NOT EXISTS, so every index
+--   is guarded by an information_schema.statistics lookup executed through PREPARE / EXECUTE.
+--   Re-run the script after upgrading the package to apply indexes added in later releases.
+--   Existing tables and indexes are left unchanged. When executing it through MySql.Data
+--   instead of the mysql client, set AllowUserVariables=True (the guards use @pulse_sql).
+--
+--   If you need a custom table name, replace every table reference to OutboxMessage
+--   (CREATE TABLE IF NOT EXISTS `OutboxMessage`, ON `OutboxMessage` and TABLE_NAME = 'OutboxMessage')
 --   and update OutboxOptions.TableName in your application configuration accordingly.
 --
 -- Note on schema:
@@ -57,17 +64,45 @@ CREATE TABLE IF NOT EXISTS `OutboxMessage` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Index for pending/failed message polling (queried by the outbox processor)
-CREATE INDEX `IX_OutboxMessage_Status_CreatedAt`
-    ON `OutboxMessage` (`Status`, `CreatedAt`);
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'OutboxMessage' AND INDEX_NAME = 'IX_OutboxMessage_Status_CreatedAt') = 0,
+    'CREATE INDEX `IX_OutboxMessage_Status_CreatedAt` ON `OutboxMessage` (`Status`, `CreatedAt`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
 
 -- Index for retry-scheduled message polling (exponential backoff)
-CREATE INDEX `IX_OutboxMessage_Status_NextRetryAt`
-    ON `OutboxMessage` (`Status`, `NextRetryAt`);
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'OutboxMessage' AND INDEX_NAME = 'IX_OutboxMessage_Status_NextRetryAt') = 0,
+    'CREATE INDEX `IX_OutboxMessage_Status_NextRetryAt` ON `OutboxMessage` (`Status`, `NextRetryAt`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
 
 -- Index for completed message cleanup
-CREATE INDEX `IX_OutboxMessage_Status_ProcessedAt`
-    ON `OutboxMessage` (`Status`, `ProcessedAt`);
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'OutboxMessage' AND INDEX_NAME = 'IX_OutboxMessage_Status_ProcessedAt') = 0,
+    'CREATE INDEX `IX_OutboxMessage_Status_ProcessedAt` ON `OutboxMessage` (`Status`, `ProcessedAt`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
 
 -- Index for reclaiming Processing messages whose claim lease has expired
-CREATE INDEX `IX_OutboxMessage_Status_UpdatedAt`
-    ON `OutboxMessage` (`Status`, `UpdatedAt`);
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.statistics
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'OutboxMessage' AND INDEX_NAME = 'IX_OutboxMessage_Status_UpdatedAt') = 0,
+    'CREATE INDEX `IX_OutboxMessage_Status_UpdatedAt` ON `OutboxMessage` (`Status`, `UpdatedAt`)',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
