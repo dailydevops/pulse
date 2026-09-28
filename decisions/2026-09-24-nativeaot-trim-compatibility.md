@@ -48,7 +48,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * Fix at the root where feasible:
   - Enable `EnableConfigurationBindingGenerator` in the packages that bind options from `IConfiguration`.
   - Resolve payload contracts in `SystemTextJsonPayloadSerializer` through `JsonSerializerOptions.GetTypeInfo`. Add the reflection resolver only while the `JsonSerializer.IsReflectionEnabledByDefault` feature switch is enabled. Trimmed and NativeAOT applications register their own source-generated context in `TypeInfoResolverChain`, because user payload types are out of scope.
-  - Add an internal `PulseInspectorJsonSerializerContext` for the Pulse-owned DTOs written by the inspector endpoints (`OutboxMessage` and its list for the message and dead letter listings, `OutboxStatistics`, `AuditRecord` and its list, `AuditStatistics`, `CommandDeadLetterEntry` and its list, `CommandDeadLetterStatistics`, the dead letter count and the replay-all result). The inspector responses use `TypedResults.Json` with these contracts, appended as fallback resolver to the application's `HttpJsonOptions`, see [Honor Application JSON Options for Pulse-Owned Models](./2026-09-24-honor-application-json-options.md).
+  - Add an internal `PulseInspectorJsonSerializerContext` for the Pulse-owned DTOs written by the inspector endpoints (`OutboxMessage` and its list for the message and dead letter listings, `OutboxStatistics`, `AuditRecord` and its list, `AuditStatistics`, `CommandDeadLetterEntry` and its list, `CommandDeadLetterStatistics`, the dead letter count and the replay-all result). The inspector responses use `TypedResults.Json` with these contracts, appended as fallback resolver to the application's `HttpJsonOptions`, see [Honor Application JSON Options for Pulse-Owned Models](./2026-09-27-honor-application-json-options.md).
   - Add `DynamicallyAccessedMembers(PublicConstructors)` to generic registration type parameters.
 * Annotate inherently reflection-based public entry points that callers can avoid with `RequiresUnreferencedCode` and `RequiresDynamicCode`. This covers assembly scanning, `AddDataAnnotations`, dead-letter replay (`ICommandDeadLetterManagement.ReplayAsync`, all implementations and `CommandDeadLetterReplayDispatcher.ReplayAsync`) and the ASP.NET Core `Map*` endpoint extensions.
 * Suppress with `UnconditionalSuppressMessage` and a concrete justification only where the value is used safely:
@@ -64,7 +64,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 * Trimmed and NativeAOT applications get precise warnings only for the Pulse APIs that are not trim-safe, instead of a generic IL2104 per assembly.
 * The core mediator pipeline is verified with NativeAOT on every pull request.
 * External implementers of `ICommandDeadLetterManagement` that enable the trim analyzer MUST add `RequiresUnreferencedCode` and `RequiresDynamicCode` to their `ReplayAsync` implementation (IL2046). There is no other source or binary impact.
-* The inspector endpoints and the Azure Queue Storage envelope honor the application's JSON options, with the internal contexts as fallback resolvers, see [Honor Application JSON Options for Pulse-Owned Models](./2026-09-24-honor-application-json-options.md).
+* The inspector endpoints and the Azure Queue Storage envelope honor the application's JSON options, with the internal contexts as fallback resolvers, see [Honor Application JSON Options for Pulse-Owned Models](./2026-09-27-honor-application-json-options.md).
 * Under NativeAOT, the DI container cannot close open-generic services over value types. Open-generic interceptors therefore fail for requests with value-type responses, including `Void`. The [Closed Keyed Interceptors for Value-Type Requests Under NativeAOT](./2026-09-27-nativeaot-value-type-interceptors.md) decision lifts this for the built-in interceptors and handlers registered by the source generator (#771).
 * Outbox event types must be compiled into the application that reads the outbox. Since #772, a message with an unresolvable event type is dead-lettered on fetch with an error that names the stored type, and the other messages are still processed, see [Outbox Unresolvable Event Types](./2026-09-24-outbox-unresolvable-event-types.md).
 * `NetEvolve.Pulse.AspNetCore.Grpc` is covered like every other runtime package. gRPC for ASP.NET Core is fully NativeAOT-compatible, and `MapStreamQueryGrpc` forwards the `DynamicallyAccessedMembers` requirement of `MapGrpcService`.
@@ -81,7 +81,7 @@ The approach follows the Microsoft guidance [Prepare .NET libraries for trimming
 
 ## Related Decisions
 
-* [Honor Application JSON Options for Pulse-Owned Models](./2026-09-24-honor-application-json-options.md) - Turns the internal inspector and envelope contexts into fallback resolvers.
+* [Honor Application JSON Options for Pulse-Owned Models](./2026-09-27-honor-application-json-options.md) - Turns the internal inspector and envelope contexts into fallback resolvers.
 
 * [Folder Structure and Naming Conventions](./2025-07-10-folder-structure-and-naming-conventions.md) - The smoke application is an example application under `samples/`.
 
