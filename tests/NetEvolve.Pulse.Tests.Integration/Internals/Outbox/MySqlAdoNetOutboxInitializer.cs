@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Outbox;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

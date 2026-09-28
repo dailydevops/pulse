@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Tests.Integration.Schema;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Schema;
 
 using System;
 using System.Collections.Generic;
