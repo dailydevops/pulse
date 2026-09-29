@@ -1,6 +1,8 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -671,6 +673,214 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         }
     }
 
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WhenDisposeThrowsAfterCompletion_RecordsDisposeFailure(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        var stream = new FaultyStream(hasItem: false, disposeException: new ObjectDisposedException("inner"));
+
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(new MeasuredStreamQuery(), (_, _) => stream, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                // no items expected
+            }
+        });
+
+        var durations = collector.For("pulse.stream_query.duration");
+        var errors = collector.For("pulse.stream_query.errors");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags["pulse.success"] is false).IsTrue();
+            _ = await Assert.That(durations[0].Tags["error.type"]).IsEqualTo("System.ObjectDisposedException");
+            _ = await Assert.That(errors).Count().IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WhenDisposeThrowsAfterFault_ThrowsTheRecordedException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        var stream = new FaultyStream(
+            moveNextException: new InvalidOperationException("fault"),
+            disposeException: new ObjectDisposedException("inner")
+        );
+
+        var exception = await Assert.ThrowsAsync<Exception>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(new MeasuredStreamQuery(), (_, _) => stream, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                // no items expected
+            }
+        });
+
+        var durations = collector.For("pulse.stream_query.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags["error.type"]).IsEqualTo(exception!.GetType().FullName);
+        }
+    }
+
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WhenDisposeThrowsAfterEarlyStop_RecordsDisposeFailure(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        var stream = new FaultyStream(disposeException: new ObjectDisposedException("inner"));
+        var consumed = 0;
+
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(new MeasuredStreamQuery(), (_, _) => stream, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                consumed++;
+                if (consumed == 1)
+                {
+                    break;
+                }
+            }
+        });
+
+        var durations = collector.For("pulse.stream_query.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags["error.type"]).IsEqualTo("System.ObjectDisposedException");
+            _ = await Assert.That(durations[0].Tags.ContainsKey("pulse.stream.completed")).IsFalse();
+            _ = await Assert.That(collector.For("pulse.stream_query.errors")).Count().IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WhenCurrentThrows_RecordsError(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        var stream = new FaultyStream(currentException: new InvalidOperationException("current"));
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(new MeasuredStreamQuery(), (_, _) => stream, cancellationToken)
+                    .ConfigureAwait(false)
+            )
+            {
+                // no items expected
+            }
+        });
+
+        var durations = collector.For("pulse.stream_query.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags["error.type"]).IsEqualTo("System.InvalidOperationException");
+            _ = await Assert.That(collector.For("pulse.stream_query.errors")).Count().IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    [NotInParallel("PulseStreamQueryMetrics")]
+    public async Task HandleAsync_WhenTokenIsCancelledDuringEnumeration_RecordsCancellationAsError(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredStreamQuery));
+        var interceptor = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (
+                var _ in interceptor
+                    .HandleAsync(new MeasuredStreamQuery(), (_, ct) => Items([1, 2, 3], ct), cts.Token)
+                    .ConfigureAwait(false)
+            )
+            {
+                await cts.CancelAsync().ConfigureAwait(false);
+            }
+        });
+
+        var durations = collector.For("pulse.stream_query.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags["pulse.success"] is false).IsTrue();
+            _ = await Assert.That(durations[0].Tags["error.type"]).IsEqualTo("System.OperationCanceledException");
+            _ = await Assert.That(collector.For("pulse.stream_query.errors")).Count().IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task Constructor_CalledRepeatedly_ReusesInstruments(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var published = new ConcurrentBag<Instrument>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, _) =>
+            {
+                if (
+                    string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal)
+                    && string.Equals(instrument.Name, "pulse.stream_query.total", StringComparison.Ordinal)
+                    && string.Equals(instrument.Unit, "queries", StringComparison.Ordinal)
+                )
+                {
+                    published.Add(instrument);
+                }
+            },
+        };
+        listener.Start();
+
+        _ = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        _ = new ActivityAndMetricsStreamQueryInterceptor<MeasuredStreamQuery, int>(TimeProvider.System);
+        _ = new ActivityAndMetricsStreamQueryInterceptor<TestStreamQuery, int>(TimeProvider.System);
+
+        _ = await Assert.That(published.Distinct().Count()).IsEqualTo(1);
+    }
+
     private static IAsyncEnumerable<T> Items<T>(IEnumerable<T> items, CancellationToken cancellationToken = default) =>
         ItemsCore(items, cancellationToken);
 
@@ -696,6 +906,37 @@ public class ActivityAndMetricsStreamQueryInterceptorTests
         yield return 1;
         cancellationToken.ThrowIfCancellationRequested();
         throw exception;
+    }
+
+    /// <summary>
+    /// Stream whose enumerator fails at a chosen point. TUnit.Mocks cannot generate <see cref="IAsyncEnumerator{T}"/>
+    /// on .NET 9 and later (CS9244 on the <c>allows ref struct</c> type parameter), so this is hand-written.
+    /// </summary>
+    private sealed class FaultyStream(
+        bool hasItem = true,
+        Exception? moveNextException = null,
+        Exception? currentException = null,
+        Exception? disposeException = null
+    ) : IAsyncEnumerable<int>
+    {
+        public IAsyncEnumerator<int> GetAsyncEnumerator(CancellationToken cancellationToken = default) =>
+            new FaultyEnumerator(hasItem, moveNextException, currentException, disposeException);
+
+        private sealed class FaultyEnumerator(
+            bool hasItem,
+            Exception? moveNextException,
+            Exception? currentException,
+            Exception? disposeException
+        ) : IAsyncEnumerator<int>
+        {
+            public int Current => currentException is null ? 1 : throw currentException;
+
+            public ValueTask<bool> MoveNextAsync() =>
+                moveNextException is null ? ValueTask.FromResult(hasItem) : throw moveNextException;
+
+            public ValueTask DisposeAsync() =>
+                disposeException is null ? ValueTask.CompletedTask : throw disposeException;
+        }
     }
 
     private sealed class TestStreamQuery : IStreamQuery<int>
