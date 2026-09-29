@@ -167,10 +167,16 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
 
             while (enumerator is not null)
             {
-                bool hasNext;
+                TResponse current;
                 try
                 {
-                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+                    {
+                        completed = true;
+                        break;
+                    }
+
+                    current = enumerator.Current;
                 }
                 catch (Exception ex)
                 {
@@ -178,33 +184,31 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
                     break;
                 }
 
-                if (!hasNext)
-                {
-                    completed = true;
-                    break;
-                }
-
                 // yield return is valid here: it is inside try/finally but NOT inside try/catch
-                yield return enumerator.Current;
+                yield return current;
             }
         }
         finally
         {
-            try
+            if (enumerator is not null)
             {
-                if (enumerator is not null)
+                try
                 {
                     await enumerator.DisposeAsync().ConfigureAwait(false);
                 }
+                catch (Exception ex)
+                {
+                    // An earlier fault wins, so the thrown exception always matches the recorded error.type.
+                    caughtExceptionInfo ??= ExceptionDispatchInfo.Capture(ex);
+                }
             }
-            finally
-            {
-                // Runs for every outcome, including a consumer that stops early and disposes the iterator.
-                RecordOutcome(activity, tags, startTime, caughtExceptionInfo?.SourceException, completed);
-            }
-        }
 
-        caughtExceptionInfo?.Throw();
+            // Runs for every outcome, including a consumer that stops early and disposes the iterator.
+            RecordOutcome(activity, tags, startTime, caughtExceptionInfo?.SourceException, completed);
+
+            // Thrown here and not after the finally block, because an early stop never reaches that code.
+            caughtExceptionInfo?.Throw();
+        }
     }
 
     /// <summary>
