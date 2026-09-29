@@ -12,7 +12,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   The cache key registry used by AddCacheInvalidation MUST stay process-local and in-memory; IInvalidatingCommand evicts only the keys this process cached since it started.
