@@ -32,13 +32,17 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         var pulseHandlerResults = BuildPulseHandlerPipeline(context);
         var explicitHandlerResults = BuildExplicitHandlerPipeline(context);
 
+        var genericHandlerResults = BuildGenericHandlerPipeline(context);
+
         var regularHandlerInfos = pulseHandlerResults
-            .Where(static result => result.Info.HasValue && !result.IsOpenGeneric)
+            .Where(static result => result.Info.HasValue && result.Blocker is null)
             .Select(static (result, _) => result.Info!.Value);
         var explicitHandlerInfos = explicitHandlerResults
-            .Where(static result => result.Info.HasValue)
+            .Where(static result => result.Info.HasValue && result.Blocker is null)
             .Select(static (result, _) => result.Info!.Value);
-        var genericHandlerInfos = BuildGenericHandlerInfosPipeline(context);
+        var genericHandlerInfos = genericHandlerResults
+            .Where(static result => result.Info.HasValue && result.Blocker is null)
+            .Select(static (result, _) => result.Info!.Value);
 
         var rootNamespace = context.AnalyzerConfigOptionsProvider.Select(
             static (provider, _1) =>
@@ -77,19 +81,25 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             static (spc, data) => Execute(spc, data.Left.Left.Left, data.Left.Left.Right, data.Left.Right, data.Right)
         );
 
-        RegisterOpenGenericDiagnosticPipeline(context, pulseHandlerResults);
+        RegisterBlockedHandlerDiagnosticPipeline(context, pulseHandlerResults);
+        RegisterBlockedHandlerDiagnosticPipeline(context, genericHandlerResults);
+        RegisterBlockedHandlerDiagnosticPipeline(
+            context,
+            explicitHandlerResults.Select(static (result, _) => (result.Info, result.Blocker))
+        );
         RegisterUnannotatedHandlerDiagnosticPipeline(context);
         RegisterExplicitMessageTypeDiagnosticPipeline(context, explicitHandlerResults);
     }
 
     /// <summary>
     /// Builds the single incremental pipeline that scans <c>[PulseHandler]</c>-annotated
-    /// (non-generic attribute) types once, producing both the registration infos for closed types
-    /// and the PULSE004 candidates for open generic types.
+    /// (non-generic attribute) types once, producing both the registration infos for registrable types
+    /// and the PULSE004/PULSE007 candidates for types that cannot be registered.
     /// </summary>
-    private static IncrementalValuesProvider<(HandlerInfo? Info, bool IsOpenGeneric)> BuildPulseHandlerPipeline(
-        IncrementalGeneratorInitializationContext context
-    ) =>
+    private static IncrementalValuesProvider<(
+        HandlerInfo? Info,
+        DiagnosticDescriptor? Blocker
+    )> BuildPulseHandlerPipeline(IncrementalGeneratorInitializationContext context) =>
         context.SyntaxProvider.ForAttributeWithMetadataName(
             PulseHandlerAttributeFullName,
             predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
@@ -111,44 +121,40 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Builds the incremental pipeline that collects <c>[PulseGenericHandler]</c>-annotated open
-    /// generic types and returns a provider of <see cref="HandlerInfo"/> values for open-generic
-    /// DI registrations.
+    /// generic types, producing both the open-generic DI registration infos and the PULSE004/PULSE007
+    /// candidates for types that cannot be registered.
     /// </summary>
-    private static IncrementalValuesProvider<HandlerInfo> BuildGenericHandlerInfosPipeline(
-        IncrementalGeneratorInitializationContext context
-    ) =>
-        context
-            .SyntaxProvider.ForAttributeWithMetadataName(
-                PulseGenericHandlerAttributeFullName,
-                predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
-                transform: static (ctx, ct) => ExtractPureGenericHandlerInfo(ctx, ct)
-            )
-            .Where(static info => info.HasValue)
-            .Select(static (info, _) => info!.Value);
+    private static IncrementalValuesProvider<(
+        HandlerInfo? Info,
+        DiagnosticDescriptor? Blocker
+    )> BuildGenericHandlerPipeline(IncrementalGeneratorInitializationContext context) =>
+        context.SyntaxProvider.ForAttributeWithMetadataName(
+            PulseGenericHandlerAttributeFullName,
+            predicate: static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
+            transform: static (ctx, ct) => ExtractPureGenericHandlerInfo(ctx, ct)
+        );
 
     /// <summary>
-    /// Registers the incremental pipeline that reports PULSE004 for <c>[PulseHandler]</c>-annotated
-    /// open generic types that cannot be automatically registered.
+    /// Registers the incremental pipeline that reports the blocking diagnostic (PULSE004 or PULSE007)
+    /// for annotated types that cannot be automatically registered.
     /// </summary>
     /// <param name="context">The generator initialization context.</param>
-    /// <param name="pulseHandlerResults">The shared <c>[PulseHandler]</c> analysis pipeline.</param>
-    private static void RegisterOpenGenericDiagnosticPipeline(
+    /// <param name="handlerResults">The shared analysis pipeline of one handler attribute.</param>
+    private static void RegisterBlockedHandlerDiagnosticPipeline(
         IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<(HandlerInfo? Info, bool IsOpenGeneric)> pulseHandlerResults
+        IncrementalValuesProvider<(HandlerInfo? Info, DiagnosticDescriptor? Blocker)> handlerResults
     )
     {
-        var openGenericHandlers = pulseHandlerResults
-            .Where(static result => result.Info.HasValue && result.IsOpenGeneric)
-            .Select(static (result, _) => result.Info!.Value);
+        var blockedHandlers = handlerResults.Where(static result => result.Info.HasValue && result.Blocker is not null);
 
         context.RegisterSourceOutput(
-            openGenericHandlers,
-            static (spc, info) =>
+            blockedHandlers,
+            static (spc, result) =>
                 spc.ReportDiagnostic(
                     Diagnostic.Create(
-                        DiagnosticDescriptors.OpenGenericHandlerNotSupported,
-                        info.Location.ToLocation(),
-                        info.HandlerTypeName
+                        result.Blocker!,
+                        result.Info!.Value.Location.ToLocation(),
+                        result.Info.Value.HandlerTypeName
                     )
                 )
         );
@@ -233,6 +239,24 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         var handlerTypeName = GetFullyQualifiedName(classSymbol);
         var location = LocationInfo.CreateFrom(ctx.TargetNode);
+
+        // A generic handler is closed over the attribute's message type, so that type must be
+        // referenceable as well.
+        var blocker =
+            GetRegistrationBlocker(classSymbol)
+            ?? (
+                ctx.Attributes.Any(attr =>
+                    attr.AttributeClass?.TypeArguments.Length == 1
+                    && !IsReferenceableFromGeneratedCode(attr.AttributeClass.TypeArguments[0])
+                )
+                    ? DiagnosticDescriptors.UnregistrableHandler
+                    : null
+            );
+        if (blocker is not null)
+        {
+            return new ExplicitHandlerResult(new HandlerInfo(handlerTypeName, [], location), [], blocker);
+        }
+
         var registrations = new List<HandlerRegistration>();
         var errors = new List<ExplicitTypeError>();
 
@@ -279,9 +303,10 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <summary>
     /// Extracts the analysis result for a single <c>[PulseHandler]</c>-annotated class. Open
     /// generic types cannot be registered in the DI container and are flagged for PULSE004
-    /// reporting instead; closed types produce their handler registration info.
+    /// reporting instead, types the generated code cannot reference or DI cannot instantiate for
+    /// PULSE007; registrable types produce their handler registration info.
     /// </summary>
-    private static (HandlerInfo? Info, bool IsOpenGeneric) ExtractPulseHandlerResult(
+    private static (HandlerInfo? Info, DiagnosticDescriptor? Blocker) ExtractPulseHandlerResult(
         GeneratorAttributeSyntaxContext ctx,
         CancellationToken ct
     )
@@ -290,20 +315,24 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
         {
-            return (null, false);
+            return (null, null);
         }
 
         var location = LocationInfo.CreateFrom(ctx.TargetNode);
 
-        if (classSymbol.TypeParameters.Length > 0)
+        var blocker =
+            classSymbol.TypeParameters.Length > 0
+                ? DiagnosticDescriptors.OpenGenericHandlerNotSupported
+                : GetRegistrationBlocker(classSymbol);
+        if (blocker is not null)
         {
-            return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [], location), true);
+            return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [], location), blocker);
         }
 
         var lifetime = ReadLifetime(ctx.Attributes);
         var registrations = BuildHandlerRegistrations(classSymbol, lifetime);
 
-        return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location), false);
+        return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [.. registrations], location), null);
     }
 
     /// <summary>
@@ -311,28 +340,39 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     /// <c>[PulseGenericHandler]</c>. The handler and service type names use the unbound generic
     /// syntax (e.g. <c>global::Ns.MyHandler&lt;,&gt;</c>) so that the emitter can produce
     /// <c>typeof()</c>-based DI registrations. Returns <see langword="null"/> when the symbol is not an
-    /// open generic or cannot be resolved.
+    /// open generic or cannot be resolved. Types that cannot be registered carry the blocking
+    /// diagnostic (PULSE004 or PULSE007) instead of registrations.
     /// </summary>
-    private static HandlerInfo? ExtractPureGenericHandlerInfo(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
+    private static (HandlerInfo? Info, DiagnosticDescriptor? Blocker) ExtractPureGenericHandlerInfo(
+        GeneratorAttributeSyntaxContext ctx,
+        CancellationToken ct
+    )
     {
         ct.ThrowIfCancellationRequested();
 
         if (ctx.TargetSymbol is not INamedTypeSymbol classSymbol)
         {
-            return null;
+            return (null, null);
         }
 
         // [PulseGenericHandler] is only meaningful for open generic types.
         if (classSymbol.TypeParameters.Length == 0)
         {
-            return null;
+            return (null, null);
+        }
+
+        var location = LocationInfo.CreateFrom(ctx.TargetNode);
+
+        var blocker = GetRegistrationBlocker(classSymbol);
+        if (blocker is not null)
+        {
+            return (new HandlerInfo(GetFullyQualifiedName(classSymbol), [], location), blocker);
         }
 
         var lifetime = ReadLifetime(ctx.Attributes);
-        var location = LocationInfo.CreateFrom(ctx.TargetNode);
         var registrations = BuildOpenGenericHandlerRegistrations(classSymbol, lifetime);
 
-        return new HandlerInfo(GetOpenGenericTypeName(classSymbol), [.. registrations], location);
+        return (new HandlerInfo(GetOpenGenericTypeName(classSymbol), [.. registrations], location), null);
     }
 
     /// <summary>
@@ -356,8 +396,9 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Skip open generic types - they cannot be registered even with [PulseHandler], so PULSE003 is not applicable.
-        if (classSymbol.TypeParameters.Length > 0)
+        // Skip open generic types and types that cannot be registered (PULSE004/PULSE007) - adding
+        // [PulseHandler] would not help, so PULSE003 is not applicable.
+        if (classSymbol.TypeParameters.Length > 0 || GetRegistrationBlocker(classSymbol) is not null)
         {
             return null;
         }
@@ -414,6 +455,91 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
         }
 
         return new HandlerInfo(GetFullyQualifiedName(classSymbol), [], LocationInfo.CreateFrom(typeDeclaration));
+    }
+
+    /// <summary>
+    /// Determines why a handler type cannot be registered by generated code, independent of the
+    /// type's own type parameters.
+    /// </summary>
+    /// <param name="classSymbol">The handler type.</param>
+    /// <returns>
+    /// PULSE004 when a containing type is generic (the generated code cannot name its type
+    /// arguments), PULSE007 when the generated code cannot reference the type or the message and
+    /// response types of its handler interfaces, or the DI container cannot instantiate it, or <see langword="null"/> when the type can be registered.
+    /// </returns>
+    private static DiagnosticDescriptor? GetRegistrationBlocker(INamedTypeSymbol classSymbol)
+    {
+        for (var type = classSymbol.ContainingType; type is not null; type = type.ContainingType)
+        {
+            if (type.TypeParameters.Length > 0)
+            {
+                return DiagnosticDescriptors.OpenGenericHandlerNotSupported;
+            }
+        }
+
+        if (classSymbol.IsAbstract || classSymbol.IsStatic || classSymbol.IsValueType)
+        {
+            return DiagnosticDescriptors.UnregistrableHandler;
+        }
+
+        if (!IsReferenceableFromGeneratedCode(classSymbol))
+        {
+            return DiagnosticDescriptors.UnregistrableHandler;
+        }
+
+        // The generated registrations also name the message and response types of every handler
+        // interface, so these must be referenceable as well.
+        foreach (var iface in classSymbol.AllInterfaces)
+        {
+            if (
+                IsKnownHandlerInterfaceSimpleName(iface.Name)
+                && TryGetHandlerKind(GetFullMetadataName(iface.OriginalDefinition), out _)
+                && !IsReferenceableFromGeneratedCode(iface)
+            )
+            {
+                return DiagnosticDescriptors.UnregistrableHandler;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determines whether the generated registration class can name <paramref name="type"/>. It lives in
+    /// the same assembly but neither derives from a containing type nor shares the source file, so only
+    /// types that are internal, protected internal or public along the whole containing chain, and whose
+    /// type arguments are referenceable too, are accessible. Type parameters are always referenceable.
+    /// </summary>
+    /// <param name="type">The type to check.</param>
+    /// <returns><see langword="true"/> when generated code can reference the type.</returns>
+    private static bool IsReferenceableFromGeneratedCode(ITypeSymbol type)
+    {
+        switch (type)
+        {
+            case IArrayTypeSymbol array:
+                return IsReferenceableFromGeneratedCode(array.ElementType);
+            case IPointerTypeSymbol pointer:
+                return IsReferenceableFromGeneratedCode(pointer.PointedAtType);
+            case INamedTypeSymbol named:
+                for (var current = named; current is not null; current = current.ContainingType)
+                {
+                    if (
+                        current.IsFileLocal
+                        || current.DeclaredAccessibility
+                            is Accessibility.Private
+                                or Accessibility.Protected
+                                or Accessibility.ProtectedAndInternal
+                        || !current.TypeArguments.All(IsReferenceableFromGeneratedCode)
+                    )
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            default:
+                return true;
+        }
     }
 
     /// <summary>
