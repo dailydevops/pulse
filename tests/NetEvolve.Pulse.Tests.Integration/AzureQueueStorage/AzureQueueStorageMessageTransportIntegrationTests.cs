@@ -106,6 +106,102 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
     }
 
     [Test]
+    public async Task SendAsync_With_MessageVisibilityTimeout_delays_visibility(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var queueName = CreateUniqueQueueName();
+        var options = Options.Create(
+            new AzureQueueStorageTransportOptions
+            {
+                ConnectionString = containerFixture.ConnectionString,
+                QueueName = queueName,
+                MessageVisibilityTimeout = TimeSpan.FromHours(1),
+            }
+        );
+        using var transport = new AzureQueueStorageMessageTransport(options);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
+        var response = await queueClient
+            .ReceiveMessageAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var properties = await queueClient
+            .GetPropertiesAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(response.Value).IsNull();
+            _ = await Assert.That(properties.Value.ApproximateMessagesCount).IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    [MethodDataSource(nameof(NeverExpiresTimeToLives))]
+    public async Task SendAsync_With_never_expiring_MessageTimeToLive_sends_message_without_expiry(
+        TimeSpan timeToLive,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var queueName = CreateUniqueQueueName();
+        var options = Options.Create(
+            new AzureQueueStorageTransportOptions
+            {
+                ConnectionString = containerFixture.ConnectionString,
+                QueueName = queueName,
+                MessageTimeToLive = timeToLive,
+            }
+        );
+        using var transport = new AzureQueueStorageMessageTransport(options);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
+        var response = await queueClient
+            .ReceiveMessageAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.Value!.ExpiresOn!.Value.Year).IsEqualTo(9999);
+    }
+
+    [Test]
+    public async Task SendAsync_With_MessageTimeToLive_sets_message_expiry(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var queueName = CreateUniqueQueueName();
+        var options = Options.Create(
+            new AzureQueueStorageTransportOptions
+            {
+                ConnectionString = containerFixture.ConnectionString,
+                QueueName = queueName,
+                MessageTimeToLive = TimeSpan.FromDays(30),
+            }
+        );
+        using var transport = new AzureQueueStorageMessageTransport(options);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        var queueClient = new QueueClient(containerFixture.ConnectionString, queueName, VerificationClientOptions);
+        var response = await queueClient
+            .ReceiveMessageAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var received = response.Value!;
+
+        _ = await Assert.That(received.ExpiresOn!.Value - received.InsertedOn!.Value).IsEqualTo(TimeSpan.FromDays(30));
+    }
+
+    public static IEnumerable<Func<TimeSpan>> NeverExpiresTimeToLives()
+    {
+        yield return () => AzureQueueStorageTransportOptions.NeverExpires;
+        yield return () => Timeout.InfiniteTimeSpan;
+    }
+
+    [Test]
     public async Task SendAsync_With_prebuilt_queueClient_uses_override_instead_of_options(
         CancellationToken cancellationToken
     )
