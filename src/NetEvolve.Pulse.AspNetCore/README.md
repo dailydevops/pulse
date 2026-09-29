@@ -11,6 +11,7 @@ NetEvolve.Pulse.AspNetCore provides `IEndpointRouteBuilder` extension methods th
 - **`MapCommand<TCommand, TResponse>`**: Maps a command to an HTTP endpoint returning `200 OK` with the response. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapCommand<TCommand>`**: Maps a void command to an HTTP endpoint returning `204 No Content`. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapQuery<TQuery, TResponse>`**: Maps a query to a `GET` endpoint returning `200 OK` with the result.
+- **`MapStreamQuery<TQuery, TResponse>`**: Maps a stream query to a `GET` endpoint that streams items as SSE or NDJSON, serialized with the HTTP JSON options. See [HTTP Stream Queries](#http-stream-queries).
 - **`MapStreamQueryHub<TQuery, TResponse>`**: Maps a `PulseStreamHub` that exposes a stream query as a native SignalR server-to-client stream (requires `AddSignalR()`).
 - **`CommandHttpMethod` enum**: Strongly-typed HTTP method selection — `Post`, `Put`, `Patch`, `Delete`. `GET` is excluded by design since commands are state-changing operations.
 - **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token.
@@ -134,6 +135,28 @@ app.MapQuery<GetOrderQuery, OrderDto>("/orders/{id}");
 public record GetOrderQuery(Guid Id) : IQuery<OrderDto>;
 public record OrderDto(Guid Id, string Sku, string Status);
 ```
+
+### HTTP Stream Queries
+
+`MapStreamQuery<TQuery, TResponse>` registers a `GET` endpoint that streams the items of `IMediator.StreamQueryAsync` as Server-Sent Events (`text/event-stream`, the default) or as NDJSON (`application/x-ndjson`, when the `Accept` header weighs it higher):
+
+```csharp
+app.MapStreamQuery<GetOrdersStreamQuery, OrderDto>("/orders/stream");
+```
+
+Every item is serialized with the application's HTTP JSON options (`ConfigureHttpJsonOptions`), the same contract as `MapQuery` and `MapCommand`, on every target framework. Indentation is always disabled, so each item is one single-line JSON text, and `string` items are quoted JSON strings:
+
+```text
+# application/x-ndjson
+{"id":"0b6f…","sku":"A-1","status":"Open"}
+
+# text/event-stream
+data: {"id":"0b6f…","sku":"A-1","status":"Open"}
+```
+
+Under NativeAOT, add a source-generated context for `TResponse` to the HTTP JSON options, for example `builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default))`.
+
+> **Breaking change ([#846](https://github.com/dailydevops/pulse/issues/846)):** NDJSON items, and SSE items on .NET 8 and .NET 9, previously used `IPayloadSerializer` and were PascalCase. They now follow the HTTP JSON options (camelCase by default). SSE `string` items on .NET 10 were previously written as raw text and are now quoted JSON strings. On .NET 10, a `null` SSE item is now written as `data: null` instead of an empty `data:` line, the same as NDJSON. A custom `IPayloadSerializer` no longer affects `MapStreamQuery`. See the [decision record](https://github.com/dailydevops/pulse/blob/main/decisions/2026-09-29-stream-query-http-json-contract.md).
 
 ### SignalR Stream Queries
 
