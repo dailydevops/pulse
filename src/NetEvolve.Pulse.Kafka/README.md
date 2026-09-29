@@ -41,7 +41,9 @@ services.AddPulse(config => config.AddOutbox().UseKafkaTransport());
 ## Topic Auto-Creation
 
 `AutoCreateTopics` is `true` by default. Before the first message to a topic, the transport calls
-`IAdminClient.CreateTopicsAsync` once per topic and process, using these `KafkaTransportOptions`:
+`IAdminClient.CreateTopicsAsync` with these `KafkaTransportOptions`. It caches the topic once creation succeeds,
+reports `TOPIC_ALREADY_EXISTS` or is rejected with an authorization error. Any other failure is retried on the next
+send (once per topic within a batch):
 
 | Option | Default | Description |
 |---|---|---|

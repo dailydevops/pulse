@@ -16,7 +16,8 @@ instructions: |
   KafkaMessageTransport topic auto-creation is best effort when the principal is not allowed to create topics.
   When CreateTopicsAsync reports TopicAuthorizationFailed or ClusterAuthorizationFailed, the transport MUST cache the topic, MUST NOT call CreateTopicsAsync for it again, and MUST let the produce call decide. It probes GetMetadata(topic) once and logs a warning only when existence cannot be confirmed.
   Any other CreateTopics error MUST fail the send with an InvalidOperationException that names the topic and KafkaTransportOptions.AutoCreateTopics, and MUST NOT be cached.
-  SendBatchAsync MUST still flush messages already enqueued when topic creation fails for a later message, and MUST report that failure in its AggregateException.
+  SendBatchAsync MUST still flush messages already enqueued when topic creation fails for a later message, whatever the exception (CreateTopics error, request-level KafkaException or cancellation), and MUST report that failure in its AggregateException. Within one batch it MUST NOT retry creation for a topic that already failed.
+  The GetMetadata probe MUST run off the calling thread and honor the caller's cancellation token.
 ---
 
 # Decision: Kafka Topic Auto-Creation Is Best Effort on Authorization Failure
@@ -32,9 +33,9 @@ The [Kafka protocol error table](https://kafka.apache.org/43/design/protocol) li
 ## Decision
 
 - `TopicAlreadyExists`: unchanged, the topic is cached.
-- `TopicAuthorizationFailed` or `ClusterAuthorizationFailed`: the transport calls `IAdminClient.GetMetadata(topic, 5s)` once. The topic is cached either way. When the metadata does not show the topic without error, or the call throws a `KafkaException`, a warning is logged that names the topic and `AutoCreateTopics`. The produce call surfaces the real error if the topic is missing or not writable.
+- `TopicAuthorizationFailed` or `ClusterAuthorizationFailed`: the transport calls `IAdminClient.GetMetadata(topic, 5s)` once, offloaded with `Task.Run(...).WaitAsync(cancellationToken)` like `IsHealthyAsync`. The topic is cached either way. When the metadata does not show the topic without error, or the call throws a `KafkaException`, a warning is logged that names the topic and `AutoCreateTopics`. The produce call surfaces the real error if the topic is missing or not writable.
 - Any other error code: the send fails with an `InvalidOperationException` that names the topic and `AutoCreateTopics` and wraps the original `CreateTopicsException`. The topic is not cached, so the next send tries again.
-- `SendBatchAsync` collects a topic-creation failure for a message like a produce failure, still flushes all enqueued messages and throws one `AggregateException` at the end.
+- `SendBatchAsync` collects any topic-creation failure for a message like a produce failure, still flushes all enqueued messages and throws one `AggregateException` at the end. A topic that failed is not tried again in the same batch; its later messages get the same exception. A cancellation is observed again by the final `Flush(cancellationToken)`, which throws `OperationCanceledException`.
 - The transport takes an optional `ILogger<KafkaMessageTransport>`; without one it logs nothing.
 
 ## Consequences
