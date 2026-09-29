@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.Schema;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NetEvolve.Extensions.TUnit;
@@ -113,12 +114,13 @@ public sealed class PostgreSqlSchemaScriptTests
     }
 
     [Test]
-    [Arguments("OutboxMessage.sql")]
-    [Arguments("IdempotencyKey.sql")]
-    [Arguments("AuditEntry.sql")]
-    [Arguments("CommandDeadLetter.sql")]
-    public async Task Script_WhenDerivedNamesExceed63Bytes_FailsBeforeCreatingObjects(
+    [Arguments("OutboxMessage.sql", 3)]
+    [Arguments("IdempotencyKey.sql", 2)]
+    [Arguments("AuditEntry.sql", 3)]
+    [Arguments("CommandDeadLetter.sql", 3)]
+    public async Task Script_WhenDerivedNamesExceed63Bytes_CreatesEveryKeyAndIndexUnderDistinctNames(
         string scriptName,
+        int expectedIndexCount,
         CancellationToken cancellationToken
     )
     {
@@ -126,16 +128,28 @@ public sealed class PostgreSqlSchemaScriptTests
 
         var (databaseName, connectionString) = await CreateDatabaseAsync(cancellationToken).ConfigureAwait(false);
         var schema = CreateMixedCaseSchemaName();
-        var tableName = new string('T', 40);
+        // Both table names share their first 50 bytes, so names truncated to 63 bytes would collide
+        // within each table and across the two tables.
+        string[] tableNames = [new string('T', 50) + "A", new string('T', 50) + "B"];
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Container.RunScriptAsync(scriptName, databaseName, schema, tableName, cancellationToken)
-        );
-        var indexes = await GetIndexNamesAsync(connectionString, schema, tableName, cancellationToken)
-            .ConfigureAwait(false);
+        foreach (var tableName in tableNames)
+        {
+            await Container
+                .RunScriptAsync(scriptName, databaseName, schema, tableName, cancellationToken)
+                .ConfigureAwait(false);
+            await Container
+                .RunScriptAsync(scriptName, databaseName, schema, tableName, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
-        _ = await Assert.That(exception!.Message).Contains("63 bytes");
-        _ = await Assert.That(indexes).IsEmpty();
+        foreach (var tableName in tableNames)
+        {
+            var indexes = await GetIndexNamesAsync(connectionString, schema, tableName, cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await Assert.That(indexes).Count().IsEqualTo(expectedIndexCount);
+            _ = await Assert.That(indexes.Where(name => Encoding.UTF8.GetByteCount(name) >= 63)).IsEmpty();
+        }
     }
 
     [Test]
