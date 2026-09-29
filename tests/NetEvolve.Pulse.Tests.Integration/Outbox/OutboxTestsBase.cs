@@ -620,6 +620,103 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_MarkAsDeadLetter_Keep_ProcessedAt_Null(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(1);
+
+                    await outbox.MarkAsDeadLetterAsync(pending[0].Id, "Fatal error", token).ConfigureAwait(false);
+
+                    await AssertDeadLetterNotProcessedAsync(services, [pending[0].Id], token).ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_MarkAsDeadLetter_Batch_Keep_ProcessedAt_Null(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(3);
+
+                    Guid[] messageIds = [.. pending.Select(m => m.Id)];
+                    await outbox.MarkAsDeadLetterAsync(messageIds, "Fatal error", token).ConfigureAwait(false);
+
+                    await AssertDeadLetterNotProcessedAsync(services, messageIds, token).ConfigureAwait(false);
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_DeleteCompleted_DoesNotDelete_DeadLetterMessages(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await PublishEventsAsync(mediator, 2, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var pending = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(pending.Count).IsEqualTo(2);
+
+                    await outbox.MarkAsCompletedAsync(pending[0].Id, token).ConfigureAwait(false);
+                    await outbox.MarkAsDeadLetterAsync(pending[1].Id, "Fatal error", token).ConfigureAwait(false);
+
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+
+                    var deleted = await outbox
+                        .DeleteCompletedAsync(TimeSpan.FromSeconds(30), token)
+                        .ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var deadLetter = await management
+                        .GetDeadLetterMessageAsync(pending[1].Id, token)
+                        .ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(deleted).IsEqualTo(1);
+                        _ = await Assert.That(deadLetter).IsNotNull();
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task Should_Ignore_Mark_For_Unknown_Message(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
@@ -2015,6 +2112,39 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
         _ = await Assert.That(pending.Count).IsEqualTo(1);
 
         return (claimed[0].Id, claimed[1].Id, pending[0].Id);
+    }
+
+    /// <summary>
+    /// Asserts that every given message is a dead letter whose <see cref="OutboxMessage.ProcessedAt"/> is
+    /// <see langword="null"/>, both through <see cref="IOutboxManagement.GetMessageAsync"/> and
+    /// <see cref="IOutboxManagement.GetDeadLetterMessageAsync"/>.
+    /// </summary>
+    private static async Task AssertDeadLetterNotProcessedAsync(
+        IServiceProvider services,
+        IReadOnlyCollection<Guid> messageIds,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var management = services.GetRequiredService<IOutboxManagement>();
+
+        foreach (var messageId in messageIds)
+        {
+            var message = await management.GetMessageAsync(messageId, cancellationToken).ConfigureAwait(false);
+            var deadLetter = await management
+                .GetDeadLetterMessageAsync(messageId, cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await Assert.That(message).IsNotNull();
+            _ = await Assert.That(deadLetter).IsNotNull();
+            using (Assert.Multiple())
+            {
+                _ = await Assert.That(message!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                _ = await Assert.That(message.ProcessedAt).IsNull();
+                _ = await Assert.That(deadLetter!.ProcessedAt).IsNull();
+            }
+        }
     }
 
     /// <summary>
