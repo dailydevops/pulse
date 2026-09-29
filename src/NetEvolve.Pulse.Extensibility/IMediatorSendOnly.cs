@@ -41,7 +41,8 @@ public interface IMediatorSendOnly
 {
     /// <summary>
     /// Asynchronously publishes an event to all registered handlers.
-    /// All handlers execute in parallel, and exceptions in individual handlers don't prevent others from executing.
+    /// Handlers are executed by the configured <see cref="IEventDispatcher"/> (<c>ParallelEventDispatcher</c> by default),
+    /// and exceptions in individual handlers don't prevent others from executing.
     /// </summary>
     /// <typeparam name="TEvent">The type of event to publish.</typeparam>
     /// <param name="message">The event to publish.</param>

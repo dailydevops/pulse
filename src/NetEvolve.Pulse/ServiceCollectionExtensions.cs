@@ -34,7 +34,7 @@ public static class ServiceCollectionExtensions
     /// </list>
     /// <para><strong>Performance Considerations:</strong></para>
     /// The scoped lifetime ensures minimal memory overhead while maintaining thread-safety.
-    /// Event handlers are executed in parallel for optimal throughput.
+    /// Event handlers are executed by the configured <see cref="IEventDispatcher"/> (<c>ParallelEventDispatcher</c> by default).
     /// <para><strong>Additional Resources:</strong></para>
     /// <list type="bullet">
     /// <item><description>Mediator Pattern: <see href="https://en.wikipedia.org/wiki/Mediator_pattern"/></description></item>

@@ -180,7 +180,8 @@ public static class HandlerRegistrationExtensions
 
     /// <summary>
     /// Registers an event handler for the specified event type.
-    /// Multiple handlers can be registered for the same event type and will all be invoked in parallel.
+    /// Multiple handlers can be registered for the same event type; all of them are invoked by the configured
+    /// <see cref="IEventDispatcher"/> (<c>ParallelEventDispatcher</c> by default).
     /// </summary>
     /// <typeparam name="TEvent">The event type that implements <see cref="IEvent"/>.</typeparam>
     /// <typeparam name="THandler">The handler implementation type that implements <see cref="IEventHandler{TEvent}"/>.</typeparam>
@@ -191,13 +192,15 @@ public static class HandlerRegistrationExtensions
     /// <remarks>
     /// <para><strong>Multiple Handlers:</strong></para>
     /// Unlike commands and queries, events can have multiple registered handlers. All handlers for an event
-    /// are executed in parallel for optimal throughput. If one handler fails, others will still execute.
+    /// are executed by the configured <see cref="IEventDispatcher"/> (<c>ParallelEventDispatcher</c> by default).
+    /// If one handler fails, others will still execute.
     /// <para><strong>AOT Safety:</strong></para>
     /// This method is fully compatible with Native AOT compilation. The <c>DynamicallyAccessedMembers</c> attribute
     /// ensures the handler's public constructors are preserved during trimming.
     /// <para><strong>Execution Order:</strong></para>
-    /// Event handlers are executed in parallel with no guaranteed order. Do not rely on execution sequence.
-    /// If ordering is required, consider using a single coordinator handler that dispatches sequentially.
+    /// The order depends on the configured <see cref="IEventDispatcher"/>. The default <c>ParallelEventDispatcher</c>
+    /// gives no guaranteed order; use <c>SequentialEventDispatcher</c> or <c>PrioritizedEventDispatcher</c> via
+    /// <c>UseEventDispatcherFor</c> or <c>UseDefaultEventDispatcher</c> when order matters.
     /// <para><strong>Error Handling:</strong></para>
     /// If any event handler throws an exception, it will be logged but will not prevent other handlers from executing.
     /// The mediator will aggregate all exceptions and throw an <see cref="AggregateException"/> if any handlers fail.
@@ -211,7 +214,7 @@ public static class HandlerRegistrationExtensions
     ///     .AddEventHandler&lt;OrderCreatedEvent, NotifyWarehouseHandler&gt;()
     ///     .AddEventHandler&lt;OrderCreatedEvent, UpdateAnalyticsHandler&gt;(ServiceLifetime.Singleton);
     ///
-    /// // All four handlers will execute in parallel when OrderCreatedEvent is published
+    /// // All four handlers run when OrderCreatedEvent is published (in parallel with the default dispatcher)
     /// </code>
     /// </example>
     public static IMediatorBuilder AddEventHandler<

@@ -2,7 +2,8 @@
 
 /// <summary>
 /// Defines a handler for processing events of type <typeparamref name="TEvent"/>.
-/// Multiple handlers can be registered for the same event type and all execute in parallel.
+/// Multiple handlers can be registered for the same event type; they are executed by the configured
+/// <see cref="IEventDispatcher"/> (<c>ParallelEventDispatcher</c> by default).
 /// </summary>
 /// <typeparam name="TEvent">The type of event to handle.</typeparam>
 /// <remarks>
