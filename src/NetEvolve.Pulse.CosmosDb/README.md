@@ -131,7 +131,7 @@ services.AddPulse(config => config
 | `DatabaseName` | `string` | _(required)_ | The Cosmos DB database name. The database must exist. |
 | `ContainerName` | `string` | `outbox_messages` | The Cosmos DB container name. The container must exist. |
 | `PartitionKeyPath` | `string` | `/id` | Only `/id` is supported; other values fail validation at startup. The container must use `/id` (see [Container Setup](#container-setup)). |
-| `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. All other documents (new, claimed and replayed) get `ttl = -1`, so they never expire. Requires `DefaultTimeToLive = -1` on the container. |
+| `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. All other documents (pending, processing, failed and replayed) get `ttl = -1`, so they never expire. Pending documents written by older versions have no `ttl` until they are claimed, so the container still requires `DefaultTimeToLive = -1`. |
 | `TtlSeconds` | `int` | `86400` (24 hours) | TTL in seconds for completed and dead-letter documents. Only applies when `EnableTimeToLive` is `true`. |
 | `ProcessingLeaseTimeout` | `TimeSpan` | 5 minutes | How long a claimed message may stay in `Processing` before the next pending poll reclaims it, for example after a crash or shutdown. Must be greater than zero; other values fail validation at startup. |
 

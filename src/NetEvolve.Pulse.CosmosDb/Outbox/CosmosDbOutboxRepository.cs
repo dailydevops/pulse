@@ -25,8 +25,9 @@ using Newtonsoft.Json;
 /// When <see cref="CosmosDbOutboxOptions.EnableTimeToLive"/> is <see langword="true"/>,
 /// the <c>ttl</c> field is set on completed and dead-letter documents so the Cosmos DB
 /// TTL engine removes them automatically after <see cref="CosmosDbOutboxOptions.TtlSeconds"/> seconds.
-/// All other documents get <c>ttl = -1</c> on insert, claim and failure, so they never expire, even when the
-/// container has a positive <c>DefaultTimeToLive</c>.
+/// All other documents get <c>ttl = -1</c> on insert, claim and failure, so they never expire. Pending documents
+/// written by an older version carry no <c>ttl</c> until they are claimed, so the container must still use
+/// <c>DefaultTimeToLive = -1</c>.
 /// <para><strong>Query fan-out:</strong></para>
 /// With the default partition key path <c>/id</c> every document forms its own logical partition,
 /// so the recurring status-polling and count queries cannot target a single partition and fan out
