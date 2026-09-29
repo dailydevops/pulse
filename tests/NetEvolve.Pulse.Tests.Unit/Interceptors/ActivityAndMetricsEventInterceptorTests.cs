@@ -1,6 +1,8 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
@@ -448,6 +450,35 @@ public class ActivityAndMetricsEventInterceptorTests
             _ = await Assert.That(collector.For("pulse.events.total")[0].Unit).IsEqualTo("events");
             _ = await Assert.That(collector.For("pulse.event.errors")[0].Unit).IsEqualTo("errors");
         }
+    }
+
+    [Test]
+    public async Task Constructor_CalledRepeatedly_ReusesInstruments(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var published = new ConcurrentBag<Instrument>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, _) =>
+            {
+                if (
+                    string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal)
+                    && string.Equals(instrument.Name, "pulse.events.total", StringComparison.Ordinal)
+                    && string.Equals(instrument.Unit, "events", StringComparison.Ordinal)
+                )
+                {
+                    published.Add(instrument);
+                }
+            },
+        };
+        listener.Start();
+
+        _ = new ActivityAndMetricsEventInterceptor<MeasuredEvent>(TimeProvider.System);
+        _ = new ActivityAndMetricsEventInterceptor<MeasuredEvent>(TimeProvider.System);
+        _ = new ActivityAndMetricsEventInterceptor<TestEvent>(TimeProvider.System);
+
+        _ = await Assert.That(published.Distinct().Count()).IsEqualTo(1);
     }
 
     private sealed class MeasuredEvent : IEvent

@@ -1333,6 +1333,56 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task Dispose_ReleasesCounterAndHistogramInstruments()
+    {
+        string[] names =
+        [
+            "pulse.outbox.processed.total",
+            "pulse.outbox.failed.total",
+            "pulse.outbox.deadletter.total",
+            "pulse.outbox.processing.duration",
+        ];
+        var published = new ConcurrentBag<Instrument>();
+        var completed = new ConcurrentBag<Instrument>();
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (
+                string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal)
+                && names.Contains(instrument.Name, StringComparer.Ordinal)
+            )
+            {
+                published.Add(instrument);
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        meterListener.MeasurementsCompleted = (instrument, _) => completed.Add(instrument);
+        meterListener.Start();
+        var publishedBefore = published.ToArray();
+
+        using var repository = new InMemoryOutboxRepository();
+        var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            new InMemoryMessageTransport(),
+            CreateLifetime(),
+            Options.Create(new OutboxProcessorOptions()),
+            CreateLogger(),
+            TimeProvider.System
+        );
+        var created = published.Except(publishedBefore).ToArray();
+
+        service.Dispose();
+
+        // Other tests may create services in parallel, so look for one meter whose four instruments were released.
+        var released = created
+            .GroupBy(i => i.Meter)
+            .Any(g => g.Select(i => i.Name).Distinct().Count() == names.Length && g.All(completed.Contains));
+
+        _ = await Assert.That(released).IsTrue();
+    }
+
+    [Test]
     public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAt(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
