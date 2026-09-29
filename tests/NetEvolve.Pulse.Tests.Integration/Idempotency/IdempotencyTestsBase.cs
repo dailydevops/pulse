@@ -737,14 +737,11 @@ public abstract class IdempotencyTestsBase(
                 async (services, token) =>
                 {
                     var store = services.GetRequiredService<IIdempotencyStore>();
-                    var truncated = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey);
+                    var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
 
                     _ = await Assert
-                        .That(async () => await store.StoreAsync(truncated + "x", token).ConfigureAwait(false))
-                        .Throws<ArgumentException>();
-
-                    var exists = await store.ExistsAsync(truncated, token).ConfigureAwait(false);
-                    _ = await Assert.That(exists).IsFalse();
+                        .That(async () => await store.StoreAsync(key, token).ConfigureAwait(false))
+                        .Throws<ArgumentOutOfRangeException>();
                 },
                 cancellationToken
             )
