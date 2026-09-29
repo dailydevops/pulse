@@ -453,7 +453,7 @@ public static class EndpointRouteBuilderExtensions
 
         await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
-            yield return Encoding.UTF8.GetString(PulseStreamJsonOptions.SerializeToUtf8Bytes(item, jsonOptions));
+            yield return PulseStreamJsonOptions.Serialize(item, jsonOptions);
         }
     }
 #else

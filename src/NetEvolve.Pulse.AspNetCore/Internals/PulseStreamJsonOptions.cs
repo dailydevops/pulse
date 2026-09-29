@@ -26,7 +26,20 @@ internal static class PulseStreamJsonOptions
     /// <param name="item">The item to serialize.</param>
     /// <param name="jsonOptions">The application's HTTP JSON options.</param>
     /// <returns>The UTF-8 encoded JSON text, without line breaks.</returns>
-    public static byte[] SerializeToUtf8Bytes<T>(T item, IOptions<HttpJsonOptions> jsonOptions)
+    public static byte[] SerializeToUtf8Bytes<T>(T item, IOptions<HttpJsonOptions> jsonOptions) =>
+        JsonSerializer.SerializeToUtf8Bytes(item, ResolveTypeInfo(item, jsonOptions));
+
+    /// <summary>
+    /// Serializes <paramref name="item"/> to a single-line JSON text.
+    /// </summary>
+    /// <typeparam name="T">The declared item type.</typeparam>
+    /// <param name="item">The item to serialize.</param>
+    /// <param name="jsonOptions">The application's HTTP JSON options.</param>
+    /// <returns>The JSON text, without line breaks.</returns>
+    public static string Serialize<T>(T item, IOptions<HttpJsonOptions> jsonOptions) =>
+        JsonSerializer.Serialize(item, ResolveTypeInfo(item, jsonOptions));
+
+    private static JsonTypeInfo ResolveTypeInfo<T>(T item, IOptions<HttpJsonOptions> jsonOptions)
     {
         var options = DerivedOptions.GetValue(jsonOptions.Value.SerializerOptions, Create);
         var typeInfo = options.GetTypeInfo(typeof(T));
@@ -38,7 +51,7 @@ internal static class PulseStreamJsonOptions
             typeInfo = options.GetTypeInfo(item.GetType());
         }
 
-        return JsonSerializer.SerializeToUtf8Bytes(item, typeInfo);
+        return typeInfo;
     }
 
     private static bool CoversRuntimeType(JsonTypeInfo typeInfo, Type runtimeType) =>
