@@ -97,7 +97,16 @@ public sealed partial class KafkaMessageTransport : IMessageTransport, IAsyncDis
         {
             var topic = _topicNameResolver.Resolve(message);
 
-            await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Keep going so messages already enqueued are still flushed and their outcome reported.
+                errors.Add(ex);
+                continue;
+            }
 
             var kafkaMessage = CreateKafkaMessage(message);
 
