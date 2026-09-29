@@ -1,6 +1,10 @@
 namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
@@ -126,7 +130,7 @@ public class ActivityAndMetricsRequestInterceptorTests
 
     [Test]
     [NotInParallel]
-    public async Task HandleAsync_WhenHandlerSucceeds_SetsActivityStatusToOk(CancellationToken cancellationToken)
+    public async Task HandleAsync_WhenHandlerSucceeds_LeavesActivityStatusUnset(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -151,7 +155,7 @@ public class ActivityAndMetricsRequestInterceptorTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(capturedActivity).IsNotNull();
-            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
+            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Unset);
 #pragma warning disable CS8605 // Unboxing a possibly null value.
             _ = await Assert.That((bool)capturedActivity.GetTagItem("pulse.success")).IsTrue();
 #pragma warning restore CS8605 // Unboxing a possibly null value.
@@ -319,6 +323,226 @@ public class ActivityAndMetricsRequestInterceptorTests
             _ = await Assert.That(capturedActivity).IsNotNull();
             _ = await Assert.That(capturedActivity!.GetTagItem("pulse.causation_id")).IsEqualTo("evt-1");
         }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WhenHandlerThrows_SetsErrorTypeOnActivityAndMetrics(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredCommand));
+
+        var interceptor = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(TimeProvider.System);
+        Activity? capturedActivity = null;
+
+        listener.ActivityStopped = activity =>
+        {
+            if (string.Equals(activity.DisplayName, "Command.MeasuredCommand", StringComparison.Ordinal))
+            {
+                capturedActivity = activity;
+            }
+        };
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredCommand(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        var errors = collector.For("pulse.request.errors");
+        var durations = collector.For("pulse.request.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedActivity).IsNotNull();
+            _ = await Assert
+                .That(capturedActivity!.GetTagItem("error.type"))
+                .IsEqualTo("System.InvalidOperationException");
+            _ = await Assert.That(errors).Count().IsEqualTo(1);
+            _ = await Assert.That(errors[0].Tags["error.type"]).IsEqualTo("System.InvalidOperationException");
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags["error.type"]).IsEqualTo("System.InvalidOperationException");
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WhenHandlerSucceeds_DoesNotSetErrorType(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "NetEvolve.Pulse", StringComparison.Ordinal),
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredCommand));
+
+        var interceptor = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(TimeProvider.System);
+        Activity? capturedActivity = null;
+
+        listener.ActivityStopped = activity =>
+        {
+            if (string.Equals(activity.DisplayName, "Command.MeasuredCommand", StringComparison.Ordinal))
+            {
+                capturedActivity = activity;
+            }
+        };
+
+        _ = await interceptor
+            .HandleAsync(new MeasuredCommand(), (_, _) => Task.FromResult("ok"), cancellationToken)
+            .ConfigureAwait(false);
+
+        var durations = collector.For("pulse.request.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(capturedActivity).IsNotNull();
+            _ = await Assert.That(capturedActivity!.GetTagItem("error.type")).IsNull();
+            _ = await Assert.That(durations).Count().IsEqualTo(1);
+            _ = await Assert.That(durations[0].Tags.ContainsKey("error.type")).IsFalse();
+            _ = await Assert.That(collector.For("pulse.request.errors")).IsEmpty();
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithSemanticConventionUnits_RecordsSecondsAndUcumUnits(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredCommand));
+        var timeProvider = new FakeTimeProvider();
+        var interceptor = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(
+            timeProvider,
+            Options.Create(new ActivityAndMetricsOptions { UseSemanticConventionUnits = true })
+        );
+
+        _ = await interceptor
+            .HandleAsync(
+                new MeasuredCommand(),
+                (_, _) =>
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(1500));
+                    return Task.FromResult("ok");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredCommand(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        var durations = collector.For("pulse.request.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(2);
+            _ = await Assert.That(durations[0].Unit).IsEqualTo("s");
+            _ = await Assert.That(durations[0].Value).IsEqualTo(1.5);
+            _ = await Assert.That(collector.For("pulse.requests.total")[0].Unit).IsEqualTo("{request}");
+            _ = await Assert.That(collector.For("pulse.request.errors")[0].Unit).IsEqualTo("{error}");
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task HandleAsync_WithDefaultOptions_KeepsLegacyUnits(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector("pulse.request.name", nameof(MeasuredCommand));
+        var timeProvider = new FakeTimeProvider();
+        var interceptor = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(timeProvider);
+
+        _ = await interceptor
+            .HandleAsync(
+                new MeasuredCommand(),
+                (_, _) =>
+                {
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(1500));
+                    return Task.FromResult("ok");
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await interceptor
+                .HandleAsync(
+                    new MeasuredCommand(),
+                    (_, _) => throw new InvalidOperationException("boom"),
+                    cancellationToken
+                )
+                .ConfigureAwait(false)
+        );
+
+        var durations = collector.For("pulse.request.duration");
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(durations).Count().IsEqualTo(2);
+            _ = await Assert.That(durations[0].Unit).IsEqualTo("ms");
+            _ = await Assert.That(durations[0].Value).IsEqualTo(1500d);
+            _ = await Assert.That(collector.For("pulse.requests.total")[0].Unit).IsEqualTo("requests");
+            _ = await Assert.That(collector.For("pulse.request.errors")[0].Unit).IsEqualTo("errors");
+        }
+    }
+
+    [Test]
+    public async Task Constructor_CalledRepeatedly_ReusesInstruments(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var published = new ConcurrentBag<Instrument>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, _) =>
+            {
+                if (
+                    string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal)
+                    && string.Equals(instrument.Name, "pulse.requests.total", StringComparison.Ordinal)
+                    && string.Equals(instrument.Unit, "requests", StringComparison.Ordinal)
+                )
+                {
+                    published.Add(instrument);
+                }
+            },
+        };
+        listener.Start();
+
+        _ = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(TimeProvider.System);
+        _ = new ActivityAndMetricsRequestInterceptor<MeasuredCommand, string>(TimeProvider.System);
+        _ = new ActivityAndMetricsRequestInterceptor<TestCommand, string>(TimeProvider.System);
+
+        _ = await Assert.That(published.Distinct().Count()).IsEqualTo(1);
+    }
+
+    private sealed class MeasuredCommand : ICommand<string>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
     }
 
     private sealed class TestCommand : ICommand<string>

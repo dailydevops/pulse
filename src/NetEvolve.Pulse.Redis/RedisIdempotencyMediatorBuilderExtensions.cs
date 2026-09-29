@@ -14,7 +14,8 @@ using NetEvolve.Pulse.Idempotency;
 public static class RedisIdempotencyMediatorBuilderExtensions
 {
     /// <summary>
-    /// Adds a Redis-backed idempotency store using atomic <c>SET NX EX</c> operations.
+    /// Adds a Redis-backed idempotency store using atomic <c>SET NX</c> (no TTL) or a
+    /// server-side Lua script that refreshes expired keys (TTL set).
     /// </summary>
     /// <param name="configurator">The mediator configurator.</param>
     /// <param name="configure">An optional action to configure <see cref="IdempotencyKeyOptions"/>.</param>

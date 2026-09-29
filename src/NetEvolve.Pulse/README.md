@@ -187,6 +187,28 @@ Behavior summary:
 | `ExpirationMode = Absolute` (default) | `Expiry` (or `DefaultExpiry`) is applied as absolute expiry relative to now |
 | `ExpirationMode = Sliding` | `Expiry` (or `DefaultExpiry`) window resets on each cache access |
 
+### Cache Invalidation
+
+Commands that implement `IInvalidatingCommand<TResponse>` evict the cached results of the query types listed in `InvalidatedQueryTypes` after the handler completes successfully. Register the interceptor after `AddQueryCaching()`:
+
+```csharp
+services.AddPulse(config => config.AddQueryCaching().AddCacheInvalidation());
+
+public record UpdateProductCommand(Guid Id, string Name) : IInvalidatingCommand<ProductDto>
+{
+    public string? CausationId { get; set; }
+    public string? CorrelationId { get; set; }
+
+    public IEnumerable<Type> InvalidatedQueryTypes { get; } = [typeof(GetProductQuery)];
+}
+```
+
+Limitations:
+
+* **Process-local.** The query caching interceptor records each cache key in an in-memory registry, and invalidation evicts only the keys in that registry. It does not evict entries that other instances cached in the shared `IDistributedCache`, or entries cached before the process restarted. Set `Expiry` or `DefaultExpiry` so that such entries expire eventually.
+* **Cache-aside race.** A query that reads the data before the command commits and writes its result after the eviction leaves a stale entry. Only expiry removes it.
+* **Growth.** The registry holds each distinct cache key once per query type. A key stays registered after its entry has expired until the next invalidation of that query type removes it.
+
 ### Request Timeouts
 
 Enforce a per-request deadline for commands and queries that implement `ITimeoutRequest` (from `NetEvolve.Pulse.Extensibility`). All other requests pass through unchanged.
@@ -218,6 +240,26 @@ Behavior summary:
 The deadline is scheduled and measured with the registered `TimeProvider`, so it can be controlled in tests.
 
 > **Side effects:** the interceptor cannot undo work. A command handler that finished after the deadline may already have written data, published events or called external systems before the `TimeoutException` is thrown. Any retry policy that reacts to a `TimeoutException` must therefore be idempotent (for example by combining it with `IIdempotentCommand<TResponse>` or natural idempotency keys).
+
+### Audit Trail
+
+`AddAudit()` records every command, and optionally every query, to the registered `IAuditStore` after the handler has run. Register a store with one of the provider-specific `Add*AuditStore()` extensions; without a store the interceptor does nothing.
+
+```csharp
+services.AddPulse(config => config.AddAudit(options => options.CapturePayload = true));
+```
+
+Audit writes are best effort (fail open):
+
+| Scenario | Result |
+| --- | --- |
+| Handler completes | `AuditResult.Success` recorded, result returned |
+| Handler throws | `AuditResult.Failure` recorded with the handler's exception message, original exception rethrown |
+| Store, serializer or user accessor throws after a successful handler | Error logged, result returned, no `Failure` record |
+| Store, serializer or user accessor throws after a failing handler | Error logged, original handler exception rethrown |
+| Caller cancels the `CancellationToken` after the handler finished | Record still written (`CancellationToken.None`), no `OperationCanceledException` |
+
+A missing audit record therefore shows up as an `Error` log entry, never as a failed request.
 
 ### Outbox Pattern Configuration
 
@@ -260,6 +302,21 @@ processorOptions.EventTypeOverrides[typeof(BulkEvent)] = new OutboxEventTypeOpti
 ```
 
 See [NetEvolve.Pulse.EntityFramework](https://www.nuget.org/packages/NetEvolve.Pulse.EntityFramework/) or [NetEvolve.Pulse.SqlServer](https://www.nuget.org/packages/NetEvolve.Pulse.SqlServer/) for persistence provider setup.
+
+#### Outbox and Handlers Sharing the Caller's Scope
+
+`PublishAsync` resolves event handlers from the caller's scope, so scoped handlers get the same `DbContext` or connection as the publishing code and the outbox. Since EF Core does not support concurrent operations on one `DbContext`, the mediator always runs the outbox handler first and on its own. Only the remaining handlers go to the configured dispatcher, so the outbox write never overlaps another handler, even under the default `ParallelEventDispatcher`.
+
+If two or more of your own handlers for the same event use the same scoped `DbContext` or connection, the parallel default still runs them concurrently. Switch to sequential dispatch for these events:
+
+```csharp
+services.AddPulse(config => config
+    .AddOutbox()
+    .UseEventDispatcherFor<MyEvent, SequentialEventDispatcher>()
+);
+```
+
+To make every event sequential instead, use `UseDefaultEventDispatcher<SequentialEventDispatcher>()`.
 
 ### Payload Serialization
 
@@ -324,6 +381,42 @@ public sealed class NewtonsoftJsonPayloadSerializer : IPayloadSerializer
 ```
 
 The custom serializer will be used for all payload operations within Pulse. Ensure your implementation is thread-safe, as the same instance may be accessed concurrently from multiple pipeline stages.
+
+## Telemetry
+
+`AddActivityAndMetrics()` emits activities and metrics on the `NetEvolve.Pulse` activity source and meter, following the [OpenTelemetry recording errors conventions](https://opentelemetry.io/docs/specs/semconv/general/recording-errors/):
+
+* Successful operations leave the activity status `Unset`. Failed operations set `Error` with the exception message.
+* Failed operations carry `error.type` (the full exception type name) on the activity, the error counter and the duration histogram.
+* A stream query records its duration once for every outcome. A stream whose consumer stops early (`break`, `Take`) carries `pulse.stream.completed=false` instead of `pulse.success`.
+* A stream query whose handler honours a cancelled token, for example `HttpContext.RequestAborted` after a client disconnects, fails with `OperationCanceledException` and is recorded as a failure with `error.type=System.OperationCanceledException`. An exception from the inner enumerator's `DisposeAsync` is also recorded as a failure, unless the stream had already faulted; the earlier exception is then both thrown and recorded.
+
+### Semantic Convention Units
+
+Metrics keep their legacy units by default. Opt into the units of the [OpenTelemetry metrics guidelines](https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units) once your dashboards and alerts are migrated:
+
+```csharp
+services.AddPulse(config => config.AddActivityAndMetrics(options => options.UseSemanticConventionUnits = true));
+```
+
+The option also applies to the outbox processor metrics. Without `AddActivityAndMetrics`, configure it with `services.Configure<ActivityAndMetricsOptions>(...)`.
+
+| Instrument | Default unit | With `UseSemanticConventionUnits` |
+| --- | --- | --- |
+| `pulse.requests.total` | `requests` | `{request}` |
+| `pulse.events.total` | `events` | `{event}` |
+| `pulse.stream_query.total` | `queries` | `{query}` |
+| `pulse.request.errors`, `pulse.event.errors`, `pulse.stream_query.errors` | `errors` | `{error}` |
+| `pulse.outbox.processed.total`, `pulse.outbox.failed.total`, `pulse.outbox.deadletter.total`, `pulse.outbox.pending` | `messages` | `{message}` |
+| `pulse.request.duration`, `pulse.event.duration`, `pulse.stream_query.duration`, `pulse.outbox.processing.duration` | `ms` (milliseconds) | `s` (seconds, with bucket boundaries from 0.005 to 10 s) |
+
+Migration steps:
+
+1. Replace filters on the `Ok` span status with "status is not `Error`".
+2. Enable `UseSemanticConventionUnits`. Exporters that append the unit to the metric name (for example the Prometheus exporter) then export new names such as `pulse_request_duration_seconds` instead of `pulse_request_duration_milliseconds`.
+3. Update dashboards and alerts to the new names and convert duration thresholds from milliseconds to seconds.
+
+A later `0.x` release makes the semantic convention units the default.
 
 ## NativeAOT and Trimming
 

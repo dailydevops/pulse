@@ -86,7 +86,10 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         return new SQLiteOutboxRepository(options, TimeProvider.System, scope);
     }
 
-    private static OutboxMessage CreateMessage(Type? eventType = null) =>
+    private static OutboxMessage CreateMessage(
+        Type? eventType = null,
+        OutboxMessageStatus status = OutboxMessageStatus.Pending
+    ) =>
         new OutboxMessage
         {
             Id = Guid.NewGuid(),
@@ -94,7 +97,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
             Payload = "{}",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
-            Status = OutboxMessageStatus.Pending,
+            Status = status,
         };
 
     [Test]
@@ -207,7 +210,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
@@ -227,7 +230,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await repository
@@ -262,7 +265,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         await repository.MarkAsDeadLetterAsync(message.Id, "Fatal error", cancellationToken).ConfigureAwait(false);
@@ -296,7 +299,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
         await repository.MarkAsCompletedAsync(message.Id, cancellationToken).ConfigureAwait(false);
 
@@ -313,7 +316,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
         await repository
             .MarkAsFailedAsync(message.Id, "First failure", cancellationToken: cancellationToken)
@@ -332,7 +335,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         var nextRetry = DateTimeOffset.UtcNow.AddMinutes(5);
@@ -358,7 +361,7 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var repository = CreateRepository();
-        var message = CreateMessage();
+        var message = CreateMessage(status: OutboxMessageStatus.Processing);
         await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
 
         var nextRetry = DateTimeOffset.UtcNow.AddMinutes(-30).ToOffset(TimeSpan.FromHours(2));
@@ -542,7 +545,12 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         IOutboxRepository repository = CreateRepository();
-        var messages = new[] { CreateMessage(), CreateMessage(), CreateMessage() };
+        var messages = new[]
+        {
+            CreateMessage(status: OutboxMessageStatus.Processing),
+            CreateMessage(status: OutboxMessageStatus.Processing),
+            CreateMessage(status: OutboxMessageStatus.Processing),
+        };
         foreach (var message in messages)
         {
             await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -565,7 +573,11 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         IOutboxRepository repository = CreateRepository();
-        var messages = new[] { CreateMessage(), CreateMessage() };
+        var messages = new[]
+        {
+            CreateMessage(status: OutboxMessageStatus.Processing),
+            CreateMessage(status: OutboxMessageStatus.Processing),
+        };
         foreach (var message in messages)
         {
             await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
@@ -607,7 +619,11 @@ public sealed class SQLiteOutboxRepositoryDatabaseTests : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         IOutboxRepository repository = CreateRepository();
-        var messages = new[] { CreateMessage(), CreateMessage() };
+        var messages = new[]
+        {
+            CreateMessage(status: OutboxMessageStatus.Processing),
+            CreateMessage(status: OutboxMessageStatus.Processing),
+        };
         foreach (var message in messages)
         {
             await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);

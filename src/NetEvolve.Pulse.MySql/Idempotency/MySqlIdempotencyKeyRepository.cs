@@ -51,6 +51,9 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
     /// <summary>Cached SQL statement for inserting an idempotency key.</summary>
     private readonly string _insertSql;
 
+    /// <summary>Cached SQL statement for refreshing the timestamp of an expired idempotency key.</summary>
+    private readonly string _refreshExpiredSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MySqlIdempotencyKeyRepository"/> class.
     /// </summary>
@@ -84,6 +87,16 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
             INSERT IGNORE INTO {table}
                 (`{IdempotencyKeySchema.Columns.IdempotencyKey}`, `{IdempotencyKeySchema.Columns.CreatedAt}`)
             VALUES (@key, @createdAtTicks)
+            """;
+
+        // Only an expired row matches, so the affected-row count is unambiguous even with the
+        // driver's default found-rows semantics (unlike INSERT ... ON DUPLICATE KEY UPDATE, which
+        // reports 1 for both an insert and an unchanged duplicate).
+        _refreshExpiredSql = $"""
+            UPDATE {table}
+            SET `{IdempotencyKeySchema.Columns.CreatedAt}` = @createdAtTicks
+            WHERE `{IdempotencyKeySchema.Columns.IdempotencyKey}` = @key
+              AND `{IdempotencyKeySchema.Columns.CreatedAt}` < @validFromTicks
             """;
     }
 
@@ -140,6 +153,71 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
                 _ = command.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Runs <c>INSERT IGNORE</c> and, when <paramref name="validFrom"/> is set, a conditional
+    /// <c>UPDATE</c> of an expired row. InnoDB's row lock makes a concurrent refresh re-read the
+    /// already refreshed row, so only one caller for the same key receives <see langword="true"/>.
+    /// When the refresh matches no row, the <c>INSERT IGNORE</c> runs once more, because the expired row
+    /// may have been deleted by a cleanup job between the two statements.
+    /// </remarks>
+    public async Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var insert = new MySqlCommand(_insertSql, connection);
+            await using (insert.ConfigureAwait(false))
+            {
+                _ = insert.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = insert.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
+
+                if (await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0)
+                {
+                    return true;
+                }
+            }
+
+            if (!validFrom.HasValue)
+            {
+                return false;
+            }
+
+            var refresh = new MySqlCommand(_refreshExpiredSql, connection);
+            await using (refresh.ConfigureAwait(false))
+            {
+                _ = refresh.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = refresh.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
+                _ = refresh.Parameters.AddWithValue("@validFromTicks", validFrom.Value.UtcTicks);
+
+                if (await refresh.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0)
+                {
+                    return true;
+                }
+            }
+
+            // A cleanup job can delete the expired row between the two statements; the key is then
+            // absent, so one more INSERT IGNORE reserves it instead of reporting a false duplicate.
+            var retry = new MySqlCommand(_insertSql, connection);
+            await using (retry.ConfigureAwait(false))
+            {
+                _ = retry.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = retry.Parameters.AddWithValue("@createdAtTicks", createdAt.UtcTicks);
+
+                return await retry.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
             }
         }
     }

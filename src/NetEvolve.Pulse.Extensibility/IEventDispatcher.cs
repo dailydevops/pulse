@@ -18,6 +18,8 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <item><description><c>PrioritizedEventDispatcher</c>: Orders handlers by <see cref="IPrioritizedEventHandler{TEvent}.Priority"/> before execution</description></item>
 /// <item><description><c>TransactionalEventDispatcher</c>: Stores events in <see cref="IEventOutbox"/> for reliable delivery</description></item>
 /// </list>
+/// The outbox handler registered by <c>AddOutbox()</c> is never passed to a dispatcher: the mediator always runs it
+/// first and on its own, and passes only the remaining handlers to the dispatcher.
 /// <para><strong>Custom Implementations:</strong></para>
 /// Implement this interface for advanced scenarios such as:
 /// <list type="bullet">

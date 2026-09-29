@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Internals;
 using static Internals.Defaults.Tags;
@@ -16,31 +17,24 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     where TEvent : IEvent
 {
     /// <summary>
-    /// Counter tracking the total number of events processed, tagged by event type.
+    /// Counter <c>pulse.events.total</c>, tagged by type.
     /// </summary>
-    private static readonly Counter<long> EventCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.events.total",
-        "events",
-        "Total number of events processed."
-    );
+    private readonly Counter<long> _eventCounter;
 
     /// <summary>
-    /// Counter tracking the total number of event errors, tagged by event type.
+    /// Counter <c>pulse.event.errors</c>, tagged by type.
     /// </summary>
-    private static readonly Counter<long> ErrorsCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.event.errors",
-        "errors",
-        "Total number of event errors."
-    );
+    private readonly Counter<long> _errorsCounter;
 
     /// <summary>
-    /// Histogram measuring event processing duration in milliseconds, with percentile distributions.
+    /// Histogram <c>pulse.event.duration</c> in milliseconds, or in seconds when semantic convention units are enabled.
     /// </summary>
-    private static readonly Histogram<double> EventDurationHistogram = Defaults.Meter.CreateHistogram<double>(
-        "pulse.event.duration",
-        "ms",
-        "Duration of event processing in milliseconds."
-    );
+    private readonly Histogram<double> _eventDurationHistogram;
+
+    /// <summary>
+    /// Whether the metrics use the units of the OpenTelemetry semantic conventions.
+    /// </summary>
+    private readonly bool _useSemanticConventionUnits;
 
     /// <summary>
     /// Time provider for consistent timestamp generation, supporting testability.
@@ -51,7 +45,34 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// Initializes a new instance of the <see cref="ActivityAndMetricsEventInterceptor{TEvent}"/> class.
     /// </summary>
     /// <param name="timeProvider">The time provider for timestamp generation.</param>
-    public ActivityAndMetricsEventInterceptor(TimeProvider timeProvider) => _timeProvider = timeProvider;
+    /// <param name="options">The telemetry options; <see langword="null"/> keeps the legacy units.</param>
+    public ActivityAndMetricsEventInterceptor(
+        TimeProvider timeProvider,
+        IOptions<ActivityAndMetricsOptions>? options = null
+    )
+    {
+        _timeProvider = timeProvider;
+        _useSemanticConventionUnits = options?.Value.UseSemanticConventionUnits ?? false;
+        _eventCounter = TelemetryUnits.GetSharedCounter(
+            "pulse.events.total",
+            "events",
+            "{event}",
+            "Total number of events processed.",
+            _useSemanticConventionUnits
+        );
+        _errorsCounter = TelemetryUnits.GetSharedCounter(
+            "pulse.event.errors",
+            "errors",
+            "{error}",
+            "Total number of event errors.",
+            _useSemanticConventionUnits
+        );
+        _eventDurationHistogram = TelemetryUnits.GetSharedDurationHistogram(
+            "pulse.event.duration",
+            "event processing",
+            _useSemanticConventionUnits
+        );
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -62,7 +83,9 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     /// <item>Increments event counter metrics</item>
     /// <item>Measures and records execution duration</item>
     /// <item>Captures exception details on failure</item>
-    /// <item>Marks success/failure status in both activity and metrics</item>
+    /// <item>Tags <c>pulse.success</c> on the activity and the duration histogram</item>
+    /// <item>Leaves the activity status <see cref="ActivityStatusCode.Unset"/> unless the handler fails</item>
+    /// <item>Sets <c>error.type</c> on the activity, the error counter and the duration histogram on failure</item>
     /// </list>
     /// </remarks>
     public async Task HandleAsync(
@@ -93,7 +116,7 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
             .SetTag(EventCorrelationId, message.CorrelationId)
             .SetTag(EventCausationId, message.CausationId)
             .SetTag(EventTimestamp, startTime);
-        EventCounter.Add(1, tags);
+        _eventCounter.Add(1, tags);
 
         try
         {
@@ -102,33 +125,40 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
 
             var endTime = _timeProvider.GetUtcNow();
 
-            // Mark activity as successful
+            // Status stays Unset on success, as required by the OpenTelemetry Trace API.
             _ = activity
-                ?.SetStatus(ActivityStatusCode.Ok)
-                .SetEndTime(endTime.UtcDateTime)
+                ?.SetEndTime(endTime.UtcDateTime)
                 .SetTag(EventCompletionTimestamp, endTime)
                 .SetTag(Success, value: true);
 
             // Record successful execution duration
-            EventDurationHistogram.Record((endTime - startTime).TotalMilliseconds, [.. tags, new(Success, true)]);
+            _eventDurationHistogram.Record(
+                TelemetryUnits.ToDuration(endTime - startTime, _useSemanticConventionUnits),
+                [.. tags, new(Success, true)]
+            );
         }
         catch (Exception ex)
         {
             var errorTime = _timeProvider.GetUtcNow();
+            var errorType = ex.GetType().FullName;
 
             // Capture comprehensive exception details in the activity
             _ = activity
                 ?.SetStatus(ActivityStatusCode.Error, ex.Message)
                 .SetEndTime(errorTime.UtcDateTime)
-                .SetTag(ExceptionType, ex.GetType().FullName)
+                .SetTag(ErrorType, errorType)
+                .SetTag(ExceptionType, errorType)
                 .SetTag(ExceptionMessage, ex.Message)
                 .SetTag(ExceptionStackTrace, ex.StackTrace)
                 .SetTag(ExceptionTimestamp, errorTime)
                 .SetTag(Success, value: false);
 
             // Increment error counters and record failed execution duration
-            ErrorsCounter.Add(1, tags);
-            EventDurationHistogram.Record((errorTime - startTime).TotalMilliseconds, [.. tags, new(Success, false)]);
+            _errorsCounter.Add(1, [.. tags, new(ErrorType, errorType)]);
+            _eventDurationHistogram.Record(
+                TelemetryUnits.ToDuration(errorTime - startTime, _useSemanticConventionUnits),
+                [.. tags, new(Success, false), new(ErrorType, errorType)]
+            );
 
             throw;
         }

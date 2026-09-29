@@ -25,6 +25,14 @@ using NetEvolve.Pulse.Extensibility;
 /// <para><strong>⚠️ Caution:</strong></para>
 /// Not suitable when handler execution order matters or when handlers access shared mutable state.
 /// Consider <see cref="SequentialEventDispatcher"/> for such scenarios.
+/// Event handlers are resolved from the caller's scope, so scoped handlers share the caller's scoped
+/// services. Do not combine this dispatcher with two or more handlers of the same event that use the
+/// same scoped <c>DbContext</c> or database connection: they run concurrently on it, which EF Core and
+/// most ADO.NET providers do not support. Register
+/// <c>UseEventDispatcherFor&lt;TEvent, SequentialEventDispatcher&gt;()</c> for such events instead, or
+/// <c>UseDefaultEventDispatcher&lt;SequentialEventDispatcher&gt;()</c> to make every event sequential.
+/// The outbox handler registered by <c>AddOutbox()</c> is not affected: the mediator always runs it
+/// first and on its own, and passes only the remaining handlers to this dispatcher.
 /// </remarks>
 /// <example>
 /// <code>

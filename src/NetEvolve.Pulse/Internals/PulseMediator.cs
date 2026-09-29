@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetEvolve.Pulse.Dispatchers;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Internal implementation of <see cref="IMediator"/> that coordinates dispatching requests and events to their handlers.
@@ -69,11 +70,16 @@ internal sealed partial class PulseMediator : IMediator
     /// This method executes all registered event handlers using the configured <see cref="IEventDispatcher"/>.
     /// The event's <see cref="IEvent.PublishedAt"/> property is automatically set before handlers execute.
     /// If any handler throws an exception, it is logged but does not prevent other handlers from executing.
-    /// Event interceptors are applied in reverse registration order, allowing pre- and post-processing.
+    /// Event interceptors are applied in registration order (the first registered is outermost), allowing pre- and post-processing.
     /// Handlers are resolved from the same service provider the mediator was resolved from, so scoped
     /// handlers share the caller's scoped services (e.g. the same DbContext) and can participate in the
     /// caller's transaction — a prerequisite for atomic outbox writes. When the mediator is resolved from
     /// the root provider, scoped handler dependencies live in the root scope for the provider's lifetime.
+    /// Because the outbox handler registered by <c>AddOutbox()</c> writes through those shared services, it is
+    /// invoked first and on its own. Only the remaining handlers go to the dispatcher, so the outbox write never
+    /// runs concurrently with another handler. User handlers that share a scoped <c>DbContext</c> or connection
+    /// with each other need <see cref="SequentialEventDispatcher"/>, because the default
+    /// <see cref="ParallelEventDispatcher"/> runs them concurrently.
     /// </remarks>
     public Task PublishAsync<TEvent>([NotNull] TEvent message, CancellationToken cancellationToken = default)
         where TEvent : IEvent
@@ -102,7 +108,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <inheritdoc />
     /// <remarks>
     /// This method resolves a single query handler from the service provider and executes it through any registered interceptors.
-    /// Query interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns like caching or logging.
+    /// Query interceptors are applied in registration order (the first registered is outermost), forming a pipeline for cross-cutting concerns like caching or logging.
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the query type.</exception>
     public Task<TResponse> QueryAsync<TQuery, TResponse>(
@@ -124,7 +130,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <inheritdoc />
     /// <remarks>
     /// This method resolves a single streaming query handler from the service provider and executes it through any registered interceptors.
-    /// Streaming query interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns.
+    /// Streaming query interceptors are applied in registration order (the first registered is outermost), forming a pipeline for cross-cutting concerns.
     /// Items are yielded incrementally; the caller must enumerate the result to trigger execution.
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the streaming query type.</exception>
@@ -147,7 +153,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <inheritdoc />
     /// <remarks>
     /// This method resolves a single command handler from the service provider and executes it through any registered interceptors.
-    /// Command interceptors are applied in reverse registration order, forming a pipeline for cross-cutting concerns like validation or auditing.
+    /// Command interceptors are applied in registration order (the first registered is outermost), forming a pipeline for cross-cutting concerns like validation or auditing.
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown if no handler is registered for the command type.</exception>
     public Task<TResponse> SendAsync<TCommand, TResponse>(
@@ -168,7 +174,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <summary>
     /// Builds and executes an interceptor pipeline for event handling with dispatcher integration.
-    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// Interceptors are applied in registration order (the first registered is outermost), forming a chain where each interceptor
     /// can perform actions before and after calling the next interceptor or final handler.
     /// </summary>
     /// <typeparam name="TEvent">The type of event being processed.</typeparam>
@@ -179,7 +185,7 @@ internal sealed partial class PulseMediator : IMediator
     /// <returns>A task representing the asynchronous execution of the event through the interceptor pipeline.</returns>
     private Task ExecuteAsync<TEvent>(
         TEvent msg,
-        IEnumerable<IEventHandler<TEvent>> handlers,
+        IEventHandler<TEvent>[] handlers,
         IServiceProvider serviceProvider,
         CancellationToken cancellationToken
     )
@@ -190,9 +196,20 @@ internal sealed partial class PulseMediator : IMediator
         // Resolve dispatcher: keyed by event type first, then global, then default
         var dispatcher = serviceProvider.GetKeyedService<IEventDispatcher>(typeof(TEvent)) ?? _eventDispatcher;
 
+        // The outbox handler writes through the caller's scoped services (e.g. the same DbContext), so it
+        // must never run concurrently with other handlers. It runs first and sequentially; only the
+        // remaining handlers go through the dispatcher.
+        var outboxHandlers = Array.FindAll(handlers, static h => h is OutboxEventHandler<TEvent>);
+        var otherHandlers =
+            outboxHandlers.Length == 0
+                ? handlers
+                : Array.FindAll(handlers, static h => h is not OutboxEventHandler<TEvent>);
+
         // Create the dispatch action that uses the resolved dispatcher
         Task DispatchAsync(TEvent message, CancellationToken token) =>
-            dispatcher.DispatchAsync(message, handlers, InvokeHandlerAsync, token);
+            outboxHandlers.Length == 0
+                ? dispatcher.DispatchAsync(message, handlers, InvokeHandlerAsync, token)
+                : DispatchOutboxFirstAsync(message, outboxHandlers, otherHandlers, dispatcher, token);
 
         // Build the interceptor chain from innermost (dispatcher) to outermost (first interceptor)
         var next = DispatchAsync;
@@ -220,7 +237,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <summary>
     /// Builds and executes an interceptor pipeline for request handling (commands and queries).
-    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// Interceptors are applied in registration order (the first registered is outermost), forming a chain where each interceptor
     /// can perform actions before and after calling the next interceptor or final handler.
     /// This enables cross-cutting concerns like validation, logging, caching, and metrics without modifying handlers.
     /// </summary>
@@ -268,7 +285,7 @@ internal sealed partial class PulseMediator : IMediator
 
     /// <summary>
     /// Builds and executes an interceptor pipeline for streaming query handling.
-    /// Interceptors are applied in reverse order of registration, forming a chain where each interceptor
+    /// Interceptors are applied in registration order (the first registered is outermost), forming a chain where each interceptor
     /// can perform actions before iterating the next interceptor or final handler.
     /// </summary>
     /// <typeparam name="TQuery">The type of streaming query being processed.</typeparam>
@@ -336,6 +353,70 @@ internal sealed partial class PulseMediator : IMediator
         }
 
         return [.. _serviceProvider.GetServices<TInterceptor>()];
+    }
+
+    /// <summary>
+    /// Invokes the outbox handlers sequentially and then dispatches the remaining handlers, so the outbox
+    /// write never overlaps another handler that shares the caller's scoped services.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event being processed.</typeparam>
+    /// <param name="message">The event to process.</param>
+    /// <param name="outboxHandlers">The outbox handlers, invoked first and one after another.</param>
+    /// <param name="otherHandlers">The remaining handlers, passed to <paramref name="dispatcher"/>.</param>
+    /// <param name="dispatcher">The dispatcher for the remaining handlers.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous dispatch.</returns>
+    /// <exception cref="AggregateException">
+    /// Thrown after all handlers have run when an outbox handler failed; it also carries the failures of
+    /// the remaining handlers, flattened from the dispatcher's <see cref="AggregateException"/>.
+    /// </exception>
+    private async Task DispatchOutboxFirstAsync<TEvent>(
+        TEvent message,
+        IEventHandler<TEvent>[] outboxHandlers,
+        IEventHandler<TEvent>[] otherHandlers,
+        IEventDispatcher dispatcher,
+        CancellationToken cancellationToken
+    )
+        where TEvent : IEvent
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var exceptions = new List<Exception>();
+
+        foreach (var handler in outboxHandlers)
+        {
+            try
+            {
+                await InvokeHandlerAsync(handler, message, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                exceptions.Add(ex);
+            }
+        }
+
+        if (otherHandlers.Length > 0)
+        {
+            try
+            {
+                await dispatcher
+                    .DispatchAsync(message, otherHandlers, InvokeHandlerAsync, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (AggregateException ex) when (exceptions.Count > 0)
+            {
+                exceptions.AddRange(ex.InnerExceptions);
+            }
+            catch (Exception ex) when (exceptions.Count > 0 && !cancellationToken.IsCancellationRequested)
+            {
+                exceptions.Add(ex);
+            }
+        }
+
+        if (exceptions.Count > 0)
+        {
+            throw new AggregateException("One or more event handlers failed.", exceptions);
+        }
     }
 
     /// <summary>

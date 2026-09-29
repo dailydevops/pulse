@@ -306,7 +306,7 @@ BEGIN
         [Status]
     FROM [$(SchemaName)].[$(TableName)]
     WHERE [Status] = 4 -- DeadLetter
-    ORDER BY [UpdatedAt] DESC
+    ORDER BY [UpdatedAt] DESC, [Id] DESC
     OFFSET (@page * @pageSize) ROWS
     FETCH NEXT @pageSize ROWS ONLY;
 END

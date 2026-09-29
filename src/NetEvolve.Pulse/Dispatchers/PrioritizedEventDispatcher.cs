@@ -1,6 +1,5 @@
 ﻿namespace NetEvolve.Pulse.Dispatchers;
 
-using System.Collections.Concurrent;
 using NetEvolve.Pulse.Extensibility;
 
 /// <summary>
@@ -12,17 +11,16 @@ using NetEvolve.Pulse.Extensibility;
 /// <list type="bullet">
 /// <item><description>Handlers implementing <see cref="IPrioritizedEventHandler{TEvent}"/> are sorted by <see cref="IPrioritizedEventHandler{TEvent}.Priority"/></description></item>
 /// <item><description>Handlers not implementing the interface are treated as priority <see cref="int.MaxValue"/> (execute last)</description></item>
-/// <item><description>Handlers with equal priority execute in parallel within the same priority group</description></item>
+/// <item><description>Handlers with equal priority execute in registration order</description></item>
 /// </list>
 /// <para><strong>Execution Behavior:</strong></para>
-/// Priority groups execute sequentially in ascending priority order. Within each group, handlers
-/// execute in parallel using <see cref="Parallel"/>.
-/// This ensures predictable ordering between groups while maximising throughput within each group.
+/// Handlers execute sequentially, one at a time, in ascending priority order. Each handler is awaited
+/// before the next one starts, so the execution order is fully deterministic.
 /// <para><strong>Error Handling:</strong></para>
 /// Individual handler failures do not prevent other handlers from executing, including handlers
-/// in subsequent priority groups. All handlers across all groups are executed regardless of
-/// failures. If any handlers fail, an <see cref="AggregateException"/> is thrown after all
-/// handlers have completed, containing all exceptions that occurred.
+/// with a higher priority value. If any handlers fail, an <see cref="AggregateException"/> is thrown
+/// after all handlers have completed, containing all exceptions that occurred.
+/// Cancellation of the caller's token stops dispatching and surfaces as <see cref="OperationCanceledException"/>.
 /// <para><strong>Use Cases:</strong></para>
 /// <list type="bullet">
 /// <item><description>Validation handlers that must run before business logic</description></item>
@@ -31,9 +29,12 @@ using NetEvolve.Pulse.Extensibility;
 /// <item><description>Notification handlers with delivery priority</description></item>
 /// </list>
 /// <para><strong>⚠️ Performance Consideration:</strong></para>
-/// Sequential group execution impacts overall throughput compared to fully parallel execution.
-/// Use only when handler ordering across groups is critical.
+/// Sequential execution impacts overall throughput compared to parallel execution.
+/// Use only when handler ordering is critical.
 /// Consider <see cref="ParallelEventDispatcher"/> for independent handlers.
+/// <para><strong>Outbox:</strong></para>
+/// The outbox handler registered by <c>AddOutbox()</c> is never passed to this dispatcher: the mediator
+/// always runs it first and on its own, and passes only the remaining handlers here.
 /// </remarks>
 /// <example>
 /// <code>
@@ -58,12 +59,12 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Groups handlers by priority and executes each group sequentially in ascending order.
-    /// Within each group, handlers execute in parallel using
-    /// <see cref="Parallel.ForEachAsync{TSource}(IEnumerable{TSource}, CancellationToken, Func{TSource, CancellationToken, ValueTask})"/>.
-    /// Non-prioritized handlers are assigned <see cref="int.MaxValue"/> and execute in the last group.
+    /// Sorts handlers by priority with a stable sort, so equal priorities keep their registration order,
+    /// and awaits each handler before invoking the next one.
+    /// Non-prioritized handlers are assigned <see cref="int.MaxValue"/> and execute last.
+    /// Respects cancellation between handler invocations.
     /// Exceptions from individual handlers are collected and thrown as an <see cref="AggregateException"/>
-    /// after all handlers across all groups have completed.
+    /// after all handlers have completed.
     /// </remarks>
     public async Task DispatchAsync<TEvent>(
         TEvent message,
@@ -78,56 +79,23 @@ public sealed class PrioritizedEventDispatcher : IEventDispatcher
         ArgumentNullException.ThrowIfNull(handlers);
         ArgumentNullException.ThrowIfNull(invoker);
 
-        if (handlers is ICollection<IEventHandler<TEvent>> { Count: 1 } singleHandlerCollection)
+        var exceptions = new List<Exception>();
+
+        // OrderBy is a stable sort: handlers with equal priority keep their registration order.
+        foreach (var handler in handlers.OrderBy(GetPriority))
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var handler = singleHandlerCollection.First();
-
             try
             {
                 await invoker(handler, message, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new AggregateException("One or more event handlers failed.", ex);
+                exceptions.Add(ex);
             }
-
-            return;
         }
 
-        // Sort handlers by priority, preserving order for equal priorities
-        var priorityGroups = handlers
-            .Select(handler => (Handler: handler, Priority: GetPriority(handler)))
-            .GroupBy(x => x.Priority)
-            .OrderBy(x => x.Key);
-
-        var exceptions = new ConcurrentBag<Exception>();
-
-        foreach (var group in priorityGroups)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            await Parallel
-                .ForEachAsync(
-                    group.Select(x => x.Handler),
-                    cancellationToken,
-                    async (handler, ct) =>
-                    {
-                        try
-                        {
-                            await invoker(handler, message, ct).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            exceptions.Add(ex);
-                        }
-                    }
-                )
-                .ConfigureAwait(false);
-        }
-
-        if (!exceptions.IsEmpty)
+        if (exceptions is { Count: > 0 })
         {
             throw new AggregateException("One or more event handlers failed.", exceptions);
         }

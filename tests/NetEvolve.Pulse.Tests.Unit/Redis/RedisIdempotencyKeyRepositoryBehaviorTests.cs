@@ -29,6 +29,7 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
     {
         public List<StringSetCall> StringSetCalls { get; } = new();
         public List<RedisKey> StringGetCalls { get; } = new();
+        public List<RedisValue[]> ScriptEvaluateCalls { get; } = new();
         public Dictionary<string, RedisValue> Storage { get; } = new(StringComparer.Ordinal);
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -70,6 +71,15 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
 #pragma warning restore S8969
                     }
                     throw new NotSupportedException($"Unexpected StringGetAsync overload: {targetMethod}");
+                }
+                case nameof(IDatabase.ScriptEvaluateAsync):
+                {
+                    if (args is { Length: >= 3 } && args[0] is string && args[2] is RedisValue[] values)
+                    {
+                        ScriptEvaluateCalls.Add(values);
+                        return Task.FromResult(RedisResult.Create((RedisValue)1));
+                    }
+                    throw new NotSupportedException($"Unexpected ScriptEvaluateAsync overload: {targetMethod}");
                 }
                 default:
                     throw new NotImplementedException($"FakeDatabase has no behavior for {targetMethod}");
@@ -375,6 +385,62 @@ public sealed class RedisIdempotencyKeyRepositoryBehaviorTests
                 .That(() => repo.StoreAsync("k1", DateTimeOffset.UtcNow, cts.Token))
                 .Throws<OperationCanceledException>();
             _ = await Assert.That(capture.StringSetCalls).IsEmpty();
+        }
+    }
+
+    // INVARIANT (#790): without a cutoff, TryReserveAsync is a plain SET NX and rejects an existing key.
+    [Test]
+    public async Task TryReserveAsync_Without_validFrom_uses_SET_NX(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (mux, capture) = BuildFakes();
+        var repo = new RedisIdempotencyKeyRepository(mux, Options.Create(new IdempotencyKeyOptions()));
+
+        var first = await repo.TryReserveAsync("k1", DateTimeOffset.UtcNow, null, cancellationToken)
+            .ConfigureAwait(false);
+        var second = await repo.TryReserveAsync("k1", DateTimeOffset.UtcNow, null, cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(first).IsTrue();
+            _ = await Assert.That(second).IsFalse();
+            _ = await Assert.That(capture.StringSetCalls).HasCount(2);
+            _ = await Assert.That(capture.StringSetCalls[1].When).IsEqualTo(When.NotExists);
+            _ = await Assert.That(capture.ScriptEvaluateCalls).IsEmpty();
+        }
+    }
+
+    // INVARIANT (#814): with a cutoff, the refresh of an expired value runs as one server-side script
+    // that receives UTC timestamps and the physical expiry (TTL + 1h) in milliseconds.
+    [Test]
+    public async Task TryReserveAsync_With_validFrom_runs_reserve_script(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (mux, capture) = BuildFakes();
+        var options = Options.Create(new IdempotencyKeyOptions { TimeToLive = TimeSpan.FromHours(1) });
+        var repo = new RedisIdempotencyKeyRepository(mux, options);
+        var createdAt = new DateTimeOffset(2025, 1, 1, 12, 0, 0, TimeSpan.FromHours(2));
+
+        var reserved = await repo.TryReserveAsync("k1", createdAt, createdAt.AddHours(-1), cancellationToken)
+            .ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(reserved).IsTrue();
+            _ = await Assert.That(capture.StringSetCalls).IsEmpty();
+            _ = await Assert.That(capture.ScriptEvaluateCalls).HasCount(1);
+#pragma warning disable S8969 // RedisValue's implicit string conversion is annotated nullable; the value is never null here
+            _ = await Assert
+                .That((string)capture.ScriptEvaluateCalls[0][0]!)
+                .IsEqualTo("2025-01-01T10:00:00.0000000+00:00");
+            _ = await Assert
+                .That((string)capture.ScriptEvaluateCalls[0][1]!)
+                .IsEqualTo("2025-01-01T09:00:00.0000000+00:00");
+            _ = await Assert.That((string)capture.ScriptEvaluateCalls[0][2]!).IsEqualTo("7200000");
+#pragma warning restore S8969
         }
     }
 }

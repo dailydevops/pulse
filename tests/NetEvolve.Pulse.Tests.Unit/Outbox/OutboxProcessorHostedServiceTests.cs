@@ -11,7 +11,9 @@ using Microsoft.Extensions.Time.Testing;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Outbox;
+using NetEvolve.Pulse.Tests.Unit.Interceptors;
 using TUnit.Core;
 using TUnit.Mocks;
 
@@ -1152,6 +1154,54 @@ public sealed class OutboxProcessorHostedServiceTests
 
     [Test]
     [NotInParallel("OutboxMetrics")]
+    public async Task ExecuteAsync_WithSemanticConventionUnits_RecordsSecondsAndMessageUnits(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var collector = new PulseMeasurementCollector();
+
+        using var repository = new InMemoryOutboxRepository();
+        await repository.AddAsync(CreateMessage(), cancellationToken).ConfigureAwait(false);
+        var transport = new InMemoryMessageTransport();
+        var options = Options.Create(new OutboxProcessorOptions { PollingInterval = TimeSpan.FromMilliseconds(50) });
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            CreateLogger(),
+            TimeProvider.System,
+            Options.Create(new ActivityAndMetricsOptions { UseSemanticConventionUnits = true })
+        );
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await service.StartAsync(cts.Token).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+
+        // The duration is recorded after ProcessBatchAsync returns; the pending-count refresh also signals a
+        // poll, so wait for further polls until the measurement arrived instead of counting signals.
+        while (!collector.For("pulse.outbox.processing.duration").Any(m => m.Unit == "s"))
+        {
+            await repository.WaitForPollAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        }
+
+        await cts.CancelAsync().ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(collector.For("pulse.outbox.processing.duration").Any(m => m.Unit == "s")).IsTrue();
+            _ = await Assert
+                .That(collector.For("pulse.outbox.processed.total").Any(m => m.Unit == "{message}"))
+                .IsTrue();
+        }
+    }
+
+    [Test]
+    [NotInParallel("OutboxMetrics")]
     public async Task ExecuteAsync_WithPendingMessages_ObservableGaugeReflectsPendingCount(
         CancellationToken cancellationToken
     )
@@ -1283,6 +1333,56 @@ public sealed class OutboxProcessorHostedServiceTests
     }
 
     [Test]
+    [NotInParallel("OutboxMetrics")]
+    public async Task Dispose_ReleasesCounterAndHistogramInstruments()
+    {
+        string[] names =
+        [
+            "pulse.outbox.processed.total",
+            "pulse.outbox.failed.total",
+            "pulse.outbox.deadletter.total",
+            "pulse.outbox.processing.duration",
+        ];
+        var published = new ConcurrentBag<Instrument>();
+        var completed = new ConcurrentBag<Instrument>();
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (
+                string.Equals(instrument.Meter.Name, "NetEvolve.Pulse", StringComparison.Ordinal)
+                && names.Contains(instrument.Name, StringComparer.Ordinal)
+            )
+            {
+                published.Add(instrument);
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        meterListener.MeasurementsCompleted = (instrument, _) => completed.Add(instrument);
+        meterListener.Start();
+        var publishedBefore = published.ToArray();
+
+        using var repository = new InMemoryOutboxRepository();
+        var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            new InMemoryMessageTransport(),
+            CreateLifetime(),
+            Options.Create(new OutboxProcessorOptions()),
+            CreateLogger(),
+            TimeProvider.System
+        );
+        var created = published.Except(publishedBefore).ToArray();
+
+        service.Dispose();
+
+        // Other tests may create services in parallel, so look for one meter whose four instruments were released.
+        var released = created
+            .GroupBy(i => i.Meter)
+            .Any(g => g.Select(i => i.Name).Distinct().Count() == names.Length && g.All(completed.Contains));
+
+        _ = await Assert.That(released).IsTrue();
+    }
+
+    [Test]
     public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAt(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1374,6 +1474,56 @@ public sealed class OutboxProcessorHostedServiceTests
         {
             _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.Failed);
             _ = await Assert.That(message.NextRetryAt).IsEqualTo(failedAt + pollingInterval);
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ExecuteAsync_WithExponentialBackoffEnabled_SetsNextRetryAtFromInjectedTimeProvider(
+        bool enableBatchSending,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var timeProvider = new TimerSignalingTimeProvider();
+        using var repository = new InMemoryOutboxRepository(timeProvider);
+        var transport = new TimedFailingMessageTransport(timeProvider);
+        var baseRetryDelay = TimeSpan.FromSeconds(10);
+        var options = Options.Create(
+            new OutboxProcessorOptions
+            {
+                PollingInterval = TimeSpan.FromSeconds(5),
+                MaxRetryCount = 3,
+                EnableBatchSending = enableBatchSending,
+                EnableExponentialBackoff = true,
+                BaseRetryDelay = baseRetryDelay,
+                AddJitter = false,
+            }
+        );
+        using var service = new OutboxProcessorHostedService(
+            CreateScopeFactory(repository),
+            transport,
+            CreateLifetime(),
+            options,
+            CreateLogger(),
+            timeProvider
+        );
+
+        var message = CreateMessage();
+        await repository.AddAsync(message, cancellationToken).ConfigureAwait(false);
+        var failedAt = timeProvider.GetUtcNow();
+
+        await service.StartAsync(cancellationToken).ConfigureAwait(false);
+        using var timeoutCts = CreateSignalTimeout(cancellationToken);
+        await repository.WaitForMarkingsAsync(1, timeoutCts.Token).ConfigureAwait(false);
+        await service.StopAsync(cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(message.Status).IsEqualTo(OutboxMessageStatus.Failed);
+            _ = await Assert.That(message.NextRetryAt).IsEqualTo(failedAt + baseRetryDelay);
         }
     }
 

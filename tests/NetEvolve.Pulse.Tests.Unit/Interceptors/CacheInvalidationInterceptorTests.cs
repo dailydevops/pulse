@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Tests.Unit.Interceptors;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
@@ -221,6 +222,76 @@ public sealed class CacheInvalidationInterceptorTests
                 _ = await Assert.That(result).IsEqualTo("handler-result");
                 _ = await Assert.That(handlerCallCount).IsEqualTo(1);
             }
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_KeyRegisteredDuringEviction_IsEvictedBySubsequentInvalidation(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var registry = new InMemoryCacheKeyRegistry();
+        registry.Register(typeof(TestQuery), "query-key-1");
+
+        var cache = Mock.Of<IDistributedCache>();
+        _ = cache
+            .RemoveAsync("query-key-1", Arg.Any<CancellationToken>())
+            .Callback(() => registry.Register(typeof(TestQuery), "query-key-2"));
+
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(cache.Object);
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var interceptor = new CacheInvalidationInterceptor<TestCommand, string>(provider, registry);
+            var command = new TestCommand([typeof(TestQuery)]);
+
+            _ = await interceptor
+                .HandleAsync(command, (_, _) => Task.FromResult("first"), cancellationToken)
+                .ConfigureAwait(false);
+
+            _ = await Assert.That(registry.GetKeysForType(typeof(TestQuery))).IsEquivalentTo(["query-key-2"]);
+
+            _ = await interceptor
+                .HandleAsync(command, (_, _) => Task.FromResult("second"), cancellationToken)
+                .ConfigureAwait(false);
+
+            cache.RemoveAsync("query-key-2", Arg.Any<CancellationToken>()).WasCalled(Times.Once);
+        }
+    }
+
+    [Test]
+    public async Task HandleAsync_EvictionFails_KeepsKeysThatWereNotEvicted(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var registry = new InMemoryCacheKeyRegistry();
+        registry.Register(typeof(TestQuery), "query-key-1");
+
+        var cache = Mock.Of<IDistributedCache>();
+        _ = cache
+            .RemoveAsync("query-key-1", Arg.Any<CancellationToken>())
+            .Throws(new InvalidOperationException("cache unavailable"));
+
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(cache.Object);
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var interceptor = new CacheInvalidationInterceptor<TestCommand, string>(provider, registry);
+            var command = new TestCommand([typeof(TestQuery)]);
+
+            _ = await Assert
+                .That(async () =>
+                    await interceptor
+                        .HandleAsync(command, (_, _) => Task.FromResult("result"), cancellationToken)
+                        .ConfigureAwait(false)
+                )
+                .Throws<InvalidOperationException>();
+
+            _ = await Assert.That(registry.GetKeysForType(typeof(TestQuery))).IsEquivalentTo(["query-key-1"]);
         }
     }
 

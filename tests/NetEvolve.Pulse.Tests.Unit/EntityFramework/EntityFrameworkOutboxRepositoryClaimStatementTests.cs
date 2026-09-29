@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility.Outbox;
 using NetEvolve.Pulse.Outbox;
@@ -131,7 +132,11 @@ public sealed class EntityFrameworkOutboxRepositoryClaimStatementTests
                 context.ChangeTracker.Clear();
                 recorder.Commands.Clear();
 
-                using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+                using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                    context,
+                    Options.Create(new OutboxOptions()),
+                    TimeProvider.System
+                );
                 await claim(repository, cancellationToken).ConfigureAwait(false);
 
                 return recorder.Commands.Single(c => c.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase));

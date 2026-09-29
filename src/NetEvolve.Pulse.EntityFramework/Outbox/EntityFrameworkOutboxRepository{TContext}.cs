@@ -2,6 +2,7 @@
 
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
@@ -17,6 +18,11 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// Bulk executors re-check the full eligibility predicate on every claimed row; change-tracking
 /// executors rely on optimistic concurrency tokens. For high-throughput scenarios,
 /// consider using the SQL Server ADO.NET provider with explicit locking.
+/// <para><strong>Lease-based reclaim:</strong></para>
+/// <see cref="GetPendingAsync"/> also reclaims messages that stayed in the <c>Processing</c> status
+/// longer than <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (for example, after a worker crash,
+/// cancellation or shutdown), so they are delivered at least once. <see cref="OutboxMessage.UpdatedAt"/>
+/// serves as the lease timestamp.
 /// </remarks>
 /// <typeparam name="TContext">The DbContext type that implements <see cref="IOutboxDbContext"/>.</typeparam>
 internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxRepository, IDisposable
@@ -33,20 +39,29 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
     /// (change-tracking + <c>SaveChangesAsync</c> vs. bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c>).
     /// </summary>
     private readonly IOutboxRepositoryExecutor _executor;
+
+    /// <summary>
+    /// The duration after which a message in the <c>Processing</c> status is eligible for reclaiming.
+    /// </summary>
+    private readonly TimeSpan _processingLeaseTimeout;
     private bool _disposedValue;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityFrameworkOutboxRepository{TContext}"/> class.
     /// </summary>
     /// <param name="context">The DbContext for database operations.</param>
+    /// <param name="options">The outbox configuration options.</param>
     /// <param name="timeProvider">The time provider for timestamps.</param>
-    public EntityFrameworkOutboxRepository(TContext context, TimeProvider timeProvider)
+    public EntityFrameworkOutboxRepository(TContext context, IOptions<OutboxOptions> options, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(options.Value.ProcessingLeaseTimeout, TimeSpan.Zero);
 
         _context = context;
         _timeProvider = timeProvider;
+        _processingLeaseTimeout = options.Value.ProcessingLeaseTimeout;
         _executor = context.Database.ProviderName switch
         {
             // InMemory does not support ExecuteUpdate/ExecuteDelete at all.
@@ -81,9 +96,13 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
         cancellationToken.ThrowIfCancellationRequested();
 
         var now = _timeProvider.GetUtcNow();
+        var leaseExpiredBefore = now - _processingLeaseTimeout;
 
+        // Bulk executors re-check this predicate in the claiming UPDATE, and a reclaim writes a fresh
+        // UpdatedAt, so a competing poller cannot reclaim the same expired message twice.
         Expression<Func<OutboxMessage, bool>> claimFilter = m =>
-            m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now);
+            (m.Status == OutboxMessageStatus.Pending && (m.NextRetryAt == null || m.NextRetryAt <= now))
+            || (m.Status == OutboxMessageStatus.Processing && m.UpdatedAt <= leaseExpiredBefore);
 
         var baseQuery = _context.OutboxMessages.Where(claimFilter).OrderBy(m => m.CreatedAt).Take(batchSize);
 
@@ -299,7 +318,7 @@ internal sealed class EntityFrameworkOutboxRepository<TContext> : IOutboxReposit
                 null,
                 null,
                 OutboxMessageStatus.DeadLetter,
-                1,
+                0,
                 errorMessage,
                 cancellationToken
             )
