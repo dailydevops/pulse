@@ -43,9 +43,6 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 )]
 internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
 {
-    /// <summary>MySQL error number of <c>ER_DUP_ENTRY</c>, raised when an insert violates the primary key.</summary>
-    private const int DuplicateEntryErrorNumber = 1062;
-
     /// <summary>The MySQL connection string used to open new connections for each repository operation.</summary>
     private readonly string _connectionString;
 
@@ -248,7 +245,7 @@ internal sealed class MySqlIdempotencyKeyRepository : IIdempotencyKeyRepository
             {
                 return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
             }
-            catch (MySqlException ex) when (ex.Number == DuplicateEntryErrorNumber)
+            catch (MySqlException ex) when (ex.Number == (int)MySqlErrorCode.DuplicateKeyEntry)
             {
                 // The key is already stored, by an earlier call or a concurrent request.
                 return false;
