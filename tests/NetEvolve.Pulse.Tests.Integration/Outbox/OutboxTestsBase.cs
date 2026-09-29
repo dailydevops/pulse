@@ -717,6 +717,55 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
     }
 
     [Test]
+    public async Task Should_MarkAsDeadLetter_Keep_Nonzero_RetryCount(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+                    await PublishEventsAsync(mediator, 2, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var claimed = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(claimed.Count).IsEqualTo(2);
+
+                    Guid[] ids = [claimed[0].Id, claimed[1].Id];
+
+                    for (var attempt = 1; attempt <= 2; attempt++)
+                    {
+                        await outbox.MarkAsFailedAsync(ids, $"Error {attempt}", token).ConfigureAwait(false);
+
+                        var retry = await outbox.GetFailedForRetryAsync(10, 50, token).ConfigureAwait(false);
+
+                        _ = await Assert.That(retry.Count).IsEqualTo(2);
+                    }
+
+                    await outbox.MarkAsDeadLetterAsync(ids[0], "Fatal error", token).ConfigureAwait(false);
+                    await outbox.MarkAsDeadLetterAsync([ids[1]], "Fatal error", token).ConfigureAwait(false);
+
+                    var management = services.GetRequiredService<IOutboxManagement>();
+                    var single = await management.GetMessageAsync(ids[0], token).ConfigureAwait(false);
+                    var batch = await management.GetMessageAsync(ids[1], token).ConfigureAwait(false);
+
+                    _ = await Assert.That(single).IsNotNull();
+                    _ = await Assert.That(batch).IsNotNull();
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(single!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                        _ = await Assert.That(single.RetryCount).IsEqualTo(2);
+                        _ = await Assert.That(batch!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
+                        _ = await Assert.That(batch.RetryCount).IsEqualTo(2);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services.Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+
+    [Test]
     public async Task Should_Ignore_Mark_For_Unknown_Message(CancellationToken cancellationToken) =>
         await RunAndVerify(
                 async (services, token) =>
