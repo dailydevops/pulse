@@ -1,9 +1,15 @@
 namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +17,15 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using NetEvolve.Pulse.Extensibility;
+using NetEvolve.Pulse.Internals;
+using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
+#if NET10_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
+
+#if !NET10_0_OR_GREATER
+using Microsoft.AspNetCore.Http.Features;
+#endif
 
 /// <summary>
 /// Provides extension methods for <see cref="IEndpointRouteBuilder"/> to map Pulse mediator
@@ -29,10 +44,24 @@ public static class EndpointRouteBuilderExtensions
 #endif
 
     /// <summary>
-    /// Maps a command to an HTTP endpoint. The command is bound from the request body,
+    /// Maps a command to an HTTP endpoint. The command is bound as described in the remarks,
     /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand, TResponse}"/>, and the result
     /// is returned as <c>200 OK</c>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For <see cref="CommandHttpMethod.Post"/>, <see cref="CommandHttpMethod.Put"/> and
+    /// <see cref="CommandHttpMethod.Patch"/>, the command is bound from the JSON request body. Route values that
+    /// match a JSON property of <typeparamref name="TCommand"/> (case-insensitive) overwrite the body value, so
+    /// the command targets the resource named in the URI. A route value that cannot be converted to the property
+    /// type returns <c>400 Bad Request</c>.
+    /// </para>
+    /// <para>
+    /// For <see cref="CommandHttpMethod.Delete"/>, the command is bound from route values and the query string
+    /// with <c>[AsParameters]</c>, like <see cref="MapQuery{TQuery, TResponse}"/>. A request body is not required
+    /// and is ignored (RFC 9110 §9.3.5).
+    /// </para>
+    /// </remarks>
     /// <typeparam name="TCommand">The command type. Must implement <see cref="ICommand{TResponse}"/>.</typeparam>
     /// <typeparam name="TResponse">The response type returned by the command.</typeparam>
     /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the endpoint to.</param>
@@ -52,7 +81,7 @@ public static class EndpointRouteBuilderExtensions
     /// // Default POST
     /// app.MapCommand&lt;CreateOrderCommand, OrderResult&gt;("/orders");
     ///
-    /// // Custom method
+    /// // Custom method, {id} overwrites UpdateOrderCommand.Id from the body
     /// app.MapCommand&lt;UpdateOrderCommand, OrderResult&gt;("/orders/{id}", CommandHttpMethod.Put);
     /// </code>
     /// </example>
@@ -72,14 +101,41 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        var routeBuilder = endpoints.MapMethods(
-            pattern,
-            [httpMethod.ToHttpMethodString()],
-            async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
-                TypedResults.Ok(
-                    await mediator.SendAsync<TCommand, TResponse>(command, cancellationToken).ConfigureAwait(false)
+        string[] httpMethods = [httpMethod.ToHttpMethodString()];
+        var routeBuilder =
+            httpMethod == CommandHttpMethod.Delete
+                ? endpoints.MapMethods(
+                    pattern,
+                    httpMethods,
+                    async ([AsParameters] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
+                        TypedResults.Ok(
+                            await mediator
+                                .SendAsync<TCommand, TResponse>(command, cancellationToken)
+                                .ConfigureAwait(false)
+                        )
                 )
-        );
+                : endpoints.MapMethods(
+                    pattern,
+                    httpMethods,
+                    async Task<Results<Ok<TResponse>, BadRequest>> (
+                        [FromBody] TCommand command,
+                        HttpContext httpContext,
+                        IMediator mediator,
+                        CancellationToken cancellationToken
+                    ) =>
+                    {
+                        if (!TryApplyRouteValues(httpContext, ref command))
+                        {
+                            return TypedResults.BadRequest();
+                        }
+
+                        return TypedResults.Ok(
+                            await mediator
+                                .SendAsync<TCommand, TResponse>(command, cancellationToken)
+                                .ConfigureAwait(false)
+                        );
+                    }
+                );
 
         ApplyOpenApiMetadata<TCommand, TResponse>(endpoints, routeBuilder);
 
@@ -87,9 +143,23 @@ public static class EndpointRouteBuilderExtensions
     }
 
     /// <summary>
-    /// Maps a void command to an HTTP endpoint. The command is bound from the request body,
+    /// Maps a void command to an HTTP endpoint. The command is bound as described in the remarks,
     /// dispatched via <see cref="IMediatorSendOnly.SendAsync{TCommand}"/>, and returns <c>204 No Content</c>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For <see cref="CommandHttpMethod.Post"/>, <see cref="CommandHttpMethod.Put"/> and
+    /// <see cref="CommandHttpMethod.Patch"/>, the command is bound from the JSON request body. Route values that
+    /// match a JSON property of <typeparamref name="TCommand"/> (case-insensitive) overwrite the body value, so
+    /// the command targets the resource named in the URI. A route value that cannot be converted to the property
+    /// type returns <c>400 Bad Request</c>.
+    /// </para>
+    /// <para>
+    /// For <see cref="CommandHttpMethod.Delete"/>, the command is bound from route values and the query string
+    /// with <c>[AsParameters]</c>, like <see cref="MapQuery{TQuery, TResponse}"/>. A request body is not required
+    /// and is ignored (RFC 9110 §9.3.5).
+    /// </para>
+    /// </remarks>
     /// <typeparam name="TCommand">The command type. Must implement <see cref="ICommand"/>.</typeparam>
     /// <param name="endpoints">The <see cref="IEndpointRouteBuilder"/> to add the endpoint to.</param>
     /// <param name="pattern">The route pattern for the endpoint.</param>
@@ -105,10 +175,10 @@ public static class EndpointRouteBuilderExtensions
     /// </exception>
     /// <example>
     /// <code>
-    /// // Default POST
-    /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}");
+    /// // Default POST, bound from the request body
+    /// app.MapCommand&lt;CancelOrderCommand&gt;("/orders/cancel");
     ///
-    /// // Custom method
+    /// // Custom method, bound from {id} without a request body
     /// app.MapCommand&lt;DeleteOrderCommand&gt;("/orders/{id}", CommandHttpMethod.Delete);
     /// </code>
     /// </example>
@@ -128,15 +198,37 @@ public static class EndpointRouteBuilderExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(pattern);
 
-        var routeBuilder = endpoints.MapMethods(
-            pattern,
-            [httpMethod.ToHttpMethodString()],
-            async ([FromBody] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
-            {
-                await mediator.SendAsync(command, cancellationToken).ConfigureAwait(false);
-                return TypedResults.NoContent();
-            }
-        );
+        string[] httpMethods = [httpMethod.ToHttpMethodString()];
+        var routeBuilder =
+            httpMethod == CommandHttpMethod.Delete
+                ? endpoints.MapMethods(
+                    pattern,
+                    httpMethods,
+                    async ([AsParameters] TCommand command, IMediator mediator, CancellationToken cancellationToken) =>
+                    {
+                        await mediator.SendAsync(command, cancellationToken).ConfigureAwait(false);
+                        return TypedResults.NoContent();
+                    }
+                )
+                : endpoints.MapMethods(
+                    pattern,
+                    httpMethods,
+                    async Task<Results<NoContent, BadRequest>> (
+                        [FromBody] TCommand command,
+                        HttpContext httpContext,
+                        IMediator mediator,
+                        CancellationToken cancellationToken
+                    ) =>
+                    {
+                        if (!TryApplyRouteValues(httpContext, ref command))
+                        {
+                            return TypedResults.BadRequest();
+                        }
+
+                        await mediator.SendAsync(command, cancellationToken).ConfigureAwait(false);
+                        return TypedResults.NoContent();
+                    }
+                );
 
         ApplyOpenApiMetadata<TCommand>(endpoints, routeBuilder);
 
@@ -206,6 +298,12 @@ public static class EndpointRouteBuilderExtensions
     /// type is acceptable; in that last case the endpoint disregards the header, as RFC 9110 §12.5.1
     /// permits, instead of answering <c>406 Not Acceptable</c>. The response carries
     /// <c>Vary: Accept</c>.
+    /// <para>
+    /// Every item is serialized with the application's HTTP JSON options (<c>ConfigureHttpJsonOptions</c>), the
+    /// same contract as <c>MapQuery</c> and <c>MapCommand</c>, with indentation disabled. Each item is therefore a
+    /// single-line JSON text: one NDJSON line, or one SSE <c>data:</c> line. <see cref="string"/> items are written
+    /// as quoted JSON strings in both formats.
+    /// </para>
     /// </remarks>
     /// <typeparam name="TQuery">
     /// The query type. Must implement <see cref="IStreamQuery{TResponse}"/>.
@@ -242,7 +340,7 @@ public static class EndpointRouteBuilderExtensions
             (
                 [AsParameters] TQuery query,
                 IMediator mediator,
-                IPayloadSerializer payloadSerializer,
+                IOptions<HttpJsonOptions> jsonOptions,
                 HttpRequest request,
                 CancellationToken cancellationToken
             ) =>
@@ -259,16 +357,25 @@ public static class EndpointRouteBuilderExtensions
                 {
                     return (IResult)
                         TypedResults.Stream(
-                            ExecuteStreamReadNdjson(items, payloadSerializer, cancellationToken),
+                            ExecuteStreamReadNdjson(items, jsonOptions, cancellationToken),
                             contentType: NdjsonContentType
                         );
                 }
 
 #if NET10_0_OR_GREATER
-                return TypedResults.ServerSentEvents(items);
+                // Pre-serialized strings take the raw path of ServerSentEventsResult, so every TFM writes
+                // the same single-line JSON text per event.
+                return TypedResults.ServerSentEvents(SerializeItemsAsync(items, jsonOptions, cancellationToken));
 #else
+                // Mirror ServerSentEventsResult on .NET 10: no caching, no compression, no buffering.
+                var response = request.HttpContext.Response;
+                response.Headers.CacheControl = "no-cache,no-store";
+                response.Headers.Pragma = "no-cache";
+                response.Headers.ContentEncoding = "identity";
+                request.HttpContext.Features.GetRequiredFeature<IHttpResponseBodyFeature>().DisableBuffering();
+
                 return TypedResults.Stream(
-                    ExecuteStreamReadServerSentEvents(items, payloadSerializer, cancellationToken),
+                    ExecuteStreamReadServerSentEvents(items, jsonOptions, cancellationToken),
                     contentType: SseContentType
                 );
 #endif
@@ -326,6 +433,87 @@ public static class EndpointRouteBuilderExtensions
 
         return endpoints.MapHub<PulseStreamHub<TQuery, TResponse>>(path);
     }
+
+    // Overlays route values that match a property of the command by JSON name or CLR name (case-insensitive)
+    // over the body-bound command, so the command always targets the resource named in the URI. Uses the same HTTP JSON options
+    // as the body binder. Returns false if a route value cannot be converted to the property type.
+    [RequiresUnreferencedCode("Serializes and deserializes TCommand with reflection-based System.Text.Json.")]
+    [RequiresDynamicCode("Serializes and deserializes TCommand with reflection-based System.Text.Json.")]
+    private static bool TryApplyRouteValues<TCommand>(HttpContext httpContext, ref TCommand command)
+    {
+        var routeValues = httpContext.Request.RouteValues;
+        if (routeValues.Count == 0)
+        {
+            return true;
+        }
+
+        var options = httpContext
+            .RequestServices.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>()
+            .Value.SerializerOptions;
+        var properties = options.GetTypeInfo(typeof(TCommand)).Properties;
+
+        JsonObject? json = null;
+        foreach (var (key, value) in routeValues)
+        {
+            if (value?.ToString() is not { } routeValue)
+            {
+                continue;
+            }
+
+            foreach (var property in properties.Where(p => MatchesRouteKey(p, key)))
+            {
+                json ??= JsonSerializer.SerializeToNode(command, options)!.AsObject();
+                json[property.Name] = ToJsonValue(routeValue, property.PropertyType);
+            }
+        }
+
+        if (json is null)
+        {
+            return true;
+        }
+
+        try
+        {
+            command = json.Deserialize<TCommand>(options)!;
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    // A route key matches the serialized JSON name (naming policy, [JsonPropertyName]) or the CLR member name,
+    // so /orders/{orderId} also targets OrderId under JsonNamingPolicy.SnakeCaseLower.
+    private static bool MatchesRouteKey(JsonPropertyInfo property, string key) =>
+        property.Name.Equals(key, StringComparison.OrdinalIgnoreCase)
+        || (
+            property.AttributeProvider is MemberInfo member
+            && member.Name.Equals(key, StringComparison.OrdinalIgnoreCase)
+        );
+
+    // Route values are strings. Numeric, bool and enum properties (nullable unwrapped) receive a JSON literal when
+    // the value parses, so they bind without JsonNumberHandling.AllowReadingFromString. Every other type receives a
+    // JSON string, for example Guid, DateTimeOffset or a strongly typed ID whose converter reads a string.
+    private static JsonValue ToJsonValue(string routeValue, Type propertyType) =>
+        Type.GetTypeCode(Nullable.GetUnderlyingType(propertyType) ?? propertyType) switch
+        {
+            TypeCode.Boolean when bool.TryParse(routeValue, out var flag) => JsonValue.Create(flag),
+            TypeCode.SByte
+            or TypeCode.Byte
+            or TypeCode.Int16
+            or TypeCode.UInt16
+            or TypeCode.Int32
+            or TypeCode.UInt32
+            or TypeCode.Int64
+            or TypeCode.UInt64
+            or TypeCode.Single
+            or TypeCode.Double
+            or TypeCode.Decimal
+                when decimal.TryParse(routeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) =>
+                JsonValue.Create(number),
+            _ => JsonValue.Create(routeValue),
+        };
 
     private static void ApplyOpenApiMetadata<TRequest, TResponse>(
         IEndpointRouteBuilder endpoints,
@@ -418,10 +606,24 @@ public static class EndpointRouteBuilderExtensions
         return range.MediaType.Equals(mediaType, StringComparison.OrdinalIgnoreCase) ? 2 : -1;
     }
 
-#if !NET10_0_OR_GREATER
+#if NET10_0_OR_GREATER
+    private static async IAsyncEnumerable<string> SerializeItemsAsync<TResponse>(
+        IAsyncEnumerable<TResponse> items,
+        IOptions<HttpJsonOptions> jsonOptions,
+        [EnumeratorCancellation] CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            yield return PulseStreamJsonOptions.Serialize(item, jsonOptions);
+        }
+    }
+#else
     private static Func<Stream, Task> ExecuteStreamReadServerSentEvents<TResponse>(
         IAsyncEnumerable<TResponse> items,
-        IPayloadSerializer payloadSerializer,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     ) =>
         async outputStream =>
@@ -431,7 +633,7 @@ public static class EndpointRouteBuilderExtensions
                 await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
                     await outputStream.WriteAsync(SseDataPrefix, cancellationToken).ConfigureAwait(false);
-                    var bytes = payloadSerializer.SerializeToBytes(item);
+                    var bytes = PulseStreamJsonOptions.SerializeToUtf8Bytes(item, jsonOptions);
                     await outputStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
                     await outputStream.WriteAsync(SseSuffix, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -446,7 +648,7 @@ public static class EndpointRouteBuilderExtensions
 
     private static Func<Stream, Task> ExecuteStreamReadNdjson<TResponse>(
         IAsyncEnumerable<TResponse> items,
-        IPayloadSerializer payloadSerializer,
+        IOptions<HttpJsonOptions> jsonOptions,
         CancellationToken cancellationToken
     ) =>
         async outputStream =>
@@ -455,7 +657,7 @@ public static class EndpointRouteBuilderExtensions
             {
                 await foreach (var item in items.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
-                    var bytes = payloadSerializer.SerializeToBytes(item);
+                    var bytes = PulseStreamJsonOptions.SerializeToUtf8Bytes(item, jsonOptions);
                     await outputStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
                     await outputStream.WriteAsync(NdjsonNewLine, cancellationToken).ConfigureAwait(false);
                     await outputStream.FlushAsync(cancellationToken).ConfigureAwait(false);

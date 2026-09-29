@@ -9,11 +9,13 @@ using System.Threading.Tasks;
 using global::Polly;
 using global::Polly.CircuitBreaker;
 using global::Polly.Retry;
+using global::Polly.Timeout;
 using Microsoft.Extensions.DependencyInjection;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
+using TUnit.Assertions.Enums;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -426,6 +428,101 @@ public sealed class PollyStreamQueryInterceptorTests
         // Assert - the retry policy must engage for failures thrown during enumeration
         _ = await Assert.That(attemptCount).IsEqualTo(2);
         _ = await Assert.That(items).IsEquivalentTo(["item1", "item2"]);
+    }
+
+    [Test]
+    public async Task HandleAsync_WithRetryPolicy_FailureAfterYieldingItems_ReplaysAlreadyYieldedItems(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var attemptCount = 0;
+        var pipeline = new ResiliencePipelineBuilder()
+            .AddRetry(
+                new RetryStrategyOptions
+                {
+                    MaxRetryAttempts = 1,
+                    Delay = TimeSpan.FromMilliseconds(10),
+                    BackoffType = DelayBackoffType.Constant,
+                }
+            )
+            .Build();
+
+        var serviceProvider = CreateServiceProvider<TestStreamQuery>(pipeline);
+        var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
+        var request = new TestStreamQuery();
+
+        async IAsyncEnumerable<string> FailAfterFirstItemsAsync(
+            [EnumeratorCancellation] CancellationToken token = default
+        )
+        {
+            token.ThrowIfCancellationRequested();
+            attemptCount++;
+            await Task.Yield();
+            yield return "item1";
+            yield return "item2";
+            if (attemptCount < 2)
+            {
+                throw new InvalidOperationException("Transient failure after yielding items");
+            }
+
+            yield return "item3";
+        }
+
+        var items = new List<string>();
+        await foreach (
+            var item in interceptor
+                .HandleAsync(request, (_, ct) => FailAfterFirstItemsAsync(ct), cancellationToken)
+                .ConfigureAwait(false)
+        )
+        {
+            items.Add(item);
+        }
+
+        _ = await Assert.That(attemptCount).IsEqualTo(2);
+        _ = await Assert
+            .That(items)
+            .IsEquivalentTo(["item1", "item2", "item1", "item2", "item3"], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task HandleAsync_WithTimeoutPolicy_EnumerationExceedsTimeoutAfterOpen_ThrowsTimeoutRejectedException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var pipeline = new ResiliencePipelineBuilder().AddTimeout(TimeSpan.FromSeconds(2)).Build();
+
+        var serviceProvider = CreateServiceProvider<TestStreamQuery>(pipeline);
+        var interceptor = new PollyStreamQueryInterceptor<TestStreamQuery, string>(serviceProvider);
+        var request = new TestStreamQuery();
+
+        static async IAsyncEnumerable<string> SlowAfterFirstItemAsync(
+            [EnumeratorCancellation] CancellationToken token = default
+        )
+        {
+            token.ThrowIfCancellationRequested();
+            yield return "item1";
+            await Task.Delay(TimeSpan.FromSeconds(30), token).ConfigureAwait(false);
+            yield return "item2";
+        }
+
+        var items = new List<string>();
+        _ = await Assert
+            .That(async () =>
+            {
+                await foreach (
+                    var item in interceptor
+                        .HandleAsync(request, (_, ct) => SlowAfterFirstItemAsync(ct), cancellationToken)
+                        .ConfigureAwait(false)
+                )
+                {
+                    items.Add(item);
+                }
+            })
+            .Throws<TimeoutRejectedException>();
+
+        _ = await Assert.That(items).IsEquivalentTo(["item1"]);
     }
 
     [Test]

@@ -196,7 +196,6 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
             UPDATE {tableName}
             SET `{OutboxMessageSchema.Columns.Status}` = 4,
                 `{OutboxMessageSchema.Columns.UpdatedAt}` = @nowTicks,
-                `{OutboxMessageSchema.Columns.ProcessedAt}` = @nowTicks,
                 `{OutboxMessageSchema.Columns.Error}` = @error
             WHERE `{OutboxMessageSchema.Columns.Id}` = @messageId
               AND `{OutboxMessageSchema.Columns.Status}` = 1

@@ -329,6 +329,64 @@ public sealed class AzureQueueStorageMessageTransportTests
         _ = await Assert.That(fakeClient.LastVisibilityTimeout).IsNull();
     }
 
+    [Test]
+    public async Task SendAsync_Passes_time_to_live_when_configured(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeClient = new FakeQueueClient();
+        var timeToLive = TimeSpan.FromDays(30);
+        using var transport = CreateTransport(fakeClient, timeToLive);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(fakeClient.TimeToLives.Single()).IsEqualTo(timeToLive);
+    }
+
+    [Test]
+    public async Task SendAsync_Does_not_pass_time_to_live_when_not_configured(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(fakeClient);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(fakeClient.TimeToLives.Single()).IsNull();
+    }
+
+    [Test]
+    public async Task SendAsync_Passes_minus_one_second_when_time_to_live_is_infinite(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeClient = new FakeQueueClient();
+        using var transport = CreateTransport(fakeClient, Timeout.InfiniteTimeSpan);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(fakeClient.TimeToLives.Single()).IsEqualTo(TimeSpan.FromSeconds(-1));
+    }
+
+    [Test]
+    public async Task SendBatchAsync_Passes_time_to_live_for_each_message(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeClient = new FakeQueueClient();
+        var timeToLive = TimeSpan.FromHours(12);
+        using var transport = CreateTransport(fakeClient, timeToLive);
+
+        await transport
+            .SendBatchAsync([CreateOutboxMessage(), CreateOutboxMessage()], cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(fakeClient.TimeToLives).IsEquivalentTo(new TimeSpan?[] { timeToLive, timeToLive });
+    }
+
     // ── SendAsync oversized message ───────────────────────────────────────────
 
     [Test]
@@ -438,6 +496,18 @@ public sealed class AzureQueueStorageMessageTransportTests
         return new AzureQueueStorageMessageTransport(options, fakeClient);
     }
 
+    private static AzureQueueStorageMessageTransport CreateTransport(FakeQueueClient fakeClient, TimeSpan timeToLive)
+    {
+        var options = Options.Create(
+            new AzureQueueStorageTransportOptions
+            {
+                ConnectionString = "UseDevelopmentStorage=true",
+                MessageTimeToLive = timeToLive,
+            }
+        );
+        return new AzureQueueStorageMessageTransport(options, fakeClient);
+    }
+
     private static AzureQueueStorageMessageTransport CreateTransport(
         FakeQueueClient fakeClient,
         JsonSerializerOptions jsonSerializerOptions
@@ -467,6 +537,7 @@ public sealed class AzureQueueStorageMessageTransportTests
     {
         public List<string> SentMessages { get; } = [];
         public TimeSpan? LastVisibilityTimeout { get; private set; }
+        public List<TimeSpan?> TimeToLives { get; } = [];
         public int CreateIfNotExistsCallCount { get; private set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -485,6 +556,7 @@ public sealed class AzureQueueStorageMessageTransportTests
 
             SentMessages.Add(messageText);
             LastVisibilityTimeout = visibilityTimeout;
+            TimeToLives.Add(timeToLive);
             var receipt = QueuesModelFactory.SendReceipt(
                 messageId: Guid.NewGuid().ToString(),
                 insertionTime: DateTimeOffset.UtcNow,

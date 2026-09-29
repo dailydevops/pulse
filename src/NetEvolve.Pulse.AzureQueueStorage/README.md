@@ -59,8 +59,24 @@ services.AddPulse(config => config.UseAzureQueueStorageTransport(
 | `ConnectionString` | Azure Storage connection string. Required when `QueueServiceUri` is not set. |
 | `QueueServiceUri` | Azure Queue Storage service URI used with managed identity (`DefaultAzureCredential`). Required when `ConnectionString` is not set. |
 | `QueueName` | Name of the queue to send messages to. Defaults to `pulse-outbox`. |
-| `MessageVisibilityTimeout` | Optional visibility timeout applied to each sent message. Defaults to the queue's default. |
+| `MessageVisibilityTimeout` | Optional initial delay before a sent message becomes visible to consumers. `null` means zero, so messages are visible immediately. It is not a processing lock. Must be between `00:00:00` and `7.00:00:00`, and smaller than a finite `MessageTimeToLive`. Without `MessageTimeToLive`, the service default of 7 days applies, so it must be smaller than `7.00:00:00`. |
+| `MessageTimeToLive` | Optional time-to-live of each sent message. `null` keeps the service default of 7 days. Must be between one second and `int.MaxValue` seconds (about 68 years), or `AzureQueueStorageTransportOptions.NeverExpires` (`-00:00:01`) / `Timeout.InfiniteTimeSpan` for messages that never expire. |
 | `CreateQueueIfNotExists` | Automatically creates the queue on first use. Defaults to `true`. |
+
+### Visibility Timeout and Time-to-Live
+
+Both options map to the [Put Message](https://learn.microsoft.com/rest/api/storageservices/put-message) operation and are validated at startup.
+
+- `MessageVisibilityTimeout` delays the first delivery: the message stays invisible for this duration after it was sent. Consumers set their own visibility timeout when they receive a message.
+- Without `MessageTimeToLive`, the service deletes a message 7 days after it was sent, even though the outbox already marked it as delivered. Set a longer value, or `NeverExpires`, when consumers can be offline for longer.
+- Azure Queue Storage uses whole seconds, so fractions of a second are truncated.
+
+```csharp
+services.AddPulse(config => config.UseAzureQueueStorageTransport(
+    connectionString: builder.Configuration["Storage:ConnectionString"]!,
+    options => options.MessageTimeToLive = AzureQueueStorageTransportOptions.NeverExpires
+));
+```
 
 ## Configuration via appsettings.json
 

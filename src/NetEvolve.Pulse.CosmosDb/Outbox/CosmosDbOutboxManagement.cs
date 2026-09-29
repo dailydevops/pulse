@@ -252,6 +252,8 @@ internal sealed class CosmosDbOutboxManagement : IOutboxManagement
             PatchOperation.Set("/retryCount", 0),
             PatchOperation.Set("/error", (string?)null),
             PatchOperation.Set("/updatedAt", _timeProvider.GetUtcNow()),
+            PatchOperation.Set("/processedAt", (DateTimeOffset?)null),
+            PatchOperation.Set("/nextRetryAt", (DateTimeOffset?)null),
         };
 
         if (_enableTtl)
