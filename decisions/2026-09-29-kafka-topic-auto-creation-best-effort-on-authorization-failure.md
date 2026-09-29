@@ -10,7 +10,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   KafkaMessageTransport topic auto-creation is best effort when the principal is not allowed to create topics.

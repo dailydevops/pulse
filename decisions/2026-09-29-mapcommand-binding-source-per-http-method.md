@@ -9,7 +9,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST bind MapCommand commands mapped to DELETE with [AsParameters] (route values and query string), like MapQuery; MUST NOT require or read a request body for DELETE.

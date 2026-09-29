@@ -9,7 +9,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST keep every PostgreSQL provider script runnable unchanged with `psql -v ON_ERROR_STOP=1 -v schema_name=<schema> -v table_name=<table> -f <script>.sql` (psql 10 or later), and idempotent so re-running it is the upgrade path.

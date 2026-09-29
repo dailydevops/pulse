@@ -9,7 +9,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST serialize MapStreamQuery items for NDJSON and SSE with a copy of the application's Microsoft.AspNetCore.Http.Json.JsonOptions.SerializerOptions that has WriteIndented = false; MUST NOT use IPayloadSerializer for HTTP stream items.

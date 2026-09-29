@@ -9,7 +9,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   While the major version is 0, commits that change the wire format or observable runtime behavior of a first-party package (for example HTTP payload casing, framing or headers) MUST NOT use `!` or a `BREAKING CHANGE:` footer, because GitVersion would bump to 1.0.0. Use `fix:`, `feat:` or `refactor:` instead.
