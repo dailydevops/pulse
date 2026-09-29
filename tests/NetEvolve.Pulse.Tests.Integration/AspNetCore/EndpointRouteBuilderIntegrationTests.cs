@@ -410,6 +410,73 @@ public sealed class EndpointRouteBuilderIntegrationTests
         _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
     }
 
+    [Test]
+    public async Task MapCommand_WithResponse_DigitRouteValue_ForStringConverterType_RouteValueWins(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<OrderNumberCommand, string>("/orders/{number}", CommandHttpMethod.Put),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .PutAsJsonAsync(
+                new Uri("/orders/12345", UriKind.Relative),
+                new OrderNumberCommand(new OrderNumber("99")),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<string>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("12345");
+    }
+
+    [Test]
+    public async Task MapCommand_WithResponse_SnakeCaseNamingPolicy_RouteValueWins(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var routeId = Guid.NewGuid();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<OrderItemCommand, ItemResult>("/orders/{orderId}", CommandHttpMethod.Put),
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                    )
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+        using var content = new StringContent(
+            $"{{\"order_id\":\"{Guid.NewGuid()}\",\"item_name\":\"widget\"}}",
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        using var response = await client
+            .PutAsync(new Uri($"/orders/{routeId}", UriKind.Relative), content, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<ItemResult>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Id).IsEqualTo(routeId);
+        _ = await Assert.That(result.Name).IsEqualTo("widget");
+    }
+
     private static async Task<IHost> CreateHostAsync(
         Action<IEndpointRouteBuilder> mapEndpoints,
         CancellationToken cancellationToken,
@@ -434,6 +501,8 @@ public sealed class EndpointRouteBuilderIntegrationTests
                             .AddCommandHandler<ItemCommand, ItemResult, ItemCommandHandler>()
                             .AddCommandHandler<RemoveItemCommand, RemoveItemCommandHandler>()
                             .AddCommandHandler<NumberedCommand, string, NumberedCommandHandler>()
+                            .AddCommandHandler<OrderNumberCommand, string, OrderNumberCommandHandler>()
+                            .AddCommandHandler<OrderItemCommand, ItemResult, OrderItemCommandHandler>()
                     );
                     configureServices?.Invoke(services);
                 });
@@ -575,5 +644,44 @@ public sealed class EndpointRouteBuilderIntegrationTests
     {
         public Task<string> HandleAsync(NumberedCommand command, CancellationToken cancellationToken = default) =>
             Task.FromResult($"{command.Number}:{command.Enabled}:{command.Name}");
+    }
+
+    [JsonConverter(typeof(OrderNumberConverter))]
+    private sealed record OrderNumber(string Value);
+
+    private sealed class OrderNumberConverter : JsonConverter<OrderNumber>
+    {
+        public override OrderNumber Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        ) => new(reader.GetString()!);
+
+        public override void Write(Utf8JsonWriter writer, OrderNumber value, JsonSerializerOptions options) =>
+            writer.WriteStringValue(value.Value);
+    }
+
+    private sealed record OrderNumberCommand(OrderNumber Number) : ICommand<string>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class OrderNumberCommandHandler : ICommandHandler<OrderNumberCommand, string>
+    {
+        public Task<string> HandleAsync(OrderNumberCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult(command.Number.Value);
+    }
+
+    private sealed record OrderItemCommand(Guid OrderId, string? ItemName) : ICommand<ItemResult>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class OrderItemCommandHandler : ICommandHandler<OrderItemCommand, ItemResult>
+    {
+        public Task<ItemResult> HandleAsync(OrderItemCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ItemResult(command.OrderId, command.ItemName));
     }
 }
