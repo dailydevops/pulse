@@ -121,7 +121,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     /// <param name="timeToLive">The configured time-to-live.</param>
     /// <returns>The time-to-live passed to the queue client.</returns>
     private static TimeSpan? NormalizeTimeToLive(TimeSpan? timeToLive) =>
-        timeToLive is { } value && AzureQueueStorageTransportOptionsValidator.IsNeverExpires(value)
+        timeToLive is { } value && AzureQueueStorageTransportOptions.IsNeverExpires(value)
             ? AzureQueueStorageTransportOptions.NeverExpires
             : timeToLive;
 

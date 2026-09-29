@@ -7,12 +7,14 @@ using Microsoft.Extensions.Options;
 /// </summary>
 /// <remarks>
 /// The ranges follow the Put Message operation of Azure Queue Storage, which uses whole seconds: the visibility
-/// timeout must be between zero and 7 days and smaller than a finite time-to-live, and the time-to-live must be
-/// at least one second or never expire.
+/// timeout must be between zero and 7 days and smaller than a finite time-to-live (the service default of 7 days
+/// when none is set), and the time-to-live must be between one second and <see cref="int.MaxValue"/> seconds or
+/// never expire.
 /// </remarks>
 internal sealed class AzureQueueStorageTransportOptionsValidator : IValidateOptions<AzureQueueStorageTransportOptions>
 {
     private static readonly TimeSpan MaxVisibilityTimeout = TimeSpan.FromDays(7);
+    private static readonly TimeSpan DefaultTimeToLive = TimeSpan.FromDays(7);
 
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AzureQueueStorageTransportOptions options)
@@ -39,35 +41,34 @@ internal sealed class AzureQueueStorageTransportOptionsValidator : IValidateOpti
             );
         }
 
-        if (options.MessageTimeToLive is { } timeToLive && !IsNeverExpires(timeToLive))
+        // The service receives whole seconds, so validate the truncated values that are sent.
+        // Without an explicit time-to-live, the service default of 7 days applies.
+        var timeToLive = options.MessageTimeToLive;
+        long? timeToLiveSeconds = timeToLive switch
         {
-            // The service receives whole seconds, so validate the truncated values that are sent.
-            var timeToLiveSeconds = (long)timeToLive.TotalSeconds;
-            if (timeToLiveSeconds < 1)
-            {
-                failures.Add(
-                    $"{nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} must be at least one second or {nameof(AzureQueueStorageTransportOptions.NeverExpires)}, but was {timeToLive}."
-                );
-            }
-            else if (visibilityTimeout is { } visibility && (long)visibility.TotalSeconds >= timeToLiveSeconds)
-            {
-                failures.Add(
-                    $"{nameof(AzureQueueStorageTransportOptions.MessageVisibilityTimeout)} ({visibility}) must be smaller than {nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} ({timeToLive})."
-                );
-            }
+            null => (long)DefaultTimeToLive.TotalSeconds,
+            { } value when AzureQueueStorageTransportOptions.IsNeverExpires(value) => null,
+            { } value => (long)value.TotalSeconds,
+        };
+
+        if (timeToLiveSeconds is < 1 or > int.MaxValue)
+        {
+            failures.Add(
+                $"{nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} must be between one second and {TimeSpan.FromSeconds(int.MaxValue)}, or {nameof(AzureQueueStorageTransportOptions.NeverExpires)} for messages that never expire, but was {timeToLive}."
+            );
+        }
+        else if (
+            timeToLiveSeconds is { } ttlSeconds
+            && visibilityTimeout is { } visibility
+            && visibility <= MaxVisibilityTimeout
+            && (long)visibility.TotalSeconds >= ttlSeconds
+        )
+        {
+            failures.Add(
+                $"{nameof(AzureQueueStorageTransportOptions.MessageVisibilityTimeout)} ({visibility}) must be smaller than {nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} ({timeToLive?.ToString() ?? $"service default of {DefaultTimeToLive}"})."
+            );
         }
 
         return failures.Count > 0 ? ValidateOptionsResult.Fail(failures) : ValidateOptionsResult.Success;
     }
-
-    /// <summary>
-    /// Determines whether <paramref name="timeToLive"/> requests messages that never expire.
-    /// </summary>
-    /// <param name="timeToLive">The configured time-to-live.</param>
-    /// <returns>
-    /// <see langword="true"/> for <see cref="AzureQueueStorageTransportOptions.NeverExpires"/> or
-    /// <see cref="Timeout.InfiniteTimeSpan"/>; otherwise, <see langword="false"/>.
-    /// </returns>
-    internal static bool IsNeverExpires(TimeSpan timeToLive) =>
-        timeToLive == AzureQueueStorageTransportOptions.NeverExpires || timeToLive == Timeout.InfiniteTimeSpan;
 }

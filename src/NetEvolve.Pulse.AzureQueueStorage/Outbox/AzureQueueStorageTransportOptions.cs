@@ -37,8 +37,9 @@ public sealed class AzureQueueStorageTransportOptions
     /// </para>
     /// <para>
     /// When set, the value must be between <see cref="TimeSpan.Zero"/> and 7 days (inclusive) and, for a finite
-    /// <see cref="MessageTimeToLive"/>, smaller than the time-to-live. Azure Queue Storage uses whole seconds, so
-    /// fractions of a second are truncated.
+    /// <see cref="MessageTimeToLive"/>, smaller than the time-to-live. Without <see cref="MessageTimeToLive"/>, the
+    /// service default time-to-live of 7 days applies, so the value must be smaller than 7 days. Azure Queue Storage
+    /// uses whole seconds, so fractions of a second are truncated.
     /// </para>
     /// </remarks>
     public TimeSpan? MessageVisibilityTimeout { get; set; }
@@ -49,11 +50,12 @@ public sealed class AzureQueueStorageTransportOptions
     /// <remarks>
     /// <para>
     /// This is the <c>messagettl</c> of the Put Message operation. When <see langword="null"/>, the service
-    /// default of 7 days applies, and messages that no consumer received within 7 days are deleted by the service
-    /// although the outbox already marked them as delivered.
+    /// default of 7 days applies: the service deletes every message 7 days after it was sent unless a consumer
+    /// deleted it first, even though the outbox already marked it as delivered.
     /// </para>
     /// <para>
-    /// When set, the value must be at least one second, or <see cref="NeverExpires"/> (or
+    /// When set, the value must be between one second and <see cref="int.MaxValue"/> seconds, or
+    /// <see cref="NeverExpires"/> (or
     /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>) for messages that do not expire.
     /// Azure Queue Storage uses whole seconds, so fractions of a second are truncated.
     /// </para>
@@ -64,6 +66,17 @@ public sealed class AzureQueueStorageTransportOptions
     /// The <see cref="MessageTimeToLive"/> value for messages that do not expire (<c>-1</c> second on the wire).
     /// </summary>
     public static readonly TimeSpan NeverExpires = TimeSpan.FromSeconds(-1);
+
+    /// <summary>
+    /// Determines whether <paramref name="timeToLive"/> requests messages that never expire.
+    /// </summary>
+    /// <param name="timeToLive">The configured time-to-live.</param>
+    /// <returns>
+    /// <see langword="true"/> for <see cref="NeverExpires"/> or <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>;
+    /// otherwise, <see langword="false"/>.
+    /// </returns>
+    internal static bool IsNeverExpires(TimeSpan timeToLive) =>
+        timeToLive == NeverExpires || timeToLive == Timeout.InfiniteTimeSpan;
 
     /// <summary>
     /// Gets or sets a value indicating whether the queue should be created automatically if it does not exist.
