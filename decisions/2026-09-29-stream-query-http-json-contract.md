@@ -40,7 +40,7 @@ Since #681, `MapStreamQuery` wrote NDJSON (all target frameworks) and SSE (net8.
 
 ## Consequences
 
-* NDJSON and SSE items use the same property names as `MapQuery` and `MapCommand` on every target framework. **Breaking:** NDJSON clients, and SSE clients on net8.0/net9.0, receive camelCase (or the configured naming policy) instead of PascalCase. SSE clients on net10.0 receive `string` items as quoted JSON strings instead of raw text.
+* NDJSON and SSE items use the same property names as `MapQuery` and `MapCommand` on every target framework. **Breaking:** NDJSON clients, and SSE clients on net8.0/net9.0, receive camelCase (or the configured naming policy) instead of PascalCase. SSE clients on net10.0 receive `string` items as quoted JSON strings instead of raw text, and a `null` item as `data: null` instead of an empty `data:` line, the same as NDJSON.
 * NDJSON and SSE output stays valid regardless of `WriteIndented`.
 * `MapStreamQuery` no longer depends on `IPayloadSerializer`. A custom `IPayloadSerializer` no longer affects HTTP stream items; applications customize them through `ConfigureHttpJsonOptions`.
 * NativeAOT applications add their item types to the HTTP JSON options' `TypeInfoResolverChain`, the same requirement `MapQuery` has. No reflection-only API is used.
@@ -57,3 +57,4 @@ Since #681, `MapStreamQuery` wrote NDJSON (all target frameworks) and SSE (net8.
 
 * [Honor Application JSON Options for Pulse-Owned Models](./2026-09-27-honor-application-json-options.md) - Same options copy pattern, applied here to application stream items.
 * [NativeAOT and Trim Compatibility](./2026-09-24-nativeaot-trim-compatibility.md) - Contracts are resolved through `TypeInfoResolverChain`.
+* [Wire and Behavior Changes Before 1.0](./2026-09-29-wire-and-behavior-changes-pre-1-0.md) - Why the breaking wire change is committed without a breaking change marker.
