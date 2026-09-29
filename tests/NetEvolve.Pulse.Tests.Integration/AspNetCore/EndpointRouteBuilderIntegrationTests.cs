@@ -4,7 +4,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
@@ -145,6 +147,269 @@ public sealed class EndpointRouteBuilderIntegrationTests
         _ = await Assert.That(items).IsEquivalentTo([1, 2, 3]);
     }
 
+    [Test]
+    public async Task MapCommand_WithResponse_DeleteWithoutBody_BindsIdFromRoute(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var id = Guid.NewGuid();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<ItemCommand, ItemResult>("/items/{id}", CommandHttpMethod.Delete),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .DeleteAsync(new Uri($"/items/{id}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<ItemResult>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Id).IsEqualTo(id);
+        _ = await Assert.That(result.Name).IsNull();
+    }
+
+    [Test]
+    public async Task MapCommand_WithResponse_DeleteWithoutBody_BindsQueryString(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var id = Guid.NewGuid();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<ItemCommand, ItemResult>("/items/{id}", CommandHttpMethod.Delete),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .DeleteAsync(new Uri($"/items/{id}?name=archived", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<ItemResult>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Id).IsEqualTo(id);
+        _ = await Assert.That(result.Name).IsEqualTo("archived");
+    }
+
+    [Test]
+    public async Task MapCommand_Void_DeleteWithoutBody_BindsIdFromRoute_ReturnsNoContent(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var id = Guid.NewGuid();
+        var recorder = new CommandRecorder();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<RemoveItemCommand>("/items/{id}", CommandHttpMethod.Delete),
+                cancellationToken,
+                services => services.AddSingleton(recorder)
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .DeleteAsync(new Uri($"/items/{id}", UriKind.Relative), cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        _ = await Assert.That(recorder.Id).IsEqualTo(id);
+    }
+
+    [Test]
+    public async Task MapCommand_Void_DeleteWithBody_IgnoresBody_BindsIdFromRoute(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var routeId = Guid.NewGuid();
+        var recorder = new CommandRecorder();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<RemoveItemCommand>("/items/{id}", CommandHttpMethod.Delete),
+                cancellationToken,
+                services => services.AddSingleton(recorder)
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri($"/items/{routeId}", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new RemoveItemCommand(Guid.NewGuid())),
+        };
+
+        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        _ = await Assert.That(recorder.Id).IsEqualTo(routeId);
+    }
+
+    [Test]
+    [Arguments(CommandHttpMethod.Post, "id")]
+    [Arguments(CommandHttpMethod.Put, "id")]
+    [Arguments(CommandHttpMethod.Patch, "id")]
+    [Arguments(CommandHttpMethod.Put, "Id")]
+    public async Task MapCommand_WithResponse_BodyWithMismatchedId_RouteValueWins(
+        CommandHttpMethod httpMethod,
+        string bodyIdName,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var routeId = Guid.NewGuid();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<ItemCommand, ItemResult>("/tenants/{tenant}/items/{id}", httpMethod),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+        using var request = new HttpRequestMessage(
+            new HttpMethod(httpMethod.ToString().ToUpperInvariant()),
+            new Uri($"/tenants/contoso/items/{routeId}", UriKind.Relative)
+        )
+        {
+            Content = JsonContent.Create(
+                new Dictionary<string, object> { [bodyIdName] = Guid.NewGuid(), ["name"] = "widget" }
+            ),
+        };
+
+        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<ItemResult>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsNotNull();
+        _ = await Assert.That(result!.Id).IsEqualTo(routeId);
+        _ = await Assert.That(result.Name).IsEqualTo("widget");
+    }
+
+    [Test]
+    public async Task MapCommand_Void_PutWithMismatchedId_RouteValueWins(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var routeId = Guid.NewGuid();
+        var recorder = new CommandRecorder();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<RemoveItemCommand>("/items/{id}", CommandHttpMethod.Put),
+                cancellationToken,
+                services => services.AddSingleton(recorder)
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .PutAsJsonAsync(
+                new Uri($"/items/{routeId}", UriKind.Relative),
+                new RemoveItemCommand(Guid.NewGuid()),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        _ = await Assert.That(recorder.Id).IsEqualTo(routeId);
+    }
+
+    [Test]
+    public async Task MapCommand_WithResponse_NumericRouteValue_WithStrictNumberHandling_RouteValueWins(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<NumberedCommand, string>("/numbers/{number}/{enabled}", CommandHttpMethod.Put),
+                cancellationToken,
+                services =>
+                    services.ConfigureHttpJsonOptions(options =>
+                        options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict
+                    )
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .PutAsJsonAsync(
+                new Uri("/numbers/42/true", UriKind.Relative),
+                new NumberedCommand(1, false, "answer"),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<string>(cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(result).IsEqualTo("42:True:answer");
+    }
+
+    [Test]
+    public async Task MapCommand_WithResponse_PutWithUnconvertibleRouteValue_ReturnsBadRequest(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<ItemCommand, ItemResult>("/items/{id}", CommandHttpMethod.Put),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+
+        using var response = await client
+            .PutAsJsonAsync(
+                new Uri("/items/not-a-guid", UriKind.Relative),
+                new ItemCommand(Guid.NewGuid(), "widget"),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task MapCommand_WithResponse_PutWithEmptyBody_ReturnsBadRequest(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var host = await CreateHostAsync(
+                app => app.MapCommand<ItemCommand, ItemResult>("/items/{id}", CommandHttpMethod.Put),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        using var client = host.GetTestServer().CreateClient();
+        using var content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+
+        using var response = await client
+            .PutAsync(new Uri($"/items/{Guid.NewGuid()}", UriKind.Relative), content, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.BadRequest);
+    }
+
     private static async Task<IHost> CreateHostAsync(
         Action<IEndpointRouteBuilder> mapEndpoints,
         CancellationToken cancellationToken,
@@ -166,6 +431,9 @@ public sealed class EndpointRouteBuilderIntegrationTests
                             .AddCommandHandler<PingCommand, PingCommandHandler>()
                             .AddQueryHandler<GreetingQuery, string, GreetingQueryHandler>()
                             .AddStreamQueryHandler<NumbersStreamQuery, int, NumbersStreamQueryHandler>()
+                            .AddCommandHandler<ItemCommand, ItemResult, ItemCommandHandler>()
+                            .AddCommandHandler<RemoveItemCommand, RemoveItemCommandHandler>()
+                            .AddCommandHandler<NumberedCommand, string, NumberedCommandHandler>()
                     );
                     configureServices?.Invoke(services);
                 });
@@ -259,5 +527,53 @@ public sealed class EndpointRouteBuilderIntegrationTests
                 await Task.Yield();
             }
         }
+    }
+
+    private sealed record ItemCommand(Guid Id, string? Name) : ICommand<ItemResult>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed record ItemResult(Guid Id, string? Name);
+
+    private sealed class ItemCommandHandler : ICommandHandler<ItemCommand, ItemResult>
+    {
+        public Task<ItemResult> HandleAsync(ItemCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ItemResult(command.Id, command.Name));
+    }
+
+    private sealed record RemoveItemCommand(Guid Id) : ICommand
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class CommandRecorder
+    {
+        public Guid? Id { get; set; }
+    }
+
+    private sealed class RemoveItemCommandHandler(CommandRecorder recorder) : ICommandHandler<RemoveItemCommand, Void>
+    {
+        public Task<Void> HandleAsync(RemoveItemCommand command, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            recorder.Id = command.Id;
+            return Task.FromResult<Void>(default);
+        }
+    }
+
+    private sealed record NumberedCommand(int Number, bool Enabled, string Name) : ICommand<string>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    private sealed class NumberedCommandHandler : ICommandHandler<NumberedCommand, string>
+    {
+        public Task<string> HandleAsync(NumberedCommand command, CancellationToken cancellationToken = default) =>
+            Task.FromResult($"{command.Number}:{command.Enabled}:{command.Name}");
     }
 }
