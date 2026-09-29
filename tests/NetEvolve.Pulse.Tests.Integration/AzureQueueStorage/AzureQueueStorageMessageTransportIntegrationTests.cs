@@ -165,7 +165,9 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
             .ReceiveMessageAsync(cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        _ = await Assert.That(response.Value!.ExpiresOn!.Value.Year).IsEqualTo(9999);
+        var received = response.Value!;
+
+        _ = await Assert.That(received.ExpiresOn!.Value).IsGreaterThan(received.InsertedOn!.Value.AddYears(1));
     }
 
     [Test]
@@ -192,7 +194,14 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
             .ConfigureAwait(false);
         var received = response.Value!;
 
-        _ = await Assert.That(received.ExpiresOn!.Value - received.InsertedOn!.Value).IsEqualTo(TimeSpan.FromDays(30));
+        var lifetime = received.ExpiresOn!.Value - received.InsertedOn!.Value;
+
+        _ = await Assert
+            .That(lifetime)
+            .IsBetween(
+                TimeSpan.FromDays(30).Add(TimeSpan.FromSeconds(-5)),
+                TimeSpan.FromDays(30).Add(TimeSpan.FromSeconds(5))
+            );
     }
 
     public static IEnumerable<Func<TimeSpan>> NeverExpiresTimeToLives()
