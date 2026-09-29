@@ -106,7 +106,14 @@ END
 GO
 
 -- usp_ReserveIdempotencyKey: Atomically inserts an idempotency key or refreshes an expired one.
--- Returns 1 when the key was inserted or refreshed, 0 when a key that has not expired already exists.
+-- Parameters:
+--   @idempotencyKey  Required. The idempotency key to reserve.
+--   @createdAt       Required. The creation timestamp stored for a new or refreshed key.
+--   @validFrom       Optional. Keys created before this cutoff count as expired and are refreshed;
+--                    NULL means keys never expire and an existing key is never modified.
+-- Returns: one row with the BIT column [Reserved], 1 when the key was inserted or refreshed,
+--          0 when a key that has not expired already exists.
+-- Errors:  50000 when @idempotencyKey or @createdAt is NULL; other errors are rethrown unchanged.
 -- HOLDLOCK makes the MERGE serializable for the key range, so concurrent reservations cannot both win.
 IF EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[usp_ReserveIdempotencyKey]') AND [type] = N'P')
 BEGIN
@@ -122,16 +129,30 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    MERGE INTO [$(SchemaName)].[$(TableName)] WITH (HOLDLOCK) AS target
-    USING (SELECT @idempotencyKey AS [IdempotencyKey], @createdAt AS [CreatedAt]) AS source
-    ON (target.[IdempotencyKey] = source.[IdempotencyKey])
-    WHEN MATCHED AND @validFrom IS NOT NULL AND target.[CreatedAt] < @validFrom THEN
-        UPDATE SET [CreatedAt] = source.[CreatedAt]
-    WHEN NOT MATCHED THEN
-        INSERT ([IdempotencyKey], [CreatedAt])
-        VALUES (source.[IdempotencyKey], source.[CreatedAt]);
+    IF @idempotencyKey IS NULL OR @createdAt IS NULL
+    BEGIN
+        THROW 50000, N'usp_ReserveIdempotencyKey: @idempotencyKey and @createdAt must not be NULL.', 1;
+    END
 
-    SELECT CAST(CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END AS BIT) AS [Reserved];
+    DECLARE @reserved BIT;
+
+    BEGIN TRY
+        MERGE INTO [$(SchemaName)].[$(TableName)] WITH (HOLDLOCK) AS target
+        USING (SELECT @idempotencyKey AS [IdempotencyKey], @createdAt AS [CreatedAt]) AS source
+        ON (target.[IdempotencyKey] = source.[IdempotencyKey])
+        WHEN MATCHED AND @validFrom IS NOT NULL AND target.[CreatedAt] < @validFrom THEN
+            UPDATE SET [CreatedAt] = source.[CreatedAt]
+        WHEN NOT MATCHED THEN
+            INSERT ([IdempotencyKey], [CreatedAt])
+            VALUES (source.[IdempotencyKey], source.[CreatedAt]);
+
+        SET @reserved = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;
+    END TRY
+    BEGIN CATCH
+        THROW;
+    END CATCH
+
+    SELECT @reserved AS [Reserved];
 END
 GO
 
