@@ -2,7 +2,6 @@ namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -17,20 +16,13 @@ using TUnit.Core;
 [SuppressMessage(
     "Security",
     "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "The setup script is read from a checked-in .sql file with schema/table names substituted from test-generated GUID values, not external user input."
+    Justification = "The setup SQL is built from test-generated GUID schema names, not external user input."
 )]
 [TestGroup("PostgreSql")]
-public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
+public sealed class PostgreSqlOutboxRepositoryLeaseTests
 {
     [ClassDataSource<PostgreSqlContainerFixture>(Shared = SharedType.PerTestSession)]
     public required PostgreSqlContainerFixture Container { get; init; }
-
-    private static readonly string _scriptPath = Path.Combine(
-        AppContext.BaseDirectory,
-        "Scripts",
-        "PostgreSql",
-        "OutboxMessage.sql"
-    );
 
     private static OutboxMessage CreateMessage(DateTimeOffset createdAt) =>
         new OutboxMessage
@@ -71,21 +63,9 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         var builder = new NpgsqlConnectionStringBuilder(Container.ConnectionString) { Database = databaseName };
         var connectionString = builder.ToString();
 
-        var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
-        script = SearchSetVar().Replace(script, string.Empty);
-        script = script
-            .Replace(":schema_name", schema, StringComparison.Ordinal)
-            .Replace(":table_name", "OutboxMessage", StringComparison.Ordinal);
-
-        await using (var connection = new NpgsqlConnection(connectionString))
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            var command = new NpgsqlCommand(script, connection);
-            await using (command.ConfigureAwait(false))
-            {
-                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+        await Container
+            .RunScriptAsync("OutboxMessage.sql", databaseName, schema, "OutboxMessage", cancellationToken)
+            .ConfigureAwait(false);
 
         var options = new OutboxOptions
         {
@@ -298,21 +278,9 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
         }
 
         // Redeploy the current (fixed) script over the pre-existing installation.
-        var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
-        script = SearchSetVar().Replace(script, string.Empty);
-        script = script
-            .Replace(":schema_name", schema, StringComparison.Ordinal)
-            .Replace(":table_name", "OutboxMessage", StringComparison.Ordinal);
-
-        await using (var connection = new NpgsqlConnection(connectionString))
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            var command = new NpgsqlCommand(script, connection);
-            await using (command.ConfigureAwait(false))
-            {
-                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+        await Container
+            .RunScriptAsync("OutboxMessage.sql", databaseName, schema, "OutboxMessage", cancellationToken)
+            .ConfigureAwait(false);
 
         // Every earlier signature must be dropped: leftover overloads make calls ambiguous
         // ("function ... is not unique") or silently keep the database-clock based implementation.
@@ -348,7 +316,4 @@ public sealed partial class PostgreSqlOutboxRepositoryLeaseTests
             }
         }
     }
-
-    [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
-    private static partial Regex SearchSetVar();
 }
