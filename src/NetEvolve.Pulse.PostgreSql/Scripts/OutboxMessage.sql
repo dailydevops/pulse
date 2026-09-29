@@ -36,6 +36,12 @@
 \set ix_Status_CreatedAt 'IX_' :schema_name '_' :table_name '_Status_CreatedAt'
 \set ix_Status_ProcessedAt 'IX_' :schema_name '_' :table_name '_Status_ProcessedAt'
 
+-- PostgreSQL truncates identifiers to 63 bytes. Truncated index names can collide, and
+-- CREATE INDEX IF NOT EXISTS would then silently skip an index, so stop before creating anything.
+SELECT format('DO $guard$ BEGIN RAISE EXCEPTION %L; END $guard$',
+              'Key or index names exceed 63 bytes; use a shorter schema_name or table_name.')
+WHERE greatest(octet_length(:'pk_name'), octet_length(:'ix_Status_CreatedAt'), octet_length(:'ix_Status_ProcessedAt')) > 63 \gexec
+
 -- Create schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS :"schema_name";
 
