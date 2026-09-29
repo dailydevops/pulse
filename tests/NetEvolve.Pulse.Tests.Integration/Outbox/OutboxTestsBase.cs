@@ -651,6 +651,9 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
                     var single = await management.GetMessageAsync(ids[0], token).ConfigureAwait(false);
                     var batch = await management.GetMessageAsync(ids[1], token).ConfigureAwait(false);
 
+                    _ = await Assert.That(single).IsNotNull();
+                    _ = await Assert.That(batch).IsNotNull();
+
                     using (Assert.Multiple())
                     {
                         _ = await Assert.That(single!.Status).IsEqualTo(OutboxMessageStatus.DeadLetter);
