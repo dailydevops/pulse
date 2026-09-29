@@ -413,7 +413,7 @@ Operations use stored procedures with:
 Configure batch size based on your throughput requirements:
 
 ```csharp
-.AddOutbox(processorOptions: options =>
+.AddOutbox(configureProcessorOptions: options =>
 {
     options.BatchSize = 500;                    // Messages per poll
     options.PollingInterval = TimeSpan.FromSeconds(1);

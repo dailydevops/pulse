@@ -300,7 +300,7 @@ To switch from Redis to Azure Service Bus, update the component YAML and redeplo
 Configure batch size and polling interval based on your throughput requirements:
 
 ```csharp
-.AddOutbox(processorOptions: options =>
+.AddOutbox(configureProcessorOptions: options =>
 {
     options.BatchSize = 100;                         // Messages per poll cycle
     options.PollingInterval = TimeSpan.FromSeconds(1);
