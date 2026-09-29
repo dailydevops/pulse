@@ -93,6 +93,8 @@ When upgrading from an earlier version, **re-run `OutboxMessage.sql`** against e
 
 The idempotency store reserves keys through `fn_reserve_idempotency_key` (`ON CONFLICT ... DO UPDATE ... WHERE`), which also refreshes the `created_at` of a key that has outlived `IdempotencyKeyOptions.TimeToLive`. **Re-run `IdempotencyKey.sql`** together with the package upgrade; it keeps the table and its data and creates the new function.
 
+Idempotency keys can be up to 450 characters long and are compared case-sensitively. See [Idempotency Keys](https://github.com/dailydevops/pulse/blob/main/src/NetEvolve.Pulse/README.md#idempotency-keys) in the `NetEvolve.Pulse` README.
+
 ## Quick Start
 
 ```csharp

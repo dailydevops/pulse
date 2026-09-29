@@ -160,7 +160,7 @@ The script creates:
 
 #### Idempotency Key Length and Case Sensitivity
 
-- Keys can be up to 450 characters long (`IdempotencyKeySchema.MaxLengths.IdempotencyKey`). The column is `NVARCHAR(450)`, which takes 900 bytes, the SQL Server limit for a clustered index key. `ExistsAsync`, `StoreAsync` and `TryReserveAsync` reject a longer key with an `ArgumentException`. Keys are never truncated.
+- Keys can be up to 450 characters long (`IdempotencyKeySchema.MaxLengths.IdempotencyKey`). The column is `NVARCHAR(450)`, which takes 900 bytes, the SQL Server limit for a clustered index key. `ExistsAsync`, `StoreAsync` and `TryReserveAsync` reject a longer key with an `ArgumentOutOfRangeException`. Keys are never truncated.
 - The column uses the binary collation `Latin1_General_100_BIN2`, so keys are case-sensitive and accent-sensitive: `aBc123` and `ABC123` are two different keys.
 - SQL Server pads strings before comparing them, so trailing spaces are not significant.
 
