@@ -313,6 +313,13 @@ services.AddPulse(config => config
 );
 ```
 
+## Idempotency Key Length and Case Sensitivity
+
+- Keys can be up to 450 characters long (`IdempotencyKeySchema.MaxLengths.IdempotencyKey`). The repository rejects a longer key with an `ArgumentException` before it touches the database.
+- On SQL Server the key column is `nvarchar(450)` with the collation `Latin1_General_100_BIN2`, because a clustered index key is limited to 900 bytes. On MySQL it is `varchar(500)` with the collation `utf8mb4_bin`. Keys are case-sensitive on every provider.
+
+Existing databases created with an earlier release need a new migration for these column changes (`dotnet ef migrations add IdempotencyKeyExactComparison`). On SQL Server the migration rebuilds the primary key of the idempotency table. Keys longer than 450 characters could never be stored there, so no key is truncated.
+
 ## Processing Lease Reclaim
 
 A message claimed by `GetPendingAsync` stays in `Processing` until it is completed or failed. If a worker crashes or shuts down in between, the next pending poll reclaims the message once its `UpdatedAt` is older than `OutboxOptions.ProcessingLeaseTimeout` (default: 5 minutes, must be greater than zero).

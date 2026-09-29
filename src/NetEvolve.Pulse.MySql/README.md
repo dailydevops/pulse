@@ -46,6 +46,19 @@ DEALLOCATE PREPARE pulse_stmt;
 
 The scripts use a session user variable (`@pulse_sql`). To execute them through MySql.Data instead of the `mysql` client, set `AllowUserVariables=True` in the connection string.
 
+### Idempotency key length and case sensitivity
+
+- Keys can be up to 450 characters long (`IdempotencyKeySchema.MaxLengths.IdempotencyKey`). `ExistsAsync`, `StoreAsync` and `TryReserveAsync` reject a longer key with an `ArgumentException`. Keys are never truncated. The column stays `VARCHAR(500)`, so existing rows need no change.
+- The key column uses the binary collation `utf8mb4_bin`, so keys are case-sensitive and accent-sensitive: `aBc123` and `ABC123` are two different keys. `utf8mb4_bin` is a `PAD SPACE` collation, so trailing spaces are not significant.
+- Keys are stored with a plain `INSERT`, and a duplicate key (`ER_DUP_ENTRY`, 1062) counts as an existing key. `INSERT IGNORE` is no longer used, because it turned data errors into warnings.
+
+Tables created by earlier releases use `utf8mb4_unicode_ci`. Re-running `IdempotencyKey.sql` switches the key column to `utf8mb4_bin`. To apply the change on its own:
+
+```sql
+ALTER TABLE `IdempotencyKey`
+    MODIFY `IdempotencyKey` VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+```
+
 ### 2. Register services
 
 **Outbox:**

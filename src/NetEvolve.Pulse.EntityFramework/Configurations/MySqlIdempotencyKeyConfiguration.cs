@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Idempotency;
 /// <remarks>
 /// <para><strong>Column Types:</strong></para>
 /// <list type="bullet">
-/// <item><description><c>varchar(500)</c> for the idempotency key</description></item>
+/// <item><description><c>varchar(500)</c> with the binary collation <c>utf8mb4_bin</c> for the idempotency key</description></item>
 /// <item><description><c>bigint</c> for <see cref="DateTimeOffset"/> — stored as UTC ticks via a <see langword="long"/> value converter</description></item>
 /// </list>
 /// <para><strong>Why bigint for DateTimeOffset:</strong></para>
@@ -39,7 +39,8 @@ internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigura
     /// <inheritdoc />
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
-        _ = builder.Property(k => k.Key).HasColumnType("varchar(500)");
+        // The binary collation compares keys by code point, so keys differing only by case stay distinct.
+        _ = builder.Property(k => k.Key).HasColumnType("varchar(500)").UseCollation("utf8mb4_bin");
 
         // DateTimeOffset is stored as BIGINT (UTC ticks).
         // The Oracle MySQL provider lacks a proper DateTimeOffset type mapping for
