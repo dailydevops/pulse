@@ -41,6 +41,30 @@ public sealed class IdempotencyKeyConfigurationMetadataTests
         _ = await Assert.That(property.GetMaxLength()).IsEqualTo(IdempotencyKeySchema.MaxLengths.IdempotencyKey);
     }
 
+    [Test]
+    public async Task Configure_WithPostgreSqlConfiguration_KeepsModelMaxLengthOfExistingMigrations()
+    {
+        var property = GetKeyProperty(new PostgreSqlIdempotencyKeyConfiguration());
+
+        _ = await Assert.That(property.GetMaxLength()).IsEqualTo(500);
+    }
+
+    [Test]
+    public async Task Configure_WithSqliteConfiguration_KeepsModelMaxLengthOfExistingMigrations()
+    {
+        var property = GetKeyProperty(new SqliteIdempotencyKeyConfiguration());
+
+        _ = await Assert.That(property.GetMaxLength()).IsEqualTo(500);
+    }
+
+    [Test]
+    public async Task Configure_WithMySqlConfiguration_KeepsModelMaxLengthOfExistingMigrations()
+    {
+        var property = GetKeyProperty(new MySqlIdempotencyKeyConfiguration());
+
+        _ = await Assert.That(property.GetMaxLength()).IsEqualTo(500);
+    }
+
     private static IMutableProperty GetKeyProperty(IEntityTypeConfiguration<IdempotencyKey> configuration)
     {
         var modelBuilder = new ModelBuilder();
