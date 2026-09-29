@@ -7,9 +7,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   AuditRequestInterceptor MUST wrap only the handler call in try/catch; the audit record MUST reflect the handler outcome only (Success when it completed, Failure with the handler's exception message when it threw).
