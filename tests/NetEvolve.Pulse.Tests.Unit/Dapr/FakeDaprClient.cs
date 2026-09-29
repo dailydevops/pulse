@@ -25,6 +25,8 @@ internal sealed class FakeDaprClient : DaprClient
 
     public string? PublishedContentType { get; private set; }
 
+    public Dictionary<string, string>? PublishedMetadata { get; private set; }
+
     public bool PublishByteEventAsyncCalled { get; private set; }
 
     public bool PublishEventAsyncCalled { get; private set; }
@@ -47,6 +49,7 @@ internal sealed class FakeDaprClient : DaprClient
         PublishedTopicName = topicName;
         PublishedBytes = data.ToArray();
         PublishedContentType = dataContentType;
+        PublishedMetadata = metadata is null ? null : new Dictionary<string, string>(metadata, StringComparer.Ordinal);
 
         return Task.CompletedTask;
     }
