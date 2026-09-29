@@ -4,7 +4,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 
 /// <summary>
 /// Defines the contract for dispatching events to their registered handlers.
-/// Implementations determine the execution strategy (parallel, sequential, rate-limited, prioritized, transactional).
+/// Implementations determine the execution strategy (parallel, sequential, rate-limited, prioritized).
 /// </summary>
 /// <remarks>
 /// <para><strong>Purpose:</strong></para>
@@ -16,10 +16,10 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <item><description><c>SequentialEventDispatcher</c>: Executes handlers one at a time in registration order</description></item>
 /// <item><description><c>RateLimitedEventDispatcher</c>: Limits concurrent execution to protect downstream systems</description></item>
 /// <item><description><c>PrioritizedEventDispatcher</c>: Orders handlers by <see cref="IPrioritizedEventHandler{TEvent}.Priority"/> before execution</description></item>
-/// <item><description><c>TransactionalEventDispatcher</c>: Stores events in <see cref="IEventOutbox"/> for reliable delivery</description></item>
 /// </list>
 /// The outbox handler registered by <c>AddOutbox()</c> is never passed to a dispatcher: the mediator always runs it
 /// first and on its own, and passes only the remaining handlers to the dispatcher.
+/// For reliable delivery through <see cref="IEventOutbox"/>, register the outbox with <c>AddOutbox()</c>; it is not a dispatcher.
 /// <para><strong>Custom Implementations:</strong></para>
 /// Implement this interface for advanced scenarios such as:
 /// <list type="bullet">
@@ -44,9 +44,6 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 ///
 ///     // Or prioritized execution
 ///     config.UseDefaultEventDispatcher&lt;PrioritizedEventDispatcher&gt;();
-///
-///     // Or transactional with outbox
-///     config.UseDefaultEventDispatcher&lt;TransactionalEventDispatcher&gt;();
 /// });
 ///
 /// // Event-specific dispatcher
@@ -71,19 +68,16 @@ public interface IEventDispatcher
     /// <param name="handlers">The collection of handlers to receive the event.</param>
     /// <param name="invoker">
     /// A delegate that invokes a single handler with the event.
-    /// This delegate wraps handler invocation with interceptor pipeline execution and error handling.
+    /// It calls the handler and logs a failure before rethrowing it; it applies no interceptors and creates no activity.
     /// The delegate receives the handler, the event message, and a cancellation token.
     /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous dispatch operation.</returns>
     /// <remarks>
     /// <para><strong>Handler Invocation:</strong></para>
-    /// Use the <paramref name="invoker"/> delegate to execute each handler. This ensures:
-    /// <list type="bullet">
-    /// <item><description>Interceptor pipelines are applied correctly</description></item>
-    /// <item><description>Error handling and logging are consistent</description></item>
-    /// <item><description>Activity tracing spans are created properly</description></item>
-    /// </list>
+    /// Use the <paramref name="invoker"/> delegate to execute each handler so that failures are logged consistently.
+    /// <see cref="IEventInterceptor{TEvent}"/> instances do not run per handler: the mediator wraps the whole
+    /// <see cref="DispatchAsync{TEvent}"/> call once with the interceptor pipeline.
     /// <para><strong>Implementation Guidelines:</strong></para>
     /// <list type="bullet">
     /// <item><description>MUST invoke all handlers unless cancelled</description></item>
