@@ -17,50 +17,47 @@ internal sealed class AzureQueueStorageTransportOptionsValidator : IValidateOpti
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, AzureQueueStorageTransportOptions options)
     {
+        var failures = new List<string>();
+
         if (string.IsNullOrWhiteSpace(options.ConnectionString) && options.QueueServiceUri is null)
         {
-            return ValidateOptionsResult.Fail(
+            failures.Add(
                 $"Either {nameof(AzureQueueStorageTransportOptions.ConnectionString)} or {nameof(AzureQueueStorageTransportOptions.QueueServiceUri)} must be provided."
             );
         }
 
         if (string.IsNullOrWhiteSpace(options.QueueName))
         {
-            return ValidateOptionsResult.Fail(
-                $"{nameof(AzureQueueStorageTransportOptions.QueueName)} must not be empty."
-            );
+            failures.Add($"{nameof(AzureQueueStorageTransportOptions.QueueName)} must not be empty.");
         }
 
         var visibilityTimeout = options.MessageVisibilityTimeout;
         if (visibilityTimeout < TimeSpan.Zero || visibilityTimeout > MaxVisibilityTimeout)
         {
-            return ValidateOptionsResult.Fail(
+            failures.Add(
                 $"{nameof(AzureQueueStorageTransportOptions.MessageVisibilityTimeout)} must be between {TimeSpan.Zero} and {MaxVisibilityTimeout}, but was {visibilityTimeout}."
             );
         }
 
-        if (options.MessageTimeToLive is not { } timeToLive || IsNeverExpires(timeToLive))
+        if (options.MessageTimeToLive is { } timeToLive && !IsNeverExpires(timeToLive))
         {
-            return ValidateOptionsResult.Success;
+            // The service receives whole seconds, so validate the truncated values that are sent.
+            var timeToLiveSeconds = (long)timeToLive.TotalSeconds;
+            if (timeToLiveSeconds < 1)
+            {
+                failures.Add(
+                    $"{nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} must be at least one second or {nameof(AzureQueueStorageTransportOptions.NeverExpires)}, but was {timeToLive}."
+                );
+            }
+            else if (visibilityTimeout is { } visibility && (long)visibility.TotalSeconds >= timeToLiveSeconds)
+            {
+                failures.Add(
+                    $"{nameof(AzureQueueStorageTransportOptions.MessageVisibilityTimeout)} ({visibility}) must be smaller than {nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} ({timeToLive})."
+                );
+            }
         }
 
-        // The service receives whole seconds, so validate the truncated values that are sent.
-        var timeToLiveSeconds = (long)timeToLive.TotalSeconds;
-        if (timeToLiveSeconds < 1)
-        {
-            return ValidateOptionsResult.Fail(
-                $"{nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} must be at least one second or {nameof(AzureQueueStorageTransportOptions.NeverExpires)}, but was {timeToLive}."
-            );
-        }
-
-        if (visibilityTimeout is { } visibility && (long)visibility.TotalSeconds >= timeToLiveSeconds)
-        {
-            return ValidateOptionsResult.Fail(
-                $"{nameof(AzureQueueStorageTransportOptions.MessageVisibilityTimeout)} ({visibility}) must be smaller than {nameof(AzureQueueStorageTransportOptions.MessageTimeToLive)} ({timeToLive})."
-            );
-        }
-
-        return ValidateOptionsResult.Success;
+        return failures.Count > 0 ? ValidateOptionsResult.Fail(failures) : ValidateOptionsResult.Success;
     }
 
     /// <summary>
