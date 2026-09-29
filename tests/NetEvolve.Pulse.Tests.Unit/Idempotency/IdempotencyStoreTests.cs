@@ -220,6 +220,73 @@ public sealed class IdempotencyStoreTests
         }
     }
 
+    [Test]
+    public async Task ExistsAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new TrackingIdempotencyKeyRepository();
+        var store = CreateStore(repository);
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+        _ = await Assert
+            .That(async () => await store.ExistsAsync(key, cancellationToken).ConfigureAwait(false))
+            .Throws<ArgumentException>();
+        _ = await Assert.That(repository.CapturedValidFrom).IsEqualTo(DateTimeOffset.MaxValue);
+    }
+
+    [Test]
+    public async Task StoreAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new TrackingIdempotencyKeyRepository();
+        var store = CreateStore(repository);
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+        _ = await Assert
+            .That(async () => await store.StoreAsync(key, cancellationToken).ConfigureAwait(false))
+            .Throws<ArgumentException>();
+        _ = await Assert.That(repository.ReserveCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task TryReserveAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new TrackingIdempotencyKeyRepository();
+        var store = CreateStore(repository);
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+        _ = await Assert
+            .That(async () => await store.TryReserveAsync(key, cancellationToken).ConfigureAwait(false))
+            .Throws<ArgumentException>();
+        _ = await Assert.That(repository.ReserveCount).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task TryReserveAsync_WithKeyOfMaxLength_ReservesKey(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new TrackingIdempotencyKeyRepository();
+        var store = CreateStore(repository);
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey);
+
+        var result = await store.TryReserveAsync(key, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsTrue();
+            _ = await Assert.That(repository.ReserveCount).IsEqualTo(1);
+        }
+    }
+
     private sealed class TrackingIdempotencyKeyRepository : IIdempotencyKeyRepository
     {
         public DateTimeOffset? CapturedValidFrom { get; private set; } = DateTimeOffset.MaxValue;

@@ -685,6 +685,71 @@ public abstract class IdempotencyTestsBase(
             .ConfigureAwait(false);
     }
 
+    [Test]
+    public async Task Should_Treat_Keys_Differing_Only_By_Case_As_Distinct(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+
+                    await store.StoreAsync("aBc123", token).ConfigureAwait(false);
+
+                    var exists = await store.ExistsAsync("ABC123", token).ConfigureAwait(false);
+                    var reserved = await store.TryReserveAsync("ABC123", token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(exists).IsFalse();
+                        _ = await Assert.That(reserved).IsTrue();
+                    }
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Store_And_Find_Key_Of_Max_Length(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+                    var prefix = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey - 1);
+
+                    await store.StoreAsync(prefix + "a", token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert
+                            .That(await store.ExistsAsync(prefix + "a", token).ConfigureAwait(false))
+                            .IsTrue();
+                        _ = await Assert
+                            .That(await store.ExistsAsync(prefix + "b", token).ConfigureAwait(false))
+                            .IsFalse();
+                    }
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task Should_Reject_Key_Longer_Than_Max_Length(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+                    var truncated = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey);
+
+                    _ = await Assert
+                        .That(async () => await store.StoreAsync(truncated + "x", token).ConfigureAwait(false))
+                        .Throws<ArgumentException>();
+
+                    var exists = await store.ExistsAsync(truncated, token).ConfigureAwait(false);
+                    _ = await Assert.That(exists).IsFalse();
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
     private sealed record TestIdempotentVoidCommand(string IdempotencyKey) : IIdempotentCommand
     {
         public string? CausationId { get; set; }

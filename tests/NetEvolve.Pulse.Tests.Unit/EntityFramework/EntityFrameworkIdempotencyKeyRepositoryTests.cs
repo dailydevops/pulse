@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using NetEvolve.Extensions.TUnit;
+using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
@@ -347,5 +348,72 @@ public sealed class EntityFrameworkIdempotencyKeyRepositoryTests
         var result = EntityFrameworkIdempotencyKeyRepository<TestIdempotencyDbContext>.IsDuplicateKeyException(ex);
 
         _ = await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task ExistsAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var context = CreateContext(nameof(ExistsAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException));
+        await using (context.ConfigureAwait(false))
+        {
+            var repository = CreateRepository(context);
+            var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+            _ = await Assert
+                .That(async () => await repository.ExistsAsync(key, null, cancellationToken).ConfigureAwait(false))
+                .Throws<ArgumentException>();
+        }
+    }
+
+    [Test]
+    public async Task StoreAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var context = CreateContext(nameof(StoreAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException));
+        await using (context.ConfigureAwait(false))
+        {
+            var repository = CreateRepository(context);
+            var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+            _ = await Assert
+                .That(async () =>
+                    await repository.StoreAsync(key, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+                )
+                .Throws<ArgumentException>();
+
+            var count = await context.IdempotencyKeys.CountAsync(cancellationToken).ConfigureAwait(false);
+            _ = await Assert.That(count).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task TryReserveAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var context = CreateContext(nameof(TryReserveAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException));
+        await using (context.ConfigureAwait(false))
+        {
+            var repository = CreateRepository(context);
+            var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+            _ = await Assert
+                .That(async () =>
+                    await repository
+                        .TryReserveAsync(key, DateTimeOffset.UtcNow, null, cancellationToken)
+                        .ConfigureAwait(false)
+                )
+                .Throws<ArgumentException>();
+
+            var count = await context.IdempotencyKeys.CountAsync(cancellationToken).ConfigureAwait(false);
+            _ = await Assert.That(count).IsEqualTo(0);
+        }
     }
 }

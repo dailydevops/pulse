@@ -97,6 +97,81 @@ public sealed class MySqlSchemaScriptTests
             ]);
     }
 
+    [Test]
+    public async Task IdempotencyKeyScript_WhenKeyColumnIsCaseInsensitive_SwitchesToBinaryCollation(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var connectionString = await CreateDatabaseAsync(cancellationToken).ConfigureAwait(false);
+
+        // Simulate a deployment created before the key column got a binary collation.
+        await ExecuteAsync(
+                connectionString,
+                """
+                CREATE TABLE `IdempotencyKey` (
+                    `IdempotencyKey` VARCHAR(500) NOT NULL,
+                    `CreatedAt`      BIGINT       NOT NULL,
+                    CONSTRAINT `PK_IdempotencyKey` PRIMARY KEY (`IdempotencyKey`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                """,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        await ExecuteAsync(
+                connectionString,
+                "INSERT INTO `IdempotencyKey` (`IdempotencyKey`, `CreatedAt`) VALUES ('aBc123', 0)",
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        await MySqlScriptRunner
+            .ExecuteAsync(connectionString, "IdempotencyKey.sql", "IdempotencyKey", "IdempotencyKey", cancellationToken)
+            .ConfigureAwait(false);
+        await ExecuteAsync(
+                connectionString,
+                "INSERT INTO `IdempotencyKey` (`IdempotencyKey`, `CreatedAt`) VALUES ('ABC123', 0)",
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        var collation = await GetKeyColumnCollationAsync(connectionString, "IdempotencyKey", cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(collation).IsEqualTo("utf8mb4_bin");
+    }
+
+    private static async Task<string?> GetKeyColumnCollationAsync(
+        string connectionString,
+        string tableName,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var connection = new MySqlConnection(connectionString);
+        await using (connection.ConfigureAwait(false))
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            var command = new MySqlCommand(
+                """
+                SELECT COLLATION_NAME
+                FROM information_schema.columns
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @tableName AND COLUMN_NAME = 'IdempotencyKey'
+                """,
+                connection
+            );
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@tableName", tableName);
+
+                return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+            }
+        }
+    }
+
     private async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

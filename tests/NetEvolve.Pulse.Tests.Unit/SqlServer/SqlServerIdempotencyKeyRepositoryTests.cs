@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
+using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
 using TUnit.Core;
 
@@ -195,6 +196,63 @@ public sealed class SqlServerIdempotencyKeyRepositoryTests
         _ = await Assert
             .That(async () =>
                 await repository.StoreAsync("   ", DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task ExistsAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+        _ = await Assert
+            .That(async () =>
+                await repository.ExistsAsync(key, cancellationToken: cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task StoreAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+        _ = await Assert
+            .That(async () =>
+                await repository.StoreAsync(key, DateTimeOffset.UtcNow, cancellationToken).ConfigureAwait(false)
+            )
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task TryReserveAsync_WithKeyLongerThanMaxLength_ThrowsArgumentException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new SqlServerIdempotencyKeyRepository(
+            Options.Create(new IdempotencyKeyOptions { ConnectionString = ValidConnectionString })
+        );
+        var key = new string('k', IdempotencyKeySchema.MaxLengths.IdempotencyKey + 1);
+
+        _ = await Assert
+            .That(async () =>
+                await repository
+                    .TryReserveAsync(key, DateTimeOffset.UtcNow, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false)
             )
             .Throws<ArgumentException>();
     }
