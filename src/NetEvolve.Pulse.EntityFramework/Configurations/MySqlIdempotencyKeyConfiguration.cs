@@ -40,7 +40,9 @@ internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigura
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
         // The binary collation compares keys by code point, so keys differing only by case stay distinct.
-        _ = builder.Property(k => k.Key).HasColumnType("varchar(500)").UseCollation("utf8mb4_bin");
+        // The model keeps MaxLength 500, so migrations created by earlier releases stay in sync;
+        // the store and the repository enforce IdempotencyKeySchema.MaxLengths.IdempotencyKey.
+        _ = builder.Property(k => k.Key).HasColumnType("varchar(500)").HasMaxLength(500).UseCollation("utf8mb4_bin");
 
         // DateTimeOffset is stored as BIGINT (UTC ticks).
         // The Oracle MySQL provider lacks a proper DateTimeOffset type mapping for

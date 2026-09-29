@@ -32,7 +32,9 @@ internal sealed class SqliteIdempotencyKeyConfiguration : IdempotencyKeyConfigur
     /// <inheritdoc />
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
-        _ = builder.Property(k => k.Key).HasColumnType("TEXT");
+        // The model keeps MaxLength 500, so migrations created by earlier releases stay in sync;
+        // the store and the repository enforce IdempotencyKeySchema.MaxLengths.IdempotencyKey.
+        _ = builder.Property(k => k.Key).HasColumnType("TEXT").HasMaxLength(500);
         // DateTimeOffset stored as INTEGER (UTC ticks) for correct ordering in SQLite.
         _ = builder
             .Property(k => k.CreatedAt)
