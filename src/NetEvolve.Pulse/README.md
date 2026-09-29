@@ -187,6 +187,28 @@ Behavior summary:
 | `ExpirationMode = Absolute` (default) | `Expiry` (or `DefaultExpiry`) is applied as absolute expiry relative to now |
 | `ExpirationMode = Sliding` | `Expiry` (or `DefaultExpiry`) window resets on each cache access |
 
+### Cache Invalidation
+
+Commands that implement `IInvalidatingCommand<TResponse>` evict the cached results of the query types listed in `InvalidatedQueryTypes` after the handler completes successfully. Register the interceptor after `AddQueryCaching()`:
+
+```csharp
+services.AddPulse(config => config.AddQueryCaching().AddCacheInvalidation());
+
+public record UpdateProductCommand(Guid Id, string Name) : IInvalidatingCommand<ProductDto>
+{
+    public string? CausationId { get; set; }
+    public string? CorrelationId { get; set; }
+
+    public IEnumerable<Type> InvalidatedQueryTypes { get; } = [typeof(GetProductQuery)];
+}
+```
+
+Limitations:
+
+* **Process-local.** The query caching interceptor records each cache key in an in-memory registry, and invalidation evicts only the keys in that registry. It does not evict entries that other instances cached in the shared `IDistributedCache`, or entries cached before the process restarted. Set `Expiry` or `DefaultExpiry` so that such entries expire eventually.
+* **Cache-aside race.** A query that reads the data before the command commits and writes its result after the eviction leaves a stale entry. Only expiry removes it.
+* **Growth.** The registry holds each distinct cache key once per query type. A key stays registered after its entry has expired until the next invalidation of that query type removes it.
+
 ### Request Timeouts
 
 Enforce a per-request deadline for commands and queries that implement `ITimeoutRequest` (from `NetEvolve.Pulse.Extensibility`). All other requests pass through unchanged.

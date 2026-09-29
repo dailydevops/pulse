@@ -43,6 +43,18 @@ public class InMemoryCacheKeyRegistryTests
     }
 
     [Test]
+    public async Task Register_SameKeyRepeatedly_KeepsSingleEntry()
+    {
+        var registry = new InMemoryCacheKeyRegistry();
+
+        registry.Register(typeof(SampleQueryA), "key-1");
+        registry.Register(typeof(SampleQueryA), "key-1");
+        registry.Register(typeof(SampleQueryA), "key-1");
+
+        _ = await Assert.That(registry.GetKeysForType(typeof(SampleQueryA))).IsEquivalentTo(["key-1"]);
+    }
+
+    [Test]
     public async Task GetKeysForType_WithNoRegistrations_ReturnsEmptyReadOnlyList()
     {
         var registry = new InMemoryCacheKeyRegistry();
@@ -65,10 +77,11 @@ public class InMemoryCacheKeyRegistryTests
         registry.Register(typeof(SampleQueryA), "key-2");
         registry.Register(typeof(SampleQueryB), "other-key");
 
-        registry.RemoveType(typeof(SampleQueryA));
+        var removed = registry.RemoveType(typeof(SampleQueryA));
 
         using (Assert.Multiple())
         {
+            _ = await Assert.That(removed.Order(StringComparer.Ordinal)).IsEquivalentTo(["key-1", "key-2"]);
             _ = await Assert.That(registry.GetKeysForType(typeof(SampleQueryA))).IsEmpty();
             _ = await Assert.That(registry.GetKeysForType(typeof(SampleQueryB))).IsEquivalentTo(["other-key"]);
         }

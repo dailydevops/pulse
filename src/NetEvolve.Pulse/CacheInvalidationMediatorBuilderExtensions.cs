@@ -25,6 +25,12 @@ public static class CacheInvalidationMediatorBuilderExtensions
     /// <remarks>
     /// This method must be called AFTER <c>AddQueryCaching()</c>, so that the cache key registry
     /// already tracks the keys produced by the query caching interceptor when invalidation runs.
+    /// <para><strong>Limitations:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>The cache key registry is in-memory and local to the process. Entries that other instances cached in the shared <c>IDistributedCache</c>, or that were cached before the process restarted, are not evicted. Configure an expiry so that they are removed eventually.</description></item>
+    /// <item><description>Cache-aside race: a query that reads the data before the command commits and writes its result after the eviction leaves a stale entry until it expires.</description></item>
+    /// <item><description>The registry holds each distinct cache key once per query type. Keys of expired entries are removed only when an invalidation of their query type runs.</description></item>
+    /// </list>
     /// </remarks>
     /// <example>
     /// <code>
