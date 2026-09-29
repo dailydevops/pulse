@@ -72,7 +72,7 @@ app.MapPost("/orders", async (CreateOrderCommand cmd, IMediator mediator, Cancel
 app.MapPut("/orders/{id}", async (UpdateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
     Results.Ok(await mediator.SendAsync<UpdateOrderCommand, OrderResult>(cmd, ct)));
 
-app.MapDelete("/orders/{id}", async ([FromBody] DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
+app.MapDelete("/orders/{id}", async ([AsParameters] DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
 {
     await mediator.SendAsync<DeleteOrderCommand>(cmd, ct);
     return Results.NoContent();
@@ -86,7 +86,7 @@ app.MapGet("/orders/{id}", async ([AsParameters] GetOrderQuery query, IMediator 
 
 ### Commands with a Response
 
-`MapCommand<TCommand, TResponse>` binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `200 OK` with the result. The default HTTP method is `POST`; use the `CommandHttpMethod` parameter to choose a different method:
+`MapCommand<TCommand, TResponse>` binds `TCommand` as described in [Command Binding Sources](#command-binding-sources), sends it via `IMediator.SendAsync`, and returns `200 OK` with the result. The default HTTP method is `POST`; use the `CommandHttpMethod` parameter to choose a different method:
 
 ```csharp
 // POST /orders  (default)
@@ -107,7 +107,7 @@ public record OrderResult(Guid OrderId, string Status);
 
 ### Void Commands
 
-`MapCommand<TCommand>` binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `204 No Content`. The default HTTP method is `POST`:
+`MapCommand<TCommand>` binds `TCommand` as described in [Command Binding Sources](#command-binding-sources), sends it via `IMediator.SendAsync`, and returns `204 No Content`. The default HTTP method is `POST`:
 
 ```csharp
 // POST /orders/cancel  (default)
@@ -121,6 +121,22 @@ app.MapCommand<DeleteOrderCommand>("/orders/{id}", CommandHttpMethod.Delete);
 public record CancelOrderCommand(Guid Id) : ICommand;
 public record DeleteOrderCommand(Guid Id) : ICommand;
 ```
+
+### Command Binding Sources
+
+The binding source of a command depends on the HTTP method:
+
+| Method | Binding source |
+|--------|----------------|
+| `POST`, `PUT`, `PATCH` | JSON request body. Route values that match a command property (case-insensitive) overwrite the body value, so the route value wins. |
+| `DELETE` | Route values and query string via `[AsParameters]`, like `MapQuery`. A request body is not required and is ignored. |
+
+For `PUT /orders/{id}` with body `{"id":"B","sku":"X","quantity":1}` sent to `/orders/A`, the handler receives `Id = A`. The command always targets the resource named in the URI. Route values are converted with the application's HTTP JSON options (`ConfigureHttpJsonOptions`); a route value that cannot be converted to the property type returns `400 Bad Request`. Route values without a matching property, such as `{tenant}` in `/tenants/{tenant}/orders/{id}`, are ignored.
+
+`DELETE` follows [RFC 9110 §9.3.5](https://www.rfc-editor.org/rfc/rfc9110#section-9.3.5): content in a `DELETE` request has no generally defined semantics. Every property of a `DELETE` command therefore needs a route or query string value that ASP.NET Core can bind (`TryParse`), or it must be optional.
+
+> [!IMPORTANT]
+> Clients that sent the identifier of a `DELETE` command only in the request body must move it to the route or the query string.
 
 ### Queries
 
