@@ -382,6 +382,42 @@ public sealed class NewtonsoftJsonPayloadSerializer : IPayloadSerializer
 
 The custom serializer will be used for all payload operations within Pulse. Ensure your implementation is thread-safe, as the same instance may be accessed concurrently from multiple pipeline stages.
 
+## Telemetry
+
+`AddActivityAndMetrics()` emits activities and metrics on the `NetEvolve.Pulse` activity source and meter, following the [OpenTelemetry recording errors conventions](https://opentelemetry.io/docs/specs/semconv/general/recording-errors/):
+
+* Successful operations leave the activity status `Unset`. Failed operations set `Error` with the exception message.
+* Failed operations carry `error.type` (the full exception type name) on the activity, the error counter and the duration histogram.
+* A stream query records its duration once for every outcome. A stream whose consumer stops early (`break`, `Take`) carries `pulse.stream.completed=false` instead of `pulse.success`.
+* A stream query whose handler honours a cancelled token, for example `HttpContext.RequestAborted` after a client disconnects, fails with `OperationCanceledException` and is recorded as a failure with `error.type=System.OperationCanceledException`. An exception from the inner enumerator's `DisposeAsync` is also recorded as a failure, unless the stream had already faulted; the earlier exception is then both thrown and recorded.
+
+### Semantic Convention Units
+
+Metrics keep their legacy units by default. Opt into the units of the [OpenTelemetry metrics guidelines](https://opentelemetry.io/docs/specs/semconv/general/metrics/#instrument-units) once your dashboards and alerts are migrated:
+
+```csharp
+services.AddPulse(config => config.AddActivityAndMetrics(options => options.UseSemanticConventionUnits = true));
+```
+
+The option also applies to the outbox processor metrics. Without `AddActivityAndMetrics`, configure it with `services.Configure<ActivityAndMetricsOptions>(...)`.
+
+| Instrument | Default unit | With `UseSemanticConventionUnits` |
+| --- | --- | --- |
+| `pulse.requests.total` | `requests` | `{request}` |
+| `pulse.events.total` | `events` | `{event}` |
+| `pulse.stream_query.total` | `queries` | `{query}` |
+| `pulse.request.errors`, `pulse.event.errors`, `pulse.stream_query.errors` | `errors` | `{error}` |
+| `pulse.outbox.processed.total`, `pulse.outbox.failed.total`, `pulse.outbox.deadletter.total`, `pulse.outbox.pending` | `messages` | `{message}` |
+| `pulse.request.duration`, `pulse.event.duration`, `pulse.stream_query.duration`, `pulse.outbox.processing.duration` | `ms` (milliseconds) | `s` (seconds, with bucket boundaries from 0.005 to 10 s) |
+
+Migration steps:
+
+1. Replace filters on the `Ok` span status with "status is not `Error`".
+2. Enable `UseSemanticConventionUnits`. Exporters that append the unit to the metric name (for example the Prometheus exporter) then export new names such as `pulse_request_duration_seconds` instead of `pulse_request_duration_milliseconds`.
+3. Update dashboards and alerts to the new names and convert duration thresholds from milliseconds to seconds.
+
+A later `0.x` release makes the semantic convention units the default.
+
 ## NativeAOT and Trimming
 
 All Pulse runtime packages are built with `IsAotCompatible` enabled, so the trim and NativeAOT analyzers run on every build. The core mediator pipeline (`AddPulse`, handler registration through `NetEvolve.Pulse.SourceGeneration` or the generic `Add*Handler<,>` methods, `SendAsync`, `QueryAsync`, `StreamQueryAsync` and `PublishAsync`) is trim- and NativeAOT-safe. This is verified on every pull request by publishing and running the `samples/NetEvolve.Pulse.Xample.Aot` smoke application with NativeAOT for `net8.0`, `net9.0` and `net10.0`. It covers commands, queries, stream queries and events, open-generic handlers and interceptors, value-type and `Void` requests through the built-in interceptors, the outbox event type round-trip and the payload serializer setup below.

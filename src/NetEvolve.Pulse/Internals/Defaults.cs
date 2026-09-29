@@ -125,10 +125,13 @@ internal static class Defaults
         /// <summary>Tag name for stream query causation ID.</summary>
         internal const string StreamQueryCausationId = "pulse.causation_id";
 
-        /// <summary>Tag name for stream query type (type name of the query).</summary>
-        internal const string StreamQueryType = "query.type";
+        /// <summary>Tag name marking a stream query whose consumer stopped enumerating before the stream completed.</summary>
+        internal const string StreamCompleted = "pulse.stream.completed";
 
         // General tags
+        /// <summary>Tag name for the OpenTelemetry <c>error.type</c> attribute, set to the full exception type name on failure.</summary>
+        internal const string ErrorType = "error.type";
+
         /// <summary>Tag name for success/failure indicator.</summary>
         internal const string Success = "pulse.success";
     }
