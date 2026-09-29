@@ -11,7 +11,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST invoke OutboxEventHandler<TEvent> in PulseMediator sequentially and before the configured IEventDispatcher, inside the event interceptor chain, and MUST pass only the remaining handlers to the dispatcher.
