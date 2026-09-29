@@ -18,7 +18,7 @@ internal static class MySqlScriptRunner
     /// replacing every table-name reference of <paramref name="defaultTableName"/> with <paramref name="tableName"/>.
     /// </summary>
     /// <remarks>
-    /// Only table references are replaced (<c>CREATE TABLE</c>, <c>ON `X`</c> and <c>TABLE_NAME = 'X'</c>),
+    /// Only table references are replaced (<c>CREATE TABLE</c>, <c>ALTER TABLE `X`</c>, <c>ON `X`</c> and <c>TABLE_NAME = 'X'</c>),
     /// so a column that shares the table name (for example <c>IdempotencyKey</c>) keeps its name.
     /// </remarks>
     public static async Task ExecuteAsync(
@@ -40,6 +40,7 @@ internal static class MySqlScriptRunner
                 $"TABLE IF NOT EXISTS `{tableName}`",
                 StringComparison.Ordinal
             )
+            .Replace($"ALTER TABLE `{defaultTableName}`", $"ALTER TABLE `{tableName}`", StringComparison.Ordinal)
             .Replace($" ON `{defaultTableName}`", $" ON `{tableName}`", StringComparison.Ordinal)
             .Replace($"TABLE_NAME = '{defaultTableName}'", $"TABLE_NAME = '{tableName}'", StringComparison.Ordinal);
 

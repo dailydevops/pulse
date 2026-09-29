@@ -10,8 +10,14 @@
 --   MySQL 8.0 or later
 --
 -- Column types:
---   IdempotencyKey VARCHAR(500) — the idempotency key (primary key)
+--   IdempotencyKey VARCHAR(500) — the idempotency key (primary key), binary collation utf8mb4_bin
 --   CreatedAt      BIGINT       — UTC ticks (use dto.UtcTicks / new DateTimeOffset(ticks, TimeSpan.Zero))
+--
+-- Idempotency keys:
+--   Keys are compared by code point (utf8mb4_bin), so keys that differ only by case are distinct.
+--   utf8mb4_bin is a PAD SPACE collation, so trailing spaces are not significant.
+--   The application rejects keys longer than 450 characters (IdempotencyKeySchema.MaxLengths.IdempotencyKey).
+--   The column stays VARCHAR(500), so tables created by earlier releases need no data change.
 --
 -- Usage:
 --   Run this script in the target MySQL database before deploying the application:
@@ -20,11 +26,13 @@
 --   The script is safe to re-run. MySQL 8.0 has no CREATE INDEX IF NOT EXISTS, so every index
 --   is guarded by an information_schema.statistics lookup executed through PREPARE / EXECUTE.
 --   Re-run the script after upgrading the package to apply indexes added in later releases.
---   Existing tables and indexes are left unchanged. When executing it through MySql.Data
+--   Existing tables and indexes are left unchanged, except that a case-insensitive key column
+--   created by an earlier release is switched to utf8mb4_bin through ALTER TABLE ... MODIFY. When executing it through MySql.Data
 --   instead of the mysql client, set AllowUserVariables=True (the guards use @pulse_sql).
 --
 --   If you need a custom table name, replace every table reference to IdempotencyKey
---   (CREATE TABLE IF NOT EXISTS `IdempotencyKey`, ON `IdempotencyKey` and TABLE_NAME = 'IdempotencyKey')
+--   (CREATE TABLE IF NOT EXISTS `IdempotencyKey`, ALTER TABLE `IdempotencyKey`, ON `IdempotencyKey`
+--   and TABLE_NAME = 'IdempotencyKey')
 --   and update IdempotencyKeyOptions.TableName in your application configuration accordingly.
 --
 -- Note on schema:
@@ -34,10 +42,22 @@
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS `IdempotencyKey` (
-    `IdempotencyKey` VARCHAR(500) NOT NULL,
+    `IdempotencyKey` VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
     `CreatedAt`      BIGINT       NOT NULL,
     CONSTRAINT `PK_IdempotencyKey` PRIMARY KEY (`IdempotencyKey`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Switch the key column of a table created by an earlier release to the binary collation
+SET @pulse_sql := IF(
+    (SELECT COUNT(*) FROM information_schema.columns
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'IdempotencyKey' AND COLUMN_NAME = 'IdempotencyKey'
+          AND COLLATION_NAME <> 'utf8mb4_bin') > 0,
+    'ALTER TABLE `IdempotencyKey` MODIFY `IdempotencyKey` VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL',
+    'DO 0'
+);
+PREPARE pulse_stmt FROM @pulse_sql;
+EXECUTE pulse_stmt;
+DEALLOCATE PREPARE pulse_stmt;
 
 -- Index to efficiently filter keys by creation time (for TTL-based existence checks)
 SET @pulse_sql := IF(

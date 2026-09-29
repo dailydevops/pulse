@@ -50,8 +50,13 @@ public static class IdempotencyKeySchema
     public static class MaxLengths
     {
         /// <summary>
-        /// Maximum length for the IdempotencyKey column (500 characters).
+        /// Maximum length for the IdempotencyKey column (450 characters).
         /// </summary>
-        public const int IdempotencyKey = 500;
+        /// <remarks>
+        /// 450 characters of <c>NVARCHAR</c> take 900 bytes, the SQL Server limit for a clustered index key.
+        /// Longer keys are rejected with an <see cref="System.ArgumentException"/>; keys are never truncated.
+        /// Keys are compared exactly, including their case.
+        /// </remarks>
+        public const int IdempotencyKey = 450;
     }
 }

@@ -44,6 +44,10 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         if (validFrom.HasValue)
         {
@@ -66,6 +70,10 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         _ = await TryInsertAsync(idempotencyKey, createdAt, cancellationToken).ConfigureAwait(false);
     }
@@ -87,6 +95,10 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         if (validFrom.HasValue)
         {

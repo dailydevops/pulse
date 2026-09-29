@@ -12,7 +12,7 @@ using System;
 /// to ensure interchangeability.
 /// <para><strong>Column Specifications:</strong></para>
 /// <list type="bullet">
-/// <item><description><see cref="Key"/>: VARCHAR(500), Primary Key — the client-supplied idempotency key.</description></item>
+/// <item><description><see cref="Key"/>: up to <see cref="Extensibility.Idempotency.IdempotencyKeySchema.MaxLengths.IdempotencyKey"/> characters, compared case-sensitively (binary collation on SQL Server and MySQL), Primary Key — the client-supplied idempotency key.</description></item>
 /// <item><description><see cref="CreatedAt"/>: DATETIMEOFFSET, NOT NULL — timestamp when the key was stored.</description></item>
 /// </list>
 /// </remarks>

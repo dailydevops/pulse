@@ -158,6 +158,22 @@ The script creates:
 
 **Upgrading:** re-run `IdempotencyKey.sql` together with the package upgrade. The script keeps the table and its data and recreates the stored procedures; the new package version calls `usp_ReserveIdempotencyKey`, which older scripts do not create.
 
+#### Idempotency Key Length and Case Sensitivity
+
+- Keys can be up to 450 characters long (`IdempotencyKeySchema.MaxLengths.IdempotencyKey`). The column is `NVARCHAR(450)`, which takes 900 bytes, the SQL Server limit for a clustered index key. `ExistsAsync`, `StoreAsync` and `TryReserveAsync` reject a longer key with an `ArgumentOutOfRangeException`. Keys are never truncated.
+- The column uses the binary collation `Latin1_General_100_BIN2`, so keys are case-sensitive and accent-sensitive: `aBc123` and `ABC123` are two different keys.
+- SQL Server pads strings before comparing them, so trailing spaces are not significant.
+
+**Upgrading from an earlier release:** tables created by earlier scripts use `NVARCHAR(500)` in the database default collation. Re-running `IdempotencyKey.sql` upgrades them in one transaction: it drops `PK_<TableName>`, changes the column to `NVARCHAR(450) COLLATE Latin1_General_100_BIN2` and re-creates the clustered primary key. The old table could never hold a key longer than 450 characters (Msg 1946), so no key is truncated. If you manage the schema yourself, apply the same steps:
+
+```sql
+ALTER TABLE [pulse].[IdempotencyKey] DROP CONSTRAINT [PK_IdempotencyKey];
+ALTER TABLE [pulse].[IdempotencyKey]
+    ALTER COLUMN [IdempotencyKey] NVARCHAR(450) COLLATE Latin1_General_100_BIN2 NOT NULL;
+ALTER TABLE [pulse].[IdempotencyKey]
+    ADD CONSTRAINT [PK_IdempotencyKey] PRIMARY KEY CLUSTERED ([IdempotencyKey]);
+```
+
 #### Using Idempotent Commands
 
 ```csharp

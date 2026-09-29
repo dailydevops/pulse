@@ -27,7 +27,9 @@ internal sealed class PostgreSqlIdempotencyKeyConfiguration : IdempotencyKeyConf
     /// <inheritdoc />
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
-        _ = builder.Property(k => k.Key).HasColumnType("character varying(500)");
+        // The model keeps MaxLength 500, so migrations created by earlier releases stay in sync;
+        // the store and the repository enforce IdempotencyKeySchema.MaxLengths.IdempotencyKey.
+        _ = builder.Property(k => k.Key).HasColumnType("character varying(500)").HasMaxLength(500);
         // "timestamp with time zone" (timestamptz) preserves UTC correctly.
         _ = builder.Property(k => k.CreatedAt).HasColumnType("timestamp with time zone");
     }

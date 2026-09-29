@@ -80,3 +80,5 @@ When `TimeToLive` is set, reservation runs a Lua script. The Redis user must be 
 
 The script compares stored timestamps as UTC round-trip text. The provider always writes UTC values. A value with a non-UTC offset, written by an earlier version through a direct `IIdempotencyKeyRepository.StoreAsync` call, is treated as present until its physical Redis expiry removes it. A value stored while `TimeToLive` was `null` has no physical expiry, so delete such keys manually if they must become reservable again.
 Invalid options cause an `OptionsValidationException` at startup or on first resolution of the options.
+
+Idempotency keys can be up to 450 characters long and are compared case-sensitively. See [Idempotency Keys](https://github.com/dailydevops/pulse/blob/main/src/NetEvolve.Pulse/README.md#idempotency-keys) in the `NetEvolve.Pulse` README.

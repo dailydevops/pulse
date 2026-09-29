@@ -80,6 +80,10 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -88,7 +92,14 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.Add(
-                    new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
+                    new SqlParameter(
+                        "@idempotencyKey",
+                        SqlDbType.NVarChar,
+                        IdempotencyKeySchema.MaxLengths.IdempotencyKey
+                    )
+                    {
+                        Value = idempotencyKey,
+                    }
                 );
 
                 if (validFrom.HasValue)
@@ -114,6 +125,10 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -122,7 +137,14 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.Add(
-                    new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
+                    new SqlParameter(
+                        "@idempotencyKey",
+                        SqlDbType.NVarChar,
+                        IdempotencyKeySchema.MaxLengths.IdempotencyKey
+                    )
+                    {
+                        Value = idempotencyKey,
+                    }
                 );
                 _ = command.Parameters.Add(
                     new SqlParameter("@createdAt", SqlDbType.DateTimeOffset) { Value = createdAt }
@@ -152,6 +174,10 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
@@ -160,7 +186,14 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.Add(
-                    new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
+                    new SqlParameter(
+                        "@idempotencyKey",
+                        SqlDbType.NVarChar,
+                        IdempotencyKeySchema.MaxLengths.IdempotencyKey
+                    )
+                    {
+                        Value = idempotencyKey,
+                    }
                 );
                 _ = command.Parameters.Add(
                     new SqlParameter("@createdAt", SqlDbType.DateTimeOffset) { Value = createdAt }

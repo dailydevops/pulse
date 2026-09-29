@@ -47,7 +47,10 @@ public interface IIdempotencyStore
     /// Determines whether the specified idempotency key has already been stored,
     /// indicating that the corresponding command was previously processed.
     /// </summary>
-    /// <param name="idempotencyKey">The idempotency key to look up. Must not be <see langword="null"/> or empty.</param>
+    /// <param name="idempotencyKey">The idempotency key to look up. Must not be <see langword="null"/> or empty.
+    /// Keys longer than <see cref="IdempotencyKeySchema.MaxLengths.IdempotencyKey"/> characters are not supported;
+    /// the built-in store rejects them with an <see cref="ArgumentOutOfRangeException"/>. Keys are compared case-sensitively.
+    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// <see langword="true"/> if the key is already present in the store; otherwise <see langword="false"/>.
@@ -58,7 +61,10 @@ public interface IIdempotencyStore
     /// Persists the specified idempotency key so that future calls to <see cref="ExistsAsync"/>
     /// with the same key return <see langword="true"/>.
     /// </summary>
-    /// <param name="idempotencyKey">The idempotency key to store. Must not be <see langword="null"/> or empty.</param>
+    /// <param name="idempotencyKey">The idempotency key to store. Must not be <see langword="null"/> or empty.
+    /// Keys longer than <see cref="IdempotencyKeySchema.MaxLengths.IdempotencyKey"/> characters are not supported;
+    /// the built-in store rejects them with an <see cref="ArgumentOutOfRangeException"/>. Keys are compared case-sensitively.
+    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous store operation.</returns>
     Task StoreAsync(string idempotencyKey, CancellationToken cancellationToken = default);
@@ -67,7 +73,10 @@ public interface IIdempotencyStore
     /// Attempts to reserve the specified idempotency key before the corresponding command executes,
     /// so that concurrent or subsequent submissions of the same key are rejected.
     /// </summary>
-    /// <param name="idempotencyKey">The idempotency key to reserve. Must not be <see langword="null"/> or empty.</param>
+    /// <param name="idempotencyKey">The idempotency key to reserve. Must not be <see langword="null"/> or empty.
+    /// Keys longer than <see cref="IdempotencyKeySchema.MaxLengths.IdempotencyKey"/> characters are not supported;
+    /// the built-in store rejects them with an <see cref="ArgumentOutOfRangeException"/>. Keys are compared case-sensitively.
+    /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// <see langword="true"/> if the key was newly reserved and the command may execute;
