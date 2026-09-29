@@ -91,6 +91,7 @@ public sealed class CosmosDbOutboxRepositoryTimeToLiveTests
 
         var patches = await ClaimAsync(enableTtl: false, cancellationToken).ConfigureAwait(false);
 
+        _ = await Assert.That(patches.Any(p => p.Path == "/status")).IsTrue();
         _ = await Assert.That(patches.Any(p => p.Path == "/ttl")).IsFalse();
     }
 
