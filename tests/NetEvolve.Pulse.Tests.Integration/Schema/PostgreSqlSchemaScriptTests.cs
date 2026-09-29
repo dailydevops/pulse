@@ -62,7 +62,7 @@ public sealed class PostgreSqlSchemaScriptTests
     }
 
     [Test]
-    public async Task OutboxMessageScript_WithTwoTableNamesInSameSchema_CreatesSeparateKeysAndIndexes(
+    public async Task OutboxMessageScript_WithTwoTableNamesInSameSchema_SeparatesKeysAndIndexesButBindsFunctionsToLastTable(
         CancellationToken cancellationToken
     )
     {
@@ -97,6 +97,45 @@ public sealed class PostgreSqlSchemaScriptTests
                 $"IX_{schema}_OutboxB_Status_CreatedAt",
                 $"IX_{schema}_OutboxB_Status_ProcessedAt",
             ]);
+
+        // The functions are schema-scoped, so the second run rebinds all of them to OutboxB.
+        // Each outbox table therefore needs its own schema.
+        var functionBodies = await GetFunctionBodiesAsync(connectionString, schema, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(functionBodies).Count().IsEqualTo(15);
+        _ = await Assert
+            .That(functionBodies.Where(body => !body.Contains($"\"{schema}\".\"OutboxB\"", StringComparison.Ordinal)))
+            .IsEmpty();
+        _ = await Assert
+            .That(functionBodies.Where(body => body.Contains("\"OutboxA\"", StringComparison.Ordinal)))
+            .IsEmpty();
+    }
+
+    [Test]
+    [Arguments("OutboxMessage.sql")]
+    [Arguments("IdempotencyKey.sql")]
+    [Arguments("AuditEntry.sql")]
+    [Arguments("CommandDeadLetter.sql")]
+    public async Task Script_WhenDerivedNamesExceed63Bytes_FailsBeforeCreatingObjects(
+        string scriptName,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (databaseName, connectionString) = await CreateDatabaseAsync(cancellationToken).ConfigureAwait(false);
+        var schema = CreateMixedCaseSchemaName();
+        var tableName = new string('T', 40);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Container.RunScriptAsync(scriptName, databaseName, schema, tableName, cancellationToken)
+        );
+        var indexes = await GetIndexNamesAsync(connectionString, schema, tableName, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(exception!.Message).Contains("63 bytes");
+        _ = await Assert.That(indexes).IsEmpty();
     }
 
     [Test]
