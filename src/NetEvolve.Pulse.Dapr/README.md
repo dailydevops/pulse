@@ -9,7 +9,7 @@ Dapr pub/sub transport for the Pulse outbox pattern. Publishes outbox messages t
 ## Features
 
 - **Dapr pub/sub**: Publish outbox messages to any Dapr-supported message broker
-- **CloudEvents**: Payload is forwarded as CloudEvent data via `DaprClient.PublishEventAsync`
+- **CloudEvents**: The raw JSON payload is forwarded as CloudEvent data via `DaprClient.PublishByteEventAsync`, with a stable CloudEvent `id` and `type` derived from the outbox message
 - **Health checks**: Delegates to `DaprClient.CheckHealthAsync` for readiness probing
 - **Configurable topic resolution**: Map event types to topic names by registering a custom `ITopicNameResolver`
 - **Broker-agnostic**: Switch brokers by changing the Dapr component configuration — no code changes required
@@ -141,7 +141,16 @@ public class OrderService
 
 ## Subscriber Integration
 
-Dapr subscribers receive the published events as CloudEvents. Use `Dapr.AspNetCore` to subscribe to topics in ASP.NET Core:
+Dapr subscribers receive the published events as CloudEvents. The transport overrides these CloudEvent attributes through [publish metadata](https://docs.dapr.io/developing-applications/building-blocks/pubsub/pubsub-cloudevents/):
+
+| CloudEvent attribute | Metadata key      | Value                                                                       |
+| -------------------- | ----------------- | --------------------------------------------------------------------------- |
+| `id`                 | `cloudevent.id`   | `OutboxMessage.Id` formatted as `"D"`, stable across retries                |
+| `type`               | `cloudevent.type` | `OutboxMessage.EventType.ToOutboxEventTypeName()` (assembly-qualified name) |
+
+Use the `id` to deduplicate redelivered events in idempotent subscribers. Because the `type` is the assembly-qualified name, it includes the assembly version. Match on it with care in subscription routing rules. Trace attributes (`traceid`, `traceparent`, `tracestate`) are left to the Dapr sidecar.
+
+Use `Dapr.AspNetCore` to subscribe to topics in ASP.NET Core:
 
 ```csharp
 // Program.cs — enable Dapr subscriber routing
@@ -280,7 +289,7 @@ To switch from Redis to Azure Service Bus, update the component YAML and redeplo
 
 1. Your application stores events in the outbox via `IEventOutbox.StoreAsync` within a database transaction.
 2. The Pulse background processor polls the outbox for pending messages.
-3. For each message, `DaprMessageTransport` deserializes the stored JSON payload and calls `DaprClient.PublishEventAsync` with the resolved pub/sub component name and topic.
+3. For each message, `DaprMessageTransport` publishes the stored JSON payload bytes unchanged via `DaprClient.PublishByteEventAsync` (content type `application/json`) with the resolved pub/sub component name and topic.
 4. Dapr delivers the CloudEvent to subscribers on the configured broker.
 5. On success, the message is marked as processed; on failure, it remains pending for the next poll cycle.
 
