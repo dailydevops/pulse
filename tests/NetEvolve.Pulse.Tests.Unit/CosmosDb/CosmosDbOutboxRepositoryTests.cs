@@ -56,6 +56,32 @@ public sealed class CosmosDbOutboxRepositoryTests
     }
 
     [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task Constructor_WithNonPositiveProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException(
+        int leaseSeconds
+    )
+    {
+        using var client = new CosmosClient(EmulatorConnectionString);
+
+        _ = await Assert
+            .That(() =>
+                new CosmosDbOutboxRepository(
+                    client,
+                    Options.Create(
+                        new CosmosDbOutboxOptions
+                        {
+                            DatabaseName = "TestDb",
+                            ProcessingLeaseTimeout = TimeSpan.FromSeconds(leaseSeconds),
+                        }
+                    ),
+                    TimeProvider.System
+                )
+            )
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public async Task Constructor_WithEmptyDatabaseName_ThrowsArgumentException()
     {
         using var client = new CosmosClient(EmulatorConnectionString);

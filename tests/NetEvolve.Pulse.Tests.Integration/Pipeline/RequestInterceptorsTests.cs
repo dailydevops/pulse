@@ -104,7 +104,7 @@ public sealed class RequestInterceptorsTests
         {
             _ = await Assert.That(result).IsEqualTo("handled");
             _ = await Assert.That(capturedActivity).IsNotNull();
-            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
+            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Unset);
             _ = await Assert.That(capturedActivity.GetTagItem("pulse.request.type")).IsEqualTo("Command");
             _ = await Assert.That(Interlocked.Read(ref counterValue)).IsGreaterThanOrEqualTo(1L);
         }
@@ -158,7 +158,7 @@ public sealed class RequestInterceptorsTests
         {
             _ = await Assert.That(result).IsEqualTo(42);
             _ = await Assert.That(capturedActivity).IsNotNull();
-            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
+            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Unset);
             _ = await Assert.That(capturedActivity.GetTagItem("pulse.request.type")).IsEqualTo("Query");
         }
     }
@@ -228,7 +228,7 @@ public sealed class RequestInterceptorsTests
         using (Assert.Multiple())
         {
             _ = await Assert.That(capturedActivity).IsNotNull();
-            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
+            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Unset);
             _ = await Assert.That(Interlocked.Read(ref counterValue)).IsGreaterThanOrEqualTo(1L);
         }
     }
@@ -291,7 +291,7 @@ public sealed class RequestInterceptorsTests
         {
             _ = await Assert.That(items).IsEquivalentTo([1, 2, 3]);
             _ = await Assert.That(capturedActivity).IsNotNull();
-            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Ok);
+            _ = await Assert.That(capturedActivity!.Status).IsEqualTo(ActivityStatusCode.Unset);
         }
     }
 

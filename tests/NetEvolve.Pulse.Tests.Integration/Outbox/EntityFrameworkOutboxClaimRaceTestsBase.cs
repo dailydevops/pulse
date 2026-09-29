@@ -50,7 +50,36 @@ public abstract class EntityFrameworkOutboxClaimRaceTestsBase(
                 async (services, token) =>
                 {
                     await PrepareDatabaseAsync(token).ConfigureAwait(false);
-                    await AddMessagesAsync(services, OutboxMessageStatus.Pending, token).ConfigureAwait(false);
+                    await AddMessagesAsync(services, OutboxMessageStatus.Pending, TimeSpan.Zero, token)
+                        .ConfigureAwait(false);
+
+                    var (first, second, overlapped) = await ClaimConcurrentlyAsync(
+                            services,
+                            outbox => outbox.GetPendingAsync(MessageCount * 2, token),
+                            null,
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    _ = await Assert.That(overlapped).IsTrue();
+                    _ = await Assert.That(first.Count).IsEqualTo(MessageCount);
+                    _ = await Assert.That(second.Select(m => m.Id).Intersect(first.Select(m => m.Id))).IsEmpty();
+                },
+                cancellationToken,
+                configureServices: DisableProcessing
+            )
+            .ConfigureAwait(false);
+
+    [Test]
+    public async Task GetPendingAsync_WhenReclaimsOverlap_ReturnsDisjointBatches(CancellationToken cancellationToken) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    await PrepareDatabaseAsync(token).ConfigureAwait(false);
+
+                    // Processing rows whose default five-minute lease expired long ago, as left by a crashed worker.
+                    await AddMessagesAsync(services, OutboxMessageStatus.Processing, TimeSpan.FromMinutes(10), token)
+                        .ConfigureAwait(false);
 
                     var (first, second, overlapped) = await ClaimConcurrentlyAsync(
                             services,
@@ -77,7 +106,8 @@ public abstract class EntityFrameworkOutboxClaimRaceTestsBase(
                 async (services, token) =>
                 {
                     await PrepareDatabaseAsync(token).ConfigureAwait(false);
-                    await AddMessagesAsync(services, OutboxMessageStatus.Failed, token).ConfigureAwait(false);
+                    await AddMessagesAsync(services, OutboxMessageStatus.Failed, TimeSpan.Zero, token)
+                        .ConfigureAwait(false);
 
                     var (first, second, overlapped) = await ClaimConcurrentlyAsync(
                             services,
@@ -102,7 +132,8 @@ public abstract class EntityFrameworkOutboxClaimRaceTestsBase(
                 async (services, token) =>
                 {
                     await PrepareDatabaseAsync(token).ConfigureAwait(false);
-                    await AddMessagesAsync(services, OutboxMessageStatus.Failed, token).ConfigureAwait(false);
+                    await AddMessagesAsync(services, OutboxMessageStatus.Failed, TimeSpan.Zero, token)
+                        .ConfigureAwait(false);
 
                     var nextRetryAt = services.GetRequiredService<TimeProvider>().GetUtcNow().AddHours(1);
 
@@ -137,12 +168,13 @@ public abstract class EntityFrameworkOutboxClaimRaceTestsBase(
     private static async Task AddMessagesAsync(
         IServiceProvider services,
         OutboxMessageStatus status,
+        TimeSpan age,
         CancellationToken cancellationToken
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var now = services.GetRequiredService<TimeProvider>().GetUtcNow();
+        var now = services.GetRequiredService<TimeProvider>().GetUtcNow() - age;
         var outbox = services.GetRequiredService<IOutboxRepository>();
 
         for (var i = 0; i < MessageCount; i++)

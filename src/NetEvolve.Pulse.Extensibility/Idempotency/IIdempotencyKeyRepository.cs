@@ -50,30 +50,34 @@ public interface IIdempotencyKeyRepository
     /// <returns>A task representing the asynchronous store operation.</returns>
     /// <remarks>
     /// Implementations MUST handle duplicate-key exceptions gracefully and treat them as
-    /// a successful (idempotent) store operation.
+    /// a successful (idempotent) store operation. This member never refreshes an expired key.
+    /// The built-in <c>IdempotencyStore</c> reserves and stores keys through <see cref="TryReserveAsync"/>;
+    /// this member remains for direct callers only.
     /// </remarks>
     Task StoreAsync(string idempotencyKey, DateTimeOffset createdAt, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Attempts to store an idempotency key only if no valid key with the same value exists yet.
+    /// Atomically reserves an idempotency key: inserts it when absent, or refreshes its creation
+    /// timestamp when the stored key has expired.
     /// </summary>
     /// <param name="idempotencyKey">The idempotency key to reserve.</param>
-    /// <param name="createdAt">The timestamp to associate with the stored key.</param>
+    /// <param name="createdAt">The timestamp to associate with the reserved key.</param>
     /// <param name="validFrom">
-    /// When set, an existing key created before this timestamp is treated as absent and may be
-    /// replaced by this reservation. When <see langword="null"/>, an existing key is never replaced.
+    /// When set, a stored key created before this timestamp is expired and is overwritten with
+    /// <paramref name="createdAt"/>. When <see langword="null"/>, keys never expire and an existing
+    /// key is never modified.
     /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
-    /// <see langword="true"/> if this call stored the key; <see langword="false"/> if a valid key already exists.
+    /// <see langword="true"/> if the key was inserted or an expired key was refreshed;
+    /// <see langword="false"/> if a key that has not expired already exists (duplicate submission).
     /// </returns>
     /// <remarks>
-    /// Implementations backed by storage that supports an atomic check-and-set (for example Redis <c>SET NX</c>)
-    /// SHOULD perform the check and the store as one atomic operation, so that of several concurrent calls
-    /// for the same key at most one returns <see langword="true"/>. Implementations that compose
-    /// <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> are not atomic.
+    /// Implementations MUST perform the check and the write as one atomic operation, so that exactly
+    /// one of several concurrent callers for the same key receives <see langword="true"/>, and MUST NOT
+    /// modify a key that has not expired.
     /// </remarks>
-    Task<bool> TryStoreAsync(
+    Task<bool> TryReserveAsync(
         string idempotencyKey,
         DateTimeOffset createdAt,
         DateTimeOffset? validFrom = null,

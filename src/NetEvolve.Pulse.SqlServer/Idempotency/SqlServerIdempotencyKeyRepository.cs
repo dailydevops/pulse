@@ -21,6 +21,7 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// <para><strong>Duplicate Key Handling:</strong></para>
 /// Uses stored procedures with MERGE statement to handle duplicate key inserts gracefully.
 /// Concurrent inserts of the same key are idempotent and will not throw exceptions.
+/// Reservations use <c>MERGE ... WITH (HOLDLOCK)</c>, which also refreshes the timestamp of an expired key.
 /// <para><strong>Performance:</strong></para>
 /// Leverages stored procedures for efficient operations and index utilization.
 /// </remarks>
@@ -45,6 +46,9 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
     /// <summary>Cached stored procedure name for inserting an idempotency key.</summary>
     private readonly string _insertSql;
 
+    /// <summary>Cached stored procedure name for atomically reserving or refreshing an idempotency key.</summary>
+    private readonly string _reserveSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerIdempotencyKeyRepository"/> class.
     /// </summary>
@@ -63,6 +67,7 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
 
         _existsSql = $"[{schema}].[usp_ExistsIdempotencyKey]";
         _insertSql = $"[{schema}].[usp_InsertIdempotencyKey]";
+        _reserveSql = $"[{schema}].[usp_ReserveIdempotencyKey]";
     }
 
     /// <inheritdoc />
@@ -100,28 +105,6 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Composes <see cref="ExistsAsync"/> and <see cref="StoreAsync"/> and is therefore not atomic (tracked in #907).
-    /// </remarks>
-    public async Task<bool> TryStoreAsync(
-        string idempotencyKey,
-        DateTimeOffset createdAt,
-        DateTimeOffset? validFrom = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (await ExistsAsync(idempotencyKey, validFrom, cancellationToken).ConfigureAwait(false))
-        {
-            return false;
-        }
-
-        await StoreAsync(idempotencyKey, createdAt, cancellationToken).ConfigureAwait(false);
-        return true;
-    }
-
-    /// <inheritdoc />
     public async Task StoreAsync(
         string idempotencyKey,
         DateTimeOffset createdAt,
@@ -153,6 +136,51 @@ internal sealed class SqlServerIdempotencyKeyRepository : IIdempotencyKeyReposit
                 {
                     // A concurrent request already stored the same key — this is idempotent and safe to ignore.
                     // The stored procedure uses MERGE which should handle this, but we catch it for safety.
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqlCommand(_reserveSql, connection) { CommandType = CommandType.StoredProcedure };
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.Add(
+                    new SqlParameter("@idempotencyKey", SqlDbType.NVarChar, 500) { Value = idempotencyKey }
+                );
+                _ = command.Parameters.Add(
+                    new SqlParameter("@createdAt", SqlDbType.DateTimeOffset) { Value = createdAt }
+                );
+                _ = command.Parameters.Add(
+                    new SqlParameter("@validFrom", SqlDbType.DateTimeOffset)
+                    {
+                        Value = validFrom.HasValue ? validFrom.Value : DBNull.Value,
+                    }
+                );
+
+                try
+                {
+                    var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                    return result is true;
+                }
+                catch (SqlException ex) when (IsDuplicateKeyException(ex))
+                {
+                    // A concurrent request inserted the same key first — it owns the reservation.
+                    return false;
                 }
             }
         }

@@ -748,6 +748,91 @@ public abstract class OutboxTestsBase(IServiceFixture databaseServiceFixture, IS
             .ConfigureAwait(false);
 
     [Test]
+    public async Task Should_GetPendingAsync_Reclaim_Expired_Processing(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+
+                    await PublishEventsAsync(mediator, 3, x => new TestEvent { Id = $"Test{x:D3}" }, token)
+                        .ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var claimed = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(claimed.Count).IsEqualTo(3);
+
+                    // The worker completes one message and stops (shutdown or crash); the rest stay in Processing.
+                    await outbox.MarkAsCompletedAsync(claimed[0].Id, token).ConfigureAwait(false);
+
+                    // Past the default processing lease of five minutes.
+                    timeProvider.Advance(TimeSpan.FromMinutes(10));
+
+                    var reclaimed = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+                    var reclaimedAgain = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert
+                            .That(reclaimed.Select(m => m.Id))
+                            .IsEquivalentTo(claimed.Skip(1).Select(m => m.Id));
+                        _ = await Assert.That(reclaimed).All(m => m.Status == OutboxMessageStatus.Processing);
+                        _ = await Assert.That(reclaimed).All(m => m.UpdatedAt == timeProvider.GetUtcNow());
+                        _ = await Assert.That(reclaimedAgain).IsEmpty();
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_GetPendingAsync_Keep_Processing_Within_Lease(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var timeProvider = new FakeTimeProvider();
+        timeProvider.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var mediator = services.GetRequiredService<IMediator>();
+
+                    await mediator.PublishAsync(new TestEvent { Id = "Test001" }, token).ConfigureAwait(false);
+
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var claimed = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(claimed.Count).IsEqualTo(1);
+
+                    // Well within the default processing lease of five minutes.
+                    timeProvider.Advance(TimeSpan.FromMinutes(1));
+
+                    var reclaimed = await outbox.GetPendingAsync(50, token).ConfigureAwait(false);
+
+                    _ = await Assert.That(reclaimed).IsEmpty();
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(timeProvider)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task Should_GetFailedForRetry_Returns_Empty_When_NoFailedMessages(
         CancellationToken cancellationToken
     ) =>

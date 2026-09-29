@@ -154,6 +154,13 @@ public class OrderService
 }
 ```
 
+### Event Handlers Sharing the DbContext
+
+When you publish through `IMediator.PublishAsync`, the outbox writes through the caller's scoped `DbContext`. That is the same instance your scoped event handlers get. The mediator always runs the outbox handler first and on its own, so it never uses the context concurrently with one of your handlers.
+
+- If two or more of your own handlers for the same event use the context, register `UseEventDispatcherFor<MyEvent, SequentialEventDispatcher>()` for that event (or `UseDefaultEventDispatcher<SequentialEventDispatcher>()` for all events). The default `ParallelEventDispatcher` runs them concurrently, which EF Core does not support.
+- Storing an outbox message calls `SaveChangesAsync` on the shared context. This also saves any changes the caller has made but not yet saved. Wrap the business changes and `PublishAsync` in one transaction (see above) if they must commit or roll back together.
+
 ## Multi-Provider Support
 
 `OutboxMessageConfigurationFactory.Create(this)` automatically picks the right column types
@@ -305,6 +312,19 @@ services.AddPulse(config => config
     .AddEntityFrameworkOutbox<ApplicationDbContext>()
 );
 ```
+
+## Processing Lease Reclaim
+
+A message claimed by `GetPendingAsync` stays in `Processing` until it is completed or failed. If a worker crashes or shuts down in between, the next pending poll reclaims the message once its `UpdatedAt` is older than `OutboxOptions.ProcessingLeaseTimeout` (default: 5 minutes, must be greater than zero).
+
+```csharp
+services.AddPulse(config => config
+    .AddEntityFrameworkOutbox<ApplicationDbContext>(options =>
+        options.ProcessingLeaseTimeout = TimeSpan.FromMinutes(10))
+);
+```
+
+Choose a value well above the longest expected dispatch. A dispatch that runs longer than the lease can be reclaimed by another poller and delivered twice.
 
 ## Requirements
 

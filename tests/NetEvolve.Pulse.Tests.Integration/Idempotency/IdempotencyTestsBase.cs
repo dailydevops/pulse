@@ -271,6 +271,158 @@ public abstract class IdempotencyTestsBase(
     }
 
     [Test]
+    public async Task Should_Reject_Duplicate_After_Expired_Reserve(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+
+                    await store.StoreAsync("re-reserve-key", token).ConfigureAwait(false);
+
+                    fakeTime.Advance(TimeSpan.FromHours(2));
+
+                    var reserved = await store.TryReserveAsync("re-reserve-key", token).ConfigureAwait(false);
+                    var duplicate = await store.TryReserveAsync("re-reserve-key", token).ConfigureAwait(false);
+                    var exists = await store.ExistsAsync("re-reserve-key", token).ConfigureAwait(false);
+
+                    _ = await Assert.That(reserved).IsTrue();
+                    _ = await Assert.That(duplicate).IsFalse();
+                    _ = await Assert.That(exists).IsTrue();
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(fakeTime)
+                        .Configure<IdempotencyKeyOptions>(o => o.TimeToLive = TimeSpan.FromHours(1))
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_Reject_Expired_Reserve_Dup_Across_Scopes(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+
+                    await store.StoreAsync("re-reserve-scope-key", token).ConfigureAwait(false);
+
+                    fakeTime.Advance(TimeSpan.FromHours(2));
+
+                    var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+
+                    var scope2 = scopeFactory.CreateAsyncScope();
+                    await using (scope2.ConfigureAwait(false))
+                    {
+                        var store2 = scope2.ServiceProvider.GetRequiredService<IIdempotencyStore>();
+                        var reserved = await store2
+                            .TryReserveAsync("re-reserve-scope-key", token)
+                            .ConfigureAwait(false);
+
+                        _ = await Assert.That(reserved).IsTrue();
+                    }
+
+                    var scope3 = scopeFactory.CreateAsyncScope();
+                    await using (scope3.ConfigureAwait(false))
+                    {
+                        var store3 = scope3.ServiceProvider.GetRequiredService<IIdempotencyStore>();
+                        var duplicate = await store3
+                            .TryReserveAsync("re-reserve-scope-key", token)
+                            .ConfigureAwait(false);
+
+                        _ = await Assert.That(duplicate).IsFalse();
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(fakeTime)
+                        .Configure<IdempotencyKeyOptions>(o => o.TimeToLive = TimeSpan.FromHours(1))
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_Report_Key_Present_After_Expired_Store(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+
+                    await store.StoreAsync("re-store-key", token).ConfigureAwait(false);
+
+                    fakeTime.Advance(TimeSpan.FromHours(2));
+
+                    await store.StoreAsync("re-store-key", token).ConfigureAwait(false);
+
+                    var result = await store.ExistsAsync("re-store-key", token).ConfigureAwait(false);
+
+                    _ = await Assert.That(result).IsTrue();
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(fakeTime)
+                        .Configure<IdempotencyKeyOptions>(o => o.TimeToLive = TimeSpan.FromHours(1))
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task Should_Keep_CreatedAt_When_Reserving_Live_Key(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.AdjustTime(TestDateTime);
+
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var store = services.GetRequiredService<IIdempotencyStore>();
+
+                    await store.StoreAsync("live-key", token).ConfigureAwait(false);
+
+                    fakeTime.Advance(TimeSpan.FromMinutes(30));
+
+                    var duplicate = await store.TryReserveAsync("live-key", token).ConfigureAwait(false);
+
+                    // 75 minutes after the original store: only a refreshed CreatedAt would keep the key alive.
+                    fakeTime.Advance(TimeSpan.FromMinutes(45));
+
+                    var exists = await store.ExistsAsync("live-key", token).ConfigureAwait(false);
+
+                    _ = await Assert.That(duplicate).IsFalse();
+                    _ = await Assert.That(exists).IsFalse();
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .AddSingleton<TimeProvider>(fakeTime)
+                        .Configure<IdempotencyKeyOptions>(o => o.TimeToLive = TimeSpan.FromHours(1))
+            )
+            .ConfigureAwait(false);
+    }
+
+    [Test]
     public async Task Should_Enforce_Idempotency_For_Void_Command_Through_Mediator(
         CancellationToken cancellationToken
     ) =>
@@ -325,10 +477,7 @@ public abstract class IdempotencyTestsBase(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(
-            !SupportsAtomicReservation,
-            "The provider does not reserve idempotency keys atomically (tracked in #907)."
-        );
+        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically.");
 
         await RunAndVerify(
                 async (services, token) =>
@@ -378,10 +527,7 @@ public abstract class IdempotencyTestsBase(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(
-            !SupportsAtomicReservation,
-            "The provider does not reserve idempotency keys atomically (tracked in #907)."
-        );
+        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically.");
 
         var counter = new InvocationCounter();
 
@@ -443,56 +589,11 @@ public abstract class IdempotencyTestsBase(
     }
 
     [Test]
-    public async Task Should_Reserve_Expired_Key_That_Is_Still_Physically_Present(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var fakeTime = new FakeTimeProvider();
-        fakeTime.AdjustTime(TestDateTime);
-
-        await RunAndVerify(
-                async (services, token) =>
-                {
-                    var store = services.GetRequiredService<IIdempotencyStore>();
-
-                    var first = await store.TryReserveAsync("expired-reserve-key", token).ConfigureAwait(false);
-
-                    // Past the logical TTL, but within the physical expiry (TTL + 1h) of providers that have one.
-                    fakeTime.Advance(TimeSpan.FromMinutes(90));
-
-                    var second = await store.TryReserveAsync("expired-reserve-key", token).ConfigureAwait(false);
-                    var third = await store.TryReserveAsync("expired-reserve-key", token).ConfigureAwait(false);
-
-                    using (Assert.Multiple())
-                    {
-                        _ = await Assert.That(first).IsTrue();
-                        _ = await Assert.That(second).IsTrue();
-
-                        // Non-atomic providers keep the old timestamp on re-reservation (tracked in #814).
-                        if (SupportsAtomicReservation)
-                        {
-                            _ = await Assert.That(third).IsFalse();
-                        }
-                    }
-                },
-                cancellationToken,
-                configureServices: services =>
-                    services
-                        .AddSingleton<TimeProvider>(fakeTime)
-                        .Configure<IdempotencyKeyOptions>(o => o.TimeToLive = TimeSpan.FromHours(1))
-            )
-            .ConfigureAwait(false);
-    }
-
-    [Test]
     public async Task Should_Reserve_Expired_Key_Once_When_Reserving_Concurrently(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Skip.When(
-            !SupportsAtomicReservation,
-            "The provider does not reserve idempotency keys atomically (tracked in #907)."
-        );
+        Skip.When(!SupportsAtomicReservation, "The provider does not reserve idempotency keys atomically.");
 
         var fakeTime = new FakeTimeProvider();
         fakeTime.AdjustTime(TestDateTime);

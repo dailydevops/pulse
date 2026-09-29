@@ -28,9 +28,7 @@ using NetEvolve.Pulse.Idempotency;
 /// keeps its key reserved, and retries with the same key are rejected with
 /// <see cref="IdempotencyConflictException"/>. Strict atomicity of the reservation itself depends on
 /// the registered <see cref="IIdempotencyKeyRepository"/> implementation of
-/// <see cref="IIdempotencyKeyRepository.TryStoreAsync"/>, to which <see cref="IdempotencyStore"/> delegates.
-/// The Redis provider reserves atomically; the SQL and Entity Framework providers compose the existence
-/// check and the store operation and leave a small window between them.
+/// <see cref="IIdempotencyKeyRepository.TryReserveAsync"/>, to which <see cref="IdempotencyStore"/> delegates.
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddIdempotency()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
 /// </remarks>

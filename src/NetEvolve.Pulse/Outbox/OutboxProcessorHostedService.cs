@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
+using NetEvolve.Pulse.Interceptors;
 using NetEvolve.Pulse.Internals;
 
 /// <summary>
@@ -36,35 +37,23 @@ using NetEvolve.Pulse.Internals;
 /// </remarks>
 internal sealed partial class OutboxProcessorHostedService : BackgroundService
 {
-#pragma warning disable IDE1006 // Naming rule violation - matching existing static metric field naming conventions
-    /// <summary>Counter tracking the total number of successfully processed outbox messages.</summary>
-    private static readonly Counter<long> ProcessedCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.outbox.processed.total",
-        "messages",
-        "Cumulative number of successfully processed outbox messages."
-    );
+    /// <summary>Counter <c>pulse.outbox.processed.total</c> of successfully processed outbox messages.</summary>
+    private readonly Counter<long> _processedCounter;
 
-    /// <summary>Counter tracking the total number of failed outbox processing attempts.</summary>
-    private static readonly Counter<long> FailedCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.outbox.failed.total",
-        "messages",
-        "Cumulative number of failed outbox processing attempts."
-    );
+    /// <summary>Counter <c>pulse.outbox.failed.total</c> of failed outbox processing attempts.</summary>
+    private readonly Counter<long> _failedCounter;
 
-    /// <summary>Counter tracking the total number of outbox messages moved to dead-letter.</summary>
-    private static readonly Counter<long> DeadLetterCounter = Defaults.Meter.CreateCounter<long>(
-        "pulse.outbox.deadletter.total",
-        "messages",
-        "Cumulative number of outbox messages moved to dead-letter."
-    );
+    /// <summary>Counter <c>pulse.outbox.deadletter.total</c> of outbox messages moved to dead-letter.</summary>
+    private readonly Counter<long> _deadLetterCounter;
 
-    /// <summary>Histogram measuring the duration of each outbox processing batch in milliseconds.</summary>
-    private static readonly Histogram<double> ProcessingDurationHistogram = Defaults.Meter.CreateHistogram<double>(
-        "pulse.outbox.processing.duration",
-        "ms",
-        "Duration of each outbox processing batch in milliseconds."
-    );
-#pragma warning restore IDE1006
+    /// <summary>
+    /// Histogram <c>pulse.outbox.processing.duration</c> of each processing batch, in milliseconds or, with
+    /// semantic convention units, in seconds.
+    /// </summary>
+    private readonly Histogram<double> _processingDurationHistogram;
+
+    /// <summary>Whether the metrics use the units of the OpenTelemetry semantic conventions.</summary>
+    private readonly bool _useSemanticConventionUnits;
 
     /// <summary>
     /// Creates the per-cycle and per-work-item scopes used to resolve the scoped
@@ -98,9 +87,10 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     private long _pendingCount;
 
     /// <summary>
-    /// Instance-scoped meter hosting the <c>pulse.outbox.pending</c> observable gauge. The gauge callback
-    /// captures this service instance, so the instrument lifetime is bound to the service lifetime by
-    /// disposing this meter in <see cref="Dispose"/> instead of publishing on the process-wide static meter.
+    /// Instance-scoped meter hosting the <c>pulse.outbox.*</c> counters, the duration histogram and the
+    /// <c>pulse.outbox.pending</c> observable gauge. The gauge callback captures this service instance, so the
+    /// instrument lifetime is bound to the service lifetime by disposing this meter in <see cref="Dispose"/>
+    /// instead of publishing on the process-wide static meter, which is never disposed.
     /// </summary>
     private readonly Meter _meter;
 
@@ -113,13 +103,15 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// <param name="options">The processor configuration options.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
     /// <param name="timeProvider">The time provider used for retry scheduling and the polling delays.</param>
+    /// <param name="telemetryOptions">The telemetry options; <see langword="null"/> keeps the legacy metric units.</param>
     public OutboxProcessorHostedService(
         IServiceScopeFactory scopeFactory,
         IMessageTransport transport,
         IHostApplicationLifetime lifetime,
         IOptions<OutboxProcessorOptions> options,
         ILogger<OutboxProcessorHostedService> logger,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        IOptions<ActivityAndMetricsOptions>? telemetryOptions = null
     )
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
@@ -136,11 +128,37 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         _logger = logger;
         _timeProvider = timeProvider;
 
+        _useSemanticConventionUnits = telemetryOptions?.Value.UseSemanticConventionUnits ?? false;
+        var messageUnit = _useSemanticConventionUnits ? "{message}" : "messages";
+
         _meter = new Meter(Defaults.Meter.Name, Defaults.Version);
+
+        _processedCounter = _meter.CreateCounter<long>(
+            "pulse.outbox.processed.total",
+            messageUnit,
+            "Cumulative number of successfully processed outbox messages."
+        );
+        _failedCounter = _meter.CreateCounter<long>(
+            "pulse.outbox.failed.total",
+            messageUnit,
+            "Cumulative number of failed outbox processing attempts."
+        );
+        _deadLetterCounter = _meter.CreateCounter<long>(
+            "pulse.outbox.deadletter.total",
+            messageUnit,
+            "Cumulative number of outbox messages moved to dead-letter."
+        );
+        _processingDurationHistogram = TelemetryUnits.CreateDurationHistogram(
+            _meter,
+            "pulse.outbox.processing.duration",
+            "each outbox processing batch",
+            _useSemanticConventionUnits
+        );
+
         _ = _meter.CreateObservableGauge(
             "pulse.outbox.pending",
             observeValue: () => Volatile.Read(ref _pendingCount),
-            unit: "messages",
+            unit: messageUnit,
             description: "Current number of pending outbox messages."
         );
     }
@@ -207,11 +225,14 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
                 var batchStartTime = Stopwatch.GetTimestamp();
                 var succeededCount = await ProcessBatchAsync(repository, stoppingToken).ConfigureAwait(false);
-                var elapsed = Stopwatch.GetElapsedTime(batchStartTime).TotalMilliseconds;
+                var elapsed = TelemetryUnits.ToDuration(
+                    Stopwatch.GetElapsedTime(batchStartTime),
+                    _useSemanticConventionUnits
+                );
 
                 try
                 {
-                    ProcessingDurationHistogram.Record(elapsed);
+                    _processingDurationHistogram.Record(elapsed);
                 }
                 catch (Exception ex)
                 {
@@ -377,7 +398,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// does not prevent processing of subsequent messages.
     /// <para><strong>Cancellation Behavior:</strong></para>
     /// Processing stops immediately when the cancellation token is triggered, leaving
-    /// remaining messages unprocessed. These messages will be re-polled and processed in subsequent cycles.
+    /// remaining messages in the <c>Processing</c> status. The repository reclaims them once
+    /// <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (or the provider's own lease option) expires,
+    /// and they are processed in a subsequent cycle.
     /// </remarks>
     /// <param name="repository">The repository resolved for this work item.</param>
     /// <param name="messages">The ordered array of outbox messages to process sequentially.</param>
@@ -440,7 +463,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
             try
             {
-                ProcessedCounter.Add(1);
+                _processedCounter.Add(1);
             }
             catch (Exception ex)
             {
@@ -464,7 +487,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
                 try
                 {
-                    DeadLetterCounter.Add(1);
+                    _deadLetterCounter.Add(1);
                 }
                 catch (Exception metricEx)
                 {
@@ -481,7 +504,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
                 try
                 {
-                    FailedCounter.Add(1);
+                    _failedCounter.Add(1);
                 }
                 catch (Exception metricEx)
                 {
@@ -555,7 +578,7 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
 
             try
             {
-                ProcessedCounter.Add(messages.Length);
+                _processedCounter.Add(messages.Length);
             }
             catch (Exception ex)
             {
@@ -626,12 +649,12 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             {
                 if (failedMessages.Length > 0)
                 {
-                    FailedCounter.Add(failedMessages.Length);
+                    _failedCounter.Add(failedMessages.Length);
                 }
 
                 if (deadLetterMessages.Length > 0)
                 {
-                    DeadLetterCounter.Add(deadLetterMessages.Length);
+                    _deadLetterCounter.Add(deadLetterMessages.Length);
                 }
             }
             catch (Exception metricEx)

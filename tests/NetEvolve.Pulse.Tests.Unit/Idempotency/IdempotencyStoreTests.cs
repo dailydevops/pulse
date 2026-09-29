@@ -19,7 +19,12 @@ public sealed class IdempotencyStoreTests
         IIdempotencyKeyRepository repository,
         IdempotencyKeyOptions? options = null,
         TimeProvider? timeProvider = null
-    ) => new(repository, Options.Create(options ?? new IdempotencyKeyOptions()), timeProvider ?? TimeProvider.System);
+    ) =>
+        new IdempotencyStore(
+            repository,
+            Options.Create(options ?? new IdempotencyKeyOptions()),
+            timeProvider ?? TimeProvider.System
+        );
 
     [Test]
     public async Task Constructor_WithNullRepository_ThrowsArgumentNullException() =>
@@ -143,6 +148,46 @@ public sealed class IdempotencyStoreTests
     }
 
     [Test]
+    public async Task TryReserveAsync_WithTtl_ReservesAtomicallyWithCutoff(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fakeTime = new FakeTimeProvider();
+        var now = fakeTime.GetUtcNow();
+        var ttl = TimeSpan.FromMinutes(10);
+
+        var repository = new TrackingIdempotencyKeyRepository();
+        var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = ttl }, fakeTime);
+
+        var result = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result).IsTrue();
+            _ = await Assert.That(repository.ReserveCount).IsEqualTo(1);
+            _ = await Assert.That(repository.CapturedCreatedAt).IsEqualTo(now);
+            _ = await Assert.That(repository.CapturedValidFrom).IsEqualTo(now - ttl);
+        }
+    }
+
+    [Test]
+    public async Task TryReserveAsync_WithoutTtl_ReservesWithoutCutoff(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var repository = new TrackingIdempotencyKeyRepository();
+        var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = null });
+
+        _ = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(repository.ReserveCount).IsEqualTo(1);
+            _ = await Assert.That(repository.CapturedValidFrom).IsNull();
+        }
+    }
+
+    [Test]
     public async Task TryReserveAsync_WithEmptyKey_ThrowsArgumentException(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -155,7 +200,7 @@ public sealed class IdempotencyStoreTests
     }
 
     [Test]
-    public async Task TryReserveAsync_WithTtl_PassesTimestampAndCutoffToRepository(CancellationToken cancellationToken)
+    public async Task StoreAsync_WithTtl_RefreshesExpiredKeyThroughReserve(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -166,48 +211,20 @@ public sealed class IdempotencyStoreTests
         var repository = new TrackingIdempotencyKeyRepository();
         var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = ttl }, fakeTime);
 
-        _ = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
+        await store.StoreAsync("test-key", cancellationToken).ConfigureAwait(false);
 
         using (Assert.Multiple())
         {
-            _ = await Assert.That(repository.CapturedCreatedAt).IsEqualTo(now);
+            _ = await Assert.That(repository.ReserveCount).IsEqualTo(1);
             _ = await Assert.That(repository.CapturedValidFrom).IsEqualTo(now - ttl);
         }
-    }
-
-    [Test]
-    public async Task TryReserveAsync_WithoutTtl_PassesNullCutoffToRepository(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var repository = new TrackingIdempotencyKeyRepository();
-        var store = CreateStore(repository, new IdempotencyKeyOptions { TimeToLive = null });
-
-        _ = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
-
-        _ = await Assert.That(repository.CapturedValidFrom).IsNull();
-    }
-
-    [Test]
-    [Arguments(true)]
-    [Arguments(false)]
-    public async Task TryReserveAsync_ReturnsRepositoryResult(bool stored, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var repository = new TrackingIdempotencyKeyRepository { TryStoreResult = stored };
-        var store = CreateStore(repository);
-
-        var result = await store.TryReserveAsync("test-key", cancellationToken).ConfigureAwait(false);
-
-        _ = await Assert.That(result).IsEqualTo(stored);
     }
 
     private sealed class TrackingIdempotencyKeyRepository : IIdempotencyKeyRepository
     {
         public DateTimeOffset? CapturedValidFrom { get; private set; } = DateTimeOffset.MaxValue;
         public DateTimeOffset CapturedCreatedAt { get; private set; }
-        public bool TryStoreResult { get; init; } = true;
+        public int ReserveCount { get; private set; }
 
         public Task<bool> ExistsAsync(
             string idempotencyKey,
@@ -233,7 +250,7 @@ public sealed class IdempotencyStoreTests
             return Task.CompletedTask;
         }
 
-        public Task<bool> TryStoreAsync(
+        public Task<bool> TryReserveAsync(
             string idempotencyKey,
             DateTimeOffset createdAt,
             DateTimeOffset? validFrom = null,
@@ -242,9 +259,10 @@ public sealed class IdempotencyStoreTests
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            ReserveCount++;
             CapturedCreatedAt = createdAt;
             CapturedValidFrom = validFrom;
-            return Task.FromResult(TryStoreResult);
+            return Task.FromResult(true);
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Outbox;
 using TUnit.Core;
@@ -19,7 +20,11 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
         {
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                TimeProvider.System
+            );
 
             var executor = typeof(EntityFrameworkOutboxRepository<TestDbContext>)
                 .GetField("_executor", BindingFlags.NonPublic | BindingFlags.Instance)!
@@ -37,7 +42,13 @@ public sealed class EntityFrameworkOutboxRepositoryTests
     [Test]
     public async Task Constructor_WithNullContext_ThrowsArgumentNullException() =>
         _ = await Assert
-            .That(() => new EntityFrameworkOutboxRepository<TestDbContext>(null!, TimeProvider.System))
+            .That(() =>
+                new EntityFrameworkOutboxRepository<TestDbContext>(
+                    null!,
+                    Options.Create(new OutboxOptions()),
+                    TimeProvider.System
+                )
+            )
             .Throws<ArgumentNullException>();
 
     [Test]
@@ -50,8 +61,56 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         await using (context.ConfigureAwait(false))
         {
             _ = await Assert
-                .That(() => new EntityFrameworkOutboxRepository<TestDbContext>(context, null!))
+                .That(() =>
+                    new EntityFrameworkOutboxRepository<TestDbContext>(
+                        context,
+                        Options.Create(new OutboxOptions()),
+                        null!
+                    )
+                )
                 .Throws<ArgumentNullException>();
+        }
+    }
+
+    [Test]
+    public async Task Constructor_WithNullOptions_ThrowsArgumentNullException()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(nameof(Constructor_WithNullOptions_ThrowsArgumentNullException))
+            .Options;
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            _ = await Assert
+                .That(() => new EntityFrameworkOutboxRepository<TestDbContext>(context, null!, TimeProvider.System))
+                .Throws<ArgumentNullException>();
+        }
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task Constructor_WithNonPositiveProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException(
+        int leaseSeconds
+    )
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(
+                nameof(Constructor_WithNonPositiveProcessingLeaseTimeout_ThrowsArgumentOutOfRangeException)
+            )
+            .Options;
+        var context = new TestDbContext(options);
+        await using (context.ConfigureAwait(false))
+        {
+            var outboxOptions = Options.Create(
+                new OutboxOptions { ProcessingLeaseTimeout = TimeSpan.FromSeconds(leaseSeconds) }
+            );
+
+            _ = await Assert
+                .That(() =>
+                    new EntityFrameworkOutboxRepository<TestDbContext>(context, outboxOptions, TimeProvider.System)
+                )
+                .Throws<ArgumentOutOfRangeException>();
         }
     }
 
@@ -64,7 +123,11 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
         {
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                TimeProvider.System
+            );
 
             _ = await Assert.That(repository).IsNotNull();
         }
@@ -81,7 +144,11 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
         {
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                TimeProvider.System
+            );
 
             _ = await Assert
                 .That(async () => await repository.AddAsync(null!, cancellationToken).ConfigureAwait(false))
@@ -100,7 +167,11 @@ public sealed class EntityFrameworkOutboxRepositoryTests
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
         {
-            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(context, TimeProvider.System);
+            using var repository = new EntityFrameworkOutboxRepository<TestDbContext>(
+                context,
+                Options.Create(new OutboxOptions()),
+                TimeProvider.System
+            );
 
             var result = await repository.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
 
