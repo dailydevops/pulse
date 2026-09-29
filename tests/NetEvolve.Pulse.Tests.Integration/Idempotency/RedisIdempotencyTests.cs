@@ -17,6 +17,8 @@ using StackExchange.Redis;
 public class RedisIdempotencyTests(IServiceFixture databaseServiceFixture, IServiceInitializer databaseInitializer)
     : IdempotencyTestsBase(databaseServiceFixture, databaseInitializer)
 {
+    protected override bool SupportsAtomicReservation => true;
+
     [Test]
     [Arguments("negative-offset-key", "2025-01-01T08:00:00.0000000-05:00")]
     [Arguments("positive-offset-key", "2025-01-01T14:30:00.0000000+02:00")]

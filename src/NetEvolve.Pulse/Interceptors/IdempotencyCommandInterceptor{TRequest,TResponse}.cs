@@ -27,9 +27,8 @@ using NetEvolve.Pulse.Idempotency;
 /// Reservation before execution provides at-most-once semantics: a command whose handler fails
 /// keeps its key reserved, and retries with the same key are rejected with
 /// <see cref="IdempotencyConflictException"/>. Strict atomicity of the reservation itself depends on
-/// the registered <see cref="IIdempotencyStore"/> implementation of
-/// <see cref="IIdempotencyStore.TryReserveAsync"/>; the non-atomic default leaves a small window
-/// between the existence check and the store operation.
+/// the registered <see cref="IIdempotencyKeyRepository"/> implementation of
+/// <see cref="IIdempotencyKeyRepository.TryReserveAsync"/>, to which <see cref="IdempotencyStore"/> delegates.
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddIdempotency()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
 /// </remarks>
