@@ -135,6 +135,28 @@ public record GetOrderQuery(Guid Id) : IQuery<OrderDto>;
 public record OrderDto(Guid Id, string Sku, string Status);
 ```
 
+### HTTP Stream Queries
+
+`MapStreamQuery<TQuery, TResponse>` registers a `GET` endpoint that streams the items of `IMediator.StreamQueryAsync` as Server-Sent Events (`text/event-stream`, the default) or as NDJSON (`application/x-ndjson`, when the `Accept` header weighs it higher):
+
+```csharp
+app.MapStreamQuery<GetOrdersStreamQuery, OrderDto>("/orders/stream");
+```
+
+Every item is serialized with the application's HTTP JSON options (`ConfigureHttpJsonOptions`), the same contract as `MapQuery` and `MapCommand`, on every target framework. Indentation is always disabled, so each item is one single-line JSON text, and `string` items are quoted JSON strings:
+
+```text
+# application/x-ndjson
+{"id":"0b6f…","sku":"A-1","status":"Open"}
+
+# text/event-stream
+data: {"id":"0b6f…","sku":"A-1","status":"Open"}
+```
+
+Under NativeAOT, add a source-generated context for `TResponse` to the HTTP JSON options, for example `builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default))`.
+
+> **Breaking change ([#846](https://github.com/dailydevops/pulse/issues/846)):** NDJSON items, and SSE items on .NET 8 and .NET 9, previously used `IPayloadSerializer` and were PascalCase. They now follow the HTTP JSON options (camelCase by default). SSE `string` items on .NET 10 were previously written as raw text and are now quoted JSON strings. A custom `IPayloadSerializer` no longer affects `MapStreamQuery`. See the [decision record](https://github.com/dailydevops/pulse/blob/main/decisions/2026-09-29-stream-query-http-json-contract.md).
+
 ### SignalR Stream Queries
 
 `MapStreamQueryHub<TQuery, TResponse>` maps a `PulseStreamHub<TQuery, TResponse>` to a path. Clients call the `StreamAsync` hub method as a SignalR server-to-client stream. The hub runs `IMediator.StreamQueryAsync` and sends each item to the caller as a stream item. SignalR is part of the ASP.NET Core shared framework, so you don't need an extra package on the server. You must register SignalR with `AddSignalR()` first, otherwise `MapStreamQueryHub` throws `InvalidOperationException`:
