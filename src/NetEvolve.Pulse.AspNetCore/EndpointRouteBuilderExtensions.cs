@@ -17,6 +17,10 @@ using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 using System.Runtime.CompilerServices;
 #endif
 
+#if !NET10_0_OR_GREATER
+using Microsoft.AspNetCore.Http.Features;
+#endif
+
 /// <summary>
 /// Provides extension methods for <see cref="IEndpointRouteBuilder"/> to map Pulse mediator
 /// commands and queries directly to Minimal API HTTP endpoints.
@@ -280,6 +284,13 @@ public static class EndpointRouteBuilderExtensions
                 // the same single-line JSON text per event.
                 return TypedResults.ServerSentEvents(SerializeItemsAsync(items, jsonOptions, cancellationToken));
 #else
+                // Mirror ServerSentEventsResult on .NET 10: no caching, no compression, no buffering.
+                var response = request.HttpContext.Response;
+                response.Headers.CacheControl = "no-cache,no-store";
+                response.Headers.Pragma = "no-cache";
+                response.Headers.ContentEncoding = "identity";
+                request.HttpContext.Features.GetRequiredFeature<IHttpResponseBodyFeature>().DisableBuffering();
+
                 return TypedResults.Stream(
                     ExecuteStreamReadServerSentEvents(items, jsonOptions, cancellationToken),
                     contentType: SseContentType
