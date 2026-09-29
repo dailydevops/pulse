@@ -62,15 +62,31 @@ IF EXISTS (
 )
 BEGIN
     SET XACT_ABORT ON;
-    BEGIN TRANSACTION;
 
-    ALTER TABLE [$(SchemaName)].[$(TableName)] DROP CONSTRAINT [PK_$(TableName)];
-    ALTER TABLE [$(SchemaName)].[$(TableName)]
-        ALTER COLUMN [IdempotencyKey] NVARCHAR(450) COLLATE Latin1_General_100_BIN2 NOT NULL;
-    ALTER TABLE [$(SchemaName)].[$(TableName)]
-        ADD CONSTRAINT [PK_$(TableName)] PRIMARY KEY CLUSTERED ([IdempotencyKey]);
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
-    COMMIT TRANSACTION;
+        ALTER TABLE [$(SchemaName)].[$(TableName)] DROP CONSTRAINT [PK_$(TableName)];
+        ALTER TABLE [$(SchemaName)].[$(TableName)]
+            ALTER COLUMN [IdempotencyKey] NVARCHAR(450) COLLATE Latin1_General_100_BIN2 NOT NULL;
+        ALTER TABLE [$(SchemaName)].[$(TableName)]
+            ADD CONSTRAINT [PK_$(TableName)] PRIMARY KEY CLUSTERED ([IdempotencyKey]);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SET XACT_ABORT OFF;
+
+        DECLARE @upgradeError NVARCHAR(2048) =
+            N'Upgrading [$(SchemaName)].[$(TableName)].[IdempotencyKey] to NVARCHAR(450) COLLATE Latin1_General_100_BIN2 failed: '
+            + ERROR_MESSAGE();
+        THROW 50001, @upgradeError, 1;
+    END CATCH
+
+    SET XACT_ABORT OFF;
 END
 GO
 
