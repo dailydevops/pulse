@@ -26,6 +26,8 @@ public static class RabbitMqExtensions
     /// <c>IConnection</c> must be registered in the DI container before calling this method.
     /// The RabbitMQ exchange specified in <see cref="RabbitMqTransportOptions.ExchangeName"/> must already exist.
     /// This transport does not auto-declare exchanges or queues.
+    /// Messages are published with publisher confirms, as persistent and with <c>mandatory: true</c>,
+    /// so a missing exchange or a routing key without a matching binding makes the send fail.
     /// <para><strong>Note:</strong></para>
     /// Replaces any previously registered <see cref="IMessageTransport"/>.
     /// </remarks>

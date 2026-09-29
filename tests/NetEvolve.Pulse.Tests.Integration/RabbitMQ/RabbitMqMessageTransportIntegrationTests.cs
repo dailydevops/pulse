@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Tests.Integration.RabbitMQ;
 using System.Text;
 using global::RabbitMQ.Client;
 using global::RabbitMQ.Client.Events;
+using global::RabbitMQ.Client.Exceptions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -24,6 +25,11 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     : IAsyncDisposable
 {
     private const string ExchangeName = "pulse.integration.test";
+
+    /// <summary>A direct exchange that never has any binding, so every publish to it is unroutable.</summary>
+    private const string UnroutedExchangeName = "pulse.integration.unrouted";
+
+    private static readonly TimeSpan PublishTimeout = TimeSpan.FromSeconds(15);
 
     private IConnection? _connection;
     private IChannel? _adminChannel;
@@ -114,6 +120,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
             _ = await Assert.That(body).IsEqualTo(outboxMessage.Payload);
             _ = await Assert.That(received.BasicProperties.MessageId).IsEqualTo(outboxMessage.Id.ToString());
             _ = await Assert.That(received.BasicProperties.ContentType).IsEqualTo("application/json");
+            _ = await Assert.That(received.BasicProperties.Persistent).IsTrue();
+            _ = await Assert.That(received.BasicProperties.DeliveryMode).IsEqualTo(DeliveryModes.Persistent);
         }
     }
 
@@ -155,11 +163,39 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     }
 
     [Test]
+    public async Task SendBatchAsync_With_more_messages_than_default_confirm_limiter_publishes_all(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // More than the 256 permits plus queue slots of the client's default ThrottlingRateLimiter(128).
+        const int messageCount = 300;
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var queueName = await BindQueueAsync(adminChannel, cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter);
+        var messages = Enumerable.Range(0, messageCount).Select(_ => CreateOutboxMessage()).ToList();
+
+        await transport
+            .SendBatchAsync(messages, cancellationToken)
+            .WaitAsync(PublishTimeout, cancellationToken)
+            .ConfigureAwait(false);
+
+        var receivedMessages = await ConsumeManyMessagesAsync(adminChannel, queueName, messageCount, cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(receivedMessages.Count).IsEqualTo(messageCount);
+    }
+
+    [Test]
     public async Task IsHealthyAsync_When_connection_open_returns_true(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        _ = await BindQueueAsync(adminChannel, cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
         using var transport = CreateTransport(adapter);
@@ -197,7 +233,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        _ = await BindQueueAsync(adminChannel, cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
         var transport = CreateTransport(adapter);
@@ -217,7 +254,8 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        _ = await BindQueueAsync(adminChannel, cancellationToken).ConfigureAwait(false);
 
         var adapter = new RabbitMqConnectionAdapter(connection);
         var transport = CreateTransport(adapter);
@@ -312,6 +350,95 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     }
 
     [Test]
+    public async Task SendAsync_When_exchange_missing_throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter, exchangeName: $"pulse.integration.missing.{Guid.NewGuid():N}");
+
+        var exception = await Assert.ThrowsAsync<Exception>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken).WaitAsync(PublishTimeout, cancellationToken)
+        );
+
+        _ = await Assert.That(exception is TimeoutException).IsFalse();
+    }
+
+    [Test]
+    public async Task SendAsync_When_no_binding_matches_throws_PublishException(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var unroutedExchange = await DeclareUnroutedExchangeAsync(cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter, exchangeName: unroutedExchange);
+
+        var exception = await Assert.ThrowsAsync<PublishException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken).WaitAsync(PublishTimeout, cancellationToken)
+        );
+
+        _ = await Assert.That(exception!.IsReturn).IsTrue();
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_no_binding_matches_throws_PublishException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (connection, _) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var unroutedExchange = await DeclareUnroutedExchangeAsync(cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var transport = CreateTransport(adapter, exchangeName: unroutedExchange);
+        var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToList();
+
+        var exception = await Assert.ThrowsAsync<PublishException>(() =>
+            transport.SendBatchAsync(messages, cancellationToken).WaitAsync(PublishTimeout, cancellationToken)
+        );
+
+        _ = await Assert.That(exception!.IsReturn).IsTrue();
+    }
+
+    [Test]
+    public async Task SendAsync_After_exchange_missing_failure_succeeds_on_valid_exchange(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (connection, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        var queueName = await BindQueueAsync(adminChannel, cancellationToken).ConfigureAwait(false);
+
+        var adapter = new RabbitMqConnectionAdapter(connection);
+        using var failingTransport = CreateTransport(
+            adapter,
+            exchangeName: $"pulse.integration.missing.{Guid.NewGuid():N}"
+        );
+        using var transport = CreateTransport(adapter);
+
+        _ = await Assert.ThrowsAsync<Exception>(() =>
+            failingTransport
+                .SendAsync(CreateOutboxMessage(), cancellationToken)
+                .WaitAsync(PublishTimeout, cancellationToken)
+        );
+
+        await transport
+            .SendAsync(CreateOutboxMessage(), cancellationToken)
+            .WaitAsync(PublishTimeout, cancellationToken)
+            .ConfigureAwait(false);
+
+        var received = await ConsumeOneMessageAsync(adminChannel, queueName, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(received).IsNotNull();
+    }
+
+    [Test]
     public async Task UseRabbitMqTransport_Registers_transport_and_connection_adapter(
         CancellationToken cancellationToken
     )
@@ -366,15 +493,51 @@ public sealed class RabbitMqMessageTransportIntegrationTests(RabbitMqContainerFi
     // The channel pool is created lazily and shared across the tests in this fixture (they
     // all operate against the same underlying connection) and is disposed together with the
     // connection in DisposeAsync.
-    private RabbitMqMessageTransport CreateTransport(IRabbitMqConnectionAdapter adapter)
+    private RabbitMqMessageTransport CreateTransport(
+        IRabbitMqConnectionAdapter adapter,
+        string exchangeName = ExchangeName
+    )
     {
         _channelPool ??= new RabbitMqChannelPool(adapter, new RabbitMqTransportOptions().MaxChannelPoolSize);
 
         return new RabbitMqMessageTransport(
             _channelPool,
             new SimpleTopicNameResolver(),
-            Options.Create(new RabbitMqTransportOptions { ExchangeName = ExchangeName })
+            Options.Create(new RabbitMqTransportOptions { ExchangeName = exchangeName })
         );
+    }
+
+    private static async Task<string> BindQueueAsync(IChannel adminChannel, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var queue = await adminChannel.QueueDeclareAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        await adminChannel
+            .QueueBindAsync(
+                queue.QueueName,
+                ExchangeName,
+                routingKey: string.Empty,
+                cancellationToken: cancellationToken
+            )
+            .ConfigureAwait(false);
+        return queue.QueueName;
+    }
+
+    private async Task<string> DeclareUnroutedExchangeAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (_, adminChannel) = await GetConnectionAndChannelAsync(cancellationToken).ConfigureAwait(false);
+        await adminChannel
+            .ExchangeDeclareAsync(
+                UnroutedExchangeName,
+                ExchangeType.Direct,
+                durable: false,
+                autoDelete: false,
+                cancellationToken: cancellationToken
+            )
+            .ConfigureAwait(false);
+        return UnroutedExchangeName;
     }
 
     private static OutboxMessage CreateOutboxMessage() =>

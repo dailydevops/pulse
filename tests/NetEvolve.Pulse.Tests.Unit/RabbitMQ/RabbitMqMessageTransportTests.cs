@@ -98,9 +98,11 @@ public sealed class RabbitMqMessageTransportTests
         {
             _ = await Assert.That(publishCall.Exchange).IsEqualTo("test-exchange");
             _ = await Assert.That(publishCall.RoutingKey).IsEqualTo(outboxMessage.EventType.Name);
-            _ = await Assert.That(publishCall.Mandatory).IsFalse();
+            _ = await Assert.That(publishCall.Mandatory).IsTrue();
 
             var props = publishCall.Properties;
+            _ = await Assert.That(props.Persistent).IsTrue();
+            _ = await Assert.That(props.DeliveryMode).IsEqualTo(DeliveryModes.Persistent);
             _ = await Assert.That(props.MessageId).IsEqualTo(outboxMessage.Id.ToString());
             _ = await Assert.That(props.CorrelationId).IsEqualTo(outboxMessage.CorrelationId);
             _ = await Assert.That(props.ContentType).IsEqualTo("application/json");
@@ -152,9 +154,7 @@ public sealed class RabbitMqMessageTransportTests
     }
 
     [Test]
-    public async Task SendBatchAsync_Rents_single_channel_and_publishes_sequentially(
-        CancellationToken cancellationToken
-    )
+    public async Task SendBatchAsync_Rents_single_channel_for_whole_batch(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -191,6 +191,79 @@ public sealed class RabbitMqMessageTransportTests
 
         _ = await Assert.That(channelPool.RentCallCount).IsEqualTo(1);
         _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SendBatchAsync_Starts_all_publishes_before_awaiting_confirmations(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var releaseFirstConfirm = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var channelPool = new FakeChannelPool
+        {
+            NextRentedChannelPublishBehavior = index =>
+                index == 0 ? new ValueTask(releaseFirstConfirm.Task) : ValueTask.CompletedTask,
+        };
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(channelPool, topicNameResolver);
+        var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
+
+        var batch = transport.SendBatchAsync(messages, cancellationToken);
+        var channel = channelPool.RentedChannels.Single();
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
+            _ = await Assert.That(batch.IsCompleted).IsFalse();
+            _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(0);
+        }
+
+        releaseFirstConfirm.SetResult();
+        await batch.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_one_message_fails_throws_after_all_publishes_settled(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var releaseFirstConfirm = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var channelPool = new FakeChannelPool
+        {
+            NextRentedChannelPublishBehavior = index =>
+                index switch
+                {
+                    0 => new ValueTask(releaseFirstConfirm.Task),
+                    1 => ValueTask.FromException(new InvalidOperationException("nack")),
+                    _ => ValueTask.CompletedTask,
+                },
+        };
+        var topicNameResolver = new FakeTopicNameResolver();
+        using var transport = CreateTransport(channelPool, topicNameResolver);
+        var messages = Enumerable.Range(0, 3).Select(_ => CreateOutboxMessage()).ToArray();
+
+        var batch = transport.SendBatchAsync(messages, cancellationToken);
+
+        _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(0);
+
+        releaseFirstConfirm.SetResult();
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            batch.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken)
+        );
+
+        var channel = channelPool.RentedChannels.Single();
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception!.Message).IsEqualTo("nack");
+            _ = await Assert.That(channel.PublishCallCount).IsEqualTo(3);
+            _ = await Assert.That(channelPool.ReturnCallCount).IsEqualTo(1);
+        }
     }
 
     [Test]
@@ -380,7 +453,8 @@ public sealed class RabbitMqMessageTransportTests
         foreach (var publishCall in channel.PublishCalls)
         {
             _ = await Assert.That(publishCall.Exchange).IsEqualTo("test-exchange");
-            _ = await Assert.That(publishCall.Mandatory).IsFalse();
+            _ = await Assert.That(publishCall.Mandatory).IsTrue();
+            _ = await Assert.That(publishCall.Properties.Persistent).IsTrue();
             _ = await Assert.That(publishCall.Properties.ContentType).IsEqualTo("application/json");
         }
     }
@@ -495,6 +569,8 @@ public sealed class RabbitMqMessageTransportTests
 
         public bool NextRentedChannelThrowsOnPublish { get; set; }
 
+        public Func<int, ValueTask>? NextRentedChannelPublishBehavior { get; set; }
+
         public List<FakeChannelAdapter> RentedChannels { get; } = [];
 
         public ValueTask<IRabbitMqChannelAdapter> RentAsync(CancellationToken cancellationToken)
@@ -502,7 +578,11 @@ public sealed class RabbitMqMessageTransportTests
             cancellationToken.ThrowIfCancellationRequested();
 
             RentCallCount++;
-            var channel = new FakeChannelAdapter { ThrowsOnPublish = NextRentedChannelThrowsOnPublish };
+            var channel = new FakeChannelAdapter
+            {
+                ThrowsOnPublish = NextRentedChannelThrowsOnPublish,
+                PublishBehavior = NextRentedChannelPublishBehavior,
+            };
             RentedChannels.Add(channel);
             return ValueTask.FromResult<IRabbitMqChannelAdapter>(channel);
         }
@@ -528,6 +608,8 @@ public sealed class RabbitMqMessageTransportTests
         public bool IsOpen { get; set; } = true;
 
         public bool ThrowsOnPublish { get; set; }
+
+        public Func<int, ValueTask>? PublishBehavior { get; set; }
 
         public int PublishCallCount { get; private set; }
 
@@ -561,7 +643,7 @@ public sealed class RabbitMqMessageTransportTests
                     Body = body,
                 }
             );
-            return ValueTask.CompletedTask;
+            return PublishBehavior?.Invoke(PublishCallCount - 1) ?? ValueTask.CompletedTask;
         }
 
         private static BasicProperties ExtractProperties<TProperties>(TProperties props)
@@ -573,6 +655,7 @@ public sealed class RabbitMqMessageTransportTests
                 CorrelationId = props.CorrelationId,
                 ContentType = props.ContentType,
                 Timestamp = props.Timestamp,
+                DeliveryMode = props.DeliveryMode,
             };
 
             if (props.Headers is not null)

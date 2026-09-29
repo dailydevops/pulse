@@ -11,7 +11,8 @@ RabbitMQ transport for the Pulse outbox pattern. Publishes outbox messages direc
 - **Direct Publishing**: Send messages to RabbitMQ exchanges without additional infrastructure
 - **Flexible Routing**: Automatic routing key resolution based on event types via `ITopicNameResolver`
 - **Health Checks**: Verify connection and channel state for readiness probing
-- **Batch Support**: Efficient batch publishing using parallel execution (default implementation)
+- **Delivery Guarantees**: Publisher confirms, persistent delivery mode and mandatory routing on every publish
+- **Batch Support**: Batches publish on one channel and await their confirmations together
 - **Connection Management**: Singleton connection with lazy channel initialization
 
 ## Installation
@@ -180,6 +181,25 @@ services.AddPulse(config => config
     }));
 ```
 
+## Delivery Guarantees
+
+A publish counts as successful only after the broker has confirmed it. The outbox marks a message `Completed` only then. Otherwise `SendAsync` / `SendBatchAsync` throws and the message stays pending for retry.
+
+- **Publisher confirms**: every channel is created with `CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true)`. `BasicPublishAsync` waits for the broker's `basic.ack` and throws `PublishException` on a `basic.nack` or `basic.return`. See [Consumer Acknowledgements and Publisher Confirms](https://www.rabbitmq.com/docs/confirms).
+- **Persistent messages**: every message is published with delivery mode 2 (`Persistent = true`). In durable queues it survives a broker restart; the broker confirms it only after writing it to disk.
+- **Mandatory routing**: every message is published with `mandatory: true`. If the exchange cannot route a message to any queue, the publish fails instead of the broker dropping the message.
+- **Missing exchange**: the broker closes the channel with `404 NOT_FOUND`, and the pending publish fails. The closed channel is discarded instead of being returned to the pool.
+
+Trade-offs:
+
+- Each `SendAsync` waits one broker round trip for its confirmation. `SendBatchAsync` starts all publishes of a batch before awaiting them, so a batch pays that latency roughly once.
+- A routing key that matches no binding now fails. The message is retried and eventually dead-lettered by the outbox. Bind every published event type to a queue, or configure an [alternate exchange](https://www.rabbitmq.com/docs/ae) as a catch-all.
+- With batch sending enabled, a failed batch is retried as a whole. Every other message of the batch has already been published, so all confirmed messages are delivered again on each retry, up to the retry limit. One unroutable message is enough to trigger this. Consumers must be idempotent; de-duplicate on `MessageId`, which is the outbox message id.
+- No outstanding-confirms rate limiter is configured on the channels, so `SendBatchAsync` keeps every message of a batch in flight at once. The number of in-flight publishes is bounded by `OutboxProcessorOptions.BatchSize`.
+- With confirmation tracking on, RabbitMQ.Client adds the `x-dotnet-pub-seq-no` header to every message. Consumers see this header.
+
+These settings are always on and cannot be configured.
+
 ## Exchange Setup
 
 > [!IMPORTANT]
@@ -280,7 +300,7 @@ Register `IConnection` as a singleton in your DI container. The RabbitMQ client 
 
 ### Channel Management
 
-Channels are created on demand and reused for subsequent sends. If a channel becomes closed, a new one is automatically created on the next send operation.
+Channels are rented from a pool of up to `MaxChannelPoolSize` channels and reused for subsequent sends. If a channel is closed, for example by the broker after a failed publish, it is discarded and a new one is created on the next send.
 
 ## Requirements
 
