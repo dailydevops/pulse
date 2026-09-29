@@ -26,7 +26,7 @@ The `NetEvolve.Pulse.PostgreSql` schema scripts are psql scripts. They run uncha
 
 ## Context
 
-The scripts wrote `":schema_name".":table_name"` inside quoted identifiers and inside `$$` function bodies. psql does not interpolate variables in quoted identifiers or literals, so the documented `psql -f` run created an empty schema and a list of errors (#852). A plain `\set schema_name 'pulse'` also overrode any `-v schema_name=...`. The integration tests did not notice, because they removed the `\set` lines and replaced the placeholders with `string.Replace`. The outbox key and index names also left out the table name, so a second outbox table in the same schema collided.
+The scripts wrote `":schema_name".":table_name"` inside quoted identifiers and inside `$$` function bodies. psql does not interpolate variables in quoted identifiers or literals, so the documented `psql -f` run created an empty schema and a list of errors (#852). A plain `\set schema_name 'pulse'` also overrode any `-v schema_name=...`. The integration tests did not notice, because they removed the `\set` lines and replaced the placeholders with `string.Replace`. The outbox key and index names also left out the table name, so a second table with the same schema name collided on its key and index names.
 
 ## Decision
 
@@ -34,6 +34,7 @@ The scripts wrote `":schema_name".":table_name"` inside quoted identifiers and i
 * `schema_name` and `table_name` default through `\if :{?var}`, so `-v` wins.
 * Plain DDL uses `:"schema_name"` and `:"table_name"`, which psql quotes as identifiers. Quoting also keeps a mixed-case schema name.
 * Key and index names are built with `\set` concatenation as `PK_<schema>_<table>` and `IX_<schema>_<table>_<columns>`.
+* The scripts raise an error before creating any object when a key or index name exceeds 63 bytes.
 * Each function is created by `format(...)` with `%I` and executed by `\gexec`, because psql cannot reach into `$$` bodies.
 * `OutboxMessage.sql` renames the `PK_<schema>` and `IX_<schema>_Status_*` names of earlier deployments before `CREATE INDEX IF NOT EXISTS`, so re-running it does not add duplicate indexes.
 * Integration tests execute the scripts with the psql binary inside the PostgreSQL Testcontainer.
@@ -43,7 +44,8 @@ The scripts wrote `":schema_name".":table_name"` inside quoted identifiers and i
 * The documented psql command works, including custom and mixed-case schema names.
 * pgAdmin, DBeaver and ADO.NET runners cannot execute the scripts unchanged. The README no longer offers them.
 * Function bodies sit inside `format()` literals, so a literal `%` in a body must be escaped as `%%`.
-* Identifiers longer than 63 bytes are truncated by PostgreSQL. Long schema and table names can therefore produce truncated key and index names.
+* PostgreSQL truncates identifiers to 63 bytes. Truncated index names could collide, and `CREATE INDEX IF NOT EXISTS` would skip the second index silently, so the scripts reject schema and table names whose derived key or index names are longer. Deployments with such long names need shorter names.
+* Functions are created per schema and bound to the last `table_name` the script ran with, so each outbox or idempotency table still needs its own schema. `AuditEntry.sql` and `CommandDeadLetter.sql` create no functions, so their tables can share a schema.
 
 ## Alternatives Considered
 

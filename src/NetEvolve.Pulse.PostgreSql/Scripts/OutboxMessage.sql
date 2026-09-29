@@ -31,7 +31,8 @@
     \set table_name OutboxMessage
 \endif
 
--- Key and index names include schema and table, so several tables can share one schema.
+-- Key and index names include schema and table. The functions below are named per schema only,
+-- so each table created by this script needs its own schema.
 \set pk_name 'PK_' :schema_name '_' :table_name
 \set ix_Status_CreatedAt 'IX_' :schema_name '_' :table_name '_Status_CreatedAt'
 \set ix_Status_ProcessedAt 'IX_' :schema_name '_' :table_name '_Status_ProcessedAt'
