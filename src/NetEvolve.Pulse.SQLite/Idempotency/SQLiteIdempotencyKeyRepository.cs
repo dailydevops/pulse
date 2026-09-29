@@ -19,6 +19,7 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 /// <para><strong>Duplicate Key Handling:</strong></para>
 /// Uses <c>INSERT OR IGNORE</c> to handle duplicate key inserts gracefully.
 /// Concurrent inserts of the same key are idempotent and will not throw exceptions.
+/// Reservations use <c>ON CONFLICT ... DO UPDATE ... WHERE</c>, which also refreshes the timestamp of an expired key.
 /// <para><strong>ISO-8601 Timestamps:</strong></para>
 /// Stores <see cref="DateTimeOffset"/> values as ISO-8601 text strings, using SQLite's
 /// native text affinity for reliable lexicographic ordering and TTL-based queries.
@@ -53,6 +54,9 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
     /// <summary>Cached SQL statement for inserting an idempotency key.</summary>
     private readonly string _insertSql;
 
+    /// <summary>Cached SQL statement for atomically reserving or refreshing an idempotency key.</summary>
+    private readonly string _reserveSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SQLiteIdempotencyKeyRepository"/> class.
     /// </summary>
@@ -85,6 +89,15 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
             INSERT OR IGNORE INTO {table}
             ("{IdempotencyKeySchema.Columns.IdempotencyKey}", "{IdempotencyKeySchema.Columns.CreatedAt}")
             VALUES (@key, @createdAt);
+            """;
+
+        _reserveSql = $"""
+            INSERT INTO {table}
+            ("{IdempotencyKeySchema.Columns.IdempotencyKey}", "{IdempotencyKeySchema.Columns.CreatedAt}")
+            VALUES (@key, @createdAt)
+            ON CONFLICT ("{IdempotencyKeySchema.Columns.IdempotencyKey}") DO UPDATE
+            SET "{IdempotencyKeySchema.Columns.CreatedAt}" = excluded."{IdempotencyKeySchema.Columns.CreatedAt}"
+            WHERE @validFrom IS NOT NULL AND {table}."{IdempotencyKeySchema.Columns.CreatedAt}" < @validFrom;
             """;
     }
 
@@ -140,6 +153,36 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
                 _ = command.Parameters.AddWithValue("@createdAt", createdAt.ToString("O"));
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new SqliteCommand(_reserveSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("@key", idempotencyKey);
+                _ = command.Parameters.AddWithValue("@createdAt", createdAt.ToString("O"));
+                _ = command.Parameters.AddWithValue(
+                    "@validFrom",
+                    validFrom.HasValue ? validFrom.Value.ToString("O") : DBNull.Value
+                );
+
+                return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
             }
         }
     }

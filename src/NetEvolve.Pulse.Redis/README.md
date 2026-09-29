@@ -4,11 +4,12 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/NetEvolve.Pulse.Redis.svg)](https://www.nuget.org/packages/NetEvolve.Pulse.Redis/)
 [![License](https://img.shields.io/github/license/dailydevops/pulse.svg)](https://github.com/dailydevops/pulse/blob/main/LICENSE)
 
-Redis idempotency provider for Pulse using `StackExchange.Redis`. Implements `IIdempotencyKeyRepository` with atomic `SET NX` operations (with expiry) for high-throughput, distributed idempotency enforcement without read-before-write round-trips.
+Redis idempotency provider for Pulse using `StackExchange.Redis`. Implements `IIdempotencyKeyRepository` with atomic single round-trip operations for high-throughput, distributed idempotency enforcement: `SET NX` when no `TimeToLive` is set, and a server-side Lua script that also refreshes expired keys when a `TimeToLive` is set.
 
 ## Features
 
-- Atomic `SET key value NX` with expiry — single round-trip, no race conditions
+- Without a `TimeToLive`: atomic `SET key value NX` in a single round-trip
+- With a `TimeToLive`: one atomic Lua script (`EVAL`) that reserves an absent key, or refreshes an expired key and resets its `PX` expiry
 - Keys namespaced as `{Schema}:{TableName}:{idempotencyKey}` (default `pulse:IdempotencyKey:{idempotencyKey}`)
 - Logical TTL evaluated through `TimeProvider`, plus a physical Redis expiry for automatic cleanup
 - Startup validation via `ValidateOnStart()`
@@ -74,4 +75,8 @@ No configuration section is bound automatically. To use `appsettings.json`, bind
 | `TimeToLive` | `null` | Logical expiry. When `null`, keys never expire logically. When set, it must be greater than zero and at most `TimeSpan.MaxValue` minus one hour (the physical expiry adds one hour). |
 
 The physical Redis expiry of each key is `TimeToLive` plus one hour. When `TimeToLive` is `null`, keys are stored without a Redis expiry. They are only removed if the server's `maxmemory-policy` evicts non-volatile keys (`allkeys-*`), and doing so breaks duplicate detection. Under `volatile-*` or `noeviction` policies the key space grows until the server runs out of memory. Set a `TimeToLive` if the key space must stay bounded.
+
+When `TimeToLive` is set, reservation runs a Lua script. The Redis user must be allowed to run scripting commands (`EVAL` and `EVALSHA`, for example through the ACL category `+@scripting`). Managed tiers or ACLs that block scripting make reservation fail once a `TimeToLive` is configured.
+
+The script compares stored timestamps as UTC round-trip text. The provider always writes UTC values. A value with a non-UTC offset, written by an earlier version through a direct `IIdempotencyKeyRepository.StoreAsync` call, is treated as present until its physical Redis expiry removes it. A value stored while `TimeToLive` was `null` has no physical expiry, so delete such keys manually if they must become reservable again.
 Invalid options cause an `OptionsValidationException` at startup or on first resolution of the options.

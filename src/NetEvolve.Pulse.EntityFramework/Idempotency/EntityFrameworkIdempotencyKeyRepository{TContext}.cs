@@ -67,11 +67,86 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
 
+        _ = await TryInsertAsync(idempotencyKey, createdAt, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// An expired key is deleted and then inserted again instead of being updated in place, because
+    /// the Oracle MySQL provider cannot bind converted <see cref="DateTimeOffset"/> values in
+    /// <c>ExecuteUpdateAsync</c> setters. Both steps are safe under concurrency: only one caller deletes
+    /// the expired row, and the primary key lets only one caller insert the new one.
+    /// </remarks>
+    public async Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        if (validFrom.HasValue)
+        {
+            await DeleteExpiredAsync(idempotencyKey, validFrom.Value, cancellationToken).ConfigureAwait(false);
+        }
+
+        return await TryInsertAsync(idempotencyKey, createdAt, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Deletes the stored key when it was created before <paramref name="validFrom"/>.
+    /// </summary>
+    private async Task DeleteExpiredAsync(
+        string idempotencyKey,
+        DateTimeOffset validFrom,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var tracked = _context.IdempotencyKeys.Local.FirstOrDefault(k => k.Key == idempotencyKey);
+        if (tracked is not null && tracked.CreatedAt < validFrom)
+        {
+            _context.Entry(tracked).State = EntityState.Detached;
+        }
+
+        var expired = _context.IdempotencyKeys.Where(k => k.Key == idempotencyKey && k.CreatedAt < validFrom);
+
+        if (_context.Database.IsRelational())
+        {
+            _ = await expired.ExecuteDeleteAsync(cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        // Non-relational providers (e.g. InMemory) do not support ExecuteDeleteAsync.
+        var entry = await expired.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        if (entry is not null)
+        {
+            _ = _context.IdempotencyKeys.Remove(entry);
+            _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Inserts the key unless it already exists.
+    /// </summary>
+    /// <returns><see langword="true"/> if the key was inserted; <see langword="false"/> if it already existed.</returns>
+    private async Task<bool> TryInsertAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Check the local change tracker first to avoid a duplicate-tracking exception
         // from EF Core when the same key is stored twice within the same DbContext scope.
         if (_context.IdempotencyKeys.Local.Any(k => k.Key == idempotencyKey))
         {
-            return;
+            return false;
         }
 
         var entry = new IdempotencyKey { Key = idempotencyKey, CreatedAt = createdAt };
@@ -81,12 +156,14 @@ internal sealed class EntityFrameworkIdempotencyKeyRepository<TContext> : IIdemp
         try
         {
             _ = await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return true;
         }
         catch (Exception ex) when (IsDuplicateKeyException(ex) && IsIdempotencyKeyConflict(ex, entry))
         {
             // A concurrent request already stored the same key — this is idempotent and safe to ignore.
             // Detach the conflicting entry so the context remains in a clean state.
             _context.Entry(entry).State = EntityState.Detached;
+            return false;
         }
     }
 

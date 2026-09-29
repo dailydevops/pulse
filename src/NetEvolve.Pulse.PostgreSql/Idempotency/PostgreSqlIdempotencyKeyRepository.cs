@@ -20,6 +20,7 @@ using Npgsql;
 /// <para><strong>Duplicate Key Handling:</strong></para>
 /// Uses <c>ON CONFLICT DO NOTHING</c> to handle duplicate key inserts gracefully.
 /// Concurrent inserts of the same key are idempotent and will not throw exceptions.
+/// Reservations use <c>ON CONFLICT ... DO UPDATE ... WHERE</c>, which also refreshes the timestamp of an expired key.
 /// <para><strong>Performance:</strong></para>
 /// Leverages stored functions for efficient operations and index utilization.
 /// </remarks>
@@ -44,6 +45,9 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
     /// <summary>Cached SQL for inserting an idempotency key.</summary>
     private readonly string _insertSql;
 
+    /// <summary>Cached SQL for atomically reserving or refreshing an idempotency key.</summary>
+    private readonly string _reserveSql;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlIdempotencyKeyRepository"/> class.
     /// </summary>
@@ -62,6 +66,7 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
 
         _existsSql = $"SELECT \"{schema}\".fn_exists_idempotency_key(@idempotency_key, @valid_from)";
         _insertSql = $"SELECT \"{schema}\".fn_insert_idempotency_key(@idempotency_key, @created_at)";
+        _reserveSql = $"SELECT \"{schema}\".fn_reserve_idempotency_key(@idempotency_key, @created_at, @valid_from)";
     }
 
     /// <inheritdoc />
@@ -122,6 +127,39 @@ internal sealed class PostgreSqlIdempotencyKeyRepository : IIdempotencyKeyReposi
                     // A concurrent request already stored the same key — this is idempotent and safe to ignore.
                     // The function uses ON CONFLICT DO NOTHING which should handle this, but we catch it for safety.
                 }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryReserveAsync(
+        string idempotencyKey,
+        DateTimeOffset createdAt,
+        DateTimeOffset? validFrom = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+
+        var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using (connection.ConfigureAwait(false))
+        {
+            var command = new NpgsqlCommand(_reserveSql, connection);
+            await using (command.ConfigureAwait(false))
+            {
+                _ = command.Parameters.AddWithValue("idempotency_key", idempotencyKey);
+                _ = command.Parameters.AddWithValue("created_at", createdAt);
+                _ = command.Parameters.Add(
+                    new NpgsqlParameter("valid_from", NpgsqlTypes.NpgsqlDbType.TimestampTz)
+                    {
+                        Value = validFrom.HasValue ? validFrom.Value : DBNull.Value,
+                    }
+                );
+
+                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return result is true;
             }
         }
     }
