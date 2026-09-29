@@ -15,6 +15,7 @@ using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Interceptors;
 using TUnit.Assertions;
+using TUnit.Assertions.Enums;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
 
@@ -479,7 +480,9 @@ public sealed class PollyStreamQueryInterceptorTests
         }
 
         _ = await Assert.That(attemptCount).IsEqualTo(2);
-        _ = await Assert.That(items).IsEquivalentTo(["item1", "item2", "item1", "item2", "item3"]);
+        _ = await Assert
+            .That(items)
+            .IsEquivalentTo(["item1", "item2", "item1", "item2", "item3"], CollectionOrdering.Matching);
     }
 
     [Test]
