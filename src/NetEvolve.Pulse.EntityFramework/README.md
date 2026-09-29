@@ -303,7 +303,7 @@ For high-throughput scenarios, consider:
 ```csharp
 // High-performance configuration
 services.AddPulse(config => config
-    .AddOutbox(processorOptions: options =>
+    .AddOutbox(configureProcessorOptions: options =>
     {
         options.BatchSize = 500;
         options.PollingInterval = TimeSpan.FromMilliseconds(500);
