@@ -1,4 +1,4 @@
-namespace NetEvolve.Pulse.Outbox;
+﻿namespace NetEvolve.Pulse.Outbox;
 
 /// <summary>
 /// Configuration options for <see cref="KafkaMessageTransport"/>.
@@ -20,7 +20,11 @@ public sealed class KafkaTransportOptions
     /// <summary>
     /// Gets or sets a value indicating whether topics should be automatically created before sending messages.
     /// </summary>
-    /// <remarks>Defaults to <see langword="true"/>.</remarks>
+    /// <remarks>
+    /// Defaults to <see langword="true"/>. Creating a topic requires the <c>CREATE</c> ACL on the cluster or the topic.
+    /// When the broker rejects creation with an authorization error, the topic is not created again and messages are
+    /// produced to it anyway. Set to <see langword="false"/> when topics are pre-provisioned.
+    /// </remarks>
     public bool AutoCreateTopics { get; set; } = true;
 
     /// <summary>

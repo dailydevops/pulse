@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
 using NetEvolve.Pulse.Extensibility;
@@ -424,6 +425,373 @@ public sealed class KafkaMessageTransportTests
     }
 
     [Test]
+    [Arguments(ErrorCode.TopicAuthorizationFailed)]
+    [Arguments(ErrorCode.ClusterAuthorizationFailed)]
+    public async Task SendAsync_When_topic_creation_is_not_authorized_still_produces_message(
+        ErrorCode errorCode,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = errorCode,
+            TopicExists = true,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(producer.ProducedTopics).IsEquivalentTo(["orders"]);
+    }
+
+    [Test]
+    [Arguments(ErrorCode.TopicAuthorizationFailed)]
+    [Arguments(ErrorCode.ClusterAuthorizationFailed)]
+    public async Task SendBatchAsync_When_topic_creation_is_not_authorized_still_enqueues_messages(
+        ErrorCode errorCode,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = errorCode,
+            TopicExists = true,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage() };
+
+        await transport.SendBatchAsync(messages, cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(messages.Length);
+            _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_creation_is_not_authorized_attempts_creation_only_once_per_topic(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = ErrorCode.TopicAuthorizationFailed,
+            TopicExists = true,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+            _ = await Assert.That(producer.ProducedMessages.Count).IsEqualTo(3);
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_already_exists_produces_message_and_caches_topic(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1, CreateTopicsErrorCode = ErrorCode.TopicAlreadyExists };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+            _ = await Assert.That(producer.ProducedMessages.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_creation_fails_with_other_error_throws_naming_topic_and_option(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1, CreateTopicsErrorCode = ErrorCode.PolicyViolation };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(exception!.Message).Contains("'orders'");
+            _ = await Assert.That(exception.Message).Contains(nameof(KafkaTransportOptions.AutoCreateTopics));
+            _ = await Assert.That(exception.InnerException).IsTypeOf<CreateTopicsException>();
+            _ = await Assert.That(producer.ProducedMessages).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_creation_is_not_authorized_and_existence_cannot_be_confirmed_still_produces_message(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = ErrorCode.TopicAuthorizationFailed,
+            ThrowOnGetMetadata = true,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+            _ = await Assert.That(producer.ProducedMessages.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_topic_creation_fails_for_one_message_still_flushes_enqueued_messages(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = ErrorCode.PolicyViolation,
+            CreateTopicsErrorTopic = "rejected",
+        };
+        var accepted = CreateOutboxMessage();
+        var rejected = CreateOutboxMessage();
+        await using var transport = new KafkaMessageTransport(
+            producer,
+            admin,
+            new DelegateTopicNameResolver(m => m.Id == rejected.Id ? "rejected" : "accepted"),
+            Options.Create(new KafkaTransportOptions())
+        );
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(() =>
+            transport.SendBatchAsync([accepted, rejected], cancellationToken)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+            _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(1);
+            _ = await Assert.That(exception!.InnerExceptions.Single()).IsTypeOf<InvalidOperationException>();
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_topic_creation_request_fails_still_flushes_enqueued_messages(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        var failure = new KafkaException(new Error(ErrorCode.Local_TimedOut));
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsFailure = failure,
+            CreateTopicsErrorTopic = "rejected",
+        };
+        var accepted = CreateOutboxMessage();
+        var rejected = CreateOutboxMessage();
+        await using var transport = new KafkaMessageTransport(
+            producer,
+            admin,
+            new DelegateTopicNameResolver(m => m.Id == rejected.Id ? "rejected" : "accepted"),
+            Options.Create(new KafkaTransportOptions())
+        );
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(() =>
+            transport.SendBatchAsync([accepted, rejected], cancellationToken)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+            _ = await Assert.That(producer.EnqueuedMessages.Count).IsEqualTo(1);
+            _ = await Assert.That(exception!.InnerExceptions.Single()).IsSameReferenceAs(failure);
+        }
+    }
+
+    [Test]
+    public async Task SendBatchAsync_When_topic_creation_fails_attempts_creation_only_once_per_batch(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1, CreateTopicsErrorCode = ErrorCode.PolicyViolation };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+        var messages = new[] { CreateOutboxMessage(), CreateOutboxMessage(), CreateOutboxMessage() };
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(() =>
+            transport.SendBatchAsync(messages, cancellationToken)
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(1);
+            _ = await Assert.That(exception!.InnerExceptions.Count).IsEqualTo(messages.Length);
+            _ = await Assert.That(producer.FlushCallCount).IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_creation_fails_retries_creation_on_next_send(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient { BrokerCount = 1, CreateTopicsErrorCode = ErrorCode.PolicyViolation };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken)
+        );
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            transport.SendAsync(CreateOutboxMessage(), cancellationToken)
+        );
+
+        _ = await Assert.That(admin.CreateTopicsCallCount).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_existence_probe_blocks_observes_cancellation(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var gate = new ManualResetEventSlim(false);
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = ErrorCode.TopicAuthorizationFailed,
+            GetMetadataGate = gate,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders");
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+
+        bool probeReturnedBeforeCancellation;
+        try
+        {
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+                transport.SendAsync(CreateOutboxMessage(), cts.Token)
+            );
+            probeReturnedBeforeCancellation = admin.GetMetadataReturned;
+        }
+        finally
+        {
+            gate.Set();
+        }
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(probeReturnedBeforeCancellation).IsFalse();
+            _ = await Assert.That(producer.ProducedMessages).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task SendAsync_When_topic_creation_is_not_authorized_and_topic_exists_logs_no_warning(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var logger = Mock.Logger<KafkaMessageTransport>();
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = ErrorCode.TopicAuthorizationFailed,
+            TopicExists = true,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders", logger: logger);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(logger.Entries.Count(e => e.LogLevel == LogLevel.Warning)).IsEqualTo(0);
+            _ = await Assert.That(admin.GetMetadataCallCount).IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task SendAsync_When_topic_creation_is_not_authorized_and_existence_cannot_be_confirmed_logs_one_warning(
+        bool throwOnGetMetadata,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var logger = Mock.Logger<KafkaMessageTransport>();
+        using var producer = new FakeProducer();
+        using var admin = new FakeAdminClient
+        {
+            BrokerCount = 1,
+            CreateTopicsErrorCode = ErrorCode.TopicAuthorizationFailed,
+            TopicExists = false,
+            ThrowOnGetMetadata = throwOnGetMetadata,
+        };
+        await using var transport = CreateTransport(producer, admin, topicName: "orders", logger: logger);
+
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+        await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
+
+        var warnings = logger.Entries.Where(e => e.LogLevel == LogLevel.Warning).ToList();
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(warnings.Count).IsEqualTo(1);
+            _ = await Assert.That(warnings[0].Message).Contains("'orders'");
+            _ = await Assert.That(admin.GetMetadataCallCount).IsEqualTo(1);
+            _ = await Assert.That(producer.ProducedMessages.Count).IsEqualTo(2);
+        }
+    }
+
+    [Test]
     public async Task SendAsync_Creates_topic_with_custom_partition_count(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -592,13 +960,15 @@ public sealed class KafkaMessageTransportTests
         IProducer<string, string> producer,
         IAdminClient admin,
         string topicName = "test-topic",
-        KafkaTransportOptions? options = null
+        KafkaTransportOptions? options = null,
+        ILogger<KafkaMessageTransport>? logger = null
     ) =>
         new(
             producer,
             admin,
             new FixedTopicNameResolver(topicName),
-            Options.Create(options ?? new KafkaTransportOptions())
+            Options.Create(options ?? new KafkaTransportOptions()),
+            logger
         );
 
     private static OutboxMessage CreateOutboxMessage() =>
@@ -622,6 +992,11 @@ public sealed class KafkaMessageTransportTests
     private sealed class FixedTopicNameResolver(string topic) : ITopicNameResolver
     {
         public string Resolve(OutboxMessage message) => topic;
+    }
+
+    private sealed class DelegateTopicNameResolver(Func<OutboxMessage, string> resolve) : ITopicNameResolver
+    {
+        public string Resolve(OutboxMessage message) => resolve(message);
     }
 
     private sealed class FakeProducer : IProducer<string, string>
@@ -774,6 +1149,12 @@ public sealed class KafkaMessageTransportTests
         public int GetMetadataCallCount { get; private set; }
         public List<TopicSpecification> CreatedTopics { get; } = [];
         public int CreateTopicsCallCount { get; private set; }
+        public ErrorCode? CreateTopicsErrorCode { get; init; }
+        public string? CreateTopicsErrorTopic { get; init; }
+        public bool TopicExists { get; init; }
+        public Exception? CreateTopicsFailure { get; init; }
+        public ManualResetEventSlim? GetMetadataGate { get; init; }
+        public bool GetMetadataReturned { get; private set; }
 
         public string Name => "fake-admin";
         public Handle Handle => default!;
@@ -795,7 +1176,20 @@ public sealed class KafkaMessageTransportTests
             return new Metadata(brokers, [], -1, "test-cluster");
         }
 
-        public Metadata GetMetadata(string topic, TimeSpan timeout) => throw new NotSupportedException();
+        public Metadata GetMetadata(string topic, TimeSpan timeout)
+        {
+            GetMetadataCallCount++;
+            _ = GetMetadataGate?.Wait(TimeSpan.FromSeconds(5));
+            GetMetadataReturned = true;
+
+            if (ThrowOnGetMetadata)
+            {
+                throw new KafkaException(new Error(ErrorCode.BrokerNotAvailable));
+            }
+
+            var error = new Error(TopicExists ? ErrorCode.NoError : ErrorCode.UnknownTopicOrPart);
+            return new Metadata([], [new TopicMetadata(topic, [], error)], -1, "test-cluster");
+        }
 
         public List<GroupInfo> ListGroups(TimeSpan timeout) => throw new NotSupportedException();
 
@@ -805,6 +1199,25 @@ public sealed class KafkaMessageTransportTests
         {
             CreateTopicsCallCount++;
             CreatedTopics.AddRange(topics);
+
+            var targeted =
+                CreateTopicsErrorTopic is null
+                || topics.Any(t => string.Equals(t.Name, CreateTopicsErrorTopic, StringComparison.Ordinal));
+
+            if (targeted && CreateTopicsFailure is not null)
+            {
+                return Task.FromException(CreateTopicsFailure);
+            }
+
+            if (targeted && CreateTopicsErrorCode is { } errorCode)
+            {
+                return Task.FromException(
+                    new CreateTopicsException([
+                        .. topics.Select(t => new CreateTopicReport { Topic = t.Name, Error = new Error(errorCode) }),
+                    ])
+                );
+            }
+
             return Task.CompletedTask;
         }
 

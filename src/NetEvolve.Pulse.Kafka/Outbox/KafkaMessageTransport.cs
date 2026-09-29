@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse.Extensibility.Outbox;
 
@@ -19,12 +21,13 @@ using NetEvolve.Pulse.Extensibility.Outbox;
 /// registered in the DI container by the caller before using this transport.
 /// Topic routing is determined by the registered <see cref="ITopicNameResolver" />.
 /// </remarks>
-public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
+public sealed partial class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
 {
     private readonly IProducer<string, string> _producer;
     private readonly IAdminClient _adminClient;
     private readonly ITopicNameResolver _topicNameResolver;
     private readonly KafkaTransportOptions _options;
+    private readonly ILogger<KafkaMessageTransport> _logger;
     private readonly ConcurrentDictionary<string, bool> _ensuredTopics = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -34,11 +37,15 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
     /// <param name="adminClient">The Kafka admin client, registered in DI by the caller.</param>
     /// <param name="topicNameResolver">The resolver that maps each outbox message to a Kafka topic name.</param>
     /// <param name="options">The transport options.</param>
+    /// <param name="logger">
+    /// Optional logger for topic auto-creation warnings. When <see langword="null" />, nothing is logged.
+    /// </param>
     public KafkaMessageTransport(
         IProducer<string, string> producer,
         IAdminClient adminClient,
         ITopicNameResolver topicNameResolver,
-        IOptions<KafkaTransportOptions> options
+        IOptions<KafkaTransportOptions> options,
+        ILogger<KafkaMessageTransport>? logger = null
     )
     {
         ArgumentNullException.ThrowIfNull(producer);
@@ -50,6 +57,7 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
         _adminClient = adminClient;
         _topicNameResolver = topicNameResolver;
         _options = options.Value;
+        _logger = logger ?? NullLogger<KafkaMessageTransport>.Instance;
     }
 
     /// <inheritdoc />
@@ -84,12 +92,30 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(messages);
 
         var errors = new ConcurrentBag<Exception>();
+        var failedTopics = new Dictionary<string, Exception>(StringComparer.Ordinal);
 
         foreach (var message in messages)
         {
             var topic = _topicNameResolver.Resolve(message);
 
-            await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+            if (failedTopics.TryGetValue(topic, out var topicError))
+            {
+                errors.Add(topicError);
+                continue;
+            }
+
+            try
+            {
+                await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Keep going so messages already enqueued are still flushed and their outcome reported.
+                // A cancellation is observed again by Flush(cancellationToken) below.
+                failedTopics[topic] = ex;
+                errors.Add(ex);
+                continue;
+            }
 
             var kafkaMessage = CreateKafkaMessage(message);
 
@@ -186,7 +212,59 @@ public sealed class KafkaMessageTransport : IMessageTransport, IAsyncDisposable
         {
             _ = _ensuredTopics.TryAdd(topic, true);
         }
+        catch (CreateTopicsException ex) when (ex.Results.All(static r => IsAuthorizationFailure(r.Error.Code)))
+        {
+            // The broker checks CREATE before it checks existence, so an existing topic still reports an
+            // authorization failure. Stop trying to create it and let the produce call surface the real error.
+            _ = _ensuredTopics.TryAdd(topic, true);
+
+            if (!await TopicExistsAsync(topic, cancellationToken).ConfigureAwait(false))
+            {
+                LogTopicCreationNotAuthorized(_logger, topic, ex.Results[0].Error.Code);
+            }
+        }
+        catch (CreateTopicsException ex)
+        {
+            throw new InvalidOperationException(
+                $"Kafka topic '{topic}' could not be created: {ex.Message} Pre-provision the topic and set "
+                    + $"{nameof(KafkaTransportOptions)}.{nameof(KafkaTransportOptions.AutoCreateTopics)} to false, "
+                    + "or fix the topic defaults or broker policy.",
+                ex
+            );
+        }
     }
+
+    private static bool IsAuthorizationFailure(ErrorCode code) =>
+        code is ErrorCode.TopicAuthorizationFailed or ErrorCode.ClusterAuthorizationFailed;
+
+    // GetMetadata is synchronous and blocks for up to 5 seconds, so it is offloaded like in IsHealthyAsync
+    // and the caller's cancellation is honored while it runs.
+    private Task<bool> TopicExistsAsync(string topic, CancellationToken cancellationToken) =>
+        Task.Run(
+                () =>
+                {
+                    try
+                    {
+                        return _adminClient
+                            .GetMetadata(topic, TimeSpan.FromSeconds(5))
+                            .Topics.Exists(t =>
+                                string.Equals(t.Topic, topic, StringComparison.Ordinal) && !t.Error.IsError
+                            );
+                    }
+                    catch (KafkaException)
+                    {
+                        return false;
+                    }
+                },
+                CancellationToken.None
+            )
+            .WaitAsync(cancellationToken);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Not authorized to create Kafka topic '{Topic}' ({ErrorCode}) and its existence could not be confirmed. Producing anyway; pre-provision the topic and set KafkaTransportOptions.AutoCreateTopics to false to skip creation."
+    )]
+    private static partial void LogTopicCreationNotAuthorized(ILogger logger, string topic, ErrorCode errorCode);
 
     /// <inheritdoc />
     public ValueTask DisposeAsync() => ValueTask.CompletedTask; // Do not dispose injected dependencies
