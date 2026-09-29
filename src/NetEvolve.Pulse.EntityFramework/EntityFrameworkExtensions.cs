@@ -36,6 +36,14 @@ public static class EntityFrameworkExtensions
     /// <para><strong>Note:</strong></para>
     /// The DbContext must already be registered in the service collection.
     /// This method does not register the DbContext itself.
+    /// <para><strong>Shared DbContext:</strong></para>
+    /// The outbox writes through the scoped <typeparamref name="TContext"/> of the publishing caller, the same
+    /// instance that scoped event handlers receive. <c>PublishAsync</c> always runs the outbox handler first
+    /// and on its own, so it never uses the context concurrently with another handler. If two or more of your
+    /// own handlers for the same event use the context, register
+    /// <c>UseDefaultEventDispatcher&lt;SequentialEventDispatcher&gt;()</c>, because the default parallel
+    /// dispatcher runs them concurrently. Storing a message calls <c>SaveChangesAsync</c> on the shared
+    /// context, which also saves any changes the caller has made but not yet saved.
     /// </remarks>
     /// <example>
     /// <code>

@@ -5,7 +5,8 @@
 /// Events are immutable notifications where multiple subscribers may react independently.
 /// </summary>
 /// <remarks>
-/// ⚠️ Event handlers execute in parallel and should be idempotent. They should not depend on execution order.
+/// ⚠️ With the default dispatcher, event handlers execute in parallel and should be idempotent. They should not
+/// depend on execution order. The outbox handler registered by <c>AddOutbox()</c> always runs first and on its own.
 /// Use past-tense names (OrderCreated, PaymentProcessed, UserRegistered).
 /// </remarks>
 /// <example>

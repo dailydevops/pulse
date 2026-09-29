@@ -33,6 +33,9 @@ using NetEvolve.Pulse.Extensibility;
 /// <item><description>Consider using scoped lifetime when concurrency varies per request</description></item>
 /// <item><description>Monitor queue depth in high-throughput scenarios</description></item>
 /// </list>
+/// <para><strong>Outbox:</strong></para>
+/// The outbox handler registered by <c>AddOutbox()</c> is never passed to this dispatcher: the mediator
+/// always runs it first and on its own, and passes only the remaining handlers here.
 /// </remarks>
 /// <example>
 /// <code>

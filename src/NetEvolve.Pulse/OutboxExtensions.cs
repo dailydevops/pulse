@@ -37,6 +37,13 @@ public static class OutboxExtensions
     /// <para><strong>Usage:</strong></para>
     /// An <see cref="IOutboxRepository"/> implementation must be registered separately by calling
     /// <c>AddSqlServerOutbox</c>, <c>AddEntityFrameworkOutbox</c>, or a custom implementation.
+    /// <para><strong>Dispatch:</strong></para>
+    /// The outbox handler writes through the caller's scoped services (for example the same <c>DbContext</c>).
+    /// <c>PublishAsync</c> therefore always invokes it first
+    /// and on its own. Only the remaining handlers go to the configured <see cref="IEventDispatcher"/>, so the
+    /// outbox write never runs concurrently with another handler, even under the default
+    /// <see cref="Dispatchers.ParallelEventDispatcher"/>. User handlers that share a scoped <c>DbContext</c> or
+    /// connection with each other still need <c>UseDefaultEventDispatcher&lt;SequentialEventDispatcher&gt;()</c>.
     /// </remarks>
     public static IMediatorBuilder AddOutbox(
         this IMediatorBuilder configurator,
