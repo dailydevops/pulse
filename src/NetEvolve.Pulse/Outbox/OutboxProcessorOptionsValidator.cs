@@ -30,21 +30,37 @@ internal sealed class OutboxProcessorOptionsValidator : IValidateOptions<OutboxP
             failures.Add($"{nameof(OutboxProcessorOptions.MaxRetryCount)} must be greater than or equal to 1.");
         }
 
+        ValidateProcessingTimeout(
+            options.ProcessingTimeout,
+            nameof(OutboxProcessorOptions.ProcessingTimeout),
+            failures
+        );
+
         foreach (var (eventType, overrides) in options.EventTypeOverrides)
         {
+            var prefix = $"{nameof(OutboxProcessorOptions.EventTypeOverrides)}[{eventType.FullName}]";
+
+            if (overrides is null)
+            {
+                failures.Add($"{prefix} must not be null.");
+                continue;
+            }
+
             if (overrides.MaxRetryCount < 1)
             {
                 failures.Add(
-                    $"{nameof(OutboxEventTypeOptions.MaxRetryCount)} for event type '{eventType.FullName}' must be greater than or equal to 1."
+                    $"{prefix}.{nameof(OutboxEventTypeOptions.MaxRetryCount)} must be greater than or equal to 1."
                 );
             }
-        }
 
-        if (options.ProcessingTimeout <= TimeSpan.Zero)
-        {
-            failures.Add(
-                $"{nameof(OutboxProcessorOptions.ProcessingTimeout)} must be greater than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}."
-            );
+            if (overrides.ProcessingTimeout is TimeSpan processingTimeout)
+            {
+                ValidateProcessingTimeout(
+                    processingTimeout,
+                    $"{prefix}.{nameof(OutboxEventTypeOptions.ProcessingTimeout)}",
+                    failures
+                );
+            }
         }
 
         if (options.EnableExponentialBackoff)
@@ -72,5 +88,18 @@ internal sealed class OutboxProcessorOptionsValidator : IValidateOptions<OutboxP
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    // CancellationTokenSource.CancelAfter throws for delays above int.MaxValue milliseconds.
+    private static void ValidateProcessingTimeout(TimeSpan value, string name, List<string> failures)
+    {
+        if (value <= TimeSpan.Zero)
+        {
+            failures.Add($"{name} must be greater than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+        }
+        else if (value.TotalMilliseconds > int.MaxValue)
+        {
+            failures.Add($"{name} must not exceed {int.MaxValue} milliseconds.");
+        }
     }
 }

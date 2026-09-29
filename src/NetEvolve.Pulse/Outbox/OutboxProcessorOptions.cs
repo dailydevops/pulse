@@ -37,6 +37,7 @@ public sealed class OutboxProcessorOptions
 
     /// <summary>
     /// Gets or sets the timeout for processing a single message.
+    /// Must be greater than <see cref="TimeSpan.Zero"/> and must not exceed <see cref="int.MaxValue"/> milliseconds.
     /// Default: 30 seconds.
     /// </summary>
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromSeconds(30);
