@@ -11,6 +11,7 @@ using Npgsql;
 using TUnit.Core;
 
 [TestGroup("PostgreSql")]
+[Timeout(300_000)] // PostgreSQL Testcontainer cold-start can take a while in CI environments.
 public sealed class PostgreSqlSchemaScriptTests
 {
     [ClassDataSource<PostgreSqlContainerFixture>(Shared = SharedType.PerTestSession)]

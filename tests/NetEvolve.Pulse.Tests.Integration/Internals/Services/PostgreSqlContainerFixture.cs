@@ -9,22 +9,35 @@ public sealed class PostgreSqlContainerFixture : IAsyncDisposable, IAsyncInitial
 {
     private const string ScriptDirectory = "/pulse-scripts/";
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(
-        /*dockerimage*/"postgres:19beta4-trixie"
-    )
-        .WithLogger(NullLogger.Instance)
-        .WithCommand("-c", "max_connections=500") // Raised for parallel integration tests; each test creates its own unique database/pool.
-        .WithResourceMapping(
-            new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "Scripts", "PostgreSql")),
-            ScriptDirectory
-        )
-        .Build();
+    private readonly PostgreSqlContainer _container = CreateContainer();
 
     public string ConnectionString => _container.GetConnectionString() + ";Include Error Detail=true;";
 
     public ValueTask DisposeAsync() => _container.DisposeAsync();
 
     public async Task InitializeAsync() => await _container.StartAsync().ConfigureAwait(false);
+
+    private static PostgreSqlContainer CreateContainer()
+    {
+        var builder = new PostgreSqlBuilder(
+            /*dockerimage*/"postgres:19beta4-trixie"
+        )
+            .WithLogger(NullLogger.Instance)
+            .WithCommand("-c", "max_connections=500"); // Raised for parallel integration tests; each test creates its own unique database/pool.
+
+        // Copy each schema script to an explicit file path so psql can run it with -f.
+        foreach (
+            var script in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Scripts", "PostgreSql"), "*.sql")
+        )
+        {
+            builder = builder.WithResourceMapping(
+                File.ReadAllBytes(script),
+                ScriptDirectory + Path.GetFileName(script)
+            );
+        }
+
+        return builder.Build();
+    }
 
     /// <summary>
     /// Runs a checked-in <c>NetEvolve.Pulse.PostgreSql</c> schema script through the <c>psql</c> client
