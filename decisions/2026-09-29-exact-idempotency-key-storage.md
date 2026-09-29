@@ -13,7 +13,7 @@ created: 2026-09-29
 
 lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   IdempotencyKeySchema.MaxLengths.IdempotencyKey is 450 characters, so NVARCHAR(450) (900 bytes) fits the SQL Server clustered index key limit.
