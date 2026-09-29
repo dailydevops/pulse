@@ -261,6 +261,13 @@ Audit writes are best effort (fail open):
 
 A missing audit record therefore shows up as an `Error` log entry, never as a failed request.
 
+### Idempotency Keys
+
+Commands that implement `IIdempotentCommand` or `IIdempotentCommand<TResponse>` are checked against the registered `IIdempotencyStore`. The built-in store applies the same key rules for every provider:
+
+- A key can be up to 450 characters long (`IdempotencyKeySchema.MaxLengths.IdempotencyKey`). `ExistsAsync`, `StoreAsync` and `TryReserveAsync` reject a longer key with an `ArgumentOutOfRangeException`, so a key is never truncated.
+- Keys are compared case-sensitively: `aBc123` and `ABC123` are two different keys.
+
 ### Outbox Pattern Configuration
 
 The outbox pattern ensures reliable event delivery by persisting events before dispatching:

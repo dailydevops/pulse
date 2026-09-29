@@ -29,6 +29,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     private readonly AzureQueueStorageTransportOptions _options;
     private readonly JsonTypeInfo<AzureQueueStorageEnvelope> _envelopeTypeInfo;
     private readonly QueueClient? _queueClientOverride;
+    private readonly TimeSpan? _timeToLive;
     private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
     private QueueClient? _queueClient;
 
@@ -44,6 +45,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options.Value;
+        _timeToLive = NormalizeTimeToLive(_options.MessageTimeToLive);
         _envelopeTypeInfo = CreateEnvelopeTypeInfo(jsonSerializerOptions?.Value);
     }
 
@@ -63,6 +65,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(queueClient);
         _options = options.Value;
+        _timeToLive = NormalizeTimeToLive(_options.MessageTimeToLive);
         _queueClientOverride = queueClient;
         _envelopeTypeInfo = CreateEnvelopeTypeInfo(jsonSerializerOptions?.Value);
     }
@@ -92,6 +95,7 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
             .SendMessageAsync(
                 base64,
                 visibilityTimeout: _options.MessageVisibilityTimeout,
+                timeToLive: _timeToLive,
                 cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);
@@ -109,6 +113,17 @@ public sealed class AzureQueueStorageMessageTransport : IMessageTransport, IDisp
             await SendAsync(message, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// Maps <see cref="Timeout.InfiniteTimeSpan"/> to <see cref="AzureQueueStorageTransportOptions.NeverExpires"/>,
+    /// because the client truncates to whole seconds and would send <c>0</c> instead of <c>-1</c>.
+    /// </summary>
+    /// <param name="timeToLive">The configured time-to-live.</param>
+    /// <returns>The time-to-live passed to the queue client.</returns>
+    private static TimeSpan? NormalizeTimeToLive(TimeSpan? timeToLive) =>
+        timeToLive is { } value && AzureQueueStorageTransportOptions.IsNeverExpires(value)
+            ? AzureQueueStorageTransportOptions.NeverExpires
+            : timeToLive;
 
     private byte[] SerializeMessage(OutboxMessage message) =>
         JsonSerializer.SerializeToUtf8Bytes(

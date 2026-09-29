@@ -3,6 +3,7 @@ namespace NetEvolve.Pulse.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.Extensions.Options;
+using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
 
 /// <summary>
@@ -27,7 +28,12 @@ internal sealed class SqlServerIdempotencyKeyConfiguration : IdempotencyKeyConfi
     /// <inheritdoc />
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
-        _ = builder.Property(k => k.Key).HasColumnType("nvarchar(500)");
+        // 450 NVARCHAR characters take 900 bytes, the SQL Server limit for a clustered index key.
+        // The binary collation compares keys by code point, so keys differing only by case stay distinct.
+        _ = builder
+            .Property(k => k.Key)
+            .HasColumnType($"nvarchar({IdempotencyKeySchema.MaxLengths.IdempotencyKey})")
+            .UseCollation("Latin1_General_100_BIN2");
         _ = builder.Property(k => k.CreatedAt).HasColumnType("datetimeoffset");
     }
 }

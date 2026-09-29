@@ -50,6 +50,10 @@ internal sealed class IdempotencyStore : IIdempotencyStore
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         return _repository.ExistsAsync(idempotencyKey, GetCutoff(), cancellationToken);
     }
@@ -71,6 +75,10 @@ internal sealed class IdempotencyStore : IIdempotencyStore
         cancellationToken.ThrowIfCancellationRequested();
 
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            idempotencyKey.Length,
+            IdempotencyKeySchema.MaxLengths.IdempotencyKey
+        );
 
         var now = _timeProvider.GetUtcNow();
         return _repository.TryReserveAsync(idempotencyKey, now, GetCutoff(now), cancellationToken);

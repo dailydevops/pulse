@@ -268,7 +268,6 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         {
             PatchOperation.Set("/status", (int)OutboxMessageStatus.DeadLetter),
             PatchOperation.Set("/updatedAt", now),
-            PatchOperation.Set("/processedAt", now),
             PatchOperation.Set("/error", errorMessage),
         };
 

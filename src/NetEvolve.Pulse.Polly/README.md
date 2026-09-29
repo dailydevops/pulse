@@ -172,6 +172,22 @@ services.AddPulse(config => config
 
 **⚠️ Warning**: Event policies apply to all handlers for that event type. If the policy triggers a retry, all handlers will re-execute. Consider using `IEventOutbox` for reliable event delivery instead of aggressive retries.
 
+### Stream Query Policies
+
+Apply policies to streaming queries:
+
+```csharp
+services.AddPulse(config => config
+    .AddStreamQueryHandler<GetOrdersStreamQuery, OrderDto, GetOrdersStreamQueryHandler>()
+    .AddPollyStreamQueryPolicies<GetOrdersStreamQuery, OrderDto>(pipeline => pipeline
+        .AddTimeout(TimeSpan.FromMinutes(2))));
+```
+
+The whole enumeration runs inside the pipeline, not only the call that opens the stream. Items are forwarded to the consumer as they are produced.
+
+- **Retry** restarts the enumeration from the beginning. Items already sent to the consumer are not withdrawn, so the consumer may receive them again. Configure retries only for handlers whose enumeration is idempotent or fails before yielding items.
+- **Timeout** limits how long the handler enumeration runs inside the pipeline. Because items pass through a single-slot buffer, time the consumer spends on an item counts toward the timeout while the handler is waiting to hand over the next item. Processing of the items still buffered or in progress when the handler finishes is not covered.
+
 ### Bulkhead Isolation
 
 Limit concurrent executions to prevent resource exhaustion. `AddConcurrencyLimiter` is provided by the separate [`Polly.RateLimiting`](https://www.nuget.org/packages/Polly.RateLimiting/) package, and `ConcurrencyLimiterOptions` lives in `System.Threading.RateLimiting`:

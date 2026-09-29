@@ -12,7 +12,7 @@ using NetEvolve.Pulse.Idempotency;
 /// <remarks>
 /// <para><strong>Column Types:</strong></para>
 /// <list type="bullet">
-/// <item><description><c>varchar(500)</c> for the idempotency key</description></item>
+/// <item><description><c>varchar(500)</c> with the binary collation <c>utf8mb4_bin</c> for the idempotency key</description></item>
 /// <item><description><c>bigint</c> for <see cref="DateTimeOffset"/> — stored as UTC ticks via a <see langword="long"/> value converter</description></item>
 /// </list>
 /// <para><strong>Why bigint for DateTimeOffset:</strong></para>
@@ -23,6 +23,11 @@ using NetEvolve.Pulse.Idempotency;
 /// </remarks>
 internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigurationBase
 {
+    /// <summary>
+    /// The column collation annotation of the Oracle provider (<c>MySql.EntityFrameworkCore</c>).
+    /// </summary>
+    private const string MySqlCollationAnnotation = "MySQL:Collation";
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MySqlIdempotencyKeyConfiguration"/> class with default options.
     /// </summary>
@@ -39,7 +44,17 @@ internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigura
     /// <inheritdoc />
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
-        _ = builder.Property(k => k.Key).HasColumnType("varchar(500)");
+        // The binary collation compares keys by code point, so keys differing only by case stay distinct.
+        // The Oracle provider ignores the relational collation set by UseCollation and reads its own
+        // "MySQL:Collation" annotation instead, so both are set.
+        // The model keeps MaxLength 500, so migrations created by earlier releases stay in sync;
+        // the store and the repository enforce IdempotencyKeySchema.MaxLengths.IdempotencyKey.
+        _ = builder
+            .Property(k => k.Key)
+            .HasColumnType("varchar(500)")
+            .HasMaxLength(500)
+            .UseCollation("utf8mb4_bin")
+            .HasAnnotation(MySqlCollationAnnotation, "utf8mb4_bin");
 
         // DateTimeOffset is stored as BIGINT (UTC ticks).
         // The Oracle MySQL provider lacks a proper DateTimeOffset type mapping for

@@ -32,7 +32,9 @@ public interface IIdempotentCommand<TResponse> : ICommand<TResponse>
     /// Gets the client-supplied idempotency key that uniquely identifies this logical operation.
     /// </summary>
     /// <remarks>
-    /// The key MUST be non-<see langword="null"/> and non-empty.
+    /// The key MUST be non-<see langword="null"/> and non-empty, and MUST NOT be longer than
+    /// <see cref="IdempotencyKeySchema.MaxLengths.IdempotencyKey"/> characters.
+    /// Keys are compared case-sensitively, so keys that differ only by case are distinct.
     /// </remarks>
     string IdempotencyKey { get; }
 }

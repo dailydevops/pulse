@@ -11,6 +11,7 @@ NetEvolve.Pulse.AspNetCore provides `IEndpointRouteBuilder` extension methods th
 - **`MapCommand<TCommand, TResponse>`**: Maps a command to an HTTP endpoint returning `200 OK` with the response. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapCommand<TCommand>`**: Maps a void command to an HTTP endpoint returning `204 No Content`. Defaults to `POST` when no method is specified; accepts any `CommandHttpMethod` value.
 - **`MapQuery<TQuery, TResponse>`**: Maps a query to a `GET` endpoint returning `200 OK` with the result.
+- **`MapStreamQuery<TQuery, TResponse>`**: Maps a stream query to a `GET` endpoint that streams items as SSE or NDJSON, serialized with the HTTP JSON options. See [HTTP Stream Queries](#http-stream-queries).
 - **`MapStreamQueryHub<TQuery, TResponse>`**: Maps a `PulseStreamHub` that exposes a stream query as a native SignalR server-to-client stream (requires `AddSignalR()`).
 - **`CommandHttpMethod` enum**: Strongly-typed HTTP method selection — `Post`, `Put`, `Patch`, `Delete`. `GET` is excluded by design since commands are state-changing operations.
 - **CancellationToken propagation**: Automatically propagates the HTTP request cancellation token.
@@ -69,10 +70,10 @@ Without this package you would write:
 app.MapPost("/orders", async (CreateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
     Results.Ok(await mediator.SendAsync<CreateOrderCommand, OrderResult>(cmd, ct)));
 
-app.MapPut("/orders/{id}", async (UpdateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
-    Results.Ok(await mediator.SendAsync<UpdateOrderCommand, OrderResult>(cmd, ct)));
+app.MapPut("/orders/{id}", async (Guid id, UpdateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
+    Results.Ok(await mediator.SendAsync<UpdateOrderCommand, OrderResult>(cmd with { Id = id }, ct)));
 
-app.MapDelete("/orders/{id}", async ([FromBody] DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
+app.MapDelete("/orders/{id}", async ([AsParameters] DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
 {
     await mediator.SendAsync<DeleteOrderCommand>(cmd, ct);
     return Results.NoContent();
@@ -86,7 +87,7 @@ app.MapGet("/orders/{id}", async ([AsParameters] GetOrderQuery query, IMediator 
 
 ### Commands with a Response
 
-`MapCommand<TCommand, TResponse>` binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `200 OK` with the result. The default HTTP method is `POST`; use the `CommandHttpMethod` parameter to choose a different method:
+`MapCommand<TCommand, TResponse>` binds `TCommand` as described in [Command Binding Sources](#command-binding-sources), sends it via `IMediator.SendAsync`, and returns `200 OK` with the result. The default HTTP method is `POST`; use the `CommandHttpMethod` parameter to choose a different method:
 
 ```csharp
 // POST /orders  (default)
@@ -107,7 +108,7 @@ public record OrderResult(Guid OrderId, string Status);
 
 ### Void Commands
 
-`MapCommand<TCommand>` binds the request body to `TCommand`, sends it via `IMediator.SendAsync`, and returns `204 No Content`. The default HTTP method is `POST`:
+`MapCommand<TCommand>` binds `TCommand` as described in [Command Binding Sources](#command-binding-sources), sends it via `IMediator.SendAsync`, and returns `204 No Content`. The default HTTP method is `POST`:
 
 ```csharp
 // POST /orders/cancel  (default)
@@ -122,6 +123,22 @@ public record CancelOrderCommand(Guid Id) : ICommand;
 public record DeleteOrderCommand(Guid Id) : ICommand;
 ```
 
+### Command Binding Sources
+
+The binding source of a command depends on the HTTP method:
+
+| Method | Binding source |
+|--------|----------------|
+| `POST`, `PUT`, `PATCH` | JSON request body. Route values whose key matches a command property overwrite the body value, so the route value wins. A key matches the JSON property name (after the naming policy and `[JsonPropertyName]`) or the CLR property name, case-insensitive. |
+| `DELETE` | Route values and query string via `[AsParameters]`, like `MapQuery`. A request body is not required and is ignored. |
+
+For `PUT /orders/{id}` with body `{"id":"B","sku":"X","quantity":1}` sent to `/orders/A`, the handler receives `Id = A`. The command always targets the resource named in the URI. Route values are converted with the application's HTTP JSON options (`ConfigureHttpJsonOptions`); a route value that cannot be converted to the property type returns `400 Bad Request`. Route values without a matching property, such as `{tenant}` in `/tenants/{tenant}/orders/{id}`, are ignored. Route parameter names must match the JSON or CLR name of the property, otherwise the body value is kept.
+
+`DELETE` follows [RFC 9110 §9.3.5](https://www.rfc-editor.org/rfc/rfc9110#section-9.3.5): content in a `DELETE` request has no generally defined semantics. Every property of a `DELETE` command therefore needs a route or query string value that ASP.NET Core can bind (`TryParse`), or it must be optional.
+
+> [!IMPORTANT]
+> Clients that sent the identifier of a `DELETE` command only in the request body must move it to the route or the query string.
+
 ### Queries
 
 `MapQuery<TQuery, TResponse>` registers a `GET` endpoint that binds route parameters and query string to `TQuery` using `[AsParameters]`, executes the query via `IMediator.QueryAsync`, and returns `200 OK` with the result:
@@ -134,6 +151,28 @@ app.MapQuery<GetOrderQuery, OrderDto>("/orders/{id}");
 public record GetOrderQuery(Guid Id) : IQuery<OrderDto>;
 public record OrderDto(Guid Id, string Sku, string Status);
 ```
+
+### HTTP Stream Queries
+
+`MapStreamQuery<TQuery, TResponse>` registers a `GET` endpoint that streams the items of `IMediator.StreamQueryAsync` as Server-Sent Events (`text/event-stream`, the default) or as NDJSON (`application/x-ndjson`, when the `Accept` header weighs it higher):
+
+```csharp
+app.MapStreamQuery<GetOrdersStreamQuery, OrderDto>("/orders/stream");
+```
+
+Every item is serialized with the application's HTTP JSON options (`ConfigureHttpJsonOptions`), the same contract as `MapQuery` and `MapCommand`, on every target framework. Indentation is always disabled, so each item is one single-line JSON text, and `string` items are quoted JSON strings:
+
+```text
+# application/x-ndjson
+{"id":"0b6f…","sku":"A-1","status":"Open"}
+
+# text/event-stream
+data: {"id":"0b6f…","sku":"A-1","status":"Open"}
+```
+
+Under NativeAOT, add a source-generated context for `TResponse` to the HTTP JSON options, for example `builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default))`.
+
+> **Breaking change ([#846](https://github.com/dailydevops/pulse/issues/846)):** NDJSON items, and SSE items on .NET 8 and .NET 9, previously used `IPayloadSerializer` and were PascalCase. They now follow the HTTP JSON options (camelCase by default). SSE `string` items on .NET 10 were previously written as raw text and are now quoted JSON strings. On .NET 10, a `null` SSE item is now written as `data: null` instead of an empty `data:` line, the same as NDJSON. A custom `IPayloadSerializer` no longer affects `MapStreamQuery`. See the [decision record](https://github.com/dailydevops/pulse/blob/main/decisions/2026-09-29-stream-query-http-json-contract.md).
 
 ### SignalR Stream Queries
 

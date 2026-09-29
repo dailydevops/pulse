@@ -284,7 +284,6 @@ internal sealed class MongoDbOutboxRepository : IOutboxRepository
         var update = Builders<OutboxDocument>
             .Update.Set(d => d.Status, (int)OutboxMessageStatus.DeadLetter)
             .Set(d => d.UpdatedAt, now)
-            .Set(d => d.ProcessedAt, now)
             .Set(d => d.Error, errorMessage);
 
         _ = await GetCollection()
