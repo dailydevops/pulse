@@ -24,6 +24,11 @@ using NetEvolve.Pulse.Idempotency;
 internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigurationBase
 {
     /// <summary>
+    /// The column collation annotation of the Oracle provider (<c>MySql.EntityFrameworkCore</c>).
+    /// </summary>
+    private const string MySqlCollationAnnotation = "MySQL:Collation";
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="MySqlIdempotencyKeyConfiguration"/> class with default options.
     /// </summary>
     public MySqlIdempotencyKeyConfiguration()
@@ -40,9 +45,16 @@ internal sealed class MySqlIdempotencyKeyConfiguration : IdempotencyKeyConfigura
     protected override void ApplyColumnTypes(EntityTypeBuilder<IdempotencyKey> builder)
     {
         // The binary collation compares keys by code point, so keys differing only by case stay distinct.
+        // The Oracle provider ignores the relational collation set by UseCollation and reads its own
+        // "MySQL:Collation" annotation instead, so both are set.
         // The model keeps MaxLength 500, so migrations created by earlier releases stay in sync;
         // the store and the repository enforce IdempotencyKeySchema.MaxLengths.IdempotencyKey.
-        _ = builder.Property(k => k.Key).HasColumnType("varchar(500)").HasMaxLength(500).UseCollation("utf8mb4_bin");
+        _ = builder
+            .Property(k => k.Key)
+            .HasColumnType("varchar(500)")
+            .HasMaxLength(500)
+            .UseCollation("utf8mb4_bin")
+            .HasAnnotation(MySqlCollationAnnotation, "utf8mb4_bin");
 
         // DateTimeOffset is stored as BIGINT (UTC ticks).
         // The Oracle MySQL provider lacks a proper DateTimeOffset type mapping for
