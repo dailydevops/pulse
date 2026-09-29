@@ -50,7 +50,9 @@ public interface IIdempotencyKeyRepository
     /// <returns>A task representing the asynchronous store operation.</returns>
     /// <remarks>
     /// Implementations MUST handle duplicate-key exceptions gracefully and treat them as
-    /// a successful (idempotent) store operation.
+    /// a successful (idempotent) store operation. This member never refreshes an expired key.
+    /// The built-in <c>IdempotencyStore</c> reserves and stores keys through <see cref="TryReserveAsync"/>;
+    /// this member remains for direct callers only.
     /// </remarks>
     Task StoreAsync(string idempotencyKey, DateTimeOffset createdAt, CancellationToken cancellationToken = default);
 

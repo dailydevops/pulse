@@ -40,7 +40,8 @@ public class IdempotencyKeyOptions
     /// </summary>
     /// <remarks>
     /// TTL-based cleanup (physical row deletion) is out of scope and must be handled externally.
-    /// This option only controls whether expired keys are logically treated as absent.
+    /// When set, storing or reserving an expired key refreshes its creation timestamp, so duplicates are
+    /// rejected again for a new TTL window. When <see langword="null"/>, existing keys are never modified.
     /// </remarks>
     public TimeSpan? TimeToLive { get; set; }
 
