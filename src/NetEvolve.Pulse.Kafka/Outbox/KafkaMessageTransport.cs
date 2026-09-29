@@ -92,18 +92,27 @@ public sealed partial class KafkaMessageTransport : IMessageTransport, IAsyncDis
         ArgumentNullException.ThrowIfNull(messages);
 
         var errors = new ConcurrentBag<Exception>();
+        var failedTopics = new Dictionary<string, Exception>(StringComparer.Ordinal);
 
         foreach (var message in messages)
         {
             var topic = _topicNameResolver.Resolve(message);
 
+            if (failedTopics.TryGetValue(topic, out var topicError))
+            {
+                errors.Add(topicError);
+                continue;
+            }
+
             try
             {
                 await EnsureTopicAsync(topic, cancellationToken).ConfigureAwait(false);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
                 // Keep going so messages already enqueued are still flushed and their outcome reported.
+                // A cancellation is observed again by Flush(cancellationToken) below.
+                failedTopics[topic] = ex;
                 errors.Add(ex);
                 continue;
             }
