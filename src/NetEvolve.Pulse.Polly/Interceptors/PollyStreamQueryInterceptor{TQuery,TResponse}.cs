@@ -28,7 +28,8 @@ using Polly;
 /// in addition to those already observed. Configure retries only for handlers whose enumeration is
 /// idempotent or fails before yielding items.
 /// <para><strong>Timeout Semantics:</strong></para>
-/// A timeout strategy limits the duration of the entire enumeration, not only the stream open phase.
+/// A timeout strategy limits the duration of the entire enumeration, including the time the consumer
+/// spends processing each item.
 /// <para><strong>Transparent Pass-Through:</strong></para>
 /// If no <see cref="ResiliencePipeline"/> is registered for <typeparamref name="TQuery"/>
 /// (either as a keyed or global service), the interceptor passes through transparently

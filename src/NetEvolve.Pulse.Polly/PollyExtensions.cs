@@ -286,11 +286,24 @@ public static class PollyExtensions
     /// <returns>The configurator for method chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="configurator"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// <para><strong>Stream Initialization Protection:</strong></para>
+    /// <para><strong>Execution Model:</strong></para>
     /// <para>
     /// This method registers a non-typed <see cref="ResiliencePipeline"/> keyed by <typeparamref name="TQuery"/> type.
-    /// The interceptor wraps the <em>handler invocation</em> (stream open phase) in the pipeline.
-    /// Items are yielded directly after the pipeline executes — per-item retry is intentionally out of scope.
+    /// The interceptor (<c>PollyStreamQueryInterceptor</c>) enumerates the handler <em>inside</em> the pipeline,
+    /// so resilience strategies observe failures thrown at any point during enumeration, not only when the
+    /// stream is opened. Items are forwarded to the consumer as they are produced.
+    /// </para>
+    /// <para><strong>Retry Semantics:</strong></para>
+    /// <para>
+    /// A retry restarts the enumeration from the beginning. Items already yielded to the consumer before
+    /// the failure are <em>not</em> withdrawn; after a retry, the restarted enumeration yields its items
+    /// in addition to those already observed, so the consumer may receive items again. Configure retries
+    /// only for handlers whose enumeration is idempotent or fails before yielding items.
+    /// </para>
+    /// <para><strong>Timeout Semantics:</strong></para>
+    /// <para>
+    /// A timeout strategy limits the duration of the entire enumeration, including the time the consumer
+    /// spends processing each item.
     /// </para>
     /// <para><strong>Transparent Pass-Through:</strong></para>
     /// <para>
