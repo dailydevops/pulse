@@ -8,9 +8,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   RabbitMqConnectionAdapter MUST create every channel with new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), built per call.
