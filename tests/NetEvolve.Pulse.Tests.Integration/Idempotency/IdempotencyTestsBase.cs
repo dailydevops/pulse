@@ -321,9 +321,7 @@ public abstract class IdempotencyTestsBase(
             .ConfigureAwait(false);
 
     [Test]
-    public async Task Should_Reserve_Exactly_Once_When_Reserving_Same_Key_Concurrently(
-        CancellationToken cancellationToken
-    )
+    public async Task Should_Reserve_Once_When_Reserving_Same_Key_Concurrently(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -445,9 +443,7 @@ public abstract class IdempotencyTestsBase(
     }
 
     [Test]
-    public async Task Should_Reserve_Logically_Expired_Key_That_Is_Still_Physically_Present(
-        CancellationToken cancellationToken
-    )
+    public async Task Should_Reserve_Expired_Key_That_Is_Still_Physically_Present(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -489,9 +485,7 @@ public abstract class IdempotencyTestsBase(
     }
 
     [Test]
-    public async Task Should_Reserve_Logically_Expired_Key_Exactly_Once_When_Reserving_Concurrently(
-        CancellationToken cancellationToken
-    )
+    public async Task Should_Reserve_Expired_Key_Once_When_Reserving_Concurrently(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
