@@ -12,7 +12,7 @@ applyTo:
 
 created: 2026-09-24
 
-lastModified: 2026-09-26
+lastModified: 2026-09-28
 
 state: accepted
 
@@ -55,7 +55,7 @@ The Entity Framework Core provider materializes `OutboxMessage.EventType` throug
 * An unresolvable event type no longer blocks the other messages of a batch in any provider.
 * The behavior is consistent across providers and covered by shared integration tests in `OutboxTestsBase`.
 * `GetPendingAsync` and `GetFailedForRetryAsync` may return fewer messages than claimed.
-* If dead-lettering fails or is interrupted after the claim, only the unresolvable messages stay in `Processing`; they are reclaimed after the processing lease expires by the providers that reclaim expired leases. The Entity Framework Core and Cosmos DB fetch queries do not reclaim expired leases today, a pre-existing gap outside this decision.
+* If dead-lettering fails or is interrupted after the claim, only the unresolvable messages stay in `Processing`; every provider reclaims them after the processing lease expires (see [Entity Framework Core and Cosmos DB Outbox Lease Reclaim](./2026-09-28-entityframework-and-cosmosdb-outbox-lease-reclaim.md)).
 * A batch whose messages are all unresolvable returns an empty list, so the processor waits one polling interval before the next fetch. A large backlog of unresolvable messages is therefore drained at one batch per polling interval.
 * The placeholder compares equal only to placeholders with the same stored name, not to `typeof(object)`.
 * `NetEvolve.Pulse.Extensibility` gains a public static class with `Resolve` and `DeadLetterUnresolvableAsync`. External implementers of `IOutboxRepository` SHOULD use it in the same way. No interface changes.

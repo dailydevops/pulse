@@ -20,7 +20,13 @@ using NetEvolve.Pulse.Internals;
 /// <item><description>If the request does not implement <see cref="IInvalidatingCommand{TResponse}"/>, the interceptor passes through without any cache interaction.</description></item>
 /// <item><description>The handler is always invoked first; if it throws, the exception propagates and no cache eviction is performed.</description></item>
 /// <item><description>If <see cref="IDistributedCache"/> is not registered in the DI container, the interceptor passes through without any cache interaction.</description></item>
-/// <item><description>Otherwise, after a successful handler call, for each type in <see cref="IInvalidatingCommand{TResponse}.InvalidatedQueryTypes"/> the cache keys tracked by <see cref="ICacheKeyRegistry"/> are removed from the cache and the registry entries for that type are cleared.</description></item>
+/// <item><description>Otherwise, after a successful handler call, for each type in <see cref="IInvalidatingCommand{TResponse}.InvalidatedQueryTypes"/> the cache keys tracked by <see cref="ICacheKeyRegistry"/> are atomically taken from the registry and removed from the cache. Keys registered while the eviction runs are kept for the next invalidation. If an eviction fails, the keys not yet evicted are registered again and the exception propagates.</description></item>
+/// </list>
+/// <para><strong>Limitations:</strong></para>
+/// <list type="bullet">
+/// <item><description>The registry is local to the process. Entries that other instances cached in the shared <see cref="IDistributedCache"/>, or that were cached before the process restarted, are not evicted; they are removed only when they expire.</description></item>
+/// <item><description>Cache-aside race: a query that reads the data before the command commits and writes its result after the eviction leaves a stale entry until it expires.</description></item>
+/// <item><description>The registry holds each distinct cache key once per query type. Keys of expired entries are removed only when an invalidation of their query type runs.</description></item>
 /// </list>
 /// <para><strong>Registration:</strong></para>
 /// Use <c>AddCacheInvalidation()</c> on the <see cref="IMediatorBuilder"/> to register this interceptor.
@@ -74,13 +80,24 @@ internal sealed class CacheInvalidationInterceptor<TRequest, TResponse> : IReque
 
         foreach (var queryType in invalidatingCommand.InvalidatedQueryTypes)
         {
-            var keys = _cacheKeyRegistry.GetKeysForType(queryType);
-            foreach (var key in keys)
+            var keys = _cacheKeyRegistry.RemoveType(queryType);
+            for (var i = 0; i < keys.Count; i++)
             {
-                await cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
-            }
+                try
+                {
+                    await cache.RemoveAsync(keys[i], cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Keep the keys that were not evicted, so that a later invalidation can still evict them.
+                    for (var j = i; j < keys.Count; j++)
+                    {
+                        _cacheKeyRegistry.Register(queryType, keys[j]);
+                    }
 
-            _cacheKeyRegistry.RemoveType(queryType);
+                    throw;
+                }
+            }
         }
 
         return response;

@@ -306,6 +306,19 @@ services.AddPulse(config => config
 );
 ```
 
+## Processing Lease Reclaim
+
+A message claimed by `GetPendingAsync` stays in `Processing` until it is completed or failed. If a worker crashes or shuts down in between, the next pending poll reclaims the message once its `UpdatedAt` is older than `OutboxOptions.ProcessingLeaseTimeout` (default: 5 minutes, must be greater than zero).
+
+```csharp
+services.AddPulse(config => config
+    .AddEntityFrameworkOutbox<ApplicationDbContext>(options =>
+        options.ProcessingLeaseTimeout = TimeSpan.FromMinutes(10))
+);
+```
+
+Choose a value well above the longest expected dispatch. A dispatch that runs longer than the lease can be reclaimed by another poller and delivered twice.
+
 ## Requirements
 
 - .NET 8.0, .NET 9.0, or .NET 10.0

@@ -1,6 +1,7 @@
 namespace NetEvolve.Pulse.SourceGeneration.Models;
 
 using System;
+using Microsoft.CodeAnalysis;
 
 /// <summary>
 /// Combined result of analyzing a <c>[PulseHandler&lt;T&gt;]</c>-annotated type: the handler
@@ -17,14 +18,22 @@ internal readonly struct ExplicitHandlerResult : IEquatable<ExplicitHandlerResul
     public ExplicitTypeError[] Errors { get; }
 
     /// <summary>
+    /// Gets the diagnostic that prevents any registration of the handler type (PULSE004 or PULSE007), or
+    /// <see langword="null"/> when the handler type itself can be registered.
+    /// </summary>
+    public DiagnosticDescriptor? Blocker { get; }
+
+    /// <summary>
     /// Initializes a new <see cref="ExplicitHandlerResult"/> with the given handler info and errors.
     /// </summary>
     /// <param name="info">The handler info, or <see langword="null"/> when none exists.</param>
     /// <param name="errors">The diagnostic errors for invalid message type arguments.</param>
-    public ExplicitHandlerResult(HandlerInfo? info, ExplicitTypeError[] errors)
+    /// <param name="blocker">The diagnostic that prevents any registration of the handler type.</param>
+    public ExplicitHandlerResult(HandlerInfo? info, ExplicitTypeError[] errors, DiagnosticDescriptor? blocker = null)
     {
         Info = info;
         Errors = errors;
+        Blocker = blocker;
     }
 
     /// <inheritdoc />
@@ -40,7 +49,7 @@ internal readonly struct ExplicitHandlerResult : IEquatable<ExplicitHandlerResul
             return false;
         }
 
-        if (Errors.Length != other.Errors.Length)
+        if (!Equals(Blocker, other.Blocker) || Errors.Length != other.Errors.Length)
         {
             return false;
         }

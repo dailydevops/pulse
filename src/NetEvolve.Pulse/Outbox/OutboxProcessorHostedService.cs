@@ -398,7 +398,9 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     /// does not prevent processing of subsequent messages.
     /// <para><strong>Cancellation Behavior:</strong></para>
     /// Processing stops immediately when the cancellation token is triggered, leaving
-    /// remaining messages unprocessed. These messages will be re-polled and processed in subsequent cycles.
+    /// remaining messages in the <c>Processing</c> status. The repository reclaims them once
+    /// <see cref="OutboxOptions.ProcessingLeaseTimeout"/> (or the provider's own lease option) expires,
+    /// and they are processed in a subsequent cycle.
     /// </remarks>
     /// <param name="repository">The repository resolved for this work item.</param>
     /// <param name="messages">The ordered array of outbox messages to process sequentially.</param>

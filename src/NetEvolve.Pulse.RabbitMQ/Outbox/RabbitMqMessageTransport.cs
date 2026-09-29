@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Outbox;
 
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Options;
@@ -14,15 +15,16 @@ using RabbitMQ.Client;
 /// <para><strong>Connection Management:</strong></para>
 /// This transport uses an injected <see cref="IRabbitMqChannelPool"/> to rent channels on
 /// demand. The connection lifetime is managed externally via dependency injection.
+/// <para><strong>Delivery Guarantees:</strong></para>
+/// Channels are created with publisher confirmations and confirmation tracking enabled, and
+/// every message is published as persistent (delivery mode 2) with <c>mandatory: true</c>.
+/// A send therefore completes only after the broker acknowledged the message, and throws when
+/// the broker nacks it, returns it as unroutable, or closes the channel (for example because
+/// the exchange does not exist). The outbox then keeps the message pending for retry.
 /// <para><strong>Channel Pooling:</strong></para>
-/// RabbitMQ.Client's <see cref="IChannel"/> is not thread-safe for concurrent publish
-/// calls, so a single shared channel would need to serialize every publish. Instead, each
-/// <see cref="SendAsync"/> call rents its own channel from the pool for the duration of the
-/// publish and returns it afterwards, allowing concurrent sends to run on separate
-/// channels rather than blocking each other. <see cref="SendBatchAsync"/> rents a single
-/// channel for the whole batch and publishes all of its messages sequentially on it -
-/// this keeps the implementation simple (no per-message rent/return churn) while staying
-/// correct, since only the thread executing the batch ever touches that channel.
+/// Each <see cref="SendAsync"/> call rents its own channel from the pool for the duration of
+/// the publish and returns it afterwards, so concurrent sends wait for their confirmations on
+/// separate channels. <see cref="SendBatchAsync"/> rents a single channel for the whole batch.
 /// <para><strong>Routing Key Resolution:</strong></para>
 /// Each message is published with a routing key resolved by <see cref="ITopicNameResolver"/>.
 /// By default, the simple class name of the event type is used (e.g., <c>"OrderCreated"</c>).
@@ -91,10 +93,10 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
-    /// Overridden to rent a single channel for the whole batch and publish all messages
-    /// sequentially on it. RabbitMQ.Client's <see cref="IChannel"/> is NOT thread-safe for
-    /// concurrent publish calls, so the default parallel <c>Parallel.ForEachAsync</c>
-    /// implementation provided by the interface must not be used on a single channel.
+    /// Rents a single channel for the whole batch, starts the publish of every message on it and
+    /// then awaits all publisher confirmations together, following the batch pattern of the
+    /// RabbitMQ.Client publisher confirms sample. The channel is returned to the pool only after
+    /// every publish has settled; the first failure (nack, return or channel close) is rethrown.
     /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown when the transport has already been disposed.</exception>
     public async Task SendBatchAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default)
@@ -107,11 +109,8 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
         var channel = await _channelPool.RentAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            foreach (var message in messages)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await PublishAsync(channel, message, cancellationToken).ConfigureAwait(false);
-            }
+            await Task.WhenAll(messages.Select(message => PublishAsync(channel, message, cancellationToken)))
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -141,6 +140,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             MessageId = message.Id.ToString(),
             CorrelationId = message.CorrelationId,
             ContentType = "application/json",
+            Persistent = true,
             Timestamp = new AmqpTimestamp(message.CreatedAt.ToUnixTimeSeconds()),
             Headers = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -153,7 +153,7 @@ internal sealed class RabbitMqMessageTransport : IMessageTransport, IDisposable
             .BasicPublishAsync(
                 exchange: _options.ExchangeName,
                 routingKey: routingKey,
-                mandatory: false,
+                mandatory: true,
                 basicProperties: properties,
                 body: body,
                 cancellationToken: cancellationToken
