@@ -10,9 +10,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   IdempotencyStore MUST reserve and store keys through IIdempotencyKeyRepository.TryReserveAsync(key, createdAt, validFrom), never through ExistsAsync followed by StoreAsync.

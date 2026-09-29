@@ -1,6 +1,7 @@
 ﻿namespace NetEvolve.Pulse.Tests.Unit.Dapr;
 
 using System;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -116,7 +117,7 @@ public sealed class DaprMessageTransportTests
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var daprClient = new FakeDaprClient();
+        using var daprClient = new FakeDaprClient();
         var transport = new DaprMessageTransport(
             daprClient,
             new FakeTopicNameResolver(),
@@ -146,6 +147,62 @@ public sealed class DaprMessageTransportTests
     }
 
     [Test]
+    public async Task SendAsync_Sets_cloudevent_id_and_type_metadata_from_message(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var daprClient = new FakeDaprClient();
+        var transport = CreateTransport(daprClient);
+        var message = CreateMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(daprClient.PublishedContentType).IsEqualTo("application/json");
+        _ = await Assert.That(daprClient.PublishedMetadata).IsNotNull();
+        _ = await Assert
+            .That(daprClient.PublishedMetadata!["cloudevent.id"])
+            .IsEqualTo(message.Id.ToString("D", CultureInfo.InvariantCulture));
+        _ = await Assert
+            .That(daprClient.PublishedMetadata["cloudevent.type"])
+            .IsEqualTo(message.EventType.ToOutboxEventTypeName());
+    }
+
+    [Test]
+    public async Task SendAsync_Same_message_twice_publishes_same_cloudevent_id(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var daprClient = new FakeDaprClient();
+        var transport = CreateTransport(daprClient);
+        var message = CreateMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        var firstId = daprClient.PublishedMetadata?["cloudevent.id"];
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        var secondId = daprClient.PublishedMetadata?["cloudevent.id"];
+
+        _ = await Assert.That(firstId).IsNotNull();
+        _ = await Assert.That(secondId).IsEqualTo(firstId);
+    }
+
+    [Test]
+    public async Task SendAsync_Does_not_override_cloudevent_trace_metadata(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var daprClient = new FakeDaprClient();
+        var transport = CreateTransport(daprClient);
+        var message = CreateMessage();
+
+        await transport.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(daprClient.PublishedMetadata).IsNotNull();
+        _ = await Assert.That(daprClient.PublishedMetadata!.ContainsKey("cloudevent.traceid")).IsFalse();
+        _ = await Assert.That(daprClient.PublishedMetadata.ContainsKey("cloudevent.traceparent")).IsFalse();
+        _ = await Assert.That(daprClient.PublishedMetadata.ContainsKey("cloudevent.tracestate")).IsFalse();
+    }
+
+    [Test]
     public async Task IsHealthyAsync_Delegates_to_DaprClient(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -163,6 +220,24 @@ public sealed class DaprMessageTransportTests
 
         _ = await Assert.That(result).IsTypeOf<bool>();
     }
+
+    private static DaprMessageTransport CreateTransport(FakeDaprClient daprClient) =>
+        new(
+            daprClient,
+            new FakeTopicNameResolver(),
+            Options.Create(new DaprMessageTransportOptions { PubSubName = "test-pubsub" }),
+            DefaultSerializer
+        );
+
+    private static OutboxMessage CreateMessage() =>
+        new()
+        {
+            Id = Guid.Parse("11111111-2222-3333-4444-555555555555"),
+            EventType = typeof(string),
+            Payload = "{}",
+            CreatedAt = DateTimeOffset.UnixEpoch,
+            UpdatedAt = DateTimeOffset.UnixEpoch,
+        };
 
     private sealed class FakeTopicNameResolver : ITopicNameResolver
     {
