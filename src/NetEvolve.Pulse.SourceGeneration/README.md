@@ -16,7 +16,7 @@ NetEvolve.Pulse.SourceGeneration is a Roslyn source generator for the Pulse CQRS
 - **Assembly-Derived Method Name**: Generated method name is `Add` + `AssemblyName` + `PulseHandlers`. Dots are removed and every other character that is not valid in a C# identifier (for example `-`, space or `+`) is replaced with `_` (e.g., `MyProject` → `AddMyProjectPulseHandlers`, `My.Project` → `AddMyProjectPulseHandlers`, `my-service` → `Addmy_servicePulseHandlers`)
 - **Root Namespace Support**: Generated namespace uses the consuming project's `RootNamespace`
 - **Multi-Interface Instance Sharing**: Handlers implementing multiple interfaces are registered as the concrete type once; each interface resolves via a factory delegate so all share the same instance within the configured lifetime
-- **Diagnostics**: PULSE001–PULSE006 covering missing handler interfaces, duplicate registrations, hints for handlers without `[PulseHandler]`, open-generic type annotations, and invalid or incompatible explicit message type arguments
+- **Diagnostics**: PULSE001–PULSE007 covering missing handler interfaces, duplicate registrations, hints for handlers without `[PulseHandler]`, open-generic type annotations, invalid or incompatible explicit message type arguments, and handler types that generated code cannot reference or DI cannot instantiate
 - **Fully Qualified Names**: All generated code uses `global::` prefixed type names to avoid namespace conflicts
 
 ## Installation
@@ -209,10 +209,11 @@ public class GenericAuditEventHandler<TEvent> : IEventHandler<TEvent>
 | --- | --- | --- |
 | PULSE001 | Error | Type is annotated with `[PulseHandler]` but does not implement any known Pulse handler interface. |
 | PULSE002 | Warning | Multiple `[PulseHandler]` types implement the same command, query or stream query handler contract. Only the first handler is registered. Events are excluded — multiple event handlers are valid. |
-| PULSE003 | Info | Type implements a Pulse handler interface but is not annotated with `[PulseHandler]` or `[PulseHandler<TMessage>]`, so it is not registered. Open-generic types are not reported. |
-| PULSE004 | Error | Type annotated with `[PulseHandler]` is an open generic type and cannot be automatically registered. Use `[PulseHandler<TMessage>]` for closed registrations or `[PulseGenericHandler]` for open-generic DI registrations. |
+| PULSE003 | Info | Type implements a Pulse handler interface but is not annotated with `[PulseHandler]` or `[PulseHandler<TMessage>]`, so it is not registered. Not reported for types that could not be registered anyway (open generic, nested in a generic type, or a PULSE007 case). |
+| PULSE004 | Error | The annotated type is an open generic type or is nested in a generic type and cannot be automatically registered. For an open generic type annotated with `[PulseHandler]`, use `[PulseHandler<TMessage>]` for closed registrations or `[PulseGenericHandler]` for open-generic DI registrations. For a handler nested in a generic type (reported for all three attributes, because the generated code cannot name the containing type's type arguments), move the handler out of the generic containing type. |
 | PULSE005 | Error | The type argument `T` passed to `[PulseHandler<T>]` does not implement any known Pulse message interface (`ICommand`, `ICommand<T>`, `IQuery<T>`, `IEvent`, or `IStreamQuery<T>`). |
 | PULSE006 | Error | A closed registration for the given message type cannot be constructed because the handler does not implement a compatible handler interface or not all type parameters can be inferred from the message type, or the inferred type arguments do not satisfy the handler's generic constraints. |
+| PULSE007 | Error | The annotated type cannot be registered: the type, a containing type, or a message or response type (including its type arguments) of a handler interface or of `[PulseHandler<TMessage>]` is `private`, `protected`, `private protected` or `file`-local (generated code cannot reference it), or the type is `abstract`, `static` or a value type (the DI container cannot instantiate it). Make the type a concrete class, and make it and the types it handles `internal`, `protected internal` or `public` along their whole containing chain. |
 
 ## NativeAOT and Trimming
 
