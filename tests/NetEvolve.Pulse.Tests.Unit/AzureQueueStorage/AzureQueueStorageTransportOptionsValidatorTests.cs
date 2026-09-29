@@ -231,6 +231,21 @@ public sealed class AzureQueueStorageTransportOptionsValidatorTests
         _ = await Assert.That(result.Succeeded).IsTrue();
     }
 
+    [Test]
+    public async Task Validate_When_multiple_options_are_invalid_reports_all_failures()
+    {
+        var options = new AzureQueueStorageTransportOptions
+        {
+            QueueName = string.Empty,
+            MessageVisibilityTimeout = TimeSpan.FromDays(8),
+            MessageTimeToLive = TimeSpan.Zero,
+        };
+
+        var result = _validator.Validate(null, options);
+
+        _ = await Assert.That(result.Failures!.Count()).IsEqualTo(4);
+    }
+
     public static IEnumerable<Func<TimeSpan>> ValidVisibilityTimeouts()
     {
         yield return () => TimeSpan.Zero;
