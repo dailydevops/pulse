@@ -125,18 +125,41 @@ public sealed class CosmosDbOutboxRepositoryTimeToLiveTests
     }
 
     [Test]
-    public async Task MarkAsFailedAsync_WithTtlEnabled_DoesNotPatchTtl(CancellationToken cancellationToken)
+    public async Task MarkAsFailedAsync_WithTtlEnabled_PatchesTtlToNeverExpire(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var messageId = Guid.NewGuid();
         var patches = await SettleAsync(
                 messageId,
-                repository => repository.MarkAsFailedAsync(messageId, "boom", null, cancellationToken)
+                repository => repository.MarkAsFailedAsync(messageId, "boom", cancellationToken)
             )
             .ConfigureAwait(false);
 
-        _ = await Assert.That(patches.Any(p => p.Path == "/ttl")).IsFalse();
+        _ = await Assert.That(patches.Any(p => p is PatchOperation<int> { Path: "/ttl", Value: -1 })).IsTrue();
+    }
+
+    [Test]
+    public async Task MarkAsFailedAsync_WithNextRetryAtAndTtlEnabled_PatchesTtlToNeverExpire(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var messageId = Guid.NewGuid();
+        var patches = await SettleAsync(
+                messageId,
+                repository =>
+                    repository.MarkAsFailedAsync(
+                        messageId,
+                        "boom",
+                        DateTimeOffset.UtcNow.AddMinutes(5),
+                        cancellationToken
+                    )
+            )
+            .ConfigureAwait(false);
+
+        _ = await Assert.That(patches.Any(p => p is PatchOperation<int> { Path: "/ttl", Value: -1 })).IsTrue();
     }
 
     private static async Task<IReadOnlyList<PatchOperation>> ClaimAsync(
