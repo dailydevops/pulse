@@ -51,9 +51,11 @@ var database = await cosmosClient.CreateDatabaseIfNotExistsAsync("MyDatabase");
 _ = await database.Database.CreateContainerIfNotExistsAsync(
     new ContainerProperties(id: "outbox_messages", partitionKeyPath: "/id")
     {
-        // Required when EnableTimeToLive is true: -1 turns TTL on without expiring
-        // documents that carry no "ttl" property (pending, processing, failed) or
-        // "ttl": -1 (dead-letter messages replayed to pending).
+        // Required when EnableTimeToLive is true: -1 turns TTL on without a default
+        // expiry. The provider writes "ttl": -1 on pending, processing, failed and
+        // replayed documents and "ttl": TtlSeconds on completed and dead-letter ones.
+        // A positive default expires documents without a "ttl" property, for example
+        // pending documents written by an older version, and loses those messages.
         DefaultTimeToLive = -1,
     });
 ```
@@ -129,7 +131,7 @@ services.AddPulse(config => config
 | `DatabaseName` | `string` | _(required)_ | The Cosmos DB database name. The database must exist. |
 | `ContainerName` | `string` | `outbox_messages` | The Cosmos DB container name. The container must exist. |
 | `PartitionKeyPath` | `string` | `/id` | Only `/id` is supported; other values fail validation at startup. The container must use `/id` (see [Container Setup](#container-setup)). |
-| `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. Replaying a dead-letter message sets its `ttl` to `-1`, so it does not expire while pending. Requires `DefaultTimeToLive` on the container. |
+| `EnableTimeToLive` | `bool` | `false` | Sets the `ttl` property on documents that become `Completed` or `DeadLetter`, so the Cosmos DB TTL engine deletes them. All other documents (pending, processing, failed and replayed) get `ttl = -1`, so they never expire. Pending documents written by older versions have no `ttl` until they are claimed, so the container still requires `DefaultTimeToLive = -1`. |
 | `TtlSeconds` | `int` | `86400` (24 hours) | TTL in seconds for completed and dead-letter documents. Only applies when `EnableTimeToLive` is `true`. |
 | `ProcessingLeaseTimeout` | `TimeSpan` | 5 minutes | How long a claimed message may stay in `Processing` before the next pending poll reclaims it, for example after a crash or shutdown. Must be greater than zero; other values fail validation at startup. |
 

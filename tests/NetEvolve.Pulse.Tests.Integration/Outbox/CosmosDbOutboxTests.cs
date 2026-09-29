@@ -1,5 +1,6 @@
-namespace NetEvolve.Pulse.Tests.Integration.Outbox;
+﻿namespace NetEvolve.Pulse.Tests.Integration.Outbox;
 
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Extensions.TUnit;
@@ -53,6 +54,58 @@ public class CosmosDbOutboxTests(IServiceFixture databaseServiceFixture, IServic
             _ = await Assert.That(testableCodeRan).IsFalse();
         }
     }
+
+    [Test]
+    public async Task Should_Keep_Undelivered_Messages_From_Expiring_When_TimeToLive_Is_Enabled(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var options = services.GetRequiredService<IOptions<CosmosDbOutboxOptions>>().Value;
+                    var container = services
+                        .GetRequiredService<CosmosClient>()
+                        .GetContainer(options.DatabaseName, options.ContainerName);
+                    var outbox = services.GetRequiredService<IOutboxRepository>();
+                    var message = new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        EventType = typeof(TestEvent),
+                        Payload = "{}",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        UpdatedAt = DateTimeOffset.UtcNow,
+                    };
+                    var id = message.Id.ToString();
+
+                    await outbox.AddAsync(message, token).ConfigureAwait(false);
+                    var added = await container
+                        .ReadItemAsync<CosmosDbOutboxDocument>(id, new PartitionKey(id), cancellationToken: token)
+                        .ConfigureAwait(false);
+
+                    _ = await outbox.GetPendingAsync(10, token).ConfigureAwait(false);
+                    var claimed = await container
+                        .ReadItemAsync<CosmosDbOutboxDocument>(id, new PartitionKey(id), cancellationToken: token)
+                        .ConfigureAwait(false);
+
+                    await outbox.MarkAsCompletedAsync(message.Id, token).ConfigureAwait(false);
+                    var completed = await container
+                        .ReadItemAsync<CosmosDbOutboxDocument>(id, new PartitionKey(id), cancellationToken: token)
+                        .ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(added.Resource.Ttl).IsEqualTo(-1);
+                        _ = await Assert.That(claimed.Resource.Ttl).IsEqualTo(-1);
+                        _ = await Assert.That(completed.Resource.Ttl).IsEqualTo(options.TtlSeconds);
+                    }
+                },
+                cancellationToken,
+                configureServices: services =>
+                    services
+                        .Configure<CosmosDbOutboxOptions>(options => options.EnableTimeToLive = true)
+                        .Configure<OutboxProcessorOptions>(options => options.DisableProcessing = true)
+            )
+            .ConfigureAwait(false);
 
     [Test]
     public async Task Should_ReplayMessage_Clear_Stale_ProcessedAt(CancellationToken cancellationToken) =>
