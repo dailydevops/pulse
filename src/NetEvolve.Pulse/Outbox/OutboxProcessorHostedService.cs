@@ -87,9 +87,10 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
     private long _pendingCount;
 
     /// <summary>
-    /// Instance-scoped meter hosting the <c>pulse.outbox.pending</c> observable gauge. The gauge callback
-    /// captures this service instance, so the instrument lifetime is bound to the service lifetime by
-    /// disposing this meter in <see cref="Dispose"/> instead of publishing on the process-wide static meter.
+    /// Instance-scoped meter hosting the <c>pulse.outbox.*</c> counters, the duration histogram and the
+    /// <c>pulse.outbox.pending</c> observable gauge. The gauge callback captures this service instance, so the
+    /// instrument lifetime is bound to the service lifetime by disposing this meter in <see cref="Dispose"/>
+    /// instead of publishing on the process-wide static meter, which is never disposed.
     /// </summary>
     private readonly Meter _meter;
 
@@ -130,29 +131,30 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         _useSemanticConventionUnits = telemetryOptions?.Value.UseSemanticConventionUnits ?? false;
         var messageUnit = _useSemanticConventionUnits ? "{message}" : "messages";
 
-        _processedCounter = Defaults.Meter.CreateCounter<long>(
+        _meter = new Meter(Defaults.Meter.Name, Defaults.Version);
+
+        _processedCounter = _meter.CreateCounter<long>(
             "pulse.outbox.processed.total",
             messageUnit,
             "Cumulative number of successfully processed outbox messages."
         );
-        _failedCounter = Defaults.Meter.CreateCounter<long>(
+        _failedCounter = _meter.CreateCounter<long>(
             "pulse.outbox.failed.total",
             messageUnit,
             "Cumulative number of failed outbox processing attempts."
         );
-        _deadLetterCounter = Defaults.Meter.CreateCounter<long>(
+        _deadLetterCounter = _meter.CreateCounter<long>(
             "pulse.outbox.deadletter.total",
             messageUnit,
             "Cumulative number of outbox messages moved to dead-letter."
         );
         _processingDurationHistogram = TelemetryUnits.CreateDurationHistogram(
-            Defaults.Meter,
+            _meter,
             "pulse.outbox.processing.duration",
             "each outbox processing batch",
             _useSemanticConventionUnits
         );
 
-        _meter = new Meter(Defaults.Meter.Name, Defaults.Version);
         _ = _meter.CreateObservableGauge(
             "pulse.outbox.pending",
             observeValue: () => Volatile.Read(ref _pendingCount),
