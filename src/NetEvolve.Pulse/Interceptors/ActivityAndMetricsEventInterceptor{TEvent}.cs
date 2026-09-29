@@ -53,24 +53,21 @@ internal sealed class ActivityAndMetricsEventInterceptor<TEvent> : IEventInterce
     {
         _timeProvider = timeProvider;
         _useSemanticConventionUnits = options?.Value.UseSemanticConventionUnits ?? false;
-        _eventCounter = TelemetryUnits.CreateCounter(
-            Defaults.Meter,
+        _eventCounter = TelemetryUnits.GetSharedCounter(
             "pulse.events.total",
             "events",
             "{event}",
             "Total number of events processed.",
             _useSemanticConventionUnits
         );
-        _errorsCounter = TelemetryUnits.CreateCounter(
-            Defaults.Meter,
+        _errorsCounter = TelemetryUnits.GetSharedCounter(
             "pulse.event.errors",
             "errors",
             "{error}",
             "Total number of event errors.",
             _useSemanticConventionUnits
         );
-        _eventDurationHistogram = TelemetryUnits.CreateDurationHistogram(
-            Defaults.Meter,
+        _eventDurationHistogram = TelemetryUnits.GetSharedDurationHistogram(
             "pulse.event.duration",
             "event processing",
             _useSemanticConventionUnits

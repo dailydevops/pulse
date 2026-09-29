@@ -55,24 +55,21 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     {
         _timeProvider = timeProvider;
         _useSemanticConventionUnits = options?.Value.UseSemanticConventionUnits ?? false;
-        _requestCounter = TelemetryUnits.CreateCounter(
-            Defaults.Meter,
+        _requestCounter = TelemetryUnits.GetSharedCounter(
             "pulse.requests.total",
             "requests",
             "{request}",
             "Total number of requests processed.",
             _useSemanticConventionUnits
         );
-        _errorsCounter = TelemetryUnits.CreateCounter(
-            Defaults.Meter,
+        _errorsCounter = TelemetryUnits.GetSharedCounter(
             "pulse.request.errors",
             "errors",
             "{error}",
             "Total number of request errors.",
             _useSemanticConventionUnits
         );
-        _requestDurationHistogram = TelemetryUnits.CreateDurationHistogram(
-            Defaults.Meter,
+        _requestDurationHistogram = TelemetryUnits.GetSharedDurationHistogram(
             "pulse.request.duration",
             "request processing",
             _useSemanticConventionUnits

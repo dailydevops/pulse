@@ -1,5 +1,6 @@
 namespace NetEvolve.Pulse.Internals;
 
+using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 
 /// <summary>
@@ -28,6 +29,54 @@ internal static class TelemetryUnits
         7.5,
         10,
     ];
+
+    /// <summary>
+    /// Instruments on <see cref="Defaults.Meter"/>, one per name and unit mode. The static meter is never disposed,
+    /// so creating instruments per interceptor instance or per service provider would accumulate them.
+    /// </summary>
+    private static readonly Dictionary<(string Name, bool UseSemanticConventionUnits), Instrument> SharedInstruments =
+    [];
+
+    /// <summary>
+    /// Gets the counter <paramref name="name"/> on <see cref="Defaults.Meter"/>, creating it once per unit mode.
+    /// </summary>
+    /// <param name="name">The instrument name.</param>
+    /// <param name="legacyUnit">The legacy unit, for example <c>requests</c>.</param>
+    /// <param name="annotationUnit">The UCUM annotation unit, for example <c>{request}</c>.</param>
+    /// <param name="description">The instrument description.</param>
+    /// <param name="useSemanticConventionUnits">Whether to use the semantic convention unit.</param>
+    /// <returns>The shared counter.</returns>
+    public static Counter<long> GetSharedCounter(
+        string name,
+        string legacyUnit,
+        string annotationUnit,
+        string description,
+        bool useSemanticConventionUnits
+    ) =>
+        GetShared(
+            name,
+            useSemanticConventionUnits,
+            () =>
+                CreateCounter(Defaults.Meter, name, legacyUnit, annotationUnit, description, useSemanticConventionUnits)
+        );
+
+    /// <summary>
+    /// Gets the duration histogram <paramref name="name"/> on <see cref="Defaults.Meter"/>, creating it once per unit mode.
+    /// </summary>
+    /// <param name="name">The instrument name.</param>
+    /// <param name="subject">The measured operation used in the description, for example <c>request processing</c>.</param>
+    /// <param name="useSemanticConventionUnits">Whether to record seconds.</param>
+    /// <returns>The shared histogram.</returns>
+    public static Histogram<double> GetSharedDurationHistogram(
+        string name,
+        string subject,
+        bool useSemanticConventionUnits
+    ) =>
+        GetShared(
+            name,
+            useSemanticConventionUnits,
+            () => CreateDurationHistogram(Defaults.Meter, name, subject, useSemanticConventionUnits)
+        );
 
     /// <summary>
     /// Creates a counter on <paramref name="meter"/> with the legacy or the UCUM annotation unit.
@@ -86,4 +135,23 @@ internal static class TelemetryUnits
     /// <returns>The duration in seconds or milliseconds.</returns>
     public static double ToDuration(TimeSpan elapsed, bool useSemanticConventionUnits) =>
         useSemanticConventionUnits ? elapsed.TotalSeconds : elapsed.TotalMilliseconds;
+
+    /// <summary>
+    /// Returns the cached instrument for <paramref name="name"/> and the unit mode, or creates and caches it.
+    /// The lock keeps concurrent first calls from creating the instrument twice.
+    /// </summary>
+    private static T GetShared<T>(string name, bool useSemanticConventionUnits, Func<T> create)
+        where T : Instrument
+    {
+        lock (SharedInstruments)
+        {
+            if (!SharedInstruments.TryGetValue((name, useSemanticConventionUnits), out var instrument))
+            {
+                instrument = create();
+                SharedInstruments.Add((name, useSemanticConventionUnits), instrument);
+            }
+
+            return (T)instrument;
+        }
+    }
 }

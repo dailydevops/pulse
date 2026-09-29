@@ -70,24 +70,21 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     {
         _timeProvider = timeProvider;
         _useSemanticConventionUnits = options?.Value.UseSemanticConventionUnits ?? false;
-        _streamQueryCounter = TelemetryUnits.CreateCounter(
-            Defaults.Meter,
+        _streamQueryCounter = TelemetryUnits.GetSharedCounter(
             "pulse.stream_query.total",
             "queries",
             "{query}",
             "Total number of stream queries processed.",
             _useSemanticConventionUnits
         );
-        _errorsCounter = TelemetryUnits.CreateCounter(
-            Defaults.Meter,
+        _errorsCounter = TelemetryUnits.GetSharedCounter(
             "pulse.stream_query.errors",
             "errors",
             "{error}",
             "Total number of stream query errors.",
             _useSemanticConventionUnits
         );
-        _streamQueryDurationHistogram = TelemetryUnits.CreateDurationHistogram(
-            Defaults.Meter,
+        _streamQueryDurationHistogram = TelemetryUnits.GetSharedDurationHistogram(
             "pulse.stream_query.duration",
             "stream query processing",
             _useSemanticConventionUnits
