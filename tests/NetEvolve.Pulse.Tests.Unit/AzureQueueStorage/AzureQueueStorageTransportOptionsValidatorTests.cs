@@ -250,13 +250,14 @@ public sealed class AzureQueueStorageTransportOptionsValidatorTests
     {
         yield return () => TimeSpan.Zero;
         yield return () => TimeSpan.FromSeconds(30);
-        yield return () => TimeSpan.FromDays(7);
+        yield return () => TimeSpan.FromDays(7).Subtract(TimeSpan.FromSeconds(1));
     }
 
     public static IEnumerable<Func<TimeSpan>> InvalidVisibilityTimeouts()
     {
         yield return () => TimeSpan.FromSeconds(-1);
         yield return () => Timeout.InfiniteTimeSpan;
+        yield return () => TimeSpan.FromDays(7);
         yield return () => TimeSpan.FromDays(7).Add(TimeSpan.FromSeconds(1));
         yield return () => TimeSpan.FromDays(8);
     }
@@ -266,6 +267,7 @@ public sealed class AzureQueueStorageTransportOptionsValidatorTests
         yield return () => TimeSpan.FromSeconds(1);
         yield return () => TimeSpan.FromDays(7);
         yield return () => TimeSpan.FromDays(30);
+        yield return () => TimeSpan.FromSeconds(int.MaxValue);
         yield return () => TimeSpan.FromSeconds(-1);
         yield return () => Timeout.InfiniteTimeSpan;
     }
@@ -276,6 +278,8 @@ public sealed class AzureQueueStorageTransportOptionsValidatorTests
         yield return () => TimeSpan.FromMilliseconds(500);
         yield return () => TimeSpan.FromSeconds(-2);
         yield return () => TimeSpan.FromDays(-1);
+        yield return () => TimeSpan.FromSeconds((double)int.MaxValue + 1);
+        yield return () => TimeSpan.MaxValue;
     }
 
     public static IEnumerable<Func<TimeSpan>> NeverExpiresTimeToLives()
