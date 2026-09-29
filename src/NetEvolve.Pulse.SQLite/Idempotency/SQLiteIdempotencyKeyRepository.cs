@@ -2,6 +2,7 @@ namespace NetEvolve.Pulse.Idempotency;
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -21,8 +22,9 @@ using NetEvolve.Pulse.Extensibility.Idempotency;
 /// Concurrent inserts of the same key are idempotent and will not throw exceptions.
 /// Reservations use <c>ON CONFLICT ... DO UPDATE ... WHERE</c>, which also refreshes the timestamp of an expired key.
 /// <para><strong>ISO-8601 Timestamps:</strong></para>
-/// Stores <see cref="DateTimeOffset"/> values as ISO-8601 text strings, using SQLite's
-/// native text affinity for reliable lexicographic ordering and TTL-based queries.
+/// Stores <see cref="DateTimeOffset"/> values as ISO-8601 text strings (round-trip format, normalized to UTC),
+/// so that fixed-width lexicographic ordering matches chronological ordering for TTL-based queries.
+/// Rows written with a non-UTC offset by earlier versions are compared via <c>julianday()</c> instead.
 /// </remarks>
 [SuppressMessage(
     "Reliability",
@@ -71,6 +73,7 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         _enableWalMode = opts.EnableWalMode;
 
         var table = opts.FullTableName;
+        var createdAt = $"{table}.\"{IdempotencyKeySchema.Columns.CreatedAt}\"";
 
         _existsSql = $"""
             SELECT 1 FROM {table}
@@ -81,7 +84,7 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
         _existsWithTtlSql = $"""
             SELECT 1 FROM {table}
             WHERE "{IdempotencyKeySchema.Columns.IdempotencyKey}" = @key
-              AND "{IdempotencyKeySchema.Columns.CreatedAt}" >= @validFrom
+              AND {UtcCondition(createdAt, ">=")}
             LIMIT 1;
             """;
 
@@ -97,7 +100,7 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
             VALUES (@key, @createdAt)
             ON CONFLICT ("{IdempotencyKeySchema.Columns.IdempotencyKey}") DO UPDATE
             SET "{IdempotencyKeySchema.Columns.CreatedAt}" = excluded."{IdempotencyKeySchema.Columns.CreatedAt}"
-            WHERE @validFrom IS NOT NULL AND {table}."{IdempotencyKeySchema.Columns.CreatedAt}" < @validFrom;
+            WHERE @validFrom IS NOT NULL AND {UtcCondition(createdAt, "<")};
             """;
     }
 
@@ -123,7 +126,7 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
 
                 if (validFrom.HasValue)
                 {
-                    _ = command.Parameters.AddWithValue("@validFrom", validFrom.Value.ToString("O"));
+                    _ = command.Parameters.AddWithValue("@validFrom", ToUtcString(validFrom.Value));
                 }
 
                 var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
@@ -150,7 +153,7 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@key", idempotencyKey);
-                _ = command.Parameters.AddWithValue("@createdAt", createdAt.ToString("O"));
+                _ = command.Parameters.AddWithValue("@createdAt", ToUtcString(createdAt));
 
                 _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -176,16 +179,43 @@ internal sealed class SQLiteIdempotencyKeyRepository : IIdempotencyKeyRepository
             await using (command.ConfigureAwait(false))
             {
                 _ = command.Parameters.AddWithValue("@key", idempotencyKey);
-                _ = command.Parameters.AddWithValue("@createdAt", createdAt.ToString("O"));
+                _ = command.Parameters.AddWithValue("@createdAt", ToUtcString(createdAt));
                 _ = command.Parameters.AddWithValue(
                     "@validFrom",
-                    validFrom.HasValue ? validFrom.Value.ToString("O") : DBNull.Value
+                    validFrom.HasValue ? ToUtcString(validFrom.Value) : DBNull.Value
                 );
 
                 return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
             }
         }
     }
+
+    /// <summary>
+    /// Formats <paramref name="value"/> as an ISO-8601 round-trip string in UTC (<c>+00:00</c> suffix),
+    /// so that stored values compare chronologically as text.
+    /// </summary>
+    /// <param name="value">The timestamp to format.</param>
+    /// <returns>The UTC round-trip representation of <paramref name="value"/>.</returns>
+    private static string ToUtcString(DateTimeOffset value) =>
+        value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Builds a SQL condition that compares the stored <paramref name="column"/> with <c>@validFrom</c> as points in time.
+    /// </summary>
+    /// <param name="column">The qualified <c>CreatedAt</c> column.</param>
+    /// <param name="comparison">The SQL comparison operator.</param>
+    /// <returns>The SQL condition.</returns>
+    /// <remarks>
+    /// UTC rows (<c>+00:00</c> suffix) are compared as text, which is exact to 100 ns.
+    /// Rows stored with another offset by earlier versions fall back to <c>julianday()</c>,
+    /// which is precise to the millisecond.
+    /// </remarks>
+    private static string UtcCondition(string column, string comparison) =>
+        $"""
+            (CASE WHEN substr({column}, -6) = '+00:00'
+                THEN {column} {comparison} @validFrom
+                ELSE julianday({column}) {comparison} julianday(@validFrom) END)
+            """;
 
     /// <summary>
     /// Opens and returns a new <see cref="SqliteConnection"/> using the stored connection string.
