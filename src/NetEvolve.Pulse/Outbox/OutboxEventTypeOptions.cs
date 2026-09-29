@@ -25,6 +25,7 @@ public sealed class OutboxEventTypeOptions
 
     /// <summary>
     /// Gets or sets the timeout for processing a single message.
+    /// Must be greater than <see cref="TimeSpan.Zero"/> and must not exceed <see cref="int.MaxValue"/> milliseconds when set.
     /// When <see langword="null"/>, the global <see cref="OutboxProcessorOptions.ProcessingTimeout"/> is used.
     /// </summary>
     public TimeSpan? ProcessingTimeout { get; set; }
