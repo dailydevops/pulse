@@ -10,6 +10,18 @@
 --     - sqlcmd utility:    sqlcmd -i IdempotencyKey.sql
 --     - SSMS:              Query > SQLCMD Mode (Ctrl+Shift+Q)
 --     - Azure Data Studio: Enable SQLCMD in the query toolbar
+--
+-- Idempotency keys:
+--   [IdempotencyKey] is NVARCHAR(450) with the binary collation Latin1_General_100_BIN2.
+--   450 NVARCHAR characters take 900 bytes, the SQL Server limit for a clustered index key.
+--   Keys are compared by code point, so keys that differ only by case are distinct.
+--   SQL Server pads strings before comparing them, so trailing spaces are not significant.
+--
+-- Upgrading:
+--   The script is safe to re-run. Re-running it upgrades a table created by an earlier release
+--   (NVARCHAR(500) in the database default collation): it drops [PK_$(TableName)], changes the column
+--   and re-creates the primary key in one transaction. Existing keys are kept; keys longer than
+--   450 characters could never be stored in the old table (Msg 1946), so no key is truncated.
 -- ============================================================================
 
 -- ============================================================================
@@ -30,7 +42,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE [object_id] = OBJECT_ID(N'[$(Sche
 BEGIN
     CREATE TABLE [$(SchemaName)].[$(TableName)]
     (
-        [IdempotencyKey] NVARCHAR(500) NOT NULL,
+        [IdempotencyKey] NVARCHAR(450) COLLATE Latin1_General_100_BIN2 NOT NULL,
         [CreatedAt] DATETIMEOFFSET(7) NOT NULL,
         CONSTRAINT [PK_$(TableName)] PRIMARY KEY CLUSTERED ([IdempotencyKey])
     );
@@ -38,6 +50,27 @@ BEGIN
     -- Index for TTL-based queries (efficient filtering by CreatedAt)
     CREATE NONCLUSTERED INDEX [IX_$(TableName)_CreatedAt]
         ON [$(SchemaName)].[$(TableName)] ([CreatedAt]);
+END
+GO
+
+-- Upgrade the key column of a table created by an earlier release to NVARCHAR(450) with a binary collation
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE [object_id] = OBJECT_ID(N'[$(SchemaName)].[$(TableName)]')
+      AND [name] = N'IdempotencyKey'
+      AND ([max_length] <> 900 OR [collation_name] <> N'Latin1_General_100_BIN2')
+)
+BEGIN
+    SET XACT_ABORT ON;
+    BEGIN TRANSACTION;
+
+    ALTER TABLE [$(SchemaName)].[$(TableName)] DROP CONSTRAINT [PK_$(TableName)];
+    ALTER TABLE [$(SchemaName)].[$(TableName)]
+        ALTER COLUMN [IdempotencyKey] NVARCHAR(450) COLLATE Latin1_General_100_BIN2 NOT NULL;
+    ALTER TABLE [$(SchemaName)].[$(TableName)]
+        ADD CONSTRAINT [PK_$(TableName)] PRIMARY KEY CLUSTERED ([IdempotencyKey]);
+
+    COMMIT TRANSACTION;
 END
 GO
 
@@ -53,7 +86,7 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_ExistsIdempotencyKey]
-    @idempotencyKey NVARCHAR(500),
+    @idempotencyKey NVARCHAR(450),
     @validFrom      DATETIMEOFFSET = NULL
 AS
 BEGIN
@@ -89,7 +122,7 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_InsertIdempotencyKey]
-    @idempotencyKey NVARCHAR(500),
+    @idempotencyKey NVARCHAR(450),
     @createdAt      DATETIMEOFFSET
 AS
 BEGIN
@@ -122,7 +155,7 @@ END
 GO
 
 CREATE PROCEDURE [$(SchemaName)].[usp_ReserveIdempotencyKey]
-    @idempotencyKey NVARCHAR(500),
+    @idempotencyKey NVARCHAR(450),
     @createdAt      DATETIMEOFFSET,
     @validFrom      DATETIMEOFFSET = NULL
 AS
