@@ -51,8 +51,8 @@ public sealed class OutboxOptions
     /// the message stays in the <c>Processing</c> status. Once this lease expires, the next pending
     /// poll claims the message again, preserving at-least-once delivery. Choose a value comfortably
     /// larger than the longest expected message dispatch duration to avoid duplicate publishing.
-    /// This setting is honored by providers that implement lease-based reclaim of stuck
-    /// <c>Processing</c> messages.
+    /// The SQL Server, PostgreSQL, MySQL, SQLite and Entity Framework Core providers honor this setting.
+    /// The MongoDB and Cosmos DB providers use the <c>ProcessingLeaseTimeout</c> of their own options.
     /// </remarks>
     public TimeSpan ProcessingLeaseTimeout { get; set; } = TimeSpan.FromMinutes(5);
 }

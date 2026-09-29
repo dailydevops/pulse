@@ -35,4 +35,21 @@ public sealed class CosmosDbOutboxOptionsValidatorTests
             _ = await Assert.That(result.FailureMessage).Contains("/id");
         }
     }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(-1)]
+    public async Task Validate_When_ProcessingLeaseTimeout_is_not_positive_fails(int leaseSeconds)
+    {
+        var result = _validator.Validate(
+            null,
+            new CosmosDbOutboxOptions { ProcessingLeaseTimeout = TimeSpan.FromSeconds(leaseSeconds) }
+        );
+
+        using (Assert.Multiple())
+        {
+            _ = await Assert.That(result.Failed).IsTrue();
+            _ = await Assert.That(result.FailureMessage).Contains(nameof(CosmosDbOutboxOptions.ProcessingLeaseTimeout));
+        }
+    }
 }

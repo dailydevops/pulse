@@ -99,8 +99,8 @@ public static class OutboxEventTypeResolver
     /// call per distinct stored name, with the error <c>Cannot resolve event type '&lt;stored name&gt;'.</c>
     /// Dead-lettering is best-effort: if it fails or is cancelled, the exception is swallowed so the resolvable
     /// messages of the claimed batch are still returned. The unresolvable messages are left in
-    /// <see cref="OutboxMessageStatus.Processing"/> and are dead-lettered again once a provider that reclaims
-    /// expired processing leases fetches them again.
+    /// <see cref="OutboxMessageStatus.Processing"/> and are dead-lettered again once their processing lease
+    /// expires and the next pending poll reclaims them.
     /// </remarks>
     [SuppressMessage(
         "Usage",

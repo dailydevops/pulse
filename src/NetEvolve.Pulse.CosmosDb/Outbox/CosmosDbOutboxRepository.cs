@@ -16,6 +16,11 @@ using Newtonsoft.Json;
 /// <para><strong>Concurrency:</strong></para>
 /// Uses ETag-based conditional patch to atomically claim pending messages
 /// and prevent duplicate processing by concurrent workers.
+/// <para><strong>Lease-based reclaim:</strong></para>
+/// <see cref="GetPendingAsync"/> also reclaims documents that stayed in the <c>Processing</c> status
+/// longer than <see cref="CosmosDbOutboxOptions.ProcessingLeaseTimeout"/> (for example, after a worker
+/// crash, cancellation or shutdown), so they are delivered at least once. The <c>updatedAt</c> field
+/// serves as the lease timestamp, and the ETag precondition keeps concurrent reclaims exclusive.
 /// <para><strong>TTL Support:</strong></para>
 /// When <see cref="CosmosDbOutboxOptions.EnableTimeToLive"/> is <see langword="true"/>,
 /// the <c>ttl</c> field is set on completed and dead-letter documents so the Cosmos DB
@@ -42,6 +47,7 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     private readonly TimeProvider _timeProvider;
     private readonly bool _enableTtl;
     private readonly int _ttlSeconds;
+    private readonly TimeSpan _processingLeaseTimeout;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CosmosDbOutboxRepository"/> class.
@@ -63,11 +69,13 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.DatabaseName);
         ArgumentException.ThrowIfNullOrWhiteSpace(opts.ContainerName);
         opts.ThrowIfPartitionKeyPathIsNotSupported();
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(opts.ProcessingLeaseTimeout, TimeSpan.Zero);
 
         _container = cosmosClient.GetContainer(opts.DatabaseName, opts.ContainerName);
         _timeProvider = timeProvider;
         _enableTtl = opts.EnableTimeToLive;
         _ttlSeconds = opts.TtlSeconds;
+        _processingLeaseTimeout = opts.ProcessingLeaseTimeout;
     }
 
     /// <inheritdoc />
@@ -93,9 +101,10 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         var now = _timeProvider.GetUtcNow();
 
         var query = new QueryDefinition(
-            "SELECT * FROM c WHERE c.status = 0 AND (IS_NULL(c.nextRetryAt) OR c.nextRetryAt <= @now) ORDER BY c._ts ASC OFFSET 0 LIMIT @batchSize"
+            "SELECT * FROM c WHERE (c.status = 0 AND (IS_NULL(c.nextRetryAt) OR c.nextRetryAt <= @now)) OR (c.status = 1 AND c.updatedAt <= @leaseExpiredBefore) ORDER BY c._ts ASC OFFSET 0 LIMIT @batchSize"
         )
             .WithParameter("@now", now)
+            .WithParameter("@leaseExpiredBefore", now - _processingLeaseTimeout)
             .WithParameter("@batchSize", batchSize);
 
         var candidates = await ExecuteQueryAsync(query, CreateBatchQueryOptions(batchSize), cancellationToken)
@@ -393,6 +402,13 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
     /// as an <c>IfMatchEtag</c> precondition, avoiding an additional point read per candidate.
     /// Messages that have been modified by another worker (ETag mismatch) are silently skipped.
     /// </summary>
+    /// <remarks>
+    /// When a later patch fails (for example, throttled with <c>429</c>) after earlier candidates were
+    /// claimed, the documents claimed so far are returned instead of the exception, so they are dispatched
+    /// right away rather than waiting for their processing lease to expire. A failure before the first
+    /// claim, and cancellation, still propagate; documents left in <c>Processing</c> by them are reclaimed
+    /// once <see cref="CosmosDbOutboxOptions.ProcessingLeaseTimeout"/> expires.
+    /// </remarks>
     private async Task<IReadOnlyList<OutboxMessage>> ClaimMessagesAsync(
         IReadOnlyList<CosmosDbOutboxDocument> candidates,
         int targetStatus,
@@ -438,6 +454,11 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 // Document deleted between read and patch — skip.
+            }
+            catch (CosmosException) when (claimed.Count > 0)
+            {
+                // Hand out what is already claimed; the remaining candidates stay eligible for the next poll.
+                break;
             }
         }
 
