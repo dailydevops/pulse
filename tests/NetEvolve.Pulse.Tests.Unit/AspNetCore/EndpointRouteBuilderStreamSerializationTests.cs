@@ -100,6 +100,24 @@ public sealed class EndpointRouteBuilderStreamSerializationTests
     }
 
     [Test]
+    [Arguments(Ndjson, "null\n")]
+    [Arguments(Sse, "data: null\n\n")]
+    public async Task MapStreamQuery_WithNullItem_WritesJsonNull(
+        string accept,
+        string expectedBody,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var host = await CreateHostAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+
+        var body = await GetBodyAsync(host, "/nulls/stream", accept, cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(body).IsEqualTo(expectedBody);
+    }
+
+    [Test]
     [Arguments(Ndjson)]
     [Arguments(Sse)]
     public async Task MapStreamQuery_WithDerivedItem_WritesRuntimeTypeProperties(
@@ -175,6 +193,9 @@ public sealed class EndpointRouteBuilderStreamSerializationTests
                     _ = services.AddSingleton<IStreamQueryHandler<TextStreamQuery, string>>(
                         new FixedItemsHandler<TextStreamQuery, string>(["line1\nline2"])
                     );
+                    _ = services.AddSingleton<IStreamQueryHandler<NullStreamQuery, string?>>(
+                        new FixedItemsHandler<NullStreamQuery, string?>([null])
+                    );
                     _ = services.AddSingleton<IStreamQueryHandler<ShapeStreamQuery, Shape>>(
                         new FixedItemsHandler<ShapeStreamQuery, Shape>([new NamedShape(1, "x")])
                     );
@@ -189,6 +210,7 @@ public sealed class EndpointRouteBuilderStreamSerializationTests
                     {
                         _ = endpoints.MapStreamQuery<OrderStreamQuery, OrderItem>("/orders/stream");
                         _ = endpoints.MapStreamQuery<TextStreamQuery, string>("/texts/stream");
+                        _ = endpoints.MapStreamQuery<NullStreamQuery, string?>("/nulls/stream");
                         _ = endpoints.MapStreamQuery<ShapeStreamQuery, Shape>("/shapes/stream");
                         _ = endpoints.MapQuery<OrderQuery, OrderItem>("/orders/{id}");
                     });
@@ -213,6 +235,12 @@ public sealed class EndpointRouteBuilderStreamSerializationTests
     }
 
     internal sealed record TextStreamQuery : IStreamQuery<string>
+    {
+        public string? CausationId { get; set; }
+        public string? CorrelationId { get; set; }
+    }
+
+    internal sealed record NullStreamQuery : IStreamQuery<string?>
     {
         public string? CausationId { get; set; }
         public string? CorrelationId { get; set; }
