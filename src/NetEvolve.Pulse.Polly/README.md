@@ -186,7 +186,7 @@ services.AddPulse(config => config
 The whole enumeration runs inside the pipeline, not only the call that opens the stream. Items are forwarded to the consumer as they are produced.
 
 - **Retry** restarts the enumeration from the beginning. Items already sent to the consumer are not withdrawn, so the consumer may receive them again. Configure retries only for handlers whose enumeration is idempotent or fails before yielding items.
-- **Timeout** limits the duration of the entire enumeration, including the time the consumer spends processing each item.
+- **Timeout** limits how long the handler enumeration runs inside the pipeline. Because items pass through a single-slot buffer, time the consumer spends on an item counts toward the timeout while the handler is waiting to hand over the next item. Processing of the items still buffered or in progress when the handler finishes is not covered.
 
 ### Bulkhead Isolation
 

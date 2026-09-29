@@ -302,8 +302,10 @@ public static class PollyExtensions
     /// </para>
     /// <para><strong>Timeout Semantics:</strong></para>
     /// <para>
-    /// A timeout strategy limits the duration of the entire enumeration, including the time the consumer
-    /// spends processing each item.
+    /// A timeout strategy limits how long the handler enumeration runs inside the pipeline. Because items
+    /// pass through a single-slot buffer, time the consumer spends on an item counts toward the timeout
+    /// while the handler is waiting to hand over the next item. Processing of the items still buffered or
+    /// in progress when the handler finishes is not covered.
     /// </para>
     /// <para><strong>Transparent Pass-Through:</strong></para>
     /// <para>

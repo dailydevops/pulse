@@ -28,8 +28,10 @@ using Polly;
 /// in addition to those already observed. Configure retries only for handlers whose enumeration is
 /// idempotent or fails before yielding items.
 /// <para><strong>Timeout Semantics:</strong></para>
-/// A timeout strategy limits the duration of the entire enumeration, including the time the consumer
-/// spends processing each item.
+/// A timeout strategy limits how long the handler enumeration runs inside the pipeline. Because items
+/// pass through a single-slot buffer, time the consumer spends on an item counts toward the timeout
+/// while the handler is waiting to hand over the next item. Processing of the items still buffered or
+/// in progress when the handler finishes is not covered.
 /// <para><strong>Transparent Pass-Through:</strong></para>
 /// If no <see cref="ResiliencePipeline"/> is registered for <typeparamref name="TQuery"/>
 /// (either as a keyed or global service), the interceptor passes through transparently
@@ -38,7 +40,7 @@ using Polly;
 /// <list type="bullet">
 /// <item><description><strong>Retry:</strong> Restart the enumeration when it throws</description></item>
 /// <item><description><strong>Circuit Breaker:</strong> Block requests when the failure threshold is reached</description></item>
-/// <item><description><strong>Timeout:</strong> Enforce maximum duration for the entire enumeration</description></item>
+/// <item><description><strong>Timeout:</strong> Enforce maximum duration for the handler enumeration</description></item>
 /// <item><description><strong>Bulkhead:</strong> Limit concurrent stream executions</description></item>
 /// </list>
 /// </remarks>
