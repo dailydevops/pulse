@@ -340,7 +340,7 @@ public sealed class AzureQueueStorageMessageTransportTests
 
         await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(fakeClient.LastTimeToLive).IsEqualTo(timeToLive);
+        _ = await Assert.That(fakeClient.TimeToLives.Single()).IsEqualTo(timeToLive);
     }
 
     [Test]
@@ -353,7 +353,7 @@ public sealed class AzureQueueStorageMessageTransportTests
 
         await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(fakeClient.LastTimeToLive).IsNull();
+        _ = await Assert.That(fakeClient.TimeToLives.Single()).IsNull();
     }
 
     [Test]
@@ -368,7 +368,7 @@ public sealed class AzureQueueStorageMessageTransportTests
 
         await transport.SendAsync(CreateOutboxMessage(), cancellationToken).ConfigureAwait(false);
 
-        _ = await Assert.That(fakeClient.LastTimeToLive).IsEqualTo(TimeSpan.FromSeconds(-1));
+        _ = await Assert.That(fakeClient.TimeToLives.Single()).IsEqualTo(TimeSpan.FromSeconds(-1));
     }
 
     [Test]
@@ -537,7 +537,6 @@ public sealed class AzureQueueStorageMessageTransportTests
     {
         public List<string> SentMessages { get; } = [];
         public TimeSpan? LastVisibilityTimeout { get; private set; }
-        public TimeSpan? LastTimeToLive { get; private set; }
         public List<TimeSpan?> TimeToLives { get; } = [];
         public int CreateIfNotExistsCallCount { get; private set; }
 
@@ -557,7 +556,6 @@ public sealed class AzureQueueStorageMessageTransportTests
 
             SentMessages.Add(messageText);
             LastVisibilityTimeout = visibilityTimeout;
-            LastTimeToLive = timeToLive;
             TimeToLives.Add(timeToLive);
             var receipt = QueuesModelFactory.SendReceipt(
                 messageId: Guid.NewGuid().ToString(),
