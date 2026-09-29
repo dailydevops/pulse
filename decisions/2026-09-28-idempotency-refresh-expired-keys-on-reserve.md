@@ -36,9 +36,9 @@ With a `TimeToLive`, `ExistsAsync` treats a key older than the cutoff as absent,
   - SQL Server: the `usp_ReserveIdempotencyKey` stored procedure with `MERGE ... WITH (HOLDLOCK)` and `WHEN MATCHED AND CreatedAt < @validFrom THEN UPDATE`.
   - PostgreSQL: the `fn_reserve_idempotency_key` function with `ON CONFLICT ... DO UPDATE ... WHERE created_at < p_valid_from`. It is a new function because `CREATE OR REPLACE` cannot change the return type of `fn_insert_idempotency_key`.
   - SQLite: `ON CONFLICT ... DO UPDATE ... WHERE`.
-  - MySQL: `INSERT IGNORE` followed by a conditional `UPDATE`. `ON DUPLICATE KEY UPDATE` is not used, because with the driver's default found-rows mode it reports the same row count for an insert and for an untouched duplicate.
+  - MySQL: `INSERT IGNORE` followed by a conditional `UPDATE`, and one more `INSERT IGNORE` when the `UPDATE` matches no row, because a cleanup job can delete the expired row between the two statements. `ON DUPLICATE KEY UPDATE` is not used, because with the driver's default found-rows mode it reports the same row count for an insert and for an untouched duplicate.
   - Entity Framework Core: `ExecuteDeleteAsync` of the expired row followed by the regular insert, whose primary key conflict returns `false`. `ExecuteUpdateAsync` is not used, because the Oracle MySQL provider cannot bind converted `DateTimeOffset` values in setters. InMemory uses change tracking, since it supports neither bulk operation.
-  - Redis: `SET NX` without a cutoff, and a Lua script with a cutoff that compares UTC round-trip timestamps and resets the expiry.
+  - Redis: `SET NX` without a cutoff, and a Lua script with a cutoff that compares UTC round-trip timestamps and resets the expiry. Values with a non-UTC offset are treated as present, so a live key is never overwritten.
 
 ## Consequences
 
@@ -46,6 +46,7 @@ With a `TimeToLive`, `ExistsAsync` treats a key older than the cutoff as absent,
 - External implementers of `IIdempotencyKeyRepository` must implement the new member.
 - Deployments of the SQL Server and PostgreSQL providers must re-run `IdempotencyKey.sql` together with the package upgrade.
 - `IIdempotencyKeyRepository.StoreAsync` is no longer called by the library. It stays on the interface for direct callers.
+- The Redis provider needs the scripting commands (`EVAL`, `EVALSHA`) once a `TimeToLive` is set. Redis values with a non-UTC offset, written by earlier versions through direct `StoreAsync` calls, stay unreservable until their physical expiry.
 
 ## Alternatives Considered
 
