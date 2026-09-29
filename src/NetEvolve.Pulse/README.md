@@ -351,7 +351,8 @@ The custom serializer will be used for all payload operations within Pulse. Ensu
 
 * Successful operations leave the activity status `Unset`. Failed operations set `Error` with the exception message.
 * Failed operations carry `error.type` (the full exception type name) on the activity, the error counter and the duration histogram.
-* A stream query records its duration once for every outcome. A stream whose consumer stops early (`break`, `Take`, a disconnected client) carries `pulse.stream.completed=false` instead of `pulse.success`.
+* A stream query records its duration once for every outcome. A stream whose consumer stops early (`break`, `Take`) carries `pulse.stream.completed=false` instead of `pulse.success`.
+* A stream query whose handler honours a cancelled token, for example `HttpContext.RequestAborted` after a client disconnects, fails with `OperationCanceledException` and is recorded as a failure with `error.type=System.OperationCanceledException`. An exception from the inner enumerator's `DisposeAsync` is also recorded as a failure, unless the stream had already faulted; the earlier exception is then both thrown and recorded.
 
 ### Semantic Convention Units
 

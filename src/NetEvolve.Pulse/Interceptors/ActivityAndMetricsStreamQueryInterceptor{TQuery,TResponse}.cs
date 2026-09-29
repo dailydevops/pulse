@@ -101,13 +101,17 @@ internal sealed class ActivityAndMetricsStreamQueryInterceptor<TQuery, TResponse
     /// <item>Increments stream query counter metrics</item>
     /// <item>Measures and records execution duration</item>
     /// <item>Captures exception details on failure</item>
-    /// <item>Marks success/failure status in both activity and metrics</item>
+    /// <item>Tags <c>pulse.success</c> on the activity and the duration histogram, except for abandoned streams</item>
     /// <item>Leaves the activity status <see cref="ActivityStatusCode.Unset"/> unless the stream faults</item>
     /// <item>Sets <c>error.type</c> on the activity, the error counter and the duration histogram on failure</item>
     /// <item>
     /// Records the duration exactly once for every outcome. A stream whose consumer stops enumerating early
-    /// (for example <see langword="break"/>, <c>Take</c> or a disconnected client) is tagged <c>pulse.stream.completed=false</c>
+    /// (for example <see langword="break"/> or <c>Take</c>) is tagged <c>pulse.stream.completed=false</c>
     /// and carries no <c>pulse.success</c> tag
+    /// </item>
+    /// <item>
+    /// Records an <see cref="OperationCanceledException"/> from a cancelled token as a failure, and treats an exception from
+    /// the inner enumerator's <c>DisposeAsync</c> or <c>Current</c> as a fault; an earlier fault wins over a dispose failure
     /// </item>
     /// <item>Yields items unchanged without buffering</item>
     /// </list>

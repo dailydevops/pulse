@@ -85,7 +85,7 @@ internal sealed class ActivityAndMetricsRequestInterceptor<TRequest, TResponse>
     /// <item>Increments request counter metrics</item>
     /// <item>Measures and records execution duration</item>
     /// <item>Captures exception details on failure</item>
-    /// <item>Marks success/failure status in both activity and metrics</item>
+    /// <item>Tags <c>pulse.success</c> on the activity and the duration histogram</item>
     /// <item>Leaves the activity status <see cref="ActivityStatusCode.Unset"/> unless the handler fails</item>
     /// <item>Sets <c>error.type</c> on the activity, the error counter and the duration histogram on failure</item>
     /// </list>
