@@ -218,7 +218,7 @@ public sealed partial class KafkaMessageTransport : IMessageTransport, IAsyncDis
             // authorization failure. Stop trying to create it and let the produce call surface the real error.
             _ = _ensuredTopics.TryAdd(topic, true);
 
-            if (!TopicExists(topic))
+            if (!await TopicExistsAsync(topic, cancellationToken).ConfigureAwait(false))
             {
                 LogTopicCreationNotAuthorized(_logger, topic, ex.Results[0].Error.Code);
             }
@@ -237,19 +237,28 @@ public sealed partial class KafkaMessageTransport : IMessageTransport, IAsyncDis
     private static bool IsAuthorizationFailure(ErrorCode code) =>
         code is ErrorCode.TopicAuthorizationFailed or ErrorCode.ClusterAuthorizationFailed;
 
-    private bool TopicExists(string topic)
-    {
-        try
-        {
-            return _adminClient
-                .GetMetadata(topic, TimeSpan.FromSeconds(5))
-                .Topics.Exists(t => string.Equals(t.Topic, topic, StringComparison.Ordinal) && !t.Error.IsError);
-        }
-        catch (KafkaException)
-        {
-            return false;
-        }
-    }
+    // GetMetadata is synchronous and blocks for up to 5 seconds, so it is offloaded like in IsHealthyAsync
+    // and the caller's cancellation is honored while it runs.
+    private Task<bool> TopicExistsAsync(string topic, CancellationToken cancellationToken) =>
+        Task.Run(
+                () =>
+                {
+                    try
+                    {
+                        return _adminClient
+                            .GetMetadata(topic, TimeSpan.FromSeconds(5))
+                            .Topics.Exists(t =>
+                                string.Equals(t.Topic, topic, StringComparison.Ordinal) && !t.Error.IsError
+                            );
+                    }
+                    catch (KafkaException)
+                    {
+                        return false;
+                    }
+                },
+                CancellationToken.None
+            )
+            .WaitAsync(cancellationToken);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
