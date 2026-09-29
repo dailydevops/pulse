@@ -39,17 +39,20 @@ dotnet add package NetEvolve.Pulse.PostgreSql
 
 Before using this provider, execute the schema script to create the required database objects.
 
-### Running the Script
+### Running the Scripts
 
-**psql utility:**
+The scripts in `Scripts/` use psql meta-commands (`\if`, `\set`, `\gexec`), so run them with `psql` 10 or later. GUI query tools such as pgAdmin or DBeaver cannot execute them unchanged.
+
+Pass the schema and table names as psql variables. Both are optional and default to `pulse` and the script's table name. The values are used as quoted identifiers, so they are case-sensitive and must match the `Schema` and `TableName` options you configure in the application.
 
 ```bash
-psql -h your-host -d your-database -f OutboxMessage.sql
+psql -v ON_ERROR_STOP=1 -h your-host -d your-database -v schema_name=pulse -v table_name=OutboxMessage -f OutboxMessage.sql
+psql -v ON_ERROR_STOP=1 -h your-host -d your-database -v schema_name=pulse -v table_name=IdempotencyKey -f IdempotencyKey.sql
+psql -v ON_ERROR_STOP=1 -h your-host -d your-database -v schema_name=pulse -v table_name=CommandDeadLetter -f CommandDeadLetter.sql
+psql -v ON_ERROR_STOP=1 -h your-host -d your-database -v schema_name=pulse -v table_name=AuditEntry -f AuditEntry.sql
 ```
 
-**pgAdmin or DBeaver:**
-
-Open the script and execute it against your database.
+The scripts are idempotent, and re-running them is the supported upgrade path. Primary keys and indexes are named `PK_<schema>_<table>` and `IX_<schema>_<table>_<columns>`. A name that would exceed PostgreSQL's 63-byte identifier limit becomes `PK_<md5(schema.table)>` or `IX_<md5(schema.table)>_<columns>` instead, because truncated names could collide and an index would be skipped silently. `AuditEntry.sql` and `CommandDeadLetter.sql` create no functions, so several of their tables can share one schema. `OutboxMessage.sql` and `IdempotencyKey.sql` create functions that are named per schema and bound to the last `table_name` the script ran with, so each outbox or idempotency table needs its own schema. `OutboxMessage.sql` renames the `PK_<schema>` and `IX_<schema>_Status_*` names that earlier versions produced instead of adding a second set of indexes.
 
 ### Schema Script Contents
 

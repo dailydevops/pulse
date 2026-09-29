@@ -1,32 +1,21 @@
 ﻿namespace NetEvolve.Pulse.Tests.Integration.Internals.Idempotency;
 
-using System.Diagnostics.CodeAnalysis;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NetEvolve.Pulse;
 using NetEvolve.Pulse.Extensibility;
 using NetEvolve.Pulse.Extensibility.Idempotency;
 using NetEvolve.Pulse.Idempotency;
-using Npgsql;
+using NetEvolve.Pulse.Tests.Integration.Internals.Services;
 
-[SuppressMessage(
-    "Security",
-    "CA2100:Review SQL queries for security vulnerabilities",
-    Justification = "SQL is read from a script file with schema and table names substituted from validated IdempotencyKeyOptions properties."
-)]
-public sealed partial class PostgreSqlAdoNetIdempotencyInitializer : IServiceInitializer
+public sealed class PostgreSqlAdoNetIdempotencyInitializer : IServiceInitializer
 {
-    private static readonly string _scriptPath = Path.Combine(
-        AppContext.BaseDirectory,
-        "Scripts",
-        "PostgreSql",
-        "IdempotencyKey.sql"
-    );
+    private PostgreSqlDatabaseServiceFixture? _serviceFixture;
 
     public void Configure(IMediatorBuilder mediatorBuilder, IServiceFixture serviceFixture)
     {
         ArgumentNullException.ThrowIfNull(serviceFixture);
+        _serviceFixture = (PostgreSqlDatabaseServiceFixture)serviceFixture;
         _ = mediatorBuilder.AddPostgreSqlIdempotencyStore(serviceFixture.ConnectionString);
     }
 
@@ -36,41 +25,18 @@ public sealed partial class PostgreSqlAdoNetIdempotencyInitializer : IServiceIni
 
         var options = serviceProvider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
-            ?? throw new InvalidOperationException("IdempotencyKeyOptions.ConnectionString is not configured.");
-
         var schema = string.IsNullOrWhiteSpace(options.Schema) ? IdempotencyKeySchema.DefaultSchema : options.Schema;
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)
             ? IdempotencyKeySchema.DefaultTableName
             : options.TableName;
 
-        var script = await File.ReadAllTextAsync(_scriptPath, cancellationToken).ConfigureAwait(false);
+        var fixture =
+            _serviceFixture ?? throw new InvalidOperationException("Configure must run before CreateDatabaseAsync.");
 
-        // Remove psql-specific variable declarations (not valid SQL)
-        script = SearchSetVar().Replace(script, string.Empty);
-
-        // Substitute psql variables with actual values.
-        // PostgreSQL script uses :schema_name and :table_name as placeholders.
-        // The placeholders appear both unquoted (e.g., CREATE SCHEMA :schema_name)
-        // and within quotes (e.g., ":schema_name".":table_name").
-        // We replace all occurrences with the actual values directly.
-        script = script
-            .Replace(":schema_name", schema, StringComparison.Ordinal)
-            .Replace(":table_name", tableName, StringComparison.Ordinal);
-
-        var connection = new NpgsqlConnection(connectionString);
-        await using (connection.ConfigureAwait(false))
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-            var command = new NpgsqlCommand(script, connection);
-            await using (command.ConfigureAwait(false))
-            {
-                _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+        await fixture
+            .Container.RunScriptAsync("IdempotencyKey.sql", fixture.DatabaseName, schema, tableName, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public void Initialize(IServiceCollection services, IServiceFixture serviceFixture)
@@ -78,7 +44,4 @@ public sealed partial class PostgreSqlAdoNetIdempotencyInitializer : IServiceIni
         // No additional service initialization required for ADO.NET idempotency tests.
         // The Configure method handles all necessary service registrations.
     }
-
-    [GeneratedRegex(@"^\\set\s+\w+\s+.*$", RegexOptions.Multiline, 10000)]
-    private static partial Regex SearchSetVar();
 }
