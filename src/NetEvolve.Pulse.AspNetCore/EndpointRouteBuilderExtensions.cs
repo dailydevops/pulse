@@ -1,9 +1,12 @@
 namespace NetEvolve.Pulse;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -407,8 +410,8 @@ public static class EndpointRouteBuilderExtensions
         return endpoints.MapHub<PulseStreamHub<TQuery, TResponse>>(path);
     }
 
-    // Overlays route values that match a JSON property of the command (case-insensitive) over the body-bound
-    // command, so the command always targets the resource named in the URI. Uses the same HTTP JSON options
+    // Overlays route values that match a property of the command by JSON name or CLR name (case-insensitive)
+    // over the body-bound command, so the command always targets the resource named in the URI. Uses the same HTTP JSON options
     // as the body binder. Returns false if a route value cannot be converted to the property type.
     [RequiresUnreferencedCode("Serializes and deserializes TCommand with reflection-based System.Text.Json.")]
     [RequiresDynamicCode("Serializes and deserializes TCommand with reflection-based System.Text.Json.")]
@@ -433,7 +436,7 @@ public static class EndpointRouteBuilderExtensions
                 continue;
             }
 
-            foreach (var property in properties.Where(p => p.Name.Equals(key, StringComparison.OrdinalIgnoreCase)))
+            foreach (var property in properties.Where(p => MatchesRouteKey(p, key)))
             {
                 json ??= JsonSerializer.SerializeToNode(command, options)!.AsObject();
                 json[property.Name] = ToJsonValue(routeValue, property.PropertyType);
@@ -456,31 +459,37 @@ public static class EndpointRouteBuilderExtensions
         }
     }
 
-    // Route values are strings. Number and boolean literals are written as JSON literals for non-string
-    // properties, so they bind without JsonNumberHandling.AllowReadingFromString. Everything else is written
-    // as JSON string, for example Guid, DateTimeOffset or enum names.
-    private static JsonValue ToJsonValue(string routeValue, Type propertyType)
-    {
-        if (propertyType != typeof(string))
-        {
-            try
-            {
-                if (
-                    JsonNode.Parse(routeValue) is JsonValue literal
-                    && literal.GetValueKind() is JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False
-                )
-                {
-                    return literal;
-                }
-            }
-            catch (JsonException)
-            {
-                // Not a JSON literal, bind it as string.
-            }
-        }
+    // A route key matches the serialized JSON name (naming policy, [JsonPropertyName]) or the CLR member name,
+    // so /orders/{orderId} also targets OrderId under JsonNamingPolicy.SnakeCaseLower.
+    private static bool MatchesRouteKey(JsonPropertyInfo property, string key) =>
+        property.Name.Equals(key, StringComparison.OrdinalIgnoreCase)
+        || (
+            property.AttributeProvider is MemberInfo member
+            && member.Name.Equals(key, StringComparison.OrdinalIgnoreCase)
+        );
 
-        return JsonValue.Create(routeValue);
-    }
+    // Route values are strings. Numeric, bool and enum properties (nullable unwrapped) receive a JSON literal when
+    // the value parses, so they bind without JsonNumberHandling.AllowReadingFromString. Every other type receives a
+    // JSON string, for example Guid, DateTimeOffset or a strongly typed ID whose converter reads a string.
+    private static JsonValue ToJsonValue(string routeValue, Type propertyType) =>
+        Type.GetTypeCode(Nullable.GetUnderlyingType(propertyType) ?? propertyType) switch
+        {
+            TypeCode.Boolean when bool.TryParse(routeValue, out var flag) => JsonValue.Create(flag),
+            TypeCode.SByte
+            or TypeCode.Byte
+            or TypeCode.Int16
+            or TypeCode.UInt16
+            or TypeCode.Int32
+            or TypeCode.UInt32
+            or TypeCode.Int64
+            or TypeCode.UInt64
+            or TypeCode.Single
+            or TypeCode.Double
+            or TypeCode.Decimal
+                when decimal.TryParse(routeValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) =>
+                JsonValue.Create(number),
+            _ => JsonValue.Create(routeValue),
+        };
 
     private static void ApplyOpenApiMetadata<TRequest, TResponse>(
         IEndpointRouteBuilder endpoints,
