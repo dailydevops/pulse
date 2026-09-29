@@ -71,6 +71,51 @@ public class SqlServerAdoNetIdempotencyTests(
             )
             .ConfigureAwait(false);
 
+    [Test]
+    public async Task Should_Roll_Back_And_Report_Failed_Upgrade_When_Primary_Key_Name_Differs(
+        CancellationToken cancellationToken
+    ) =>
+        await RunAndVerify(
+                async (services, token) =>
+                {
+                    var options = services.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
+                    var connectionString = options.ConnectionString!;
+                    var table = $"[{options.Schema}].[{options.TableName}]";
+
+                    // A hand-managed legacy table whose primary key does not use the name the script expects.
+                    await ExecuteAsync(
+                            connectionString,
+                            $"""
+                            DROP TABLE {table};
+                            CREATE TABLE {table}
+                            (
+                                [IdempotencyKey] NVARCHAR(500) NOT NULL,
+                                [CreatedAt] DATETIMEOFFSET(7) NOT NULL,
+                                CONSTRAINT [PK_Custom_{options.TableName}] PRIMARY KEY CLUSTERED ([IdempotencyKey])
+                            );
+                            """,
+                            token
+                        )
+                        .ConfigureAwait(false);
+
+                    var exception = await Assert
+                        .That(async () =>
+                            await DatabaseInitializer.CreateDatabaseAsync(services, token).ConfigureAwait(false)
+                        )
+                        .Throws<SqlException>();
+
+                    var (maxLength, _) = await GetKeyColumnAsync(connectionString, table, token).ConfigureAwait(false);
+
+                    using (Assert.Multiple())
+                    {
+                        _ = await Assert.That(exception!.Number).IsEqualTo(50001);
+                        _ = await Assert.That(maxLength).IsEqualTo(1000);
+                    }
+                },
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
     private static async Task ExecuteAsync(string connectionString, string sql, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
