@@ -9,9 +9,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST reclaim Processing outbox messages whose UpdatedAt is at or before now minus ProcessingLeaseTimeout in the Entity Framework Core and Cosmos DB GetPendingAsync, as part of the same claim predicate as Pending messages; MUST NOT add a lease column.

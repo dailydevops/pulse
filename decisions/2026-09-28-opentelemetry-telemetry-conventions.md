@@ -10,9 +10,9 @@ applyTo:
 
 created: 2026-09-28
 
-lastModified: 2026-09-28
+lastModified: 2026-09-29
 
-state: proposed
+state: accepted
 
 instructions: |
   MUST leave the activity status Unset when a Pulse operation succeeds or a stream consumer stops early; MUST set Error with the exception message only on failure.
