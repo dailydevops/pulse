@@ -69,8 +69,8 @@ Without this package you would write:
 app.MapPost("/orders", async (CreateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
     Results.Ok(await mediator.SendAsync<CreateOrderCommand, OrderResult>(cmd, ct)));
 
-app.MapPut("/orders/{id}", async (UpdateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
-    Results.Ok(await mediator.SendAsync<UpdateOrderCommand, OrderResult>(cmd, ct)));
+app.MapPut("/orders/{id}", async (Guid id, UpdateOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
+    Results.Ok(await mediator.SendAsync<UpdateOrderCommand, OrderResult>(cmd with { Id = id }, ct)));
 
 app.MapDelete("/orders/{id}", async ([AsParameters] DeleteOrderCommand cmd, IMediator mediator, CancellationToken ct) =>
 {
@@ -128,10 +128,10 @@ The binding source of a command depends on the HTTP method:
 
 | Method | Binding source |
 |--------|----------------|
-| `POST`, `PUT`, `PATCH` | JSON request body. Route values that match a command property (case-insensitive) overwrite the body value, so the route value wins. |
+| `POST`, `PUT`, `PATCH` | JSON request body. Route values whose key matches a command property overwrite the body value, so the route value wins. A key matches the JSON property name (after the naming policy and `[JsonPropertyName]`) or the CLR property name, case-insensitive. |
 | `DELETE` | Route values and query string via `[AsParameters]`, like `MapQuery`. A request body is not required and is ignored. |
 
-For `PUT /orders/{id}` with body `{"id":"B","sku":"X","quantity":1}` sent to `/orders/A`, the handler receives `Id = A`. The command always targets the resource named in the URI. Route values are converted with the application's HTTP JSON options (`ConfigureHttpJsonOptions`); a route value that cannot be converted to the property type returns `400 Bad Request`. Route values without a matching property, such as `{tenant}` in `/tenants/{tenant}/orders/{id}`, are ignored.
+For `PUT /orders/{id}` with body `{"id":"B","sku":"X","quantity":1}` sent to `/orders/A`, the handler receives `Id = A`. The command always targets the resource named in the URI. Route values are converted with the application's HTTP JSON options (`ConfigureHttpJsonOptions`); a route value that cannot be converted to the property type returns `400 Bad Request`. Route values without a matching property, such as `{tenant}` in `/tenants/{tenant}/orders/{id}`, are ignored. Route parameter names must match the JSON or CLR name of the property, otherwise the body value is kept.
 
 `DELETE` follows [RFC 9110 §9.3.5](https://www.rfc-editor.org/rfc/rfc9110#section-9.3.5): content in a `DELETE` request has no generally defined semantics. Every property of a `DELETE` command therefore needs a route or query string value that ASP.NET Core can bind (`TryParse`), or it must be optional.
 

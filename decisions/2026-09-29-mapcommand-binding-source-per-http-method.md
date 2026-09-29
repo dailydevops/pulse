@@ -13,8 +13,10 @@ state: proposed
 
 instructions: |
   MUST bind MapCommand commands mapped to DELETE with [AsParameters] (route values and query string), like MapQuery; MUST NOT require or read a request body for DELETE.
-  MUST keep [FromBody] binding for POST, PUT and PATCH and MUST overlay route values that match a JSON property of the command (case-insensitive) over the body values; the route value wins.
+  MUST keep [FromBody] binding for POST, PUT and PATCH and MUST overlay route values whose key matches a property of the command by JSON name or CLR name (case-insensitive) over the body values; the route value wins.
+  MUST write a route value as JSON number or boolean literal only for numeric, bool and enum properties (nullable unwrapped); every other property type receives a JSON string.
   MUST convert route values with the application's HTTP JSON options (Microsoft.AspNetCore.Http.Json.JsonOptions), the same options the body binder uses.
+  While the major version is 0, the behavioral break of this decision (DELETE bodies are no longer read) MUST NOT be marked with `!` or a `BREAKING CHANGE:` footer, because GitVersion would bump to 1.0.0; it MUST be listed under "Impact" in the PR description. This extends the 0.x exception of 2026-09-24-extensibility-interface-evolution-pre-1-0.md to this AspNetCore behavioral change.
 ---
 
 # Decision: MapCommand Binding Source per HTTP Method
@@ -38,13 +40,14 @@ Both `MapCommand` overloads bound the command only with `[FromBody]` (#848). Rou
 
 * `CommandHttpMethod.Delete` binds the command with `[AsParameters]`, as `MapQuery` does. A body sent with a `DELETE` request is ignored.
 * `CommandHttpMethod.Post`, `Put` and `Patch` keep `[FromBody]`. The framework keeps handling `415`, `400` for a missing or malformed body, and the OpenAPI request body metadata.
-* After body binding, every route value whose key matches a JSON property of `TCommand` case-insensitively replaces that property. The command is serialized to a `JsonObject`, the matched properties are replaced and the object is deserialized again with the application's `Microsoft.AspNetCore.Http.Json.JsonOptions`. Route values that are JSON number or boolean literals are written as literals for non-string properties, so `int` and `bool` route values bind without `JsonNumberHandling.AllowReadingFromString`. Other route values are written as JSON strings.
+* After body binding, every route value whose key matches a property of `TCommand` case-insensitively replaces that property. A key matches the JSON property name (after the naming policy and `[JsonPropertyName]`) or the CLR member name, so `/orders/{orderId}` targets `OrderId` also with `JsonNamingPolicy.SnakeCaseLower`. The command is serialized to a `JsonObject`, the matched properties are replaced and the object is deserialized again with the application's `Microsoft.AspNetCore.Http.Json.JsonOptions`. For numeric, `bool` and enum properties (nullable unwrapped), route values that parse as number or boolean are written as JSON literals, so they bind without `JsonNumberHandling.AllowReadingFromString`. Every other property type receives a JSON string, so a digit-only route value still binds to a strongly typed ID whose converter reads a string.
 * A request without a matching route value dispatches the bound command unchanged, without the round-trip.
 
 ## Consequences
 
 * Body-less `DELETE` requests reach the handler, and the command targets the resource named in the URI for every method.
 * A client that sent the identifier only in a `DELETE` body must move it to the route or the query string. Values sent in a `DELETE` body are no longer read. This is a behavioral break for such clients.
+* The behavioral break is not marked with `!` or a `BREAKING CHANGE:` footer while the major version is `0`, because GitVersion would bump the version to `1.0.0`. It is listed under "Impact" in the pull request instead, as [Extensibility Interface Evolution Before 1.0](./2026-09-24-extensibility-interface-evolution-pre-1-0.md) does for interface changes. Accepting this decision records that exception for this change.
 * `DELETE` commands must satisfy the `[AsParameters]` rules: every property needs a route, query or header source with a `TryParse` or `BindAsync` binding; complex properties fail when the endpoint is built.
 * Commands bound from the body with matching route values are serialized and deserialized once more per request. Properties that do not round-trip through the application's JSON options (for example write-only or `JsonIgnore`d properties set by the body) lose their value when a route value is overlaid.
 * The `Map*` methods keep their `RequiresUnreferencedCode` and `RequiresDynamicCode` annotations; the reflection-based JSON round-trip is covered by them.
@@ -59,4 +62,6 @@ Both `MapCommand` overloads bound the command only with `[FromBody]` (#848). Rou
 ## Related Decisions
 
 * [Honor Application JSON Options for Pulse-Owned Models](./2026-09-27-honor-application-json-options.md) - The overlay uses the application's HTTP JSON options, like the inspector endpoints.
+* [Extensibility Interface Evolution Before 1.0](./2026-09-24-extensibility-interface-evolution-pre-1-0.md) - The 0.x exception to the breaking change marker is extended to the behavioral break of this decision.
+* [Conventional Commits](./2025-07-10-conventional-commits.md) - The breaking change marker rule does not apply to this change while the major version is `0`.
 * [NativeAOT and Trim Compatibility](./2026-09-24-nativeaot-trim-compatibility.md) - The `Map*` annotations stay unchanged.
