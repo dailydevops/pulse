@@ -25,6 +25,8 @@ using Newtonsoft.Json;
 /// When <see cref="CosmosDbOutboxOptions.EnableTimeToLive"/> is <see langword="true"/>,
 /// the <c>ttl</c> field is set on completed and dead-letter documents so the Cosmos DB
 /// TTL engine removes them automatically after <see cref="CosmosDbOutboxOptions.TtlSeconds"/> seconds.
+/// All other documents get <c>ttl = -1</c> on insert, claim and failure, so they never expire, even when the
+/// container has a positive <c>DefaultTimeToLive</c>.
 /// <para><strong>Query fan-out:</strong></para>
 /// With the default partition key path <c>/id</c> every document forms its own logical partition,
 /// so the recurring status-polling and count queries cannot target a single partition and fan out
@@ -43,6 +45,11 @@ using Newtonsoft.Json;
 )]
 internal sealed class CosmosDbOutboxRepository : IOutboxRepository
 {
+    /// <summary>
+    /// Item-level <c>ttl</c> value that keeps a document regardless of the container <c>DefaultTimeToLive</c>.
+    /// </summary>
+    private const int NeverExpire = -1;
+
     private readonly Container _container;
     private readonly TimeProvider _timeProvider;
     private readonly bool _enableTtl;
@@ -86,6 +93,12 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
         ArgumentNullException.ThrowIfNull(message);
 
         var document = CosmosDbOutboxDocument.FromOutboxMessage(message);
+
+        if (_enableTtl)
+        {
+            // A missing ttl inherits the container DefaultTimeToLive, which would expire undelivered messages.
+            document.Ttl = NeverExpire;
+        }
 
         _ = await _container.CreateItemAsync(document, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
@@ -198,6 +211,11 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             PatchOperation.Increment("/retryCount", 1),
         };
 
+        if (_enableTtl)
+        {
+            patches.Add(PatchOperation.Set("/ttl", NeverExpire));
+        }
+
         await PatchProcessingMessageAsync(id, partitionKey, patches, cancellationToken).ConfigureAwait(false);
     }
 
@@ -223,6 +241,11 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
             PatchOperation.Increment("/retryCount", 1),
             PatchOperation.Set("/nextRetryAt", nextRetryAt),
         };
+
+        if (_enableTtl)
+        {
+            patches.Add(PatchOperation.Set("/ttl", NeverExpire));
+        }
 
         await PatchProcessingMessageAsync(id, partitionKey, patches, cancellationToken).ConfigureAwait(false);
     }
@@ -432,6 +455,12 @@ internal sealed class CosmosDbOutboxRepository : IOutboxRepository
                 PatchOperation.Set("/status", targetStatus),
                 PatchOperation.Set("/updatedAt", now),
             };
+
+            if (_enableTtl)
+            {
+                // Also protects documents written before AddAsync set the ttl.
+                patches.Add(PatchOperation.Set("/ttl", NeverExpire));
+            }
 
             try
             {

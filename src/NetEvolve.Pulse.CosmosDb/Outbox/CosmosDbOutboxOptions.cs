@@ -68,7 +68,12 @@ public sealed class CosmosDbOutboxOptions
     /// on documents that transition to <see cref="Extensibility.Outbox.OutboxMessageStatus.Completed"/>
     /// or <see cref="Extensibility.Outbox.OutboxMessageStatus.DeadLetter"/> status,
     /// enabling automatic cleanup by the Cosmos DB TTL engine.
-    /// The container must have TTL enabled (DefaultTimeToLive set) for this to take effect.
+    /// All other documents (pending, processing, failed and replayed) get <c>ttl = -1</c>, so they never expire.
+    /// <para>
+    /// The container must have TTL enabled with <c>DefaultTimeToLive = -1</c> (on, no default) for this to take
+    /// effect. A positive container default is not supported: documents written before this safeguard existed
+    /// carry no <c>ttl</c> and expire after that many seconds, which loses undelivered messages.
+    /// </para>
     /// </remarks>
     public bool EnableTimeToLive { get; set; }
 

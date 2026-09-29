@@ -101,7 +101,9 @@ internal sealed class CosmosDbOutboxDocument
 
     /// <summary>
     /// Gets or sets the TTL override in seconds for this document.
-    /// A value of <c>-1</c> disables TTL; <see langword="null"/> inherits the container default.
+    /// A value of <c>-1</c> never expires; <see langword="null"/> omits the property and inherits the container
+    /// <c>DefaultTimeToLive</c>. With <see cref="CosmosDbOutboxOptions.EnableTimeToLive"/> enabled, undelivered
+    /// documents carry <c>-1</c> and completed or dead-letter documents carry <see cref="CosmosDbOutboxOptions.TtlSeconds"/>.
     /// </summary>
     [JsonPropertyName("ttl")]
     [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
