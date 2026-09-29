@@ -37,11 +37,12 @@
 \set ix_Status_CreatedAt 'IX_' :schema_name '_' :table_name '_Status_CreatedAt'
 \set ix_Status_ProcessedAt 'IX_' :schema_name '_' :table_name '_Status_ProcessedAt'
 
--- PostgreSQL truncates identifiers to 63 bytes. Truncated index names can collide, and
--- CREATE INDEX IF NOT EXISTS would then silently skip an index, so stop before creating anything.
-SELECT format('DO $guard$ BEGIN RAISE EXCEPTION %L; END $guard$',
-              'Key or index names exceed 63 bytes; use a shorter schema_name or table_name.')
-WHERE greatest(octet_length(:'pk_name'), octet_length(:'ix_Status_CreatedAt'), octet_length(:'ix_Status_ProcessedAt')) > 63 \gexec
+-- PostgreSQL truncates identifiers to 63 bytes, so truncated names could collide and
+-- CREATE INDEX IF NOT EXISTS would silently skip an index. Names that do not fit use an MD5 hash
+-- of schema and table instead.
+SELECT CASE WHEN octet_length(:'pk_name') > 63 THEN 'PK_' || md5(:'schema_name' || '.' || :'table_name') ELSE :'pk_name' END AS "pk_name",
+       CASE WHEN octet_length(:'ix_Status_CreatedAt') > 63 THEN 'IX_' || md5(:'schema_name' || '.' || :'table_name') || '_Status_CreatedAt' ELSE :'ix_Status_CreatedAt' END AS "ix_Status_CreatedAt",
+       CASE WHEN octet_length(:'ix_Status_ProcessedAt') > 63 THEN 'IX_' || md5(:'schema_name' || '.' || :'table_name') || '_Status_ProcessedAt' ELSE :'ix_Status_ProcessedAt' END AS "ix_Status_ProcessedAt" \gset
 
 -- Create schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS :"schema_name";
