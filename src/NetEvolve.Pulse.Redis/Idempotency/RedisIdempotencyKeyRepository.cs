@@ -28,12 +28,15 @@ internal sealed class RedisIdempotencyKeyRepository : IIdempotencyKeyRepository
 
     /// <summary>
     /// Sets the key (ARGV[1] = UTC "O" timestamp, ARGV[3] = expiry in milliseconds or empty) unless it
-    /// holds a timestamp at or after the cutoff (ARGV[2], UTC "O"). Values that are not timestamps are
-    /// treated as present, matching <see cref="ExistsAsync"/>. Returns 1 when the key was set, otherwise 0.
+    /// holds a timestamp at or after the cutoff (ARGV[2], UTC "O"). Values are compared as text, so only
+    /// UTC values (ending in <c>+00:00</c>) can be refreshed. Values that are not timestamps, or carry a
+    /// non-UTC offset (written by earlier versions through direct <see cref="StoreAsync"/> calls), are
+    /// treated as present until their physical expiry, so a live key is never overwritten.
+    /// Returns 1 when the key was set, otherwise 0.
     /// </summary>
     private const string ReserveScript = """
         local current = redis.call('GET', KEYS[1])
-        if current and (not string.match(current, '^%d%d%d%d%-') or current >= ARGV[2]) then
+        if current and (not string.match(current, '^%d%d%d%d%-.*%+00:00$') or current >= ARGV[2]) then
             return 0
         end
         if ARGV[3] == '' then
