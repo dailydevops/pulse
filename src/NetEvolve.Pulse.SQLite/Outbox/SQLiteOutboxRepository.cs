@@ -207,7 +207,6 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             UPDATE {table}
             SET "{OutboxMessageSchema.Columns.Status}" = 4,
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
-                "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error
             WHERE "{OutboxMessageSchema.Columns.Id}" = @messageId
               AND "{OutboxMessageSchema.Columns.Status}" = 1;
@@ -236,7 +235,6 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
             UPDATE {table}
             SET "{OutboxMessageSchema.Columns.Status}" = 4,
                 "{OutboxMessageSchema.Columns.UpdatedAt}" = @nowUtc,
-                "{OutboxMessageSchema.Columns.ProcessedAt}" = @nowUtc,
                 "{OutboxMessageSchema.Columns.Error}" = @error
             WHERE "{OutboxMessageSchema.Columns.Status}" = 1
               AND "{OutboxMessageSchema.Columns.Id}" IN
