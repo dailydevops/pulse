@@ -102,7 +102,7 @@ public sealed class SqlServerContainerFixture : IAsyncDisposable, IAsyncInitiali
     private static MsSqlContainer CreateContainer()
     {
         var builder = new MsSqlBuilder(
-            /*dockerimage*/"mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-22.04"
+            /*dockerimage*/"mcr.microsoft.com/mssql/server:2025-CU9-GDR1-ubuntu-22.04"
         );
         return builder.WithLogger(NullLogger.Instance).Build();
     }
