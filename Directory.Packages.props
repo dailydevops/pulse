@@ -33,10 +33,10 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
     <PackageVersion Include="MySql.Data" Version="26.7.0" />
     <PackageVersion Include="MySql.EntityFrameworkCore" Version="10.0.9" />
@@ -73,7 +73,7 @@
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 8" Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.31" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.31" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.31" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.31" />
@@ -84,7 +84,7 @@
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 9" Condition="'$(TargetFramework)' == 'net9.0'">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.20" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.20" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.20" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.20" />
@@ -95,7 +95,7 @@
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 10" Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
