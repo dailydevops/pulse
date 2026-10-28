@@ -72,7 +72,7 @@
     <PackageVersion Include="Verify.TUnit" Version="33.3.3" />
   </ItemGroup>
   <ItemGroup Label="TargetFramework .NET 8" Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.31" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.33" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.13" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.31" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.31" />
