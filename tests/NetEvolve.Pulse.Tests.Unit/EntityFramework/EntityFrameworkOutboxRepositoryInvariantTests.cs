@@ -21,7 +21,9 @@ public sealed class EntityFrameworkOutboxRepositoryInvariantTests
 {
     private static TestDbContext CreateContext(string databaseName)
     {
-        var options = new DbContextOptionsBuilder<TestDbContext>().UseInMemoryDatabase(databaseName).Options;
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase($"{databaseName}_{TestContext.Current!.Id}")
+            .Options;
         return new TestDbContext(options);
     }
 
