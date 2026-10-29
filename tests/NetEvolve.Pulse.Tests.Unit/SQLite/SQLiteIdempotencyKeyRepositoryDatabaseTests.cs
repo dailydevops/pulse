@@ -51,6 +51,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
 
     private async Task<string?> GetCreatedAtAsync(string key, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cmd = new SqliteCommand(
             "SELECT \"CreatedAt\" FROM \"IdempotencyKey\" WHERE \"IdempotencyKey\" = @k",
             _keepAlive
@@ -65,6 +67,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task ExistsAsync_WithUnknownKey_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         var exists = await repository
@@ -77,6 +81,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task StoreAsync_ThenExistsAsync_ReturnsTrue(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository(enableWal: true);
 
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
@@ -93,6 +99,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task StoreAsync_PersistsCreatedAtAsUtcRoundTripString(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         await repository
@@ -107,6 +115,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task StoreAsync_WithExistingKey_KeepsOriginalCreatedAt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
@@ -120,6 +130,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task ExistsAsync_WithValidFrom_ComparesCreatedAtInclusively(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
 
@@ -142,6 +154,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task ExistsAsync_WithValidFromInOtherOffset_NormalizesToUtc(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
 
@@ -155,6 +169,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task ExistsAsync_WithUnknownKeyAndValidFrom_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         var exists = await repository.ExistsAsync("missing", Now, cancellationToken).ConfigureAwait(false);
@@ -165,6 +181,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task ExistsAsync_ComparesLegacyNonUtcRowsByInstant(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Rows written by older versions may carry a non-UTC offset; they are compared via julianday().
         var cmd = new SqliteCommand(
             "INSERT INTO \"IdempotencyKey\" (\"IdempotencyKey\", \"CreatedAt\") VALUES ('legacy', '2026-03-01T15:00:00.0000000+05:00')",
@@ -192,6 +210,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task TryReserveAsync_WithNewKey_ReturnsTrueAndStoresCreatedAt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         var reserved = await repository
@@ -211,6 +231,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task TryReserveAsync_WithExistingKeyAndNoValidFrom_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
 
@@ -231,6 +253,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task TryReserveAsync_WithExistingKeyStillValid_ReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
 
@@ -247,6 +271,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
         await repository.StoreAsync("key-1", Now, cancellationToken).ConfigureAwait(false);
         var newCreatedAt = Now.AddHours(2);
@@ -269,6 +295,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task TryReserveAsync_AfterReserve_SecondReserveReturnsFalse(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         var first = await repository
@@ -288,6 +316,8 @@ public sealed class SQLiteIdempotencyKeyRepositoryDatabaseTests : IAsyncDisposab
     [Test]
     public async Task Methods_WithInvalidKey_ThrowArgumentException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var repository = CreateRepository();
 
         using (Assert.Multiple())
