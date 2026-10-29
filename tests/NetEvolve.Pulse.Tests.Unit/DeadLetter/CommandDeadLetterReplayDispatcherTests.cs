@@ -93,6 +93,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var exception = await ReplayRawAsync("Unknown.Command, Unknown.Assembly", "{}", cancellationToken)
             .ConfigureAwait(false);
 
@@ -106,6 +108,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var commandType = typeof(string).AssemblyQualifiedName!;
 
         var exception = await ReplayRawAsync(commandType, "\"x\"", cancellationToken).ConfigureAwait(false);
@@ -118,6 +122,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var commandType = typeof(VoidCommand).AssemblyQualifiedName!;
 
         var exception = await ReplayRawAsync(commandType, "null", cancellationToken).ConfigureAwait(false);
@@ -130,6 +136,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     [Test]
     public async Task ReplayAsync_WithInvalidArguments_Throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
@@ -216,6 +224,8 @@ public sealed class CommandDeadLetterReplayDispatcherTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
@@ -225,11 +235,13 @@ public sealed class CommandDeadLetterReplayDispatcherTests
             var mediator = provider.GetRequiredService<IMediatorSendOnly>();
             var payloadSerializer = provider.GetRequiredService<IPayloadSerializer>();
 
-            return await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await CommandDeadLetterReplayDispatcher
-                    .ReplayAsync(mediator, payloadSerializer, commandType, payload, cancellationToken)
-                    .ConfigureAwait(false)
-            );
+            return (
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await CommandDeadLetterReplayDispatcher
+                        .ReplayAsync(mediator, payloadSerializer, commandType, payload, cancellationToken)
+                        .ConfigureAwait(false)
+                )
+            )!;
         }
     }
 
