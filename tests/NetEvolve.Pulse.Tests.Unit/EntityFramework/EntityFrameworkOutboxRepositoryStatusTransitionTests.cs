@@ -40,6 +40,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
@@ -60,6 +62,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Bypass the change tracker so assertions observe the stored state.
         var entry = context.ChangeTracker.Entries<OutboxMessage>().Single(e => e.Entity.Id == id);
         await entry.ReloadAsync(cancellationToken).ConfigureAwait(false);
@@ -73,6 +77,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -112,6 +118,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
     [Test]
     public async Task BulkOverloads_WithNullOrEmptyIds_AreNoOps(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -146,6 +154,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -170,6 +180,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
     [Test]
     public async Task MarkAsFailedAsync_WithNextRetryAt_SchedulesRetry(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -195,6 +207,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
     [Test]
     public async Task MarkAsFailedAsync_WithNextRetryAt_IgnoresNonProcessingMessage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -219,6 +233,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
     [Test]
     public async Task MarkAsFailedAsync_Bulk_FailsListedProcessingMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -255,6 +271,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
@@ -287,6 +305,8 @@ public sealed class EntityFrameworkOutboxRepositoryStatusTransitionTests
     [Test]
     public async Task MarkAsDeadLetterAsync_Bulk_MovesListedProcessingMessages(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var context = CreateContext();
         await using (context.ConfigureAwait(false))
         {
