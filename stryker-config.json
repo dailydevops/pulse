@@ -20,7 +20,7 @@
       "tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj",
       "tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit/NetEvolve.Pulse.SourceGeneration.Tests.Unit.csproj"
     ],
-    "coverage-analysis": "perTest",
+    "coverage-analysis": "all",
     "mutate": [
       "**/*.cs",
       "!**/*.Designer.cs",
