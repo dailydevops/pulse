@@ -78,12 +78,14 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
             ExceptionMessage = result == AuditResult.Failure ? "boom" : null,
         };
 
-    private async Task RecordAllAsync(
+    private static async Task RecordAllAsync(
         SQLiteAuditStore store,
         CancellationToken cancellationToken,
         params AuditRecord[] records
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var record in records)
         {
             await store.RecordAsync(record, cancellationToken).ConfigureAwait(false);
@@ -93,6 +95,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task RecordAsync_WithNullRecord_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
 
         _ = await Assert
@@ -115,6 +119,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task RecordAsync_PersistsAllFields_ReadBackByGetByIdAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(enableWal: true);
         var management = CreateManagement(enableWal: true);
         var record = CreateRecord(result: AuditResult.Failure);
@@ -140,6 +146,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task RecordAsync_WithNullableFieldsNull_ReadsBackNulls(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var record = CreateRecord(userId: null);
@@ -161,6 +169,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task RecordAsync_NormalizesOccurredAtToUtc(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var record = CreateRecord(occurredAt: new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.FromHours(5)));
@@ -174,6 +184,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetByIdAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         var loaded = await management.GetByIdAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
@@ -196,6 +208,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_WithoutFilter_ReturnsNewestFirstThenByIdDescending(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var now = DateTimeOffset.UtcNow;
@@ -214,6 +228,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_WithNullFilter_ThrowsArgumentNullException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         _ = await Assert
@@ -229,6 +245,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         _ = await Assert
@@ -241,6 +259,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_WithNegativeSkip_ThrowsArgumentOutOfRangeException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         _ = await Assert
@@ -253,6 +273,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_WithTakeAndSkip_ReturnsRequestedPage(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var now = DateTimeOffset.UtcNow;
@@ -271,6 +293,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_FiltersByCommandType(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var match = CreateRecord(commandType: "A");
@@ -286,6 +310,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_FiltersByUserId(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var match = CreateRecord(userId: "alice");
@@ -301,6 +327,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_FiltersByResult(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var failure = CreateRecord(result: AuditResult.Failure);
@@ -317,6 +345,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_FromAndTo_AreInclusiveBounds(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var t0 = new DateTimeOffset(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
@@ -338,6 +368,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_NormalizesNonUtcBounds(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var instant = new DateTimeOffset(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
@@ -356,6 +388,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task QueryAsync_CombinesFiltersWithAnd(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var t0 = new DateTimeOffset(2026, 3, 1, 10, 0, 0, TimeSpan.Zero);
@@ -392,6 +426,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetStatisticsAsync_WithEmptyTable_ReturnsZeros(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         var stats = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
@@ -406,6 +442,8 @@ public sealed class SQLiteAuditDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetStatisticsAsync_CountsSuccessAndFailure(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         await RecordAllAsync(
