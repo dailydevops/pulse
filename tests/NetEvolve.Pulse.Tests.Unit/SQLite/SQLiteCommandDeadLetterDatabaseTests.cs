@@ -80,6 +80,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         Exception? exception = null
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var known = await GetAllIdsAsync(cancellationToken).ConfigureAwait(false);
         await store
             .StoreAsync(commandType, payload, exception ?? new InvalidOperationException("boom"), cancellationToken)
@@ -90,6 +92,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
 
     private async Task<Guid[]> GetAllIdsAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var ids = new System.Collections.Generic.List<Guid>();
         var cmd = new SqliteCommand("SELECT \"Id\" FROM \"CommandDeadLetter\"", _keepAlive);
         await using (cmd.ConfigureAwait(false))
@@ -113,6 +117,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var cmd = new SqliteCommand("UPDATE \"CommandDeadLetter\" SET \"Status\" = @s WHERE \"Id\" = @id", _keepAlive);
         await using (cmd.ConfigureAwait(false))
         {
@@ -125,6 +131,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task StoreAsync_PersistsEntryWithNewStatusAndSingleAttempt(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore(enableWal: true);
         var management = CreateManagement(enableWal: true);
 
@@ -150,6 +158,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task StoreAsync_WithInvalidArguments_Throws(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var exception = new InvalidOperationException();
 
@@ -184,6 +194,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetEntryAsync_WithUnknownId_ReturnsNull(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         var entry = await management.GetEntryAsync(Guid.NewGuid(), cancellationToken).ConfigureAwait(false);
@@ -194,6 +206,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetPendingAsync_ReturnsOnlyNewEntriesOldestFirst(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var first = await StoreAsync(store, "A", cancellationToken).ConfigureAwait(false);
@@ -215,6 +229,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetPendingAsync_AppliesCountAndSkip(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var ids = new Guid[4];
@@ -236,6 +252,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         using (Assert.Multiple())
@@ -252,6 +270,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task DismissAsync_SetsStatusDismissed_AndExcludesFromPending(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var id = await StoreAsync(store, "A", cancellationToken).ConfigureAwait(false);
@@ -270,6 +290,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task DismissAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         _ = await Assert
@@ -280,6 +302,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetStatisticsAsync_WithEmptyTable_ReturnsZeros(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         var stats = await management.GetStatisticsAsync(cancellationToken).ConfigureAwait(false);
@@ -296,6 +320,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task GetStatisticsAsync_CountsEveryStatus(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var newIds = new[]
@@ -335,6 +361,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
     [Test]
     public async Task ReplayAsync_WithUnknownId_ThrowsEntryNotFoundException(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
 
         _ = await Assert
@@ -347,6 +375,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var id = await StoreAsync(store, "A", cancellationToken).ConfigureAwait(false);
@@ -365,6 +395,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var store = CreateStore();
         var management = CreateManagement();
         var id = await StoreAsync(store, "Not.A.Resolvable.CommandType", cancellationToken).ConfigureAwait(false);
@@ -392,6 +424,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new ReplayCommandHandler();
         var (provider, management, id) = await CreateReplayableEntryAsync(handler, cancellationToken)
             .ConfigureAwait(false);
@@ -414,6 +448,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var handler = new ReplayCommandHandler { Failure = new ArgumentException("handler failed") };
         var (provider, management, id) = await CreateReplayableEntryAsync(handler, cancellationToken)
             .ConfigureAwait(false);
@@ -442,6 +478,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var management = CreateManagement();
         var id = Guid.NewGuid();
         var cmd = new SqliteCommand(
@@ -470,6 +508,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
         Guid Id
     )> CreateReplayableEntryAsync(ReplayCommandHandler handler, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var services = new ServiceCollection();
         _ = services.AddLogging();
         _ = services.AddPulse();
@@ -515,6 +555,8 @@ public sealed class SQLiteCommandDeadLetterDatabaseTests : IAsyncDisposable
             CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             LastValue = command.Value;
             return Failure is null
                 ? Task.FromResult(Extensibility.Void.Completed)
