@@ -329,6 +329,59 @@ public sealed class EventDispatcherExtensionsTests
         );
     }
 
+    [Test]
+    public async Task UseDefaultEventDispatcher_WithFactory_CalledMultipleTimes_ReplacesRegistration()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        _ = builder.UseDefaultEventDispatcher<RateLimitedEventDispatcher>(_ => new RateLimitedEventDispatcher(2));
+        _ = builder.UseDefaultEventDispatcher<RateLimitedEventDispatcher>(_ => new RateLimitedEventDispatcher(7));
+
+        var dispatchers = services
+            .Where(d => d.ServiceType == typeof(IEventDispatcher) && d.ServiceKey is null)
+            .ToList();
+
+        _ = await Assert.That(dispatchers).HasSingleItem();
+
+        var sp = services.BuildServiceProvider();
+        await using (sp.ConfigureAwait(false))
+        {
+            var dispatcher = (RateLimitedEventDispatcher)sp.GetRequiredService<IEventDispatcher>();
+
+            _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(7);
+        }
+    }
+
+    [Test]
+    public async Task UseEventDispatcherFor_WithFactory_CalledMultipleTimes_ReplacesRegistration()
+    {
+        var services = new ServiceCollection();
+        var builder = new MediatorBuilder(services);
+
+        _ = builder.UseEventDispatcherFor<TestEvent, RateLimitedEventDispatcher>(_ => new RateLimitedEventDispatcher(
+            2
+        ));
+        _ = builder.UseEventDispatcherFor<TestEvent, RateLimitedEventDispatcher>(_ => new RateLimitedEventDispatcher(
+            7
+        ));
+
+        var dispatchers = services
+            .Where(d => d.ServiceType == typeof(IEventDispatcher) && Equals(d.ServiceKey, typeof(TestEvent)))
+            .ToList();
+
+        _ = await Assert.That(dispatchers).HasSingleItem();
+
+        var sp = services.BuildServiceProvider();
+        await using (sp.ConfigureAwait(false))
+        {
+            var dispatcher = (RateLimitedEventDispatcher)
+                sp.GetRequiredKeyedService<IEventDispatcher>(typeof(TestEvent));
+
+            _ = await Assert.That(dispatcher.MaxConcurrency).IsEqualTo(7);
+        }
+    }
+
     private sealed class TestEvent : IEvent
     {
         public string? CausationId { get; set; }
