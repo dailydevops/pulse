@@ -15,7 +15,9 @@ public sealed class EntityFrameworkAuditStoreTests
 {
     private static TestAuditStoreDbContext CreateContext(string databaseName)
     {
-        var options = new DbContextOptionsBuilder<TestAuditStoreDbContext>().UseInMemoryDatabase(databaseName).Options;
+        var options = new DbContextOptionsBuilder<TestAuditStoreDbContext>()
+            .UseInMemoryDatabase($"{databaseName}_{TestContext.Current!.Id}")
+            .Options;
         return new TestAuditStoreDbContext(options);
     }
 

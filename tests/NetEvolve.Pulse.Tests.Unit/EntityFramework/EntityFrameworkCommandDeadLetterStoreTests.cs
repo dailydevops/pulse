@@ -18,7 +18,7 @@ public sealed class EntityFrameworkCommandDeadLetterStoreTests
     private static TestCommandDeadLetterDbContext CreateContext(string databaseName)
     {
         var options = new DbContextOptionsBuilder<TestCommandDeadLetterDbContext>()
-            .UseInMemoryDatabase(databaseName)
+            .UseInMemoryDatabase($"{databaseName}_{TestContext.Current!.Id}")
             .Options;
         return new TestCommandDeadLetterDbContext(options);
     }
