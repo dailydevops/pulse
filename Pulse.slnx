@@ -1,4 +1,9 @@
 <Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Mutation" />
+  </Configurations>
   <Folder Name="/Solution Items/">
     <File Path=".commitlintrc" />
     <File Path=".csharpierignore" />
@@ -47,7 +52,9 @@
     <Project Path="src/NetEvolve.Pulse.Redis/NetEvolve.Pulse.Redis.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj" />
+    <Project Path="tests/NetEvolve.Pulse.Tests.Integration/NetEvolve.Pulse.Tests.Integration.csproj">
+      <Build Solution="Mutation|*" Project="false" />
+    </Project>
     <Project Path="tests/NetEvolve.Pulse.Tests.Unit/NetEvolve.Pulse.Tests.Unit.csproj" />
     <Project Path="tests/NetEvolve.Pulse.SourceGeneration.Tests.Unit/NetEvolve.Pulse.SourceGeneration.Tests.Unit.csproj" />
   </Folder>
