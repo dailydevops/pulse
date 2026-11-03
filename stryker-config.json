@@ -2,6 +2,7 @@
   "stryker-config": {
     "solution": "Pulse.slnx",
     "mutation-level": "Advanced",
+    "concurrency": 4,
     "reporters": [
       "html",
       "json",
