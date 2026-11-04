@@ -16,6 +16,12 @@
     <_TestTargetFrameworks>net8.0;net9.0;net10.0</_TestTargetFrameworks>
   </PropertyGroup>
 
+  <!-- Mutation testing only runs against the highest target framework; building the older ones is wasted time. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Mutation'">
+    <_ProjectTargetFrameworks>net10.0</_ProjectTargetFrameworks>
+    <_TestTargetFrameworks>net10.0</_TestTargetFrameworks>
+  </PropertyGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Integration" />
     <InternalsVisibleTo Include="NetEvolve.Pulse.Tests.Unit" />
