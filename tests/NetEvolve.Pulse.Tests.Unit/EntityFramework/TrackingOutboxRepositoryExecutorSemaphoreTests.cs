@@ -20,7 +20,9 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(FetchAndMarkAsync_WhileSemaphoreHeld_WaitsForRelease))
+            .UseInMemoryDatabase(
+                $"{nameof(FetchAndMarkAsync_WhileSemaphoreHeld_WaitsForRelease)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -57,7 +59,9 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(DeleteByQueryAsync_WhileSemaphoreHeld_WaitsForRelease))
+            .UseInMemoryDatabase(
+                $"{nameof(DeleteByQueryAsync_WhileSemaphoreHeld_WaitsForRelease)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -93,7 +97,9 @@ public sealed class TrackingOutboxRepositoryExecutorSemaphoreTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(UpdateByIdsAsync_MySqlExecutor_WhileSemaphoreHeld_WaitsForRelease))
+            .UseInMemoryDatabase(
+                $"{nameof(UpdateByIdsAsync_MySqlExecutor_WhileSemaphoreHeld_WaitsForRelease)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))

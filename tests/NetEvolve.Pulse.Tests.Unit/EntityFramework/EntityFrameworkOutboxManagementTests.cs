@@ -23,7 +23,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     public async Task Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException))
+            .UseInMemoryDatabase(
+                $"{nameof(Constructor_WithNullTimeProvider_ThrowsArgumentNullException)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -38,7 +40,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     public async Task Constructor_WithValidArguments_CreatesInstance()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(Constructor_WithValidArguments_CreatesInstance))
+            .UseInMemoryDatabase($"{nameof(Constructor_WithValidArguments_CreatesInstance)}_{TestContext.Current!.Id}")
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -54,7 +56,7 @@ public sealed class EntityFrameworkOutboxManagementTests
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(
-                nameof(GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException)
+                $"{nameof(GetDeadLetterMessagesAsync_WithNegativePageSize_ThrowsArgumentOutOfRangeException)}_{TestContext.Current!.Id}"
             )
             .Options;
         var context = new TestDbContext(options);
@@ -72,7 +74,9 @@ public sealed class EntityFrameworkOutboxManagementTests
     public async Task GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessagesAsync_WithZeroPageSize_ThrowsArgumentOutOfRangeException)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -93,7 +97,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessagesAsync_WithNegativePage_ThrowsArgumentOutOfRangeException)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -116,7 +122,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessagesAsync_EmptyDatabase_ReturnsEmptyList)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -139,7 +147,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithDeadLetterMessages_ReturnsMessages))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessagesAsync_WithDeadLetterMessages_ReturnsMessages)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -194,7 +204,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithExistingDeadLetterMessage_ReturnsMessage))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessageAsync_WithExistingDeadLetterMessage_ReturnsMessage)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -234,7 +246,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithNonDeadLetterMessage_ReturnsNull))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessageAsync_WithNonDeadLetterMessage_ReturnsNull)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -271,7 +285,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessageAsync_WithUnknownId_ReturnsNull)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -292,7 +308,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterCountAsync_EmptyDatabase_ReturnsZero)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -313,7 +331,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterCountAsync_WithDeadLetterMessages_ReturnsCorrectCount))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterCountAsync_WithDeadLetterMessages_ReturnsCorrectCount)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -369,7 +389,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithExistingDeadLetterMessage_ReturnsTrueAndResetsMessage))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayMessageAsync_WithExistingDeadLetterMessage_ReturnsTrueAndResetsMessage)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -416,7 +438,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayMessageAsync_WithNonDeadLetterMessage_ReturnsFalse)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -453,7 +477,7 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayMessageAsync_WithUnknownId_ReturnsFalse))
+            .UseInMemoryDatabase($"{nameof(ReplayMessageAsync_WithUnknownId_ReturnsFalse)}_{TestContext.Current!.Id}")
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -472,7 +496,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayAllDeadLetterAsync_EmptyDatabase_ReturnsZero)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -493,7 +519,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_WithDeadLetterMessages_ResetsAllAndReturnsCount))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayAllDeadLetterAsync_WithDeadLetterMessages_ResetsAllAndReturnsCount)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -549,7 +577,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics))
+            .UseInMemoryDatabase(
+                $"{nameof(GetStatisticsAsync_EmptyDatabase_ReturnsZeroStatistics)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -576,7 +606,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetStatisticsAsync_WithMessages_ReturnsCorrectCounts))
+            .UseInMemoryDatabase(
+                $"{nameof(GetStatisticsAsync_WithMessages_ReturnsCorrectCounts)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -638,7 +670,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_WithPage_ReturnsCorrectPage))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessagesAsync_WithPage_ReturnsCorrectPage)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -686,7 +720,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(GetDeadLetterMessagesAsync_OrderedByUpdatedAtDescending))
+            .UseInMemoryDatabase(
+                $"{nameof(GetDeadLetterMessagesAsync_OrderedByUpdatedAtDescending)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -737,7 +773,9 @@ public sealed class EntityFrameworkOutboxManagementTests
 
         var expectedTime = new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero);
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayMessageAsync_SetsUpdatedAtFromTimeProvider))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayMessageAsync_SetsUpdatedAtFromTimeProvider)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -778,7 +816,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_DoesNotAffectNonDeadLetterMessages))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayAllDeadLetterAsync_DoesNotAffectNonDeadLetterMessages)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
@@ -842,7 +882,9 @@ public sealed class EntityFrameworkOutboxManagementTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(ReplayAllDeadLetterAsync_ResetsRetryCountAndError))
+            .UseInMemoryDatabase(
+                $"{nameof(ReplayAllDeadLetterAsync_ResetsRetryCountAndError)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))

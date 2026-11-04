@@ -94,7 +94,9 @@ public sealed class TrackingOutboxRepositoryExecutorDeleteTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(nameof(DeleteByQueryAsync_WithAlreadyTrackedEntity_DeletesAllMatches))
+            .UseInMemoryDatabase(
+                $"{nameof(DeleteByQueryAsync_WithAlreadyTrackedEntity_DeletesAllMatches)}_{TestContext.Current!.Id}"
+            )
             .Options;
         var context = new TestDbContext(options);
         await using (context.ConfigureAwait(false))
