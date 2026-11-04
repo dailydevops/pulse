@@ -89,6 +89,109 @@ public sealed class CommandDeadLetterReplayDispatcherTests
     }
 
     [Test]
+    public async Task ReplayAsync_WithUnresolvableCommandType_MessageNamesTheCommandType(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var exception = await ReplayRawAsync("Unknown.Command, Unknown.Assembly", "{}", cancellationToken)
+            .ConfigureAwait(false);
+
+        _ = await Assert
+            .That(exception.Message)
+            .IsEqualTo("Cannot resolve command type 'Unknown.Command, Unknown.Assembly'.");
+    }
+
+    [Test]
+    public async Task ReplayAsync_WithTypeNotImplementingICommand_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var commandType = typeof(string).AssemblyQualifiedName!;
+
+        var exception = await ReplayRawAsync(commandType, "\"x\"", cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert.That(exception.Message).IsEqualTo($"'{commandType}' does not implement ICommand<TResponse>.");
+    }
+
+    [Test]
+    public async Task ReplayAsync_WithPayloadDeserializingToNull_ThrowsInvalidOperationException(
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var commandType = typeof(VoidCommand).AssemblyQualifiedName!;
+
+        var exception = await ReplayRawAsync(commandType, "null", cancellationToken).ConfigureAwait(false);
+
+        _ = await Assert
+            .That(exception.Message)
+            .IsEqualTo($"Failed to deserialize payload for command type '{commandType}'.");
+    }
+
+    [Test]
+    public async Task ReplayAsync_WithInvalidArguments_Throws(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddPulse();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var mediator = provider.GetRequiredService<IMediatorSendOnly>();
+            var serializer = provider.GetRequiredService<IPayloadSerializer>();
+            var commandType = typeof(VoidCommand).AssemblyQualifiedName!;
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+
+            using (Assert.Multiple())
+            {
+                _ = await Assert
+                    .That(async () =>
+                        await CommandDeadLetterReplayDispatcher
+                            .ReplayAsync(mediator, serializer, commandType, "{}", cancelled.Token)
+                            .ConfigureAwait(false)
+                    )
+                    .Throws<OperationCanceledException>();
+                _ = await Assert
+                    .That(async () =>
+                        await CommandDeadLetterReplayDispatcher
+                            .ReplayAsync(null!, serializer, commandType, "{}", cancellationToken)
+                            .ConfigureAwait(false)
+                    )
+                    .Throws<ArgumentNullException>();
+                _ = await Assert
+                    .That(async () =>
+                        await CommandDeadLetterReplayDispatcher
+                            .ReplayAsync(mediator, null!, commandType, "{}", cancellationToken)
+                            .ConfigureAwait(false)
+                    )
+                    .Throws<ArgumentNullException>();
+                _ = await Assert
+                    .That(async () =>
+                        await CommandDeadLetterReplayDispatcher
+                            .ReplayAsync(mediator, serializer, " ", "{}", cancellationToken)
+                            .ConfigureAwait(false)
+                    )
+                    .Throws<ArgumentException>();
+                _ = await Assert
+                    .That(async () =>
+                        await CommandDeadLetterReplayDispatcher
+                            .ReplayAsync(mediator, serializer, commandType, " ", cancellationToken)
+                            .ConfigureAwait(false)
+                    )
+                    .Throws<ArgumentException>();
+            }
+        }
+    }
+
+    [Test]
     public async Task IsReplayedCommand_OutsideReplay_ReturnsFalse() =>
         _ = await Assert.That(CommandDeadLetterReplayDispatcher.IsReplayedCommand(new VoidCommand())).IsFalse();
 
@@ -113,6 +216,33 @@ public sealed class CommandDeadLetterReplayDispatcherTests
             .ConfigureAwait(false);
 
         _ = await Assert.That(handler.WasReplayedDuringDispatch).IsTrue();
+    }
+
+    private static async Task<InvalidOperationException> ReplayRawAsync(
+        string commandType,
+        string payload,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var services = new ServiceCollection();
+        _ = services.AddLogging();
+        _ = services.AddPulse();
+        var provider = services.BuildServiceProvider();
+        await using (provider.ConfigureAwait(false))
+        {
+            var mediator = provider.GetRequiredService<IMediatorSendOnly>();
+            var payloadSerializer = provider.GetRequiredService<IPayloadSerializer>();
+
+            return (
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await CommandDeadLetterReplayDispatcher
+                        .ReplayAsync(mediator, payloadSerializer, commandType, payload, cancellationToken)
+                        .ConfigureAwait(false)
+                )
+            )!;
+        }
     }
 
     private static async Task ReplayAsync<TCommand, TResponse>(
