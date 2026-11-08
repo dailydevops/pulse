@@ -20,7 +20,7 @@ public sealed class PostgreSqlContainerFixture : IAsyncDisposable, IAsyncInitial
     private static PostgreSqlContainer CreateContainer()
     {
         var builder = new PostgreSqlBuilder(
-            /*dockerimage*/"postgres:19beta4-trixie"
+            /*dockerimage*/"postgres:19rc1-trixie"
         )
             .WithLogger(NullLogger.Instance)
             .WithCommand("-c", "max_connections=500"); // Raised for parallel integration tests; each test creates its own unique database/pool.
