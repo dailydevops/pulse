@@ -86,8 +86,7 @@ internal sealed class BulkOutboxRepositoryExecutor<TContext>(TContext context, i
             // this caller actually transitioned, identified by the new status and this
             // caller's UpdatedAt stamp.
             // Known limit: UpdatedAt doubles as the claim token, so two claimers writing an identical
-            // stamp (e.g. a shared fake clock) cannot be told apart; see
-            // decisions/2026-09-28-entityframework-outbox-claim-concurrency.md.
+            // stamp (e.g. a shared fake clock) cannot be told apart.
             var claimedIds = await context
                 .OutboxMessages.AsNoTracking()
                 .Where(m => ids.Contains(m.Id) && m.Status == newStatus && m.UpdatedAt == updatedAt)
