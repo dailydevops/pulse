@@ -130,7 +130,7 @@ internal sealed class AuditRequestInterceptor<TRequest, TResponse> : IRequestInt
     [SuppressMessage(
         "Usage",
         "NE0010:Method returns Task and should accept a CancellationToken parameter",
-        Justification = "The handler has already finished, so the audit write intentionally uses CancellationToken.None instead of the caller's token (decisions/2026-09-28-audit-write-fail-open.md)."
+        Justification = "The handler has already finished, so the audit write intentionally uses CancellationToken.None instead of the caller's token."
     )]
     private async Task TryRecordAsync(
         IAuditStore store,

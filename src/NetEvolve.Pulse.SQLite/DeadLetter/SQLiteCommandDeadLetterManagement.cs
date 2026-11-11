@@ -281,7 +281,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
     [SuppressMessage(
         "Usage",
         "NE0010:Method returns Task and should accept a CancellationToken parameter",
-        Justification = "The reset after a failed or cancelled replay must always run, so it intentionally uses CancellationToken.None instead of the caller's token, which may already be cancelled (decisions/2026-09-27-command-dead-letter-replay-status.md)."
+        Justification = "The reset after a failed or cancelled replay must always run, so it intentionally uses CancellationToken.None instead of the caller's token, which may already be cancelled."
     )]
     private async Task SetFailedAsync(SqliteConnection connection, Guid id, Exception exception)
     {
