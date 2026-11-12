@@ -22,9 +22,8 @@ public sealed class AzureQueueStorageExtensionsTests
     {
         IMediatorBuilder? configurator = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "configurator",
-            () => configurator!.UseAzureQueueStorageTransport(FakeConnectionString)
+        _ = Assert.Throws<ArgumentNullException>("configurator", () =>
+            configurator!.UseAzureQueueStorageTransport(FakeConnectionString)
         );
     }
 
@@ -33,9 +32,8 @@ public sealed class AzureQueueStorageExtensionsTests
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            _ = Assert.Throws<ArgumentException>(
-                "connectionString",
-                () => config.UseAzureQueueStorageTransport((string)null!)
+            _ = Assert.Throws<ArgumentException>("connectionString", () =>
+                config.UseAzureQueueStorageTransport((string)null!)
             )
         );
     }
@@ -45,9 +43,8 @@ public sealed class AzureQueueStorageExtensionsTests
     {
         IMediatorBuilder? configurator = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "configurator",
-            () => configurator!.UseAzureQueueStorageTransport(FakeServiceUri)
+        _ = Assert.Throws<ArgumentNullException>("configurator", () =>
+            configurator!.UseAzureQueueStorageTransport(FakeServiceUri)
         );
     }
 
@@ -56,9 +53,8 @@ public sealed class AzureQueueStorageExtensionsTests
     {
         IServiceCollection services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            _ = Assert.Throws<ArgumentNullException>(
-                "queueServiceUri",
-                () => config.UseAzureQueueStorageTransport((Uri)null!)
+            _ = Assert.Throws<ArgumentNullException>("queueServiceUri", () =>
+                config.UseAzureQueueStorageTransport((Uri)null!)
             )
         );
     }
@@ -146,16 +142,11 @@ public sealed class AzureQueueStorageExtensionsTests
     public async Task UseAzureQueueStorageTransport_ConnectionString_configureOptions_is_applied()
     {
         IServiceCollection services = new ServiceCollection();
-        _ = services.AddPulse(config =>
-            config.UseAzureQueueStorageTransport(
-                FakeConnectionString,
-                options =>
-                {
-                    options.QueueName = "my-queue";
-                    options.CreateQueueIfNotExists = false;
-                }
-            )
-        );
+        _ = services.AddPulse(config => config.UseAzureQueueStorageTransport(FakeConnectionString, options =>
+            {
+                options.QueueName = "my-queue";
+                options.CreateQueueIfNotExists = false;
+            }));
 
         var provider = services.BuildServiceProvider();
         await using (provider.ConfigureAwait(false))

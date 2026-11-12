@@ -35,8 +35,7 @@ public sealed partial class SqlServerAdoNetIdempotencyInitializer : IServiceInit
 
         var options = serviceProvider.GetRequiredService<IOptions<IdempotencyKeyOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
+        var connectionString = options.ConnectionString
             ?? throw new InvalidOperationException("IdempotencyKeyOptions.ConnectionString is not configured.");
 
         var schema = string.IsNullOrWhiteSpace(options.Schema)

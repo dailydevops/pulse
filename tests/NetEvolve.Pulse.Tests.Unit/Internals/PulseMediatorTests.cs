@@ -20,9 +20,8 @@ public class PulseMediatorTests
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         var timeProvider = TimeProvider.System;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "logger",
-            () => _ = new PulseMediator(logger!, serviceProvider, timeProvider)
+        _ = Assert.Throws<ArgumentNullException>("logger", () =>
+            _ = new PulseMediator(logger!, serviceProvider, timeProvider)
         );
     }
 
@@ -36,9 +35,8 @@ public class PulseMediatorTests
         IServiceProvider? serviceProvider = null;
         var timeProvider = TimeProvider.System;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "serviceProvider",
-            () => _ = new PulseMediator(logger, serviceProvider!, timeProvider)
+        _ = Assert.Throws<ArgumentNullException>("serviceProvider", () =>
+            _ = new PulseMediator(logger, serviceProvider!, timeProvider)
         );
     }
 
@@ -52,9 +50,8 @@ public class PulseMediatorTests
         var serviceProvider = new ServiceCollection().BuildServiceProvider();
         TimeProvider? timeProvider = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "timeProvider",
-            () => _ = new PulseMediator(logger, serviceProvider, timeProvider!)
+        _ = Assert.Throws<ArgumentNullException>("timeProvider", () =>
+            _ = new PulseMediator(logger, serviceProvider, timeProvider!)
         );
     }
 
@@ -89,9 +86,8 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(
-            "message",
-            async () => await mediator.PublishAsync<TestEvent>(null!, cancellationToken).ConfigureAwait(false)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>("message", async () =>
+            await mediator.PublishAsync<TestEvent>(null!, cancellationToken).ConfigureAwait(false)
         );
     }
 
@@ -210,9 +206,8 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(
-            "query",
-            async () => await mediator.QueryAsync<TestQuery, string>(null!, cancellationToken).ConfigureAwait(false)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>("query", async () =>
+            await mediator.QueryAsync<TestQuery, string>(null!, cancellationToken).ConfigureAwait(false)
         );
     }
 
@@ -271,9 +266,8 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(
-            "command",
-            async () => await mediator.SendAsync<TestCommand, string>(null!, cancellationToken).ConfigureAwait(false)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>("command", async () =>
+            await mediator.SendAsync<TestCommand, string>(null!, cancellationToken).ConfigureAwait(false)
         );
     }
 
@@ -655,9 +649,8 @@ public class PulseMediatorTests
         var timeProvider = TimeProvider.System;
         var mediator = new PulseMediator(logger, serviceProvider, timeProvider);
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "query",
-            () => mediator.StreamQueryAsync<TestStreamQuery, string>(null!, cancellationToken)
+        _ = Assert.Throws<ArgumentNullException>("query", () =>
+            mediator.StreamQueryAsync<TestStreamQuery, string>(null!, cancellationToken)
         );
     }
 

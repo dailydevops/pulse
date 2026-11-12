@@ -261,11 +261,8 @@ public sealed class PulseGrpcStreamServiceTests
         var writer = new CollectingStreamWriter();
 
         await new TestStreamService(mediator.Object)
-            .StreamMapped(
-                new TestStreamQuery(),
-                writer,
-                new TestServerCallContext(CancellationToken.None),
-                item => item.ToUpperInvariant()
+            .StreamMapped(new TestStreamQuery(), writer, new TestServerCallContext(CancellationToken.None), item =>
+                item.ToUpperInvariant()
             )
             .ConfigureAwait(false);
 

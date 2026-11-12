@@ -26,8 +26,7 @@ public sealed class MySqlAdoNetAuditInitializer : IServiceInitializer
 
         var options = serviceProvider.GetRequiredService<IOptions<AuditStoreOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
+        var connectionString = options.ConnectionString
             ?? throw new InvalidOperationException("AuditStoreOptions.ConnectionString is not configured.");
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)

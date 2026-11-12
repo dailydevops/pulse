@@ -124,9 +124,8 @@ public sealed class PostgreSqlIdempotencyMediatorBuilderExtensionsTests
     public async Task AddPostgreSqlIdempotencyStore_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlIdempotencyMediatorBuilderExtensions.AddPostgreSqlIdempotencyStore(
-                    null!,
-                    _ => "Host=localhost;Encrypt=true;"
+                PostgreSqlIdempotencyMediatorBuilderExtensions.AddPostgreSqlIdempotencyStore(null!, _ =>
+                    "Host=localhost;Encrypt=true;"
                 )
             )
             .Throws<ArgumentNullException>();
@@ -206,9 +205,8 @@ public sealed class PostgreSqlIdempotencyMediatorBuilderExtensionsTests
     public async Task AddPostgreSqlIdempotencyStore_WithAction_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlIdempotencyMediatorBuilderExtensions.AddPostgreSqlIdempotencyStore(
-                    null!,
-                    opts => opts.ConnectionString = "Host=localhost;Encrypt=true;"
+                PostgreSqlIdempotencyMediatorBuilderExtensions.AddPostgreSqlIdempotencyStore(null!, opts =>
+                    opts.ConnectionString = "Host=localhost;Encrypt=true;"
                 )
             )
             .Throws<ArgumentNullException>();

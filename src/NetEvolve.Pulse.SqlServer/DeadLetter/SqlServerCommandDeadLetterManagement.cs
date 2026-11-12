@@ -205,8 +205,7 @@ internal sealed class SqlServerCommandDeadLetterManagement : ICommandDeadLetterM
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
-            var entry =
-                await GetEntryByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
+            var entry = await GetEntryByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
                 ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
             if (entry.Status == CommandDeadLetterStatus.Dismissed)

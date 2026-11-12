@@ -53,11 +53,8 @@ internal static class TelemetryUnits
         string description,
         bool useSemanticConventionUnits
     ) =>
-        GetShared(
-            name,
-            useSemanticConventionUnits,
-            () =>
-                CreateCounter(Defaults.Meter, name, legacyUnit, annotationUnit, description, useSemanticConventionUnits)
+        GetShared(name, useSemanticConventionUnits, () =>
+            CreateCounter(Defaults.Meter, name, legacyUnit, annotationUnit, description, useSemanticConventionUnits)
         );
 
     /// <summary>
@@ -72,10 +69,8 @@ internal static class TelemetryUnits
         string subject,
         bool useSemanticConventionUnits
     ) =>
-        GetShared(
-            name,
-            useSemanticConventionUnits,
-            () => CreateDurationHistogram(Defaults.Meter, name, subject, useSemanticConventionUnits)
+        GetShared(name, useSemanticConventionUnits, () =>
+            CreateDurationHistogram(Defaults.Meter, name, subject, useSemanticConventionUnits)
         );
 
     /// <summary>

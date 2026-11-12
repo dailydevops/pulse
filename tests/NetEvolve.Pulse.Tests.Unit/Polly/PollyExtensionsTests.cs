@@ -62,9 +62,8 @@ public sealed class PollyExtensionsTests
     public async Task AddPollyRequestPolicies_WithKeyedInterceptorRegistration_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        _ = services.AddKeyedSingleton<IRequestInterceptor<TestCommand, string>>(
-            "keyed",
-            (_, _) => Mock.Of<IRequestInterceptor<TestCommand, string>>().Object
+        _ = services.AddKeyedSingleton<IRequestInterceptor<TestCommand, string>>("keyed", (_, _) =>
+            Mock.Of<IRequestInterceptor<TestCommand, string>>().Object
         );
 
         _ = services.AddPulse(configurator =>
@@ -82,9 +81,8 @@ public sealed class PollyExtensionsTests
     public async Task AddPollyStreamQueryPolicies_WithKeyedInterceptorRegistration_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        _ = services.AddKeyedSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>(
-            "keyed",
-            (_, _) => Mock.Of<IStreamQueryInterceptor<TestStreamQuery, string>>().Object
+        _ = services.AddKeyedSingleton<IStreamQueryInterceptor<TestStreamQuery, string>>("keyed", (_, _) =>
+            Mock.Of<IStreamQueryInterceptor<TestStreamQuery, string>>().Object
         );
 
         _ = services.AddPulse(configurator =>

@@ -209,8 +209,7 @@ internal sealed class SQLiteCommandDeadLetterManagement : ICommandDeadLetterMana
         var connection = await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using (connection.ConfigureAwait(false))
         {
-            var entry =
-                await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
+            var entry = await GetByIdAsync(connection, id, cancellationToken).ConfigureAwait(false)
                 ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
             if (entry.Status == CommandDeadLetterStatus.Dismissed)

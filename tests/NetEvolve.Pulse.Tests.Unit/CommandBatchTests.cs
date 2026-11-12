@@ -63,9 +63,8 @@ public class CommandBatchTests
         IMediatorSendOnly? mediator = null;
         var batch = new CommandBatch();
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(
-            "mediator",
-            async () => await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false)
+        _ = await Assert.ThrowsAsync<ArgumentNullException>("mediator", async () =>
+            await mediator.SendBatchAsync(batch, cancellationToken).ConfigureAwait(false)
         );
     }
 
@@ -86,9 +85,8 @@ public class CommandBatchTests
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediatorSendOnly>();
                 CommandBatch? batch = null;
 
-                _ = await Assert.ThrowsAsync<ArgumentNullException>(
-                    "batch",
-                    async () => await mediator.SendBatchAsync(batch!, cancellationToken).ConfigureAwait(false)
+                _ = await Assert.ThrowsAsync<ArgumentNullException>("batch", async () =>
+                    await mediator.SendBatchAsync(batch!, cancellationToken).ConfigureAwait(false)
                 );
             }
         }

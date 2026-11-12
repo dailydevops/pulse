@@ -323,9 +323,8 @@ public sealed class EventDispatcherExtensionsTests
         var builder = new MediatorBuilder(services);
         Func<IServiceProvider, RateLimitedEventDispatcher>? factory = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "factory",
-            () => builder.UseEventDispatcherFor<TestEvent, RateLimitedEventDispatcher>(factory!)
+        _ = Assert.Throws<ArgumentNullException>("factory", () =>
+            builder.UseEventDispatcherFor<TestEvent, RateLimitedEventDispatcher>(factory!)
         );
     }
 

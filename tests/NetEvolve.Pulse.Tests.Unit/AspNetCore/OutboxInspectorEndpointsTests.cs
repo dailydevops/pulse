@@ -971,12 +971,8 @@ public sealed class OutboxInspectorEndpointsTests
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(statistics);
 
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -1077,18 +1073,14 @@ public sealed class OutboxInspectorEndpointsTests
         var mock = Mock.Of<IOutboxManagement>();
         _ = mock.GetMessageAsync(messageId, Arg.Any<CancellationToken>()).Returns(message);
 
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options =>
-                    {
-                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
-                        options.SerializerOptions.Converters.Add(
-                            new JsonStringEnumConverter<OutboxMessageStatus>(JsonNamingPolicy.KebabCaseLower)
-                        );
-                    })
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options =>
+                {
+                    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                    options.SerializerOptions.Converters.Add(
+                        new JsonStringEnumConverter<OutboxMessageStatus>(JsonNamingPolicy.KebabCaseLower)
+                    );
+                })
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -1167,14 +1159,8 @@ public sealed class OutboxInspectorEndpointsTests
             .Returns(messages);
 
         // Mirrors a NativeAOT application without reflection resolver: only the Pulse contracts can resolve the models.
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options =>
-                        options.SerializerOptions.TypeInfoResolverChain.Clear()
-                    )
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Clear())
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();

@@ -24,8 +24,7 @@ internal sealed class TypeValueConverter : ValueConverter<Type, string>
 
     private static string ConvertToString(Type type)
     {
-        var name =
-            type.AssemblyQualifiedName
+        var name = type.AssemblyQualifiedName
             ?? throw new InvalidOperationException($"Cannot get assembly-qualified name for type: {type}");
 
         if (name.Length > OutboxMessageSchema.MaxLengths.EventType)

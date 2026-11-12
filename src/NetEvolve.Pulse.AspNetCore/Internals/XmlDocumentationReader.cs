@@ -41,34 +41,31 @@ internal static class XmlDocumentationReader
     {
         ArgumentNullException.ThrowIfNull(type);
 
-        summary = SummaryCache.GetOrAdd(
-            type,
-            static t =>
+        summary = SummaryCache.GetOrAdd(type, static t =>
+        {
+            var assemblyLocation = t.Assembly.Location;
+            if (string.IsNullOrEmpty(assemblyLocation))
             {
-                var assemblyLocation = t.Assembly.Location;
-                if (string.IsNullOrEmpty(assemblyLocation))
-                {
-                    return null;
-                }
-
-                var xmlPath = Path.ChangeExtension(assemblyLocation, ".xml");
-                var members = LoadDocumentation(xmlPath);
-                if (members is null)
-                {
-                    return null;
-                }
-
-                // XML doc ids use '.' for nested types and the open generic definition (e.g. `1).
-                var fullName = (t.IsConstructedGenericType ? t.GetGenericTypeDefinition() : t).FullName;
-                if (fullName is null)
-                {
-                    return null;
-                }
-
-                var memberId = "T:" + fullName.Replace('+', '.');
-                return members.TryGetValue(memberId, out var value) ? value : null;
+                return null;
             }
-        );
+
+            var xmlPath = Path.ChangeExtension(assemblyLocation, ".xml");
+            var members = LoadDocumentation(xmlPath);
+            if (members is null)
+            {
+                return null;
+            }
+
+            // XML doc ids use '.' for nested types and the open generic definition (e.g. `1).
+            var fullName = (t.IsConstructedGenericType ? t.GetGenericTypeDefinition() : t).FullName;
+            if (fullName is null)
+            {
+                return null;
+            }
+
+            var memberId = "T:" + fullName.Replace('+', '.');
+            return members.TryGetValue(memberId, out var value) ? value : null;
+        });
 
         return summary is not null;
     }
@@ -84,36 +81,33 @@ internal static class XmlDocumentationReader
     /// when the file does not exist or contains no usable documentation.
     /// </returns>
     internal static IReadOnlyDictionary<string, string>? LoadDocumentation(string xmlPath) =>
-        DocumentationCache.GetOrAdd(
-            xmlPath,
-            static path =>
+        DocumentationCache.GetOrAdd(xmlPath, static path =>
+        {
+            if (!File.Exists(path))
             {
-                if (!File.Exists(path))
-                {
-                    return null;
-                }
-
-                try
-                {
-                    var document = XDocument.Load(path);
-                    var members = document
-                        .Descendants("member")
-                        .Select(member => new
-                        {
-                            Name = (string?)member.Attribute("name"),
-                            Summary = member.Element("summary") is { } summary ? RenderText(summary) : null,
-                        })
-                        .Where(entry => entry.Name is not null && entry.Summary is not null)
-                        .ToDictionary(entry => entry.Name!, entry => entry.Summary!, StringComparer.Ordinal);
-
-                    return members.Count > 0 ? members : null;
-                }
-                catch (Exception ex) when (ex is IOException or System.Xml.XmlException or UnauthorizedAccessException)
-                {
-                    return null;
-                }
+                return null;
             }
-        );
+
+            try
+            {
+                var document = XDocument.Load(path);
+                var members = document
+                    .Descendants("member")
+                    .Select(member => new
+                    {
+                        Name = (string?)member.Attribute("name"),
+                        Summary = member.Element("summary") is { } summary ? RenderText(summary) : null,
+                    })
+                    .Where(entry => entry.Name is not null && entry.Summary is not null)
+                    .ToDictionary(entry => entry.Name!, entry => entry.Summary!, StringComparer.Ordinal);
+
+                return members.Count > 0 ? members : null;
+            }
+            catch (Exception ex) when (ex is IOException or System.Xml.XmlException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        });
 
     /// <summary>
     /// Renders the text of a documentation element as a single line, replacing inline reference

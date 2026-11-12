@@ -235,9 +235,8 @@ public sealed class SQLiteCommandDeadLetterTests
     public async Task AddSQLiteCommandDeadLetterStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SQLiteCommandDeadLetterMediatorBuilderExtensions.AddSQLiteCommandDeadLetterStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                SQLiteCommandDeadLetterMediatorBuilderExtensions.AddSQLiteCommandDeadLetterStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();
