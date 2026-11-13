@@ -124,9 +124,8 @@ public sealed class SqlServerIdempotencyMediatorBuilderExtensionsTests
     public async Task AddSqlServerIdempotencyStore_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerIdempotencyMediatorBuilderExtensions.AddSqlServerIdempotencyStore(
-                    null!,
-                    _ => "Server=.;Encrypt=true;"
+                SqlServerIdempotencyMediatorBuilderExtensions.AddSqlServerIdempotencyStore(null!, _ =>
+                    "Server=.;Encrypt=true;"
                 )
             )
             .Throws<ArgumentNullException>();
@@ -206,9 +205,8 @@ public sealed class SqlServerIdempotencyMediatorBuilderExtensionsTests
     public async Task AddSqlServerIdempotencyStore_WithAction_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerIdempotencyMediatorBuilderExtensions.AddSqlServerIdempotencyStore(
-                    null!,
-                    opts => opts.ConnectionString = "Server=.;Encrypt=true;"
+                SqlServerIdempotencyMediatorBuilderExtensions.AddSqlServerIdempotencyStore(null!, opts =>
+                    opts.ConnectionString = "Server=.;Encrypt=true;"
                 )
             )
             .Throws<ArgumentNullException>();

@@ -101,9 +101,8 @@ public sealed class CosmosDbOutboxRepositoryTimeToLiveTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var messageId = Guid.NewGuid();
-        var patches = await SettleAsync(
-                messageId,
-                repository => repository.MarkAsCompletedAsync(messageId, cancellationToken)
+        var patches = await SettleAsync(messageId, repository =>
+                repository.MarkAsCompletedAsync(messageId, cancellationToken)
             )
             .ConfigureAwait(false);
 
@@ -116,9 +115,8 @@ public sealed class CosmosDbOutboxRepositoryTimeToLiveTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var messageId = Guid.NewGuid();
-        var patches = await SettleAsync(
-                messageId,
-                repository => repository.MarkAsDeadLetterAsync(messageId, "boom", cancellationToken)
+        var patches = await SettleAsync(messageId, repository =>
+                repository.MarkAsDeadLetterAsync(messageId, "boom", cancellationToken)
             )
             .ConfigureAwait(false);
 
@@ -131,9 +129,8 @@ public sealed class CosmosDbOutboxRepositoryTimeToLiveTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var messageId = Guid.NewGuid();
-        var patches = await SettleAsync(
-                messageId,
-                repository => repository.MarkAsFailedAsync(messageId, "boom", cancellationToken)
+        var patches = await SettleAsync(messageId, repository =>
+                repository.MarkAsFailedAsync(messageId, "boom", cancellationToken)
             )
             .ConfigureAwait(false);
 
@@ -148,15 +145,8 @@ public sealed class CosmosDbOutboxRepositoryTimeToLiveTests
         cancellationToken.ThrowIfCancellationRequested();
 
         var messageId = Guid.NewGuid();
-        var patches = await SettleAsync(
-                messageId,
-                repository =>
-                    repository.MarkAsFailedAsync(
-                        messageId,
-                        "boom",
-                        DateTimeOffset.UtcNow.AddMinutes(5),
-                        cancellationToken
-                    )
+        var patches = await SettleAsync(messageId, repository =>
+                repository.MarkAsFailedAsync(messageId, "boom", DateTimeOffset.UtcNow.AddMinutes(5), cancellationToken)
             )
             .ConfigureAwait(false);
 

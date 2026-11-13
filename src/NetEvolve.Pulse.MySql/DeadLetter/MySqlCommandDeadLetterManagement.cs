@@ -188,8 +188,7 @@ internal sealed class MySqlCommandDeadLetterManagement : ICommandDeadLetterManag
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var entry =
-            await GetByIdAsync(id, cancellationToken).ConfigureAwait(false)
+        var entry = await GetByIdAsync(id, cancellationToken).ConfigureAwait(false)
             ?? throw new CommandDeadLetterEntryNotFoundException(id);
 
         if (entry.Status == CommandDeadLetterStatus.Dismissed)

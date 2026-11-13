@@ -26,8 +26,7 @@ public sealed class MySqlAdoNetOutboxInitializer : IServiceInitializer
 
         var options = serviceProvider.GetRequiredService<IOptions<OutboxOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
+        var connectionString = options.ConnectionString
             ?? throw new InvalidOperationException("OutboxOptions.ConnectionString is not configured.");
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)

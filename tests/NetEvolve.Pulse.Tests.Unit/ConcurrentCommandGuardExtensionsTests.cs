@@ -71,9 +71,8 @@ public sealed class ConcurrentCommandGuardExtensionsTests
     {
         IMediatorBuilder? configurator = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "configurator",
-            () => configurator!.AddConcurrentCommandGuard<ExclusiveCommand, string>()
+        _ = Assert.Throws<ArgumentNullException>("configurator", () =>
+            configurator!.AddConcurrentCommandGuard<ExclusiveCommand, string>()
         );
     }
 
@@ -123,9 +122,8 @@ public sealed class ConcurrentCommandGuardExtensionsTests
     {
         IMediatorBuilder? configurator = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "configurator",
-            () => configurator!.AddConcurrentCommandGuard<ExclusiveVoidCommand>()
+        _ = Assert.Throws<ArgumentNullException>("configurator", () =>
+            configurator!.AddConcurrentCommandGuard<ExclusiveVoidCommand>()
         );
     }
 

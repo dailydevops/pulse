@@ -229,9 +229,8 @@ public sealed class MySqlCommandDeadLetterTests
     public async Task AddMySqlCommandDeadLetterStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                MySqlCommandDeadLetterMediatorBuilderExtensions.AddMySqlCommandDeadLetterStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                MySqlCommandDeadLetterMediatorBuilderExtensions.AddMySqlCommandDeadLetterStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();

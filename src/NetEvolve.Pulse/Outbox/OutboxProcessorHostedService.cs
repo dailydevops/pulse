@@ -354,29 +354,24 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
         var messagesByEventType = messages.GroupBy(m => m.EventType).ToDictionary(m => m.Key, m => m.ToArray());
 
         await Parallel
-            .ForEachAsync(
-                messagesByEventType,
-                cancellationToken,
-                async (messageGroup, token) =>
+            .ForEachAsync(messagesByEventType, cancellationToken, async (messageGroup, token) =>
+            {
+                if (token.IsCancellationRequested)
                 {
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    // Resolve a dedicated scope (and repository instance) per parallel work item so
-                    // concurrent branches never share a single scoped repository/DbContext instance.
-                    using var workItemScope = _scopeFactory.CreateScope();
-                    var workItemRepository = workItemScope.ServiceProvider.GetRequiredService<IOutboxRepository>();
-
-                    var succeeded = _options.GetEffectiveEnableBatchSending(messageGroup.Key)
-                        ? await ProcessBatchSendAsync(workItemRepository, messageGroup.Value, token)
-                            .ConfigureAwait(false)
-                        : await ProcessIndividuallyAsync(workItemRepository, messageGroup.Value, token)
-                            .ConfigureAwait(false);
-                    _ = Interlocked.Add(ref succeededCount, succeeded);
+                    return;
                 }
-            )
+
+                // Resolve a dedicated scope (and repository instance) per parallel work item so
+                // concurrent branches never share a single scoped repository/DbContext instance.
+                using var workItemScope = _scopeFactory.CreateScope();
+                var workItemRepository = workItemScope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+
+                var succeeded = _options.GetEffectiveEnableBatchSending(messageGroup.Key)
+                    ? await ProcessBatchSendAsync(workItemRepository, messageGroup.Value, token).ConfigureAwait(false)
+                    : await ProcessIndividuallyAsync(workItemRepository, messageGroup.Value, token)
+                        .ConfigureAwait(false);
+                _ = Interlocked.Add(ref succeededCount, succeeded);
+            })
             .ConfigureAwait(false);
 
         // Refresh the pending count gauge after processing so the observed value reflects the
@@ -612,18 +607,10 @@ internal sealed partial class OutboxProcessorHostedService : BackgroundService
             // not retried before one polling interval (or its backoff delay) has passed.
             var now = _timeProvider.GetUtcNow();
             await Parallel
-                .ForEachAsync(
-                    failedMessages,
-                    cancellationToken,
-                    async (message, token) =>
-                        await repository
-                            .MarkAsFailedAsync(
-                                message.Id,
-                                ex.Message,
-                                ComputeNextRetryAt(now, message.RetryCount),
-                                token
-                            )
-                            .ConfigureAwait(false)
+                .ForEachAsync(failedMessages, cancellationToken, async (message, token) =>
+                    await repository
+                        .MarkAsFailedAsync(message.Id, ex.Message, ComputeNextRetryAt(now, message.RetryCount), token)
+                        .ConfigureAwait(false)
                 )
                 .ConfigureAwait(false);
 

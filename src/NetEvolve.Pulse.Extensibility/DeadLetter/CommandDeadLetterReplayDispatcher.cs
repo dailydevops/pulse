@@ -122,8 +122,7 @@ public static class CommandDeadLetterReplayDispatcher
             return cached;
         }
 
-        var resolved =
-            Type.GetType(commandType, throwOnError: false)
+        var resolved = Type.GetType(commandType, throwOnError: false)
             ?? throw new InvalidOperationException($"Cannot resolve command type '{commandType}'.");
 
         return CommandTypeCache.GetOrAdd(commandType, resolved);

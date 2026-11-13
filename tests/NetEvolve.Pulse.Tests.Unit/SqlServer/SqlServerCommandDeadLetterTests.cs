@@ -276,9 +276,8 @@ public sealed class SqlServerCommandDeadLetterTests
     public async Task AddSqlServerCommandDeadLetterStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerCommandDeadLetterMediatorBuilderExtensions.AddSqlServerCommandDeadLetterStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                SqlServerCommandDeadLetterMediatorBuilderExtensions.AddSqlServerCommandDeadLetterStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();

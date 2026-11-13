@@ -86,8 +86,7 @@ internal sealed class PollyRequestInterceptor<TRequest, TResponse> : IRequestInt
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
         // Try to resolve keyed pipeline first (per-request), then fallback to global
-        _pipeline =
-            serviceProvider.GetKeyedService<ResiliencePipeline<TResponse>>(typeof(TRequest))
+        _pipeline = serviceProvider.GetKeyedService<ResiliencePipeline<TResponse>>(typeof(TRequest))
             ?? serviceProvider.GetService<ResiliencePipeline<TResponse>>()
             ?? throw new InvalidOperationException(
                 $"No ResiliencePipeline<{typeof(TResponse).Name}> registered for {typeof(TRequest).Name} or globally."

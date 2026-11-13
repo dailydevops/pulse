@@ -25,9 +25,8 @@ public sealed class OutboxEventStoreTests
     {
         IOutboxRepository? repository = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "repository",
-            () => _ = new OutboxEventStore(repository!, TimeProvider.System, new StubPayloadSerializer())
+        _ = Assert.Throws<ArgumentNullException>("repository", () =>
+            _ = new OutboxEventStore(repository!, TimeProvider.System, new StubPayloadSerializer())
         );
 
         await Task.CompletedTask.ConfigureAwait(false);
@@ -38,9 +37,8 @@ public sealed class OutboxEventStoreTests
     {
         var repository = new TrackingOutboxRepository();
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "timeProvider",
-            () => _ = new OutboxEventStore(repository, null!, new StubPayloadSerializer())
+        _ = Assert.Throws<ArgumentNullException>("timeProvider", () =>
+            _ = new OutboxEventStore(repository, null!, new StubPayloadSerializer())
         );
 
         await Task.CompletedTask.ConfigureAwait(false);
@@ -51,9 +49,8 @@ public sealed class OutboxEventStoreTests
     {
         var repository = new TrackingOutboxRepository();
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "payloadSerializer",
-            () => _ = new OutboxEventStore(repository, TimeProvider.System, null!)
+        _ = Assert.Throws<ArgumentNullException>("payloadSerializer", () =>
+            _ = new OutboxEventStore(repository, TimeProvider.System, null!)
         );
 
         await Task.CompletedTask.ConfigureAwait(false);

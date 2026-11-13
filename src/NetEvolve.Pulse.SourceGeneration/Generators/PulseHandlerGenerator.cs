@@ -76,9 +76,8 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             .Combine(assemblyName)
             .Combine(nativeAotInterceptorsAvailable);
 
-        context.RegisterSourceOutput(
-            combined,
-            static (spc, data) => Execute(spc, data.Left.Left.Left, data.Left.Left.Right, data.Left.Right, data.Right)
+        context.RegisterSourceOutput(combined, static (spc, data) =>
+            Execute(spc, data.Left.Left.Left, data.Left.Left.Right, data.Left.Right, data.Right)
         );
 
         RegisterBlockedHandlerDiagnosticPipeline(context, pulseHandlerResults);
@@ -147,16 +146,14 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     {
         var blockedHandlers = handlerResults.Where(static result => result.Info.HasValue && result.Blocker is not null);
 
-        context.RegisterSourceOutput(
-            blockedHandlers,
-            static (spc, result) =>
-                spc.ReportDiagnostic(
-                    Diagnostic.Create(
-                        result.Blocker!,
-                        result.Info!.Value.Location.ToLocation(),
-                        result.Info.Value.HandlerTypeName
-                    )
+        context.RegisterSourceOutput(blockedHandlers, static (spc, result) =>
+            spc.ReportDiagnostic(
+                Diagnostic.Create(
+                    result.Blocker!,
+                    result.Info!.Value.Location.ToLocation(),
+                    result.Info.Value.HandlerTypeName
                 )
+            )
         );
     }
 
@@ -178,16 +175,14 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
             .Where(static info => info.HasValue)
             .Select(static (info, _) => info!.Value);
 
-        context.RegisterSourceOutput(
-            unannotatedHandlers,
-            static (spc, info) =>
-                spc.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DiagnosticDescriptors.MissingPulseHandlerAttribute,
-                        info.Location.ToLocation(),
-                        info.HandlerTypeName
-                    )
+        context.RegisterSourceOutput(unannotatedHandlers, static (spc, info) =>
+            spc.ReportDiagnostic(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.MissingPulseHandlerAttribute,
+                    info.Location.ToLocation(),
+                    info.HandlerTypeName
                 )
+            )
         );
     }
 
@@ -204,19 +199,17 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
     {
         var errors = explicitHandlerResults.SelectMany(static (result, _) => result.Errors);
 
-        context.RegisterSourceOutput(
-            errors,
-            static (spc, error) =>
-                spc.ReportDiagnostic(
-                    Diagnostic.Create(
-                        error.IsPulse005
-                            ? DiagnosticDescriptors.InvalidExplicitMessageType
-                            : DiagnosticDescriptors.IncompatibleExplicitMessageType,
-                        error.Location.ToLocation(),
-                        error.MessageTypeName,
-                        error.HandlerTypeName
-                    )
+        context.RegisterSourceOutput(errors, static (spc, error) =>
+            spc.ReportDiagnostic(
+                Diagnostic.Create(
+                    error.IsPulse005
+                        ? DiagnosticDescriptors.InvalidExplicitMessageType
+                        : DiagnosticDescriptors.IncompatibleExplicitMessageType,
+                    error.Location.ToLocation(),
+                    error.MessageTypeName,
+                    error.HandlerTypeName
                 )
+            )
         );
     }
 
@@ -242,8 +235,7 @@ public sealed class PulseHandlerGenerator : IIncrementalGenerator
 
         // A generic handler is closed over the attribute's message type, so that type must be
         // referenceable as well.
-        var blocker =
-            GetRegistrationBlocker(classSymbol)
+        var blocker = GetRegistrationBlocker(classSymbol)
             ?? (
                 ctx.Attributes.Any(attr =>
                     attr.AttributeClass?.TypeArguments.Length == 1

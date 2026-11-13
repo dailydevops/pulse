@@ -85,8 +85,7 @@ internal sealed class PollyEventInterceptor<TEvent> : IEventInterceptor<TEvent>
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
         // Try to resolve keyed pipeline first (per-event), then fallback to global
-        _pipeline =
-            serviceProvider.GetKeyedService<ResiliencePipeline>(typeof(TEvent))
+        _pipeline = serviceProvider.GetKeyedService<ResiliencePipeline>(typeof(TEvent))
             ?? serviceProvider.GetService<ResiliencePipeline>()
             ?? throw new InvalidOperationException(
                 $"No ResiliencePipeline registered for {typeof(TEvent).Name} or globally."

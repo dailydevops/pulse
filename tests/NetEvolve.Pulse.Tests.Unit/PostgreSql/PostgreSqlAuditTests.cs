@@ -143,9 +143,8 @@ public sealed class PostgreSqlAuditTests
     public async Task AddPostgreSqlAuditStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlAuditMediatorBuilderExtensions.AddPostgreSqlAuditStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                PostgreSqlAuditMediatorBuilderExtensions.AddPostgreSqlAuditStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();

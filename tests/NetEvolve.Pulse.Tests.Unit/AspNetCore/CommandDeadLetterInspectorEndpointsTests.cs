@@ -670,12 +670,8 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(statistics);
 
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -712,18 +708,14 @@ public sealed class CommandDeadLetterInspectorEndpointsTests
         var mock = Mock.Of<ICommandDeadLetterManagement>();
         _ = mock.GetEntryAsync(entryId, Arg.Any<CancellationToken>()).Returns(entry);
 
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options =>
-                    {
-                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
-                        options.SerializerOptions.Converters.Add(
-                            new JsonStringEnumConverter<CommandDeadLetterStatus>(JsonNamingPolicy.KebabCaseLower)
-                        );
-                    })
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options =>
+                {
+                    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                    options.SerializerOptions.Converters.Add(
+                        new JsonStringEnumConverter<CommandDeadLetterStatus>(JsonNamingPolicy.KebabCaseLower)
+                    );
+                })
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();

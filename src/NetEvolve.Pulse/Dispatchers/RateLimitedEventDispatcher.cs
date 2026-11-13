@@ -128,21 +128,17 @@ public sealed class RateLimitedEventDispatcher : IEventDispatcher
         };
 
         await Parallel
-            .ForEachAsync(
-                handlers,
-                options,
-                async (handler, token) =>
+            .ForEachAsync(handlers, options, async (handler, token) =>
+            {
+                try
                 {
-                    try
-                    {
-                        await invoker(handler, message, token).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (!token.IsCancellationRequested)
-                    {
-                        exceptions.Add(ex);
-                    }
+                    await invoker(handler, message, token).ConfigureAwait(false);
                 }
-            )
+                catch (Exception ex) when (!token.IsCancellationRequested)
+                {
+                    exceptions.Add(ex);
+                }
+            })
             .ConfigureAwait(false);
 
         if (!exceptions.IsEmpty)

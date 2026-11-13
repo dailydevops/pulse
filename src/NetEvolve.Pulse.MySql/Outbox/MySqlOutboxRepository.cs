@@ -245,8 +245,7 @@ internal sealed class MySqlOutboxRepository : IOutboxRepository
         if (transaction is not null)
         {
             // Use the connection from the ambient transaction to avoid mismatch
-            var connection =
-                transaction.Connection
+            var connection = transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
             var command = new MySqlCommand(_insertSql, connection, transaction);

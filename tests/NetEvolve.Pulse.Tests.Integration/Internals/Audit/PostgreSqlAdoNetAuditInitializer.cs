@@ -32,8 +32,8 @@ public sealed class PostgreSqlAdoNetAuditInitializer : IServiceInitializer
             ? AuditEntrySchema.DefaultTableName
             : options.TableName;
 
-        var fixture =
-            _serviceFixture ?? throw new InvalidOperationException("Configure must run before CreateDatabaseAsync.");
+        var fixture = _serviceFixture
+            ?? throw new InvalidOperationException("Configure must run before CreateDatabaseAsync.");
 
         await fixture
             .Container.RunScriptAsync("AuditEntry.sql", fixture.DatabaseName, schema, tableName, cancellationToken)

@@ -31,8 +31,8 @@ public sealed class PostgreSqlAdoNetOutboxInitializer : IServiceInitializer
             ? OutboxMessageSchema.DefaultTableName
             : options.TableName;
 
-        var fixture =
-            _serviceFixture ?? throw new InvalidOperationException("Configure must run before CreateDatabaseAsync.");
+        var fixture = _serviceFixture
+            ?? throw new InvalidOperationException("Configure must run before CreateDatabaseAsync.");
 
         await fixture
             .Container.RunScriptAsync("OutboxMessage.sql", fixture.DatabaseName, schema, tableName, cancellationToken)

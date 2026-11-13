@@ -37,8 +37,7 @@ public sealed partial class SqlServerAdoNetAuditInitializer : IServiceInitialize
 
         var options = serviceProvider.GetRequiredService<IOptions<AuditStoreOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
+        var connectionString = options.ConnectionString
             ?? throw new InvalidOperationException("AuditStoreOptions.ConnectionString is not configured.");
 
         var schema = string.IsNullOrWhiteSpace(options.Schema) ? AuditEntrySchema.DefaultSchema : options.Schema;

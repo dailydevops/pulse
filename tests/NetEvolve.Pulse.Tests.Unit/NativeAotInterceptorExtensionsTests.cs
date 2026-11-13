@@ -28,9 +28,8 @@ public sealed class NativeAotInterceptorExtensionsTests
     {
         IServiceCollection? services = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "services",
-            () => services!.AddNativeAotCommandInterceptors<ValueCommand, int>()
+        _ = Assert.Throws<ArgumentNullException>("services", () =>
+            services!.AddNativeAotCommandInterceptors<ValueCommand, int>()
         );
     }
 

@@ -240,9 +240,8 @@ public sealed class PostgreSqlCommandDeadLetterTests
     public async Task AddPostgreSqlCommandDeadLetterStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                PostgreSqlCommandDeadLetterMediatorBuilderExtensions.AddPostgreSqlCommandDeadLetterStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                PostgreSqlCommandDeadLetterMediatorBuilderExtensions.AddPostgreSqlCommandDeadLetterStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();
