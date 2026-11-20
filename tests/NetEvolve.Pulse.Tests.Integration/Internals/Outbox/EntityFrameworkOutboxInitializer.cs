@@ -95,9 +95,8 @@ public sealed class EntityFrameworkOutboxInitializer : IServiceInitializer
                 ServiceType.SQLite => options
                     .UseSqlite(connectionString)
                     .AddInterceptors(new SQLiteBusyTimeoutInterceptor()),
-                ServiceType.SqlServer => options.UseSqlServer(
-                    connectionString,
-                    sqlOptions => sqlOptions.EnableRetryOnFailure(maxRetryCount: 5)
+                ServiceType.SqlServer => options.UseSqlServer(connectionString, sqlOptions =>
+                    sqlOptions.EnableRetryOnFailure(maxRetryCount: 5)
                 ),
                 _ => throw new NotSupportedException($"Database type {serviceFixture.ServiceType} is not supported."),
             };

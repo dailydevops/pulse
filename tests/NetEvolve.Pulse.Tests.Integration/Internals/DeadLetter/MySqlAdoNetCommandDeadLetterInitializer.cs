@@ -28,8 +28,7 @@ public sealed class MySqlAdoNetCommandDeadLetterInitializer : IServiceInitialize
 
         var options = serviceProvider.GetRequiredService<IOptions<CommandDeadLetterOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
+        var connectionString = options.ConnectionString
             ?? throw new InvalidOperationException("CommandDeadLetterOptions.ConnectionString is not configured.");
 
         var tableName = string.IsNullOrWhiteSpace(options.TableName)

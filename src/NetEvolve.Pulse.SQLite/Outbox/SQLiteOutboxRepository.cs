@@ -283,8 +283,7 @@ internal sealed class SQLiteOutboxRepository : IOutboxRepository
 
         if (transaction is not null)
         {
-            var connection =
-                transaction.Connection
+            var connection = transaction.Connection
                 ?? throw new InvalidOperationException("Transaction has no associated connection.");
 
             var command = new SqliteCommand(_insertSql, connection, transaction);

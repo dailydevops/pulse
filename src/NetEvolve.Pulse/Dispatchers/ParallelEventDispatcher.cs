@@ -88,21 +88,17 @@ public sealed class ParallelEventDispatcher : IEventDispatcher
         var exceptions = new ConcurrentBag<Exception>();
 
         await Parallel
-            .ForEachAsync(
-                handlers,
-                cancellationToken,
-                async (handler, token) =>
+            .ForEachAsync(handlers, cancellationToken, async (handler, token) =>
+            {
+                try
                 {
-                    try
-                    {
-                        await invoker(handler, message, token).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (!token.IsCancellationRequested)
-                    {
-                        exceptions.Add(ex);
-                    }
+                    await invoker(handler, message, token).ConfigureAwait(false);
                 }
-            )
+                catch (Exception ex) when (!token.IsCancellationRequested)
+                {
+                    exceptions.Add(ex);
+                }
+            })
             .ConfigureAwait(false);
 
         if (!exceptions.IsEmpty)

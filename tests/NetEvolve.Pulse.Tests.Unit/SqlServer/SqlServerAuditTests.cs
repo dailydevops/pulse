@@ -155,9 +155,8 @@ public sealed class SqlServerAuditTests
     public async Task AddSqlServerAuditStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SqlServerAuditMediatorBuilderExtensions.AddSqlServerAuditStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                SqlServerAuditMediatorBuilderExtensions.AddSqlServerAuditStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();

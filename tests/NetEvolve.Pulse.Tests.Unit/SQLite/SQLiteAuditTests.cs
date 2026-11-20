@@ -161,9 +161,8 @@ public sealed class SQLiteAuditTests
     public async Task AddSQLiteAuditStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SQLiteAuditMediatorBuilderExtensions.AddSQLiteAuditStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                SQLiteAuditMediatorBuilderExtensions.AddSQLiteAuditStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();

@@ -72,8 +72,7 @@ internal sealed class PollyStreamQueryInterceptor<TQuery, TResponse> : IStreamQu
 
         // Try to resolve keyed pipeline first (per-query), then fallback to global
         // If neither is registered, _pipeline remains null and the interceptor passes through
-        _pipeline =
-            serviceProvider.GetKeyedService<ResiliencePipeline>(typeof(TQuery))
+        _pipeline = serviceProvider.GetKeyedService<ResiliencePipeline>(typeof(TQuery))
             ?? serviceProvider.GetService<ResiliencePipeline>();
     }
 

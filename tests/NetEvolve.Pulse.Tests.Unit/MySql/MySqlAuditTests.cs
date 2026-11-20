@@ -125,9 +125,8 @@ public sealed class MySqlAuditTests
     public async Task AddMySqlAuditStore_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                MySqlAuditMediatorBuilderExtensions.AddMySqlAuditStore(
-                    null!,
-                    opts => opts.ConnectionString = ValidConnectionString
+                MySqlAuditMediatorBuilderExtensions.AddMySqlAuditStore(null!, opts =>
+                    opts.ConnectionString = ValidConnectionString
                 )
             )
             .Throws<ArgumentNullException>();

@@ -105,9 +105,8 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.AddSQLiteIdempotencyStore(
-                "Data Source=:memory:",
-                options => options.TableName = "CustomIdempotencyKeys"
+            config.AddSQLiteIdempotencyStore("Data Source=:memory:", options =>
+                options.TableName = "CustomIdempotencyKeys"
             )
         );
 
@@ -203,9 +202,8 @@ public sealed class SQLiteIdempotencyMediatorBuilderExtensionsTests
     public async Task AddSQLiteIdempotencyStore_WithAction_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                SQLiteIdempotencyMediatorBuilderExtensions.AddSQLiteIdempotencyStore(
-                    null!,
-                    opts => opts.ConnectionString = "Data Source=:memory:"
+                SQLiteIdempotencyMediatorBuilderExtensions.AddSQLiteIdempotencyStore(null!, opts =>
+                    opts.ConnectionString = "Data Source=:memory:"
                 )
             )
             .Throws<ArgumentNullException>();

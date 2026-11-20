@@ -108,9 +108,8 @@ public sealed class MySqlIdempotencyMediatorBuilderExtensionsTests
     {
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.AddMySqlIdempotencyStore(
-                "Server=localhost;Database=mydb;",
-                options => options.TableName = "CustomIdempotencyKey"
+            config.AddMySqlIdempotencyStore("Server=localhost;Database=mydb;", options =>
+                options.TableName = "CustomIdempotencyKey"
             )
         );
 
@@ -127,9 +126,8 @@ public sealed class MySqlIdempotencyMediatorBuilderExtensionsTests
     public async Task AddMySqlIdempotencyStore_WithFactory_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                MySqlIdempotencyMediatorBuilderExtensions.AddMySqlIdempotencyStore(
-                    null!,
-                    _ => "Server=localhost;Database=mydb;"
+                MySqlIdempotencyMediatorBuilderExtensions.AddMySqlIdempotencyStore(null!, _ =>
+                    "Server=localhost;Database=mydb;"
                 )
             )
             .Throws<ArgumentNullException>();
@@ -209,9 +207,8 @@ public sealed class MySqlIdempotencyMediatorBuilderExtensionsTests
     public async Task AddMySqlIdempotencyStore_WithAction_WithNullConfigurator_ThrowsArgumentNullException() =>
         _ = await Assert
             .That(() =>
-                MySqlIdempotencyMediatorBuilderExtensions.AddMySqlIdempotencyStore(
-                    null!,
-                    opts => opts.ConnectionString = "Server=localhost;Database=mydb;"
+                MySqlIdempotencyMediatorBuilderExtensions.AddMySqlIdempotencyStore(null!, opts =>
+                    opts.ConnectionString = "Server=localhost;Database=mydb;"
                 )
             )
             .Throws<ArgumentNullException>();

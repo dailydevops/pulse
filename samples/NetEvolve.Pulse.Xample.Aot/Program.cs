@@ -23,75 +23,68 @@ void Check(bool condition, string description)
 
 // Scenario 1: AddPulse with the source-generated handler registrations, covering reference-type,
 // value-type and void responses, a query, a stream query, and closed as well as open-generic event handlers.
-await RunAsync(
-        configure: null,
-        async (mediator, recorder) =>
-        {
-            var order = await mediator
-                .SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand("A-1"))
-                .ConfigureAwait(false);
-            Check(order == new OrderResult("A-1", Accepted: true), "command with reference-type response");
+await RunAsync(configure: null, async (mediator, recorder) =>
+    {
+        var order = await mediator
+            .SendAsync<CreateOrderCommand, OrderResult>(new CreateOrderCommand("A-1"))
+            .ConfigureAwait(false);
+        Check(order == new OrderResult("A-1", Accepted: true), "command with reference-type response");
 
-            var sum = await mediator
-                .SendAsync<AddNumbersCommand, int>(new AddNumbersCommand(2, 3))
-                .ConfigureAwait(false);
-            Check(sum == 5, "command with value-type response");
+        var sum = await mediator.SendAsync<AddNumbersCommand, int>(new AddNumbersCommand(2, 3)).ConfigureAwait(false);
+        Check(sum == 5, "command with value-type response");
 
-            await mediator.SendAsync(new PingCommand()).ConfigureAwait(false);
-            Check(recorder.Invocations.Contains(nameof(PingHandler)), "void command");
+        await mediator.SendAsync(new PingCommand()).ConfigureAwait(false);
+        Check(recorder.Invocations.Contains(nameof(PingHandler)), "void command");
 
-            var greeting = await mediator
-                .QueryAsync<GreetingQuery, string>(new GreetingQuery("AOT"))
-                .ConfigureAwait(false);
-            Check(string.Equals(greeting, "Hello, AOT!", StringComparison.Ordinal), "query");
+        var greeting = await mediator.QueryAsync<GreetingQuery, string>(new GreetingQuery("AOT")).ConfigureAwait(false);
+        Check(string.Equals(greeting, "Hello, AOT!", StringComparison.Ordinal), "query");
 
-            var countdown = await CollectAsync(
-                    mediator.StreamQueryAsync<CountdownStreamQuery, string>(new CountdownStreamQuery(3))
-                )
-                .ConfigureAwait(false);
-            Check(string.Join(',', countdown) == "3,2,1", "stream query");
+        var countdown = await CollectAsync(
+                mediator.StreamQueryAsync<CountdownStreamQuery, string>(new CountdownStreamQuery(3))
+            )
+            .ConfigureAwait(false);
+        Check(string.Join(',', countdown) == "3,2,1", "stream query");
 
-            await mediator.PublishAsync(new OrderCreatedEvent("A-1")).ConfigureAwait(false);
-            Check(recorder.Invocations.Contains(nameof(OrderCreatedHandler)), "event handler");
-            Check(
-                recorder.Invocations.Contains("OrderNotificationHandler<OrderCreatedEvent>"),
-                "second generated event handler for the same event"
-            );
-            Check(
-                recorder.Invocations.Contains("AuditEventHandler<OrderCreatedEvent>"),
-                "open-generic event handler closed by the DI container"
-            );
+        await mediator.PublishAsync(new OrderCreatedEvent("A-1")).ConfigureAwait(false);
+        Check(recorder.Invocations.Contains(nameof(OrderCreatedHandler)), "event handler");
+        Check(
+            recorder.Invocations.Contains("OrderNotificationHandler<OrderCreatedEvent>"),
+            "second generated event handler for the same event"
+        );
+        Check(
+            recorder.Invocations.Contains("AuditEventHandler<OrderCreatedEvent>"),
+            "open-generic event handler closed by the DI container"
+        );
 
-            await mediator.PublishAsync(new OrderCancelledEvent("A-1")).ConfigureAwait(false);
-            Check(
-                recorder.Invocations.Contains("OrderNotificationHandler<OrderCancelledEvent>"),
-                "event handler implementing two event handler interfaces"
-            );
-            var notificationInstances = recorder
-                .Invocations.Where(static i => i.StartsWith("OrderNotificationHandler#", StringComparison.Ordinal))
-                .ToList();
-            Check(
-                notificationInstances.Count == 2 && notificationInstances.Distinct(StringComparer.Ordinal).Count() == 1,
-                "event handler sharing one instance across two event handler interfaces"
-            );
+        await mediator.PublishAsync(new OrderCancelledEvent("A-1")).ConfigureAwait(false);
+        Check(
+            recorder.Invocations.Contains("OrderNotificationHandler<OrderCancelledEvent>"),
+            "event handler implementing two event handler interfaces"
+        );
+        var notificationInstances = recorder
+            .Invocations.Where(static i => i.StartsWith("OrderNotificationHandler#", StringComparison.Ordinal))
+            .ToList();
+        Check(
+            notificationInstances.Count == 2 && notificationInstances.Distinct(StringComparer.Ordinal).Count() == 1,
+            "event handler sharing one instance across two event handler interfaces"
+        );
 
-            // The outbox providers persist ToOutboxEventTypeName() and rehydrate it with Type.GetType. Their IL2057
-            // suppressions rely on this round-trip for event types that the application publishes. The event type is
-            // never named through typeof, and the persisted name is computed at runtime, so the compiler cannot root
-            // the type for the lookup.
-            var shipment = new ShipmentDispatchedEvent("S-1");
-            await mediator.PublishAsync(shipment).ConfigureAwait(false);
-            Check(
-                recorder.Invocations.Contains("AuditEventHandler<ShipmentDispatchedEvent>"),
-                "event without a closed handler"
-            );
-            var persistedEventType = shipment.GetType().ToOutboxEventTypeName();
-            Check(
-                ResolveOutboxEventType(persistedEventType) == shipment.GetType(),
-                "outbox event type name round-trip for a published event type"
-            );
-        }
-    )
+        // The outbox providers persist ToOutboxEventTypeName() and rehydrate it with Type.GetType. Their IL2057
+        // suppressions rely on this round-trip for event types that the application publishes. The event type is
+        // never named through typeof, and the persisted name is computed at runtime, so the compiler cannot root
+        // the type for the lookup.
+        var shipment = new ShipmentDispatchedEvent("S-1");
+        await mediator.PublishAsync(shipment).ConfigureAwait(false);
+        Check(
+            recorder.Invocations.Contains("AuditEventHandler<ShipmentDispatchedEvent>"),
+            "event without a closed handler"
+        );
+        var persistedEventType = shipment.GetType().ToOutboxEventTypeName();
+        Check(
+            ResolveOutboxEventType(persistedEventType) == shipment.GetType(),
+            "outbox event type name round-trip for a published event type"
+        );
+    })
     .ConfigureAwait(false);
 
 // Scenario 2: open-generic interceptors (activity/metrics and logging, with options bound through the

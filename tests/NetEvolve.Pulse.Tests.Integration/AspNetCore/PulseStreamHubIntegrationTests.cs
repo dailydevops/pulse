@@ -117,9 +117,8 @@ public sealed class PulseStreamHubIntegrationTests
 
         var server = host.GetTestServer();
         var connection = new HubConnectionBuilder()
-            .WithUrl(
-                new Uri(server.BaseAddress, HubPath),
-                options => options.HttpMessageHandlerFactory = _ => server.CreateHandler()
+            .WithUrl(new Uri(server.BaseAddress, HubPath), options =>
+                options.HttpMessageHandlerFactory = _ => server.CreateHandler()
             )
             .Build();
 

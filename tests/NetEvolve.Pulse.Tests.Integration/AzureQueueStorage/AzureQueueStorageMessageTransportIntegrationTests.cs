@@ -316,9 +316,8 @@ public sealed class AzureQueueStorageMessageTransportIntegrationTests(AzuriteCon
 
         var services = new ServiceCollection();
         _ = services.AddPulse(config =>
-            config.UseAzureQueueStorageTransport(
-                new Uri("https://example.queue.core.windows.net"),
-                o => o.QueueName = CreateUniqueQueueName()
+            config.UseAzureQueueStorageTransport(new Uri("https://example.queue.core.windows.net"), o =>
+                o.QueueName = CreateUniqueQueueName()
             )
         );
 

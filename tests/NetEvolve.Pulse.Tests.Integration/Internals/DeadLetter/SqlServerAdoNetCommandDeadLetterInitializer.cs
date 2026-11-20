@@ -38,8 +38,7 @@ public sealed partial class SqlServerAdoNetCommandDeadLetterInitializer : IServi
 
         var options = serviceProvider.GetRequiredService<IOptions<CommandDeadLetterOptions>>().Value;
 
-        var connectionString =
-            options.ConnectionString
+        var connectionString = options.ConnectionString
             ?? throw new InvalidOperationException("CommandDeadLetterOptions.ConnectionString is not configured.");
 
         var schema = string.IsNullOrWhiteSpace(options.Schema) ? CommandDeadLetterSchema.DefaultSchema : options.Schema;

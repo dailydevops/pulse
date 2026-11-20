@@ -32,17 +32,15 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions());
         var logger = CreateLogger();
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "scopeFactory",
-            () =>
-                _ = new OutboxProcessorHostedService(
-                    scopeFactory!,
-                    transport,
-                    CreateLifetime(),
-                    options,
-                    logger,
-                    TimeProvider.System
-                )
+        _ = Assert.Throws<ArgumentNullException>("scopeFactory", () =>
+            _ = new OutboxProcessorHostedService(
+                scopeFactory!,
+                transport,
+                CreateLifetime(),
+                options,
+                logger,
+                TimeProvider.System
+            )
         );
     }
 
@@ -54,17 +52,15 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions());
         var logger = CreateLogger();
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "transport",
-            () =>
-                _ = new OutboxProcessorHostedService(
-                    CreateScopeFactory(repository),
-                    transport!,
-                    CreateLifetime(),
-                    options,
-                    logger,
-                    TimeProvider.System
-                )
+        _ = Assert.Throws<ArgumentNullException>("transport", () =>
+            _ = new OutboxProcessorHostedService(
+                CreateScopeFactory(repository),
+                transport!,
+                CreateLifetime(),
+                options,
+                logger,
+                TimeProvider.System
+            )
         );
     }
 
@@ -76,17 +72,15 @@ public sealed class OutboxProcessorHostedServiceTests
         IOptions<OutboxProcessorOptions>? options = null;
         var logger = CreateLogger();
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "options",
-            () =>
-                _ = new OutboxProcessorHostedService(
-                    CreateScopeFactory(repository),
-                    transport,
-                    CreateLifetime(),
-                    options!,
-                    logger,
-                    TimeProvider.System
-                )
+        _ = Assert.Throws<ArgumentNullException>("options", () =>
+            _ = new OutboxProcessorHostedService(
+                CreateScopeFactory(repository),
+                transport,
+                CreateLifetime(),
+                options!,
+                logger,
+                TimeProvider.System
+            )
         );
     }
 
@@ -98,17 +92,15 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions());
         ILogger<OutboxProcessorHostedService>? logger = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "logger",
-            () =>
-                _ = new OutboxProcessorHostedService(
-                    CreateScopeFactory(repository),
-                    transport,
-                    CreateLifetime(),
-                    options,
-                    logger!,
-                    TimeProvider.System
-                )
+        _ = Assert.Throws<ArgumentNullException>("logger", () =>
+            _ = new OutboxProcessorHostedService(
+                CreateScopeFactory(repository),
+                transport,
+                CreateLifetime(),
+                options,
+                logger!,
+                TimeProvider.System
+            )
         );
     }
 
@@ -121,17 +113,15 @@ public sealed class OutboxProcessorHostedServiceTests
         var options = Options.Create(new OutboxProcessorOptions());
         var logger = CreateLogger();
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "lifetime",
-            () =>
-                _ = new OutboxProcessorHostedService(
-                    CreateScopeFactory(repository),
-                    transport,
-                    lifetime!,
-                    options,
-                    logger,
-                    TimeProvider.System
-                )
+        _ = Assert.Throws<ArgumentNullException>("lifetime", () =>
+            _ = new OutboxProcessorHostedService(
+                CreateScopeFactory(repository),
+                transport,
+                lifetime!,
+                options,
+                logger,
+                TimeProvider.System
+            )
         );
     }
 
@@ -144,17 +134,15 @@ public sealed class OutboxProcessorHostedServiceTests
         var logger = CreateLogger();
         TimeProvider? timeProvider = null;
 
-        _ = Assert.Throws<ArgumentNullException>(
-            "timeProvider",
-            () =>
-                _ = new OutboxProcessorHostedService(
-                    CreateScopeFactory(repository),
-                    transport,
-                    CreateLifetime(),
-                    options,
-                    logger,
-                    timeProvider!
-                )
+        _ = Assert.Throws<ArgumentNullException>("timeProvider", () =>
+            _ = new OutboxProcessorHostedService(
+                CreateScopeFactory(repository),
+                transport,
+                CreateLifetime(),
+                options,
+                logger,
+                timeProvider!
+            )
         );
     }
 

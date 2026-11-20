@@ -620,12 +620,8 @@ public sealed class AuditInspectorEndpointsTests
         var mock = Mock.Of<IAuditManagement>();
         _ = mock.GetStatisticsAsync(Arg.Any<CancellationToken>()).Returns(statistics);
 
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options => options.SerializerOptions.PropertyNamingPolicy = null)
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();
@@ -661,18 +657,14 @@ public sealed class AuditInspectorEndpointsTests
         var mock = Mock.Of<IAuditManagement>();
         _ = mock.GetByIdAsync(recordId, Arg.Any<CancellationToken>()).Returns(record);
 
-        using var host = await CreateTestHostAsync(
-                mock.Object,
-                null,
-                cancellationToken,
-                services =>
-                    services.ConfigureHttpJsonOptions(options =>
-                    {
-                        options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
-                        options.SerializerOptions.Converters.Add(
-                            new JsonStringEnumConverter<AuditResult>(JsonNamingPolicy.KebabCaseLower)
-                        );
-                    })
+        using var host = await CreateTestHostAsync(mock.Object, null, cancellationToken, services =>
+                services.ConfigureHttpJsonOptions(options =>
+                {
+                    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                    options.SerializerOptions.Converters.Add(
+                        new JsonStringEnumConverter<AuditResult>(JsonNamingPolicy.KebabCaseLower)
+                    );
+                })
             )
             .ConfigureAwait(false);
         var client = host.GetTestClient();

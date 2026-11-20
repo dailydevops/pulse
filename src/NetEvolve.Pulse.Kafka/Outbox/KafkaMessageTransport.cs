@@ -121,17 +121,13 @@ public sealed partial class KafkaMessageTransport : IMessageTransport, IAsyncDis
 
             try
             {
-                _producer.Produce(
-                    topic,
-                    kafkaMessage,
-                    report =>
+                _producer.Produce(topic, kafkaMessage, report =>
+                {
+                    if (report.Error.IsError)
                     {
-                        if (report.Error.IsError)
-                        {
-                            errors.Add(new ProduceException<string, string>(report.Error, report));
-                        }
+                        errors.Add(new ProduceException<string, string>(report.Error, report));
                     }
-                );
+                });
             }
             catch (ProduceException<string, string> ex)
             {
